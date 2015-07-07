@@ -23,8 +23,9 @@ public class Wait {
             do {
                 ResultSet resultSet = countResultsQuery.executeQuery();
                 if (resultSet.next()) {
-                    realCount = resultSet.getInt(0);
+                    realCount = resultSet.getInt(1);
                 }
+                System.out.println("Found " + realCount + " results");
                 if (realCount != expectedCount) {
                     Thread.sleep(1000);
                 }
