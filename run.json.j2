@@ -1,0 +1,57 @@
+{
+  "schedule" : "R1//PT24H",
+  "epsilon" : "PT5M",
+  "name": "r-linear-regression-{{request.request_id}}-{{request.node}}",
+  "command": "/run.sh",
+  "container": {
+    "type": "DOCKER",
+    "image": "hbp-node/r-linear-regression",
+    "volumes": [{"containerPath": "/log/", "hostPath":"/home/ludovic/tmp/", "mode":"RW"}]
+  },
+  "cpus": "0.2",
+  "mem": "128",
+  "uris": [
+  ],
+  "async": false,
+  "owner": "root@LAB02186.chuv.ch",
+  "shell": true,
+  "runAsUser" : "root",
+  "environmentVariables": [
+    {
+      "name": "REQUEST_ID",
+      "value": "{{request.request_id}}"
+    },
+    {
+      "name": "NODE",
+      "value": "{{request.node}}"
+    },
+    {
+      "name": "PARAM_y",
+      "value": "{{request.param_y}}"
+    },
+    {
+      "name": "PARAM_A",
+      "value": "{{request.param_a}}"
+    },
+    {
+      "name": "JDBC_DRIVER",
+      "value": "{{database.jdbc_driver}}"
+    },
+    {
+      "name": "JDBC_JAR_PATH",
+      "value": "{{database.jdbc_jar_path}}"
+    },
+    {
+      "name": "JDBC_URL",
+      "value": "{{database.jdbc_url}}"
+    },
+    {
+      "name": "JDBC_USER",
+      "value": "{{database.jdbc_user}}"
+    },
+    {
+      "name": "JDBC_PASSWORD",
+      "value": "{{database.jdbc_password}}"
+    }
+  ]
+}
