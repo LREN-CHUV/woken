@@ -8,9 +8,8 @@ import java.sql.*;
 public class Wait {
 
     public static void main(String[] args) {
-        Class<?> driver = org.postgresql.Driver.class;
-
         try {
+            Class<?> driver = Class.forName(System.getenv("JDBC_DRIVER"));
             Connection connection =
                     DriverManager.getConnection(System.getenv("JDBC_URL"),
                             System.getenv("JDBC_USER"),
