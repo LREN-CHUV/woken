@@ -3,7 +3,7 @@ import akka.io.IO
 import akka.pattern.ask
 import akka.util.Timeout
 import router.ApiRouterActor
-import service.UserService
+import service.JobService
 import spray.can.Http
 import utils.Config._
 
@@ -16,7 +16,7 @@ object Boot extends App {
   implicit val system = ActorSystem(app.systemName)
 
   // create and start our service actor
-  val userActor: ActorRef = system.actorOf(Props(classOf[ApiRouterActor],UserService), app.userServiceName)
+  val userActor: ActorRef = system.actorOf(Props(classOf[ApiRouterActor],JobService), app.userServiceName)
 
   implicit val timeout = Timeout(5.seconds)
   // start a new HTTP server on port 8080 with our service actor as the handler

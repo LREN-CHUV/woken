@@ -3,19 +3,19 @@ package router
 import model.User
 import org.specs2.mock._
 import org.specs2.mutable.Specification
-import service.UserService
+import service.JobService$
 import spray.http.{ StatusCodes, BasicHttpCredentials }
 import spray.httpx.SprayJsonSupport._
 import spray.testkit.Specs2RouteTest
 import utils.{ DatabaseSupportSpec, SpecSupport }
 
 
-class UserIntegrationSpec extends Specification with Specs2RouteTest with UserRouter with SpecSupport with Authenticator with Mockito {
+class UserIntegrationSpec extends Specification with Specs2RouteTest with UserRouter with SpecSupport with Mockito {
 
   // connects the DSL to the test ActorSystem
   implicit def actorRefFactory = system
 
-  override val userService = UserService
+  override val userService = JobService$
 
   val user = BasicHttpCredentials("test1@test.com", "password1")
 

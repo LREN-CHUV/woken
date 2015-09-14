@@ -1,11 +1,10 @@
 package models
 
-import play.api.libs.json._
-import play.api.libs.json.Reads._
-import play.api.libs.functional.syntax._
+import spray.json
+import spray.json._
 
 case class Container(
-  tpe: String,
+  `type`: String,
   image: String,
   network: String
 )
@@ -35,13 +34,9 @@ case class ChronosJob(
    environmentVariables: List[EnvironmentVariables]
 )
 
-trait ChronosJobJSONTrait {
-  implicit val ContainerFormat = (
-    (__ \ "type").format[String] and
-    (__ \ "image").format[String] and
-    (__ \ "network").format[String]
-  ) (Container.apply, unlift(Container.unapply))
-  implicit val EnvironmentVariablesFormat = Json.format[EnvironmentVariables]
-  implicit val UriFormat = Json.format[Uri]
-  implicit val ChronosJobFormat = Json.format[ChronosJob]
+object ChronosJob extends DefaultJsonProtocol {
+  implicit val containerFormat = jsonFormat3(Container.apply)
+  implicit val environmentVariablesFormat = jsonFormat2(EnvironmentVariables.apply)
+  implicit val uriFormat = jsonFormat1(Uri.apply)
+  implicit val chronosJobFormat = jsonFormat13(ChronosJob.apply)
 }

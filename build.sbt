@@ -23,9 +23,7 @@ libraryDependencies ++= {
     "postgresql"           %  "postgresql"     % "9.1-901.jdbc4",
     "com.h2database"       %  "h2"             % "1.4.182",
     "com.gettyimages"     %%  "spray-swagger"  % "0.5.0",
-    "org.webjars"          %  "swagger-ui"     % "2.0.12",
-    "com.github.t3hnar"   %%  "scala-bcrypt"   % "2.4",
-    "org.mindrot"          %  "jbcrypt"        % "0.3m"
+    "org.webjars"          %  "swagger-ui"     % "2.0.12"
   )
 }
 

@@ -1,14 +1,18 @@
 package models
 
-case class Process(
-                  id: Option[String] = None,
-                  label: String,
-                  description: Option[String] = None,
-                  inputs: List[InputParameter],
-                  outputs: List[OutputParameter],
-                  requirement: List[ProcessRequirement] = List(),
-                  hint: List[Hint] = List()
-)
+import spray.json.DefaultJsonProtocol
+
+// http://www.cakesolutions.net/teamblogs/2012/11/30/spray-json-and-adts
+
+trait CWLProcess {
+  def id: Option[String] = None
+  def label: String
+  def description: Option[String] = None
+  def inputs: List[InputParameter]
+  def outputs: List[OutputParameter]
+  def requirement: List[ProcessRequirement] = List()
+  def hint: List[Hint] = List()
+}
 
 sealed trait DataType
 
@@ -59,8 +63,8 @@ sealed trait Parameter {
   def default: Option[Any] = None
 }
 
-case class InputParameter() extends Parameter
-case class OutputParameter() extends Parameter
+trait InputParameter extends Parameter
+trait OutputParameter extends Parameter
 
 case class CommandInputParameter() extends InputParameter
 case class CommandOutputParameter() extends OutputParameter
@@ -112,12 +116,31 @@ final case class ExpressionEngineRequirement() extends ProcessRequirement {
 
 case class Hint()
 
-case class CommandLineTool(
-                            override val id: Option[String] = None,
-                            override val label: String,
-                            override val description: Option[String] = None,
-                            override val inputs: List[CommandInputParameter],
-                            override val outputs: List[CommandOutputParameter],
-                            override val requirement: List[ProcessRequirement] = List(),
-                            override val hint: List[Hint] = List()
-                            ) extends Process(id, label, description, inputs, outputs, requirement, hint)
+//case class CommandLineTool(
+//                            override val id: Option[String] = None,
+//                            override val label: String,
+//                            override val description: Option[String] = None,
+//                            override val inputs: List[CommandInputParameter],
+//                            override val outputs: List[CommandOutputParameter],
+//                            // TODO override val requirement: List[ProcessRequirement] = List(),
+//                            override val hint: List[Hint] = List()
+//                            ) extends models.CWLProcess
+case class Process(
+                            val id: Option[String] = None,
+                            val label: String,
+                            val description: Option[String] = None,
+                            val inputs: List[CommandInputParameter],
+                            val outputs: List[CommandOutputParameter],
+                            // TODO override val requirement: List[ProcessRequirement] = List(),
+                            val hint: List[Hint] = List()
+                            )
+
+object Process extends DefaultJsonProtocol {
+  implicit val commandInputParameterFormat = jsonFormat0(CommandInputParameter.apply)
+  implicit val commandOutputParameterFormat = jsonFormat0(CommandOutputParameter.apply)
+  // implicit val dockerRequirementFormat = jsonFormat7(DockerRequirement.apply)
+  implicit val hintFormat = jsonFormat0(Hint.apply)
+  implicit val processFormat = jsonFormat6(Process.apply)
+
+}
+
