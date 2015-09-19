@@ -1,15 +1,14 @@
 package models
 
-import spray.json
-import spray.json._
+import spray.json.{RootJsonFormat, DefaultJsonProtocol}
 
 case class Container(
   `type`: String,
   image: String,
-  network: String
+  network: Option[String] = None
 )
 
-case class EnvironmentVariables(
+case class EnvironmentVariable(
    name: String,
    value: String
 )
@@ -31,12 +30,12 @@ case class ChronosJob(
    uris: List[Uri],
    async: Boolean,
    owner: String,
-   environmentVariables: List[EnvironmentVariables]
+   environmentVariables: List[EnvironmentVariable]
 )
 
 object ChronosJob extends DefaultJsonProtocol {
   implicit val containerFormat = jsonFormat3(Container.apply)
-  implicit val environmentVariablesFormat = jsonFormat2(EnvironmentVariables.apply)
+  implicit val environmentVariableFormat = jsonFormat2(EnvironmentVariable.apply)
   implicit val uriFormat = jsonFormat1(Uri.apply)
-  implicit val chronosJobFormat = jsonFormat13(ChronosJob.apply)
+  implicit val chronosJobFormat: RootJsonFormat[ChronosJob] = jsonFormat13(ChronosJob.apply)
 }

@@ -16,10 +16,10 @@ object Boot extends App {
   implicit val system = ActorSystem(app.systemName)
 
   // create and start our service actor
-  val userActor: ActorRef = system.actorOf(Props(classOf[ApiRouterActor],JobService), app.userServiceName)
+  val jobActor: ActorRef = system.actorOf(Props(classOf[ApiRouterActor], JobService), app.jobServiceName)
 
   implicit val timeout = Timeout(5.seconds)
   // start a new HTTP server on port 8080 with our service actor as the handler
-  IO(Http) ? Http.Bind(userActor, interface = app.interface, port = app.port)
+  IO(Http) ? Http.Bind(jobActor, interface = app.interface, port = app.port)
 
 }

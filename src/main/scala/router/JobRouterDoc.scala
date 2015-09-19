@@ -18,7 +18,7 @@ trait JobRouterDoc {
     new ApiImplicitParam(name = "body", value="Process to execute", required = true, dataType = "router.JobDto", paramType = "body" )
   ))
   @ApiResponses(Array(
-    new ApiResponse(code = 201, message = "Job created"),
+    new ApiResponse(code = 201, message = "Job created", response = classOf[ResultDto]),
     new ApiResponse(code = 405, message = "Invalid job"),
     new ApiResponse(code = 500, message = "Internal server error")
   ))

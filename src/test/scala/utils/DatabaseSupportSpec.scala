@@ -5,8 +5,7 @@ import model.{ User, UserPassword }
 import org.specs2.mutable.Specification
 import org.specs2.specification.BeforeAfterEach
 import slick.jdbc.meta.MTable
-import utils.DatabaseConfig._
-import utils.DatabaseConfig.profile.api._
+import .profile.api._
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration

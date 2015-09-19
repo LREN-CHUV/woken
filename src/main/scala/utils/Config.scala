@@ -12,17 +12,34 @@ object Config {
     val systemName = appConf.getString("systemName")
     val interface = appConf.getString("interface")
     val port = appConf.getInt("port")
-    val userServiceName = appConf.getString("userServiceName")
+    val jobServiceName = appConf.getString("jobServiceName")
 
   }
 
+  object jobs {
+    val jobsConf = config.getConfig("jobs")
 
-  object dbConfig {
-    val dbConfig = config.getConfig("db")
+    val node = jobsConf.getString("node")
+    val owner = jobsConf.getString("owner")
+    val chronosServerUrl = jobsConf.getString("chronosServerUrl")
+  }
 
-    val url = dbConfig.getString("url")
-    val user = dbConfig.getString("user")
-    val password = dbConfig.getString("password")
-    val driver = dbConfig.getString("driver")
+  case class DbConfig(
+    jdbcDriver: String,
+    jdbcJarPath: String,
+    jdbcUrl: String,
+    jdbcUser: String,
+    jdbcPassword: String
+  )
+
+  def getDbConfig(dbAlias: String): DbConfig = {
+    val dbConfig = config.getConfig(dbAlias)
+    new DbConfig(
+      jdbcDriver = dbConfig.getString("jdbc_driver"),
+      jdbcJarPath = dbConfig.getString("jdbc_jar_path"),
+      jdbcUrl = dbConfig.getString("jdbc_url"),
+      jdbcUser = dbConfig.getString("jdbc_user"),
+      jdbcPassword = dbConfig.getString("jdbc_password")
+    )
   }
 }
