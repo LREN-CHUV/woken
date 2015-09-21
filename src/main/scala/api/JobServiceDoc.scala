@@ -13,14 +13,16 @@ trait JobServiceDoc extends Directives {
     value = "Init a job",
     notes = "Init a job and return id",
     httpMethod = "PUT",
-    consumes="application/json")
+    consumes="application/json",
+    response = classOf[ResultDto]
+  )
   @ApiImplicitParams(Array(
     new ApiImplicitParam(name = "body", value="Process to execute", required = true, dataType = "api.JobDto", paramType = "body" )
   ))
   @ApiResponses(Array(
     new ApiResponse(code = 201, message = "Job created", response = classOf[ResultDto]),
-    new ApiResponse(code = 405, message = "Invalid job"),
-    new ApiResponse(code = 500, message = "Internal server error")
+    new ApiResponse(code = 405, message = "Invalid job", response = classOf[String]),
+    new ApiResponse(code = 500, message = "Internal server error", response = classOf[String])
   ))
   def initJob: Route
 

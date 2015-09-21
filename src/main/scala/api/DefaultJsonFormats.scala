@@ -24,6 +24,8 @@ trait DefaultJsonFormats extends DefaultJsonProtocol with SprayJsonSupport with 
     def read(json: JsValue): A = ct.runtimeClass.newInstance().asInstanceOf[A]
   }
 
+  // Following code inspired by http://www.cakesolutions.net/teamblogs/2012/12/10/errors-failures-im-a-teapot
+
   /**
    * Type alias for function that converts ``A`` to some ``StatusCode``
    * @tparam A the type of the input values

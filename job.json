@@ -1,0 +1,8 @@
+{
+  "requestId": "001",
+  "dockerImage": "test",
+  "inputDb": "analytics",
+  "outputDb": "analytics",
+  "parameters": { "a": "1"}
+}
+

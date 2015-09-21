@@ -1,0 +1,57 @@
+{
+  "name": "test",
+  "shell": false,
+  "environmentVariables": [{
+    "name": "REQUEST_ID",
+    "value": "001"
+  }, {
+    "name": "NODE",
+    "value": "federation"
+  }, {
+    "name": "a",
+    "value": "1"
+  }, {
+    "name": "IN_JDBC_DRIVER",
+    "value": "org.postgresql.Driver"
+  }, {
+    "name": "IN_JDBC_JAR_PATH",
+    "value": "/usr/lib/R/libraries/postgresql-9.3-1103.jdbc41.jar"
+  }, {
+    "name": "IN_JDBC_URL",
+    "value": "jdbc:postgresql://hbps2.intranet.chuv:31432/analytics"
+  }, {
+    "name": "IN_JDBC_USER",
+    "value": "analytics"
+  }, {
+    "name": "IN_JDBC_PASSWORD",
+    "value": "HBP=neuroinfo"
+  }, {
+    "name": "OUT_JDBC_DRIVER",
+    "value": "org.postgresql.Driver"
+  }, {
+    "name": "OUT_JDBC_JAR_PATH",
+    "value": "/usr/lib/R/libraries/postgresql-9.3-1103.jdbc41.jar"
+  }, {
+    "name": "OUT_JDBC_URL",
+    "value": "jdbc:postgresql://hbps2.intranet.chuv:31432/analytics"
+  }, {
+    "name": "OUT_JDBC_USER",
+    "value": "analytics"
+  }, {
+    "name": "OUT_JDBC_PASSWORD",
+    "value": "HBP=neuroinfo"
+  }],
+  "container": {
+    "type": "DOCKER",
+    "image": "hello"
+  },
+  "epsilon": "PT5M",
+  "command": "compute",
+  "uris": [],
+  "async": false,
+  "mem": "128",
+  "schedule": "R1//PT24H",
+  "cpus": "0.5",
+  "owner": "admin@mip.chuv.ch",
+  "runAsUser": "root"
+}

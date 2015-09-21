@@ -33,7 +33,7 @@ object Config {
   )
 
   def getDbConfig(dbAlias: String): DbConfig = {
-    val dbConfig = config.getConfig(dbAlias)
+    val dbConfig = config.getConfig("db").getConfig(dbAlias)
     new DbConfig(
       jdbcDriver = dbConfig.getString("jdbc_driver"),
       jdbcJarPath = dbConfig.getString("jdbc_jar_path"),
