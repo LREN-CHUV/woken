@@ -1,7 +1,7 @@
-package utils
+package config
 
 import dao.{ UserDao, PasswordDao }
-import model.{ User, UserPassword }
+import core.model.{ User, UserPassword }
 import org.specs2.mutable.Specification
 import org.specs2.specification.BeforeAfterEach
 import slick.jdbc.meta.MTable

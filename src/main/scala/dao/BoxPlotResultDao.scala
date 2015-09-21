@@ -1,8 +1,8 @@
 package dao
 
-import model.results.BoxPlotResult
-import utils.DatabaseConfig._
-import utils.DatabaseConfig.profile.api._
+import core.model.results.BoxPlotResult
+import config.DatabaseConfig._
+import profile.api._
 
 trait BoxPlotResultDao {
 

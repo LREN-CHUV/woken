@@ -1,4 +1,4 @@
-package router
+package api
 
 import spray.json.DefaultJsonProtocol
 

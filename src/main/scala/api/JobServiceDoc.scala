@@ -1,13 +1,13 @@
-package router
+package api
 
-import com.wordnik.swagger.annotations._
+import com.wordnik.swagger.annotations.{Api => SwaggerApi, _}
 import spray.routing._
 
 /**
  * Document the API, try to to pollute the code with annotations
  */
-@Api(value = "/job", description = "Operations for jobs.", consumes= "application/json",  produces = "application/json")
-trait JobRouterDoc {
+@SwaggerApi(value = "/job", description = "Operations for jobs.", consumes = "application/json",  produces = "application/json")
+trait JobServiceDoc extends Directives {
 
   @ApiOperation(
     value = "Init a job",
@@ -15,7 +15,7 @@ trait JobRouterDoc {
     httpMethod = "PUT",
     consumes="application/json")
   @ApiImplicitParams(Array(
-    new ApiImplicitParam(name = "body", value="Process to execute", required = true, dataType = "router.JobDto", paramType = "body" )
+    new ApiImplicitParam(name = "body", value="Process to execute", required = true, dataType = "api.JobDto", paramType = "body" )
   ))
   @ApiResponses(Array(
     new ApiResponse(code = 201, message = "Job created", response = classOf[ResultDto]),

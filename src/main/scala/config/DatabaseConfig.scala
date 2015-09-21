@@ -1,4 +1,4 @@
-package utils
+package config
 
 import slick.driver.{ H2Driver, JdbcProfile, PostgresDriver }
 import slick.jdbc.JdbcBackend._

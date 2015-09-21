@@ -1,4 +1,4 @@
-package model.results
+package core.model.results
 
 case class BoxPlotResult(
                           requestId: String,

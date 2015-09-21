@@ -1,7 +1,8 @@
-package utils
+package core.model
 
+import api.JobDto
+import config.Config
 import models.{ChronosJob, Container, EnvironmentVariable => EV}
-import router.JobDto
 
 object JobToChronos {
 

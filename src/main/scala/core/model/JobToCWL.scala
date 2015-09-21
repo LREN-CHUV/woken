@@ -1,7 +1,7 @@
-package utils
+package core.model
 
+import api.JobDto
 import models.CWLProcess
-import router.JobDto
 
 object JobToCWL {
 

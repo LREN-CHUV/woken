@@ -1,13 +1,13 @@
 package router
 
-import model.User
+import core.model.User
 import org.specs2.mock._
 import org.specs2.mutable.Specification
 import service.JobService$
 import spray.http.{ StatusCodes, BasicHttpCredentials }
 import spray.httpx.SprayJsonSupport._
 import spray.testkit.Specs2RouteTest
-import utils.{ DatabaseSupportSpec, SpecSupport }
+import config.{ DatabaseSupportSpec, SpecSupport }
 
 
 class UserIntegrationSpec extends Specification with Specs2RouteTest with UserRouter with SpecSupport with Mockito {

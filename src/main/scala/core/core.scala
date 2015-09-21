@@ -1,12 +1,8 @@
 package core
 
-import akka.actor.{Props, ActorRefFactory, ActorSystem}
-import api.{Api, RoutedHttpService}
-import akka.io.IO
-import spray.can.Http
-import web.StaticResources
-
-import utils.Config._
+import akka.actor.{Props, ActorSystem}
+import dao.BoxPlotResultDao
+import config.Config._
 
 /**
  * Core is type containing the ``system: ActorSystem`` member. This enables us to use it in our
@@ -19,37 +15,12 @@ trait Core {
 }
 
 /**
- * This trait implements ``Core`` by starting the required ``ActorSystem`` and registering the
- * termination handler to stop the system when the JVM exits.
- */
-trait BootedCore extends Core with Api with StaticResources {
-  def system: ActorSystem = ActorSystem(app.systemName)
-  def actorRefFactory: ActorRefFactory = system
-  val rootService = system.actorOf(Props(new RoutedHttpService(routes ~ staticResources )))
-
-  IO(Http)(system) ! Http.Bind(rootService, "0.0.0.0", port = 8080)
-
-  /**
-   * Construct the ActorSystem we will use in our application
-   */
-  //protected implicit  val system : ActorSystem
-
-  /**
-   * Ensure that the constructed ActorSystem is shut down when the JVM shuts down
-   */
-  sys.addShutdownHook(system.shutdown())
-
-}
-
-/**
  * This trait contains the actors that make up our application; it can be mixed in with
  * ``BootedCore`` for running code or ``TestKit`` for unit and integration tests.
  */
 trait CoreActors {
   this: Core =>
 
-  val registration = system.actorOf(Props[RegistrationActor])
-  val messenger    = system.actorOf(Props[MessengerActor])
-  val fruit = system.actorOf(Props[FruitActor])
+  val chronos = system.actorOf(Props(classOf[ChronosActor], jobs.chronosServerUrl, BoxPlotResultDao))
 
 }
