@@ -3,6 +3,7 @@ package api
 import akka.actor.ActorRef
 import akka.util.Timeout
 import core.ChronosActor
+import core.model.results.BoxPlotResult
 import spray.http._
 import spray.routing.Route
 import scala.concurrent.ExecutionContext
@@ -16,7 +17,10 @@ class JobService(chronos: ActorRef)(implicit executionContext: ExecutionContext)
   import akka.pattern.ask
   import JobDto._
   import ResultDto._
+  import BoxPlotResult._
   import ChronosActor._
+
+  implicit val seqBoxPlotResFormat = seqFormat[BoxPlotResult]
 
   implicit object EitherErrorSelector extends ErrorSelector[ErrorResponse.type] {
     def apply(v: ErrorResponse.type): StatusCode = StatusCodes.BadRequest
@@ -27,7 +31,7 @@ class JobService(chronos: ActorRef)(implicit executionContext: ExecutionContext)
       handleWith { job: JobDto =>
         println (s"Received job $job")
         implicit val timeout: Timeout = Timeout(5.minutes)
-        (chronos ? Start(job)).mapTo[Either[ErrorResponse, ResultDto]]
+        (chronos ? Start(job)).mapTo[Either[ErrorResponse, Results]]
       }
     }
   }

@@ -1,8 +1,11 @@
 {
   "requestId": "001",
-  "dockerImage": "test",
+  "dockerImage": "registry.federation.mip.hbp/hbp_node/r-linear-regression:latest",
   "inputDb": "analytics",
   "outputDb": "analytics",
-  "parameters": { "a": "1"}
+  "parameters": {
+    "PARAM_y": "select tissue1_volume from brain_feature where feature_name='Hippocampus_R' order by tissue1_volume limit 300",
+    "PARAM_A": "select tissue1_volume from brain_feature where feature_name='Hippocampus_L' order by tissue1_volume limit 300"
+  }
 }
 

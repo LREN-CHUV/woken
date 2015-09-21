@@ -1,5 +1,7 @@
 package core.model.results
 
+import spray.json.DefaultJsonProtocol
+
 case class BoxPlotResult(
                           requestId: String,
                           id: Int,
@@ -10,3 +12,6 @@ case class BoxPlotResult(
                           max: Double
                           )
 
+object BoxPlotResult extends DefaultJsonProtocol {
+  implicit val boxPlotResultFormat = lazyFormat(jsonFormat7(BoxPlotResult.apply))
+}

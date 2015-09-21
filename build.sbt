@@ -2,7 +2,15 @@ version       := "0.1"
 
 scalaVersion  := "2.11.6"
 
-scalacOptions := Seq("-unchecked", "-deprecation", "-encoding", "utf8")
+scalacOptions ++= Seq(
+  "-unchecked",
+  "-deprecation",
+  "-Xlint",
+  "-Ywarn-dead-code",
+  "-language:_",
+  "-target:jvm-1.8",
+  "-encoding", "UTF-8"
+)
 
 libraryDependencies ++= {
   val akkaVersion = "2.3.6"
@@ -30,6 +38,6 @@ fork in Test := false
 
 parallelExecution in Test := false
 
-Revolver.settings
+Revolver.settings : Seq[sbt.Def.Setting[_]]
 
 fork in run := true

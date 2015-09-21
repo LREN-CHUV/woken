@@ -6,6 +6,7 @@ import akka.util.Timeout
 import api.ResultDto._
 import api.JobDto
 import core.model.JobToChronos
+import core.model.results.BoxPlotResult
 import dao.BoxPlotResultDao
 import models.ChronosJob
 import spray.can.Http
@@ -27,7 +28,11 @@ object ChronosActor {
   object CheckDb
 
   // Responses, to wrap in Either
+  case class Results(values: Seq[BoxPlotResult])
   case class ErrorResponse(message: String)
+
+  import BoxPlotResult._
+  implicit val resultsFormat = jsonFormat1(Results.apply)
   implicit val errorResponseFormat = jsonFormat1(ErrorResponse.apply)
 }
 
@@ -57,6 +62,7 @@ class ChronosActor(val chronosServerUrl: String, val bpResultDao: BoxPlotResultD
 
     case (HttpResponse(statusCode: StatusCode, entity, _, _), requestId: String, replyTo: ActorRef) => statusCode match {
       case ok: StatusCodes.Success => {
+        println (s"Received $statusCode from Chronos, waiting for data...")
         implicit val executionContext: ExecutionContext = context.system.dispatcher
         context.become(waitForData(requestId, replyTo, context.system.scheduler.schedule(100.milliseconds, 200.milliseconds, self, CheckDb)), discardOld = false)
       }
@@ -70,6 +76,11 @@ class ChronosActor(val chronosServerUrl: String, val bpResultDao: BoxPlotResultD
   def waitForData(requestId: String, replyTo: ActorRef, checkSchedule: Cancellable): Receive = {
 
     case CheckDb => {
+      println("Check database...")
+      checkSchedule.cancel()
+      context.unbecome()
+      replyTo ! Right(Results(Nil))
+      /*
       implicit val executionContext: ExecutionContext = context.system.dispatcher
       val results = db.run {
         for {
@@ -77,12 +88,21 @@ class ChronosActor(val chronosServerUrl: String, val bpResultDao: BoxPlotResultD
         } yield results
       }
 
+      results
+        .onFailure { case e: Throwable =>
+          checkSchedule.cancel()
+          context.unbecome()
+          println (s"Database error: $e")
+          replyTo ! Left(ErrorResponse(e.toString))
+      }
+
       results.filter(_.nonEmpty).foreach { res =>
         checkSchedule.cancel()
         context.unbecome()
         println (s"Response: $res")
-        replyTo ! Right(res)
+        replyTo ! Right(Results(res))
       }
+      */
     }
 
   }

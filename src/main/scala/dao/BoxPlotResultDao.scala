@@ -6,7 +6,7 @@ import profile.api._
 
 trait BoxPlotResultDao {
 
-  def create
+  def create()
 
   def get(requestId: String): DBIO[Seq[BoxPlotResult]]
 
@@ -28,7 +28,7 @@ trait BoxPlotResultDaoSlickImpl extends BoxPlotResultDao {
 
   val boxPlotResults = TableQuery[BoxPlotResults]
 
-  override def create = boxPlotResults.schema.create
+  override def create() = boxPlotResults.schema.create
 
   override def get(requestId: String): DBIO[Seq[BoxPlotResult]] = boxPlotResults.filter(_.requestId === requestId).result
 
