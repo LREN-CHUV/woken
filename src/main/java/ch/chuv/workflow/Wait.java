@@ -15,7 +15,7 @@ public class Wait {
                             System.getenv("JDBC_USER"),
                             System.getenv("JDBC_PASSWORD"));
 
-            CallableStatement countResultsQuery = connection.prepareCall(System.getenv("COUNT_RESULTS_QUERY"));
+            PreparedStatement countResultsQuery = connection.prepareStatement(System.getenv("COUNT_RESULTS_QUERY"));
             int expectedCount = Integer.parseInt(System.getenv("EXPECTED_COUNT_RESULTS"));
             int realCount = -1;
 
