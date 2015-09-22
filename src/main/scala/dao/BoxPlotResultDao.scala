@@ -14,16 +14,18 @@ trait BoxPlotResultDao {
 
 trait BoxPlotResultDaoSlickImpl extends BoxPlotResultDao {
 
-  class BoxPlotResults(tag: Tag) extends Table[BoxPlotResult](tag, "box_plot_results") {
-    def id: Rep[Int] = column[Int]("id", O.PrimaryKey, O.AutoInc)
+  class BoxPlotResults(tag: Tag) extends Table[BoxPlotResult](tag, "results_box_stat") {
+    def id: Rep[Int] = column[Int]("id", O.AutoInc)
     def requestId: Rep[String] = column[String]("request_id")
+    def node: Rep[String] = column[String]("node")
     def min: Rep[Double] = column[Double]("min")
     def q1: Rep[Double] = column[Double]("q1")
     def median: Rep[Double] = column[Double]("median")
     def q3: Rep[Double] = column[Double]("q3")
     def max: Rep[Double] = column[Double]("max")
 
-    def * = (requestId, id, min, q1, median, q3, max) <>((BoxPlotResult.apply _).tupled, BoxPlotResult.unapply)
+    def pk = primaryKey("pk_results_box_stat", (requestId, node, id))
+    def * = (requestId, node, id, min, q1, median, q3, max) <>((BoxPlotResult.apply _).tupled, BoxPlotResult.unapply)
   }
 
   val boxPlotResults = TableQuery[BoxPlotResults]
