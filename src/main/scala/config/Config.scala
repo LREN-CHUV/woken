@@ -16,12 +16,19 @@ object Config {
 
   }
 
+  case class JobServerConf(jobsUrl: String)
+
   object jobs {
     val jobsConf = config.getConfig("jobs")
 
     val node = jobsConf.getString("node")
     val owner = jobsConf.getString("owner")
     val chronosServerUrl = jobsConf.getString("chronosServerUrl")
+    val resultDb = jobsConf.getString("resultDb")
+
+    import scala.collection.JavaConversions._
+    def nodes: Set[String] = jobsConf.getConfig("nodes").entrySet().map(_.getKey())(collection.breakOut)
+    def nodeConfig(node: String): JobServerConf = JobServerConf(jobsConf.getConfig(node).getString("jobsUrl"))
   }
 
   case class DbConfig(
@@ -32,14 +39,14 @@ object Config {
     jdbcPassword: String
   )
 
-  def getDbConfig(dbAlias: String): DbConfig = {
-    val dbConfig = config.getConfig("db").getConfig(dbAlias)
+  def dbConfig(dbAlias: String): DbConfig = {
+    val dbConf = config.getConfig("db").getConfig(dbAlias)
     new DbConfig(
-      jdbcDriver = dbConfig.getString("jdbc_driver"),
-      jdbcJarPath = dbConfig.getString("jdbc_jar_path"),
-      jdbcUrl = dbConfig.getString("jdbc_url"),
-      jdbcUser = dbConfig.getString("jdbc_user"),
-      jdbcPassword = dbConfig.getString("jdbc_password")
+      jdbcDriver = dbConf.getString("jdbc_driver"),
+      jdbcJarPath = dbConf.getString("jdbc_jar_path"),
+      jdbcUrl = dbConf.getString("jdbc_url"),
+      jdbcUser = dbConf.getString("jdbc_user"),
+      jdbcPassword = dbConf.getString("jdbc_password")
     )
   }
 }

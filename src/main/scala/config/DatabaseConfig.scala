@@ -5,7 +5,8 @@ import slick.jdbc.JdbcBackend._
 
 //Based on play-slick driver loader
 object DatabaseConfig {
-  val config = Config.getDbConfig("analytics")
+  import Config._
+  val config = dbConfig(jobs.resultDb)
   import config._
   lazy val db: Database = Database.forURL(jdbcUrl, jdbcUser, jdbcPassword, driver = jdbcDriver)
   lazy val profile: JdbcProfile = jdbcDriver match {

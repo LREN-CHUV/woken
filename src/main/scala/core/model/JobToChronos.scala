@@ -9,13 +9,13 @@ object JobToChronos {
   import Config._
 
   def dbEnvironment(dbAlias: String, prefix: String = ""): List[EV] = {
-    val dbConfig = getDbConfig(dbAlias)
+    val conf = dbConfig(dbAlias)
     List(
-      EV(prefix + "JDBC_DRIVER", dbConfig.jdbcDriver),
-      EV(prefix + "JDBC_JAR_PATH", dbConfig.jdbcJarPath),
-      EV(prefix + "JDBC_URL", dbConfig.jdbcUrl),
-      EV(prefix + "JDBC_USER", dbConfig.jdbcUser),
-      EV(prefix + "JDBC_PASSWORD", dbConfig.jdbcPassword)
+      EV(prefix + "JDBC_DRIVER", conf.jdbcDriver),
+      EV(prefix + "JDBC_JAR_PATH", conf.jdbcJarPath),
+      EV(prefix + "JDBC_URL", conf.jdbcUrl),
+      EV(prefix + "JDBC_USER", conf.jdbcUser),
+      EV(prefix + "JDBC_PASSWORD", conf.jdbcPassword)
     )
   }
 
@@ -30,7 +30,7 @@ object JobToChronos {
          job.outputDb.fold(List[EV]())(dbEnvironment(_, "OUT_"))
 
     ChronosJob(
-      schedule = "R1//PT24H",
+      schedule = "R0//PT24H",
       epsilon = "PT5M",
       name = job.dockerImage.replace("registry.federation.mip.hbp/hbp_", "").takeWhile(_ != ':').replaceAll("/", "-"),
       command = "compute",

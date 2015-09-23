@@ -29,7 +29,7 @@ trait PerRequest extends Actor with ActorLogging with Json4sSupport {
     case v: Validation    => complete(BadRequest, v)
     case v: Error         => complete(BadRequest, v)
     case ReceiveTimeout   => complete(GatewayTimeout, Error("Request timeout"))
-    case e                => log.error("Unhandled message: $e")
+    case e: Any           => log.error(s"Unhandled message: $e")
   }
 
   def complete[T <: AnyRef](status: StatusCode, obj: T) = {
