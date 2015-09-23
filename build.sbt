@@ -28,7 +28,7 @@ libraryDependencies ++= {
     "org.slf4j"            %  "slf4j-api"      % "1.7.7",
     "org.scalatest"        %  "scalatest_2.11" % "2.2.1" % "test",
     "com.typesafe"         %  "config"         % "1.2.1",
-    "postgresql"           %  "postgresql"     % "9.1-901.jdbc4",
+    "org.postgresql"       %  "postgresql"     % "9.4-1203-jdbc42",
     "com.gettyimages"     %%  "spray-swagger"  % "0.5.0",
     "org.webjars"          %  "swagger-ui"     % "2.0.12"
   )

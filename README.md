@@ -19,7 +19,3 @@ Follow these steps to get started:
         > sbt run
 
 5. Browse to [http://localhost:8080](http://localhost:8080/)
-
-
-
-curl -XPUT -H "Content-Type: application/json" -H "Accept: application/json" --data @job.json localhost:8080/job
