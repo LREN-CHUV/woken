@@ -1,5 +1,8 @@
 package core
 
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+
 import akka.actor.Status.Failure
 import akka.actor.{ActorLogging, Cancellable, ActorRef, Actor}
 import akka.event.LoggingReceive
@@ -22,15 +25,40 @@ object CoordinatorActor {
   // Incoming messages
   case class Start(job: JobDto) extends RestMessage
 
-  // Responses, to wrap in Either
-  case class Results(values: Seq[BoxPlotResult]) extends RestMessage
+  // Responses
+
+  case class Results(
+                    code: String,
+                    date: String,
+                    header: Seq[String],
+                    data: Stats
+                    ) extends RestMessage
+
+  sealed trait Data
+
+  final case class Stats(
+                    min: Seq[Double],
+                    max: Seq[Double],
+                    median: Seq[Double],
+                    q1: Seq[Double],
+                    q3: Seq[Double]
+                    ) extends Data
+
   case class ErrorResponse(message: String) extends RestMessage
 
   import BoxPlotResult._
-  implicit val resultsFormat = jsonFormat1(Results.apply)
+  implicit val statsFormat = jsonFormat5(Stats.apply)
+  implicit val resultsFormat = jsonFormat4(Results.apply)
   implicit val errorResponseFormat = jsonFormat1(ErrorResponse.apply)
 }
 
+/**
+ * The job of this Actor in our application core is to service a request to start a job and wait for the result of the calculation.
+ *
+ * This actor will have the responsibility of making two requests and then aggregating them together:
+ *  - One request to Chronos to start the job
+ *  - Then a separate request in the database for the results, repeated until enough results are present
+ */
 class CoordinatorActor(val chronosService: ActorRef, val databaseService: ActorRef) extends Actor with ActorLogging {
 
   import CoordinatorActor._
@@ -74,7 +102,7 @@ class CoordinatorActor(val chronosService: ActorRef, val databaseService: ActorR
 
       case BoxPlotResults(data) if data.nonEmpty => {
         checkSchedule.cancel()
-        reply(data)
+        reply(data, requestId)
       }
       case BoxPlotResults(_) => ()
 
@@ -97,6 +125,15 @@ class CoordinatorActor(val chronosService: ActorRef, val databaseService: ActorR
     receive
   }
 
-  def reply(values: Seq[BoxPlotResult]) = replyTo ! Results(values)
+  def reply(values: Seq[BoxPlotResult], requestId: String) = replyTo ! Results(code = requestId, date = DateTimeFormatter.ISO_INSTANT.format(ZonedDateTime.now()),
+    header = Seq("name", "min", "q1", "median", "q3", "max"),
+    data = Stats(
+      min = values.map(_.min),
+      q1 = values.map(_.q1),
+      median = values.map(_.median),
+      q3 = values.map(_.q3),
+      max = values.map(_.max)
+    )
+  )
 
 }

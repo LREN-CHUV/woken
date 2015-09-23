@@ -1,6 +1,7 @@
 package api
 
 import com.wordnik.swagger.annotations.{Api => SwaggerApi, _}
+import core.CoordinatorActor.Results
 import spray.routing._
 
 /**
@@ -14,13 +15,13 @@ trait JobServiceDoc extends Directives {
     notes = "Init a job and return id",
     httpMethod = "PUT",
     consumes="application/json",
-    response = classOf[ResultDto]
+    response = classOf[Results]
   )
   @ApiImplicitParams(Array(
     new ApiImplicitParam(name = "body", value="Process to execute", required = true, dataType = "api.JobDto", paramType = "body" )
   ))
   @ApiResponses(Array(
-    new ApiResponse(code = 201, message = "Job created", response = classOf[ResultDto]),
+    new ApiResponse(code = 201, message = "Job created", response = classOf[Results]),
     new ApiResponse(code = 405, message = "Invalid job", response = classOf[String]),
     new ApiResponse(code = 500, message = "Internal server error", response = classOf[String])
   ))
