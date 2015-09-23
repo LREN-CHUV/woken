@@ -12,11 +12,10 @@ import spray.routing.HttpService
  */
 trait Api extends HttpService with CoreActors with Core {
 
-  protected implicit val system : ActorSystem
-  protected implicit val dispatcher = system.dispatcher
+  protected implicit val system: ActorSystem
 
   val routes =
     new SwaggerService().routes ~
-    new JobService(chronos).routes
+    new JobService(chronosHttp, databaseService).routes
 
 }

@@ -1,8 +1,8 @@
 package core
 
 import akka.actor.{Props, ActorSystem}
+import core.clients.{DatabaseService, ChronosService}
 import dao.BoxPlotResultDao
-import config.Config._
 
 /**
  * Core is type containing the ``system: ActorSystem`` member. This enables us to use it in our
@@ -21,6 +21,8 @@ trait Core {
 trait CoreActors {
   this: Core =>
 
-  val chronos = system.actorOf(Props(classOf[ChronosActor], jobs.chronosServerUrl, BoxPlotResultDao))
+  val chronosHttp = system.actorOf(Props[ChronosService], "http.chronos")
+  val databaseService = system.actorOf(Props(new DatabaseService(BoxPlotResultDao)), "db")
+  val coordinator = system.actorOf(Props(new CoordinatorActor(chronosHttp, databaseService)))
 
 }

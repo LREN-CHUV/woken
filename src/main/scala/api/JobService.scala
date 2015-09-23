@@ -1,24 +1,20 @@
 package api
 
-import akka.actor.ActorRef
-import akka.util.Timeout
-import core.ChronosActor
+import akka.actor.{Props, ActorSystem, ActorRef}
+import core.{RestMessage, CoordinatorActor}
 import core.model.results.BoxPlotResult
 import spray.http._
 import spray.routing.Route
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration._
 
 // this trait defines our service behavior independently from the service actor
-class JobService(chronos: ActorRef)(implicit executionContext: ExecutionContext) extends JobServiceDoc with DefaultJsonFormats {
+class JobService(val chronosService: ActorRef, val databaseService: ActorRef)(implicit system: ActorSystem) extends JobServiceDoc with PerRequestCreator with DefaultJsonFormats {
 
+  override def context = system
   val routes: Route = initJob
 
-  import akka.pattern.ask
   import JobDto._
-  import ResultDto._
   import BoxPlotResult._
-  import ChronosActor._
+  import CoordinatorActor._
 
   implicit val seqBoxPlotResFormat = seqFormat[BoxPlotResult]
 
@@ -28,11 +24,15 @@ class JobService(chronos: ActorRef)(implicit executionContext: ExecutionContext)
 
   override def initJob: Route = path("job") {
     put {
-      handleWith { job: JobDto =>
-        println (s"Received job $job")
-        implicit val timeout: Timeout = Timeout(5.minutes)
-        (chronos ? Start(job)).mapTo[Either[ErrorResponse, Results]]
+      entity(as[JobDto]) { job =>
+        chronosJob {
+          Start(job)
+        }
       }
     }
   }
+
+  def chronosJob(message : RestMessage): Route =
+    ctx => perRequest(ctx, Props(classOf[CoordinatorActor], chronosService, databaseService), message)
+
 }

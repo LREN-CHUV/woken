@@ -1,5 +1,6 @@
 package api
 
+import akka.event.LoggingReceive
 import spray.http.StatusCodes._
 import spray.http._
 import spray.routing._
@@ -65,7 +66,7 @@ trait FailureHandling {
  *
  * @param route the (concatenated) route
  */
-class RoutedHttpService(route: Route) extends Actor with HttpService with ActorLogging {
+class RoutedHttpService(route: Route) extends Actor with HttpService with ActorLogging with PerRequestCreator {
 
   implicit def actorRefFactory = context
 
@@ -80,7 +81,8 @@ class RoutedHttpService(route: Route) extends Actor with HttpService with ActorL
   }
 
 
-  def receive: Receive =
+  def receive: Receive = LoggingReceive {
     runRoute(route)(handler, RejectionHandler.Default, context, RoutingSettings.default, LoggingContext.fromActorRefFactory)
+  }
 
 }
