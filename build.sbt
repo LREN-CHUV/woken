@@ -41,3 +41,7 @@ parallelExecution in Test := false
 Revolver.settings : Seq[sbt.Def.Setting[_]]
 
 fork in run := true
+
+mainClass in Runtime := Some("web.Web")
+
+test in assembly := {} // Do not run tests when building the assembly
