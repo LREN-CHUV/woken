@@ -32,7 +32,7 @@ object JobToChronos {
     ChronosJob(
       schedule = "R0//PT24H",
       epsilon = "PT5M",
-      name = job.dockerImage.replace("registry.federation.mip.hbp/hbp_", "").takeWhile(_ != ':').replaceAll("/", "-"),
+      name = job.dockerImage.replace("registry.federation.mip.hbp/hbp_", "").takeWhile(_ != ':').replaceAll("/", "-") + "-" + job.requestId,
       command = "compute",
       shell = false,
       runAsUser = "root",

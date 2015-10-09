@@ -14,7 +14,7 @@ trait BoxPlotResultDao {
 
 trait BoxPlotResultDaoSlickImpl extends BoxPlotResultDao {
 
-  class BoxPlotResults(tag: Tag) extends Table[BoxPlotResult](tag, "results_box_stat") {
+  class BoxPlotResults(tag: Tag) extends Table[BoxPlotResult](tag, "result_box_stats") {
     def id: Rep[Int] = column[Int]("id", O.AutoInc)
     def requestId: Rep[String] = column[String]("request_id")
     def node: Rep[String] = column[String]("node")
@@ -24,7 +24,7 @@ trait BoxPlotResultDaoSlickImpl extends BoxPlotResultDao {
     def q3: Rep[Double] = column[Double]("q3")
     def max: Rep[Double] = column[Double]("max")
 
-    def pk = primaryKey("pk_results_box_stat", (requestId, node, id))
+    def pk = primaryKey("pk_result_box_stats", (requestId, node, id))
     def * = (requestId, node, id, min, q1, median, q3, max) <>((BoxPlotResult.apply _).tupled, BoxPlotResult.unapply)
   }
 
