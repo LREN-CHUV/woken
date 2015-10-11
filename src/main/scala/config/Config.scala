@@ -27,7 +27,7 @@ object Config {
     val resultDb = jobsConf.getString("resultDb")
 
     import scala.collection.JavaConversions._
-    def nodes: Set[String] = jobsConf.getConfig("nodes").entrySet().map(_.getKey())(collection.breakOut)
+    def nodes: Set[String] = jobsConf.getConfig("nodes").entrySet().map(_.getKey)(collection.breakOut)
     def nodeConfig(node: String): JobServerConf = JobServerConf(jobsConf.getConfig(node).getString("jobsUrl"))
   }
 
