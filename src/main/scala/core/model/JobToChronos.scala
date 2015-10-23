@@ -30,7 +30,7 @@ object JobToChronos {
          job.outputDb.fold(List[EV]())(dbEnvironment(_, "OUT_"))
 
     ChronosJob(
-      schedule = "R0//PT24H",
+      schedule = "R1//PT24H",
       epsilon = "PT5M",
       name = job.jobNameResolved,
       command = "compute",

@@ -25,7 +25,7 @@ case class JobDto(
   @(ApiModelProperty @field)(required = true, value = "additional parameters")
   parameters: Map[String, String] ) {
 
-  def jobNameResolved: String =  jobName.getOrElse(dockerImage.replace("^.*/", "").takeWhile(_ != ':') + "_" + requestId).replaceAll("[/.-]", "_")
+  def jobNameResolved: String =  jobName.getOrElse(dockerImage.replaceAll("^.*?/", "").takeWhile(_ != ':') + "_" + requestId).replaceAll("[/.-]", "_")
 
 }
 

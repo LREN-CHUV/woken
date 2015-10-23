@@ -1,0 +1,3 @@
+
+* Log with Logback, redirect logs to known file location on host
+  http://doc.akka.io/docs/akka/snapshot/java/logging.html

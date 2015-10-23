@@ -1,6 +1,6 @@
 package core.clients
 
-import akka.actor.Actor
+import akka.actor.{ActorLogging, Actor}
 import akka.io.IO
 import akka.util.Timeout
 import models.ChronosJob
@@ -16,7 +16,7 @@ object ChronosService {
   case class Schedule(job: ChronosJob)
 }
 
-class ChronosService extends Actor {
+class ChronosService extends Actor with ActorLogging {
   import ChronosService._
   import config.Config.jobs._
 
@@ -29,6 +29,8 @@ class ChronosService extends Actor {
       implicit val executionContext = context.dispatcher
       implicit val timeout: Timeout = Timeout(15.seconds)
 
+      import ChronosJob._
+      log.warning(spray.json.PrettyPrinter.apply(chronosJobFormat.write(job)))
       val originalSender = sender()
       val chronosResponse: Future[HttpResponse] =
         (IO(Http) ? Post(chronosServerUrl + "/scheduler/iso8601", job)).mapTo[HttpResponse]
