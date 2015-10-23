@@ -13,6 +13,9 @@ case class JobDto(
   @(ApiModelProperty @field)(required = true, value = "name of the Docker image to use. Include the version to ensure reproducibility")
   dockerImage: String,
 
+  @(ApiModelProperty @field)(value = "name of the job in Chronos. Must be unique. Default value is constructed from requestId and jobName")
+  jobName: Option[String],
+
   @(ApiModelProperty @field)(value = "name of the input database")
   inputDb: Option[String] = None,
 
@@ -20,8 +23,12 @@ case class JobDto(
   outputDb: Option[String] = None,
 
   @(ApiModelProperty @field)(required = true, value = "additional parameters")
-  parameters: Map[String, String] )
+  parameters: Map[String, String] ) {
+
+  def jobNameResolved: String =  jobName.getOrElse(dockerImage.replace("^.*/", "").takeWhile(_ != ':') + "_" + requestId).replaceAll("[/.-]", "_")
+
+}
 
 object JobDto extends DefaultJsonProtocol {
-  implicit val jobDtoFormat = jsonFormat5(JobDto.apply)
+  implicit val jobDtoFormat = jsonFormat6(JobDto.apply)
 }
