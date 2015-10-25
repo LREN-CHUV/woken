@@ -25,6 +25,9 @@ object CoordinatorActor {
   // Incoming messages
   case class Start(job: JobDto) extends RestMessage
 
+  // Internal messages
+  private[CoordinatorActor] object CheckDb
+
   // Responses
 
   case class Results(
@@ -90,13 +93,11 @@ class CoordinatorActor(val chronosService: ActorRef, val databaseService: ActorR
     import core.clients.DatabaseService._
     implicit val executionContext: ExecutionContext = context.dispatcher
 
-    // internal message
-    object CheckDb
     val checkSchedule: Cancellable = context.system.scheduler.schedule(100.milliseconds, 200.milliseconds, self, CheckDb)
     val receive = LoggingReceive {
 
       case CheckDb => {
-        println("Check database...")
+        log.debug("Checking database...")
         databaseService ! GetBoxPlotResults(requestId)
       }
 
