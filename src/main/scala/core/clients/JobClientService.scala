@@ -3,7 +3,6 @@ package core.clients
 import akka.actor.Actor
 import akka.io.IO
 import akka.util.Timeout
-import core.{Error, Ok}
 import models.ChronosJob
 import spray.can.Http
 import spray.http.{StatusCodes, StatusCode, HttpResponse}
@@ -13,8 +12,16 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 
 object JobClientService {
+
+  // Requests
   type Start = core.CoordinatorActor.Start
   val Start = core.CoordinatorActor.Start
+
+  // Responses
+
+  case class JobComplete(node: String)
+  type Error = core.Error
+  val Error = core.Error
 }
 
 class JobClientService(node: String) extends Actor {
@@ -36,7 +43,7 @@ class JobClientService(node: String) extends Actor {
 
       jobResponse.map {
         case HttpResponse(statusCode: StatusCode, entity, _, _) => statusCode match {
-          case ok: StatusCodes.Success => Ok
+          case ok: StatusCodes.Success => JobComplete(node)
           case _ => Error(s"Error $statusCode: ${entity.asString}")
         }
       } pipeTo originalSender

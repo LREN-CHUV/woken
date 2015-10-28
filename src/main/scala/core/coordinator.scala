@@ -4,11 +4,11 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
 import akka.actor.Status.Failure
-import akka.actor.{ActorLogging, Cancellable, ActorRef, Actor}
+import akka.actor._
 import akka.event.LoggingReceive
 import akka.util.Timeout
 import api.JobDto
-import core.clients.ChronosService
+import core.clients.{JobClientService, ChronosService}
 import core.model.JobToChronos
 import core.model.results.BoxPlotResult
 import models.ChronosJob
@@ -24,6 +24,8 @@ object CoordinatorActor {
 
   // Incoming messages
   case class Start(job: JobDto) extends RestMessage
+  type WorkerJobComplete = JobClientService.JobComplete
+  val WorkerJobComplete = JobClientService.JobComplete
 
   // Internal messages
   private[CoordinatorActor] object CheckDb
@@ -65,18 +67,53 @@ object CoordinatorActor {
 class CoordinatorActor(val chronosService: ActorRef, val databaseService: ActorRef) extends Actor with ActorLogging {
 
   import CoordinatorActor._
+
+  // Coordinator actor is created per request, it's safe to store mutable state here
   var replyTo: ActorRef = _
+  var nodes: Set[String] = _
 
   def receive: Receive = LoggingReceive {
     case Start(job) => {
-      import ChronosService._
-      val chronosJob: ChronosJob = JobToChronos.enrich(job)
 
-      replyTo = sender()
-      chronosService ! Schedule(chronosJob)
-      context.become(waitForChronos(job.requestId))
+      import config.Config
+
+      nodes = if (job.nodes.isEmpty) Config.jobs.nodes else job.nodes
+      val expectedNodeCount = nodes.size
+
+      if (nodes.nonEmpty) {
+        for (node <- nodes) {
+          val workerNode = context.actorOf(Props(classOf[JobClientService], node))
+          workerNode ! Start(job.copy(nodes = Set()))
+        }
+        context.become(waitForNodes(job.requestId, expectedNodeCount))
+      } else {
+        scheduleJobOnLocalCluster(job)
+      }
+
     }
 
+  }
+
+  def scheduleJobOnLocalCluster(job: JobDto): Unit = {
+    import ChronosService._
+    val chronosJob: ChronosJob = JobToChronos.enrich(job)
+
+    replyTo = sender()
+    chronosService ! Schedule(chronosJob)
+    context.become(waitForChronos(job.requestId))
+  }
+
+  def waitForNodes(requestId: String, expectedNodeCount: Int): Receive = {
+    case WorkerJobComplete(node) => {
+      nodes = nodes - node
+      context.become(waitForDataSet(requestId, expectedNodeCount))
+    }
+    case e: Timeout => context.parent ! Error("Timeout while connecting to remote node")
+    case e: Error => {
+      log.error(e.message)
+      replyTo ! e
+    }
+    case e => log.error(s"Unhandled message: $e")
   }
 
   def waitForChronos(requestId: String): Receive = {

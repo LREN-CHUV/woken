@@ -23,6 +23,5 @@ trait CoreActors {
 
   val chronosHttp = system.actorOf(Props[ChronosService], "http.chronos")
   val databaseService = system.actorOf(Props(new DatabaseService(BoxPlotResultDao)), "db")
-  val coordinator = system.actorOf(Props(new CoordinatorActor(chronosHttp, databaseService)))
 
 }

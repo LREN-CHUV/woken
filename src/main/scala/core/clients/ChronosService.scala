@@ -10,10 +10,15 @@ import spray.httpx.RequestBuilding._
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import core.{Ok, Error}
 
 object ChronosService {
+  // Requests
   case class Schedule(job: ChronosJob)
+
+  // Responses
+  val Ok = core.Ok
+  type Error = core.Error
+  val Error = core.Error
 }
 
 class ChronosService extends Actor with ActorLogging {
