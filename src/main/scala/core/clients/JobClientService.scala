@@ -2,6 +2,7 @@ package core.clients
 
 import akka.actor.Actor
 import akka.io.IO
+import akka.io.Tcp.Message
 import akka.util.Timeout
 import models.ChronosJob
 import spray.can.Http
@@ -20,8 +21,7 @@ object JobClientService {
   // Responses
 
   case class JobComplete(node: String)
-  type Error = core.Error
-  val Error = core.Error
+  case class JobError(node: String, message: String)
 }
 
 class JobClientService(node: String) extends Actor {
@@ -44,9 +44,9 @@ class JobClientService(node: String) extends Actor {
       jobResponse.map {
         case HttpResponse(statusCode: StatusCode, entity, _, _) => statusCode match {
           case ok: StatusCodes.Success => JobComplete(node)
-          case _ => Error(s"Error $statusCode: ${entity.asString}")
+          case _ => JobError(node, s"Error $statusCode: ${entity.asString}")
         }
-      } pipeTo originalSender
+      } recoverWith { case e: Throwable => Future(JobError(node, e.toString)) } pipeTo originalSender
     }
 
   }

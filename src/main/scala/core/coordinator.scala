@@ -26,6 +26,7 @@ object CoordinatorActor {
   case class Start(job: JobDto) extends RestMessage
   type WorkerJobComplete = JobClientService.JobComplete
   val WorkerJobComplete = JobClientService.JobComplete
+  val WorkerJobError = JobClientService.JobError
 
   // Internal messages
   private[CoordinatorActor] object CheckDb
@@ -70,14 +71,14 @@ class CoordinatorActor(val chronosService: ActorRef, val databaseService: ActorR
 
   // Coordinator actor is created per request, it's safe to store mutable state here
   var replyTo: ActorRef = _
-  var nodes: Set[String] = _
 
   def receive: Receive = LoggingReceive {
     case Start(job) => {
+      replyTo = sender()
 
       import config.Config
 
-      nodes = if (job.nodes.isEmpty) Config.jobs.nodes else job.nodes
+      val nodes = if (job.nodes.isEmpty) Config.jobs.nodes else job.nodes
       val expectedNodeCount = nodes.size
 
       if (nodes.nonEmpty) {
@@ -85,7 +86,7 @@ class CoordinatorActor(val chronosService: ActorRef, val databaseService: ActorR
           val workerNode = context.actorOf(Props(classOf[JobClientService], node))
           workerNode ! Start(job.copy(nodes = Set()))
         }
-        context.become(waitForNodes(job.requestId, expectedNodeCount))
+        context.become(waitForNodes(job.requestId, nodes, expectedNodeCount))
       } else {
         scheduleJobOnLocalCluster(job)
       }
@@ -98,20 +99,25 @@ class CoordinatorActor(val chronosService: ActorRef, val databaseService: ActorR
     import ChronosService._
     val chronosJob: ChronosJob = JobToChronos.enrich(job)
 
-    replyTo = sender()
     chronosService ! Schedule(chronosJob)
     context.become(waitForChronos(job.requestId))
   }
 
-  def waitForNodes(requestId: String, expectedNodeCount: Int): Receive = {
-    case WorkerJobComplete(node) => {
-      nodes = nodes - node
-      context.become(waitForDataSet(requestId, expectedNodeCount))
-    }
-    case e: Timeout => context.parent ! Error("Timeout while connecting to remote node")
-    case e: Error => {
-      log.error(e.message)
-      replyTo ! e
+  // TODO: implement a reconciliation algorithm: http://mesos.apache.org/documentation/latest/reconciliation/
+  def waitForNodes(requestId: String, remainingNodes: Set[String], expectedNodeCount: Int): Receive = {
+    case WorkerJobComplete(node) =>
+      if (remainingNodes == Set(node)) {
+        context.become(waitForDataSet(requestId, expectedNodeCount))
+      } else {
+        context.become(waitForNodes(requestId, remainingNodes - node, expectedNodeCount))
+      }
+    case WorkerJobError(node, message) => {
+      log.error(message)
+      if (remainingNodes == Set(node)) {
+        context.become(waitForDataSet(requestId, expectedNodeCount))
+      } else {
+        context.become(waitForNodes(requestId, remainingNodes - node, expectedNodeCount))
+      }
     }
     case e => log.error(s"Unhandled message: $e")
   }
@@ -127,6 +133,43 @@ class CoordinatorActor(val chronosService: ActorRef, val databaseService: ActorR
   }
 
   def waitForData(requestId: String): Receive = {
+    import core.clients.DatabaseService._
+    implicit val executionContext: ExecutionContext = context.dispatcher
+
+    val checkSchedule: Cancellable = context.system.scheduler.schedule(100.milliseconds, 200.milliseconds, self, CheckDb)
+    val receive = LoggingReceive {
+
+      case CheckDb => {
+        log.debug("Checking database...")
+        databaseService ! GetBoxPlotResults(requestId)
+      }
+
+      case BoxPlotResults(data) if data.nonEmpty => {
+        checkSchedule.cancel()
+        reply(data, requestId)
+      }
+      case BoxPlotResults(_) => ()
+
+      case Failure(t) => {
+        checkSchedule.cancel()
+        log.error(t, "Database error")
+        replyTo ! Error(t.toString)
+      }
+      case e: Timeout => {
+        checkSchedule.cancel()
+        replyTo ! Error("Timeout while connecting to Chronos")
+      }
+      case e: Error => {
+        checkSchedule.cancel()
+        log.error(e.message)
+        replyTo ! e
+      }
+      case e => log.error(s"Unhandled message: $e")
+    }
+    receive
+  }
+
+  def waitForDataSet(requestId: String, expectedNodeCount: Int): Receive = {
     import core.clients.DatabaseService._
     implicit val executionContext: ExecutionContext = context.dispatcher
 
