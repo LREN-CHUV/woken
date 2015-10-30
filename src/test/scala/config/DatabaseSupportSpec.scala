@@ -1,39 +1,34 @@
 package config
 
-import dao.{ UserDao, PasswordDao }
-import core.model.{ User, UserPassword }
+import dao.JobResultDao
+import core.model.results.JobResult
 import org.specs2.mutable.Specification
 import org.specs2.specification.BeforeAfterEach
 import slick.jdbc.meta.MTable
-import .profile.api._
+import DatabaseConfig._
+import DatabaseConfig.profile.api._
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
 object DatabaseSupportSpec {
 
-  lazy val passwords = Seq(
-    UserPassword(1, Some("$2a$10$U3gBQ50FY5qiQ5XeQKgWwO6AADKjaGqh/6l3RzWitAWelWCQxffUC"), "$2a$10$U3gBQ50FY5qiQ5XeQKgWwO"),
-    UserPassword(2, Some("$2a$10$U3gBQ50FY5qiQ5XeQKgWwO6AADKjaGqh/6l3RzWitAWelWCQxffUC"), "$2a$10$U3gBQ50FY5qiQ5XeQKgWwO"),
-    UserPassword(3, Some("$2a$10$U3gBQ50FY5qiQ5XeQKgWwO6AADKjaGqh/6l3RzWitAWelWCQxffUC"), "$2a$10$U3gBQ50FY5qiQ5XeQKgWwO")
-  )
-  lazy val users = Seq(
-    User(1, "test1@test.com", Some("name1"), Some("surname1"), Some(1)),
-    User(2, "test2@test.com", Some("name2"), Some("surname2"), Some(2)),
-    User(3, "test3@test.com", Some("name3"), Some("surname3"), Some(3))
+  lazy val jobResults = Seq(
+    JobResult("001", "ldsm1", 1446216571000L, Some(""" [1,2,3] """)),
+    JobResult("002", "ldsm1", 1446216571000L, Some(""" [2,4,6] """)),
+    JobResult("003", "ldsm1", 1446216571000L, Some(""" [3,6,9] """))
   )
 }
 
 trait SpecSupport extends Specification with BeforeAfterEach {
 
   def createSchema = {
-    val dropAll = (PasswordDao.passwords.schema ++ UserDao.users.schema).drop
+    val dropAll = JobResultDao.jobResults.schema.drop
 
     val createAll =
       DBIO.seq(
-        (PasswordDao.passwords.schema ++ UserDao.users.schema).create,
-        PasswordDao.passwords ++= DatabaseSupportSpec.passwords,
-        UserDao.users ++= DatabaseSupportSpec.users
+        JobResultDao.jobResults.schema.create,
+        JobResultDao.jobResults ++= DatabaseSupportSpec.jobResults
       )
 
     val results = db.run(MTable.getTables).flatMap {
