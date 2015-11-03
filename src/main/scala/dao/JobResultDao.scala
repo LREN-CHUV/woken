@@ -1,7 +1,7 @@
 package dao
 
-import core.model.results.JobResult
 import config.DatabaseConfig._
+import core.model.JobResult
 import profile.api._
 
 trait JobResultDao {

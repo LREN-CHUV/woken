@@ -33,6 +33,6 @@ class JobService(val chronosService: ActorRef, val databaseService: ActorRef)(im
   }
 
   def chronosJob(message : RestMessage): Route =
-    ctx => perRequest(ctx, Props(classOf[CoordinatorActor], chronosService, databaseService), message)
+    ctx => perRequest(ctx, CoordinatorActor.props(chronosService, databaseService), message)
 
 }

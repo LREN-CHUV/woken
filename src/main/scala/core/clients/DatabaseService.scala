@@ -1,36 +1,42 @@
 package core.clients
 
-import akka.actor.Actor
+import akka.actor.{Props, Actor}
 import config.DatabaseConfig._
-import core.model.results.BoxPlotResult
-import dao.BoxPlotResultDao
+import core.model.JobResult
+import dao.JobResultDao
 
 import scala.concurrent.ExecutionContext
 
 object DatabaseService {
+  trait DatabaseWork
+  trait DatabaseResult
 
-  case class GetBoxPlotResults(requestId: String)
-  case class BoxPlotResults(data: Seq[BoxPlotResult])
+  // Requests
+  case class GetJobResults(requestId: String) extends DatabaseWork
 
+  // Results
+  case class JobResults(results: Seq[JobResult]) extends DatabaseResult
+
+  def props(jobResultDao: JobResultDao): Props = Props(classOf[DatabaseService], jobResultDao)
 }
 
-class DatabaseService(val bpResultDao: BoxPlotResultDao) extends Actor {
+class DatabaseService(val jobResultDao: JobResultDao) extends Actor {
   import DatabaseService._
 
   def receive = {
 
-    case GetBoxPlotResults(requestId) => {
+    case GetJobResults(requestId) => {
       import akka.pattern.pipe
       implicit val executionContext: ExecutionContext = context.dispatcher
 
       val originalSender = sender()
       val results = db.run {
         for {
-          results <- bpResultDao.get(requestId)
+          results <- jobResultDao.get(requestId)
         } yield results
       }
 
-      results.map(BoxPlotResults) pipeTo originalSender
+      results.map(JobResults) pipeTo originalSender
     }
 
   }

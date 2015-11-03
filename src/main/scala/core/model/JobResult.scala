@@ -1,4 +1,4 @@
-package core.model.results
+package core.model
 
 import spray.json.DefaultJsonProtocol
 

@@ -3,14 +3,14 @@ package core
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
-import akka.actor.Status.Failure
+import akka.actor.FSM.Failure
 import akka.actor._
 import akka.event.LoggingReceive
 import akka.util.Timeout
 import api.JobDto
 import core.clients.{JobClientService, ChronosService}
 import core.model.JobToChronos
-import core.model.results.BoxPlotResult
+import core.model.JobResult
 import models.ChronosJob
 
 import scala.concurrent.ExecutionContext
@@ -36,27 +36,35 @@ object CoordinatorActor {
   case class Results(
                     code: String,
                     date: String,
-                    header: Seq[String],
-                    data: Stats
+                    header: Seq[String] = Seq(),
+                    data: Seq[String]
                     ) extends RestMessage
-
-  sealed trait Data
-
-  final case class Stats(
-                    min: Seq[Double],
-                    max: Seq[Double],
-                    median: Seq[Double],
-                    q1: Seq[Double],
-                    q3: Seq[Double]
-                    ) extends Data
 
   case class ErrorResponse(message: String) extends RestMessage
 
-  import BoxPlotResult._
-  implicit val statsFormat = jsonFormat5(Stats.apply)
+  import JobResult._
   implicit val resultsFormat = jsonFormat4(Results.apply)
   implicit val errorResponseFormat = jsonFormat1(ErrorResponse.apply)
+
+  def props(chronosService: ActorRef, databaseService: ActorRef): Props =
+    Props(classOf[CoordinatorActor], chronosService, databaseService)
 }
+
+sealed trait State
+case object WaitForNewJob extends State
+case object WaitForChronos extends State
+case object WaitForFinalResult extends State
+case object WaitForNodes extends State
+case object WaitForIntermediateResults extends State
+
+trait StateData {
+  def job: JobDto
+}
+case object EmptyStateData extends StateData {
+  def job = _
+}
+case class WaitingForNodesData(job: JobDto, replyTo: ActorRef, remainingNodes: Set[String] = Set(), totalNodeCount: Int) extends StateData
+case class WaitLocalData(job: JobDto, replyTo: ActorRef) extends StateData
 
 /**
  * The job of this Actor in our application core is to service a request to start a job and wait for the result of the calculation.
@@ -65,156 +73,87 @@ object CoordinatorActor {
  *  - One request to Chronos to start the job
  *  - Then a separate request in the database for the results, repeated until enough results are present
  */
-class CoordinatorActor(val chronosService: ActorRef, val databaseService: ActorRef) extends Actor with ActorLogging {
+class CoordinatorActor(val chronosService: ActorRef, val databaseService: ActorRef) extends Actor with ActorLogging with FSM[State, StateData] {
 
   import CoordinatorActor._
 
-  // Coordinator actor is created per request, it's safe to store mutable state here
-  var replyTo: ActorRef = _
+  startWith(WaitForNewJob, EmptyStateData)
 
-  def receive: Receive = LoggingReceive {
-    case Start(job) => {
-      replyTo = sender()
+  when (WaitForNewJob) {
+    case Event(Start(job), data: StateData) => {
+      val replyTo = sender()
 
       import config.Config
 
       val nodes = if (job.nodes.isEmpty) Config.jobs.nodes else job.nodes
-      val expectedNodeCount = nodes.size
 
       if (nodes.nonEmpty) {
         for (node <- nodes) {
           val workerNode = context.actorOf(Props(classOf[JobClientService], node))
           workerNode ! Start(job.copy(nodes = Set()))
         }
-        context.become(waitForNodes(job.requestId, nodes, expectedNodeCount))
+        goto(WaitForNodes) using WaitingForNodesData(job, replyTo, nodes, nodes.size)
       } else {
-        scheduleJobOnLocalCluster(job)
+        goto(WaitForChronos) using WaitLocalData(job, replyTo)
       }
-
     }
-
   }
 
-  def scheduleJobOnLocalCluster(job: JobDto): Unit = {
-    import ChronosService._
-    val chronosJob: ChronosJob = JobToChronos.enrich(job)
-
-    chronosService ! Schedule(chronosJob)
-    context.become(waitForChronos(job.requestId))
+  when (WaitForChronos) {
+    case Event(Ok, data: WaitLocalData) => goto(WaitForFinalResult) using data
+    case Event(e: Timeout, data: WaitLocalData) =>
+      val msg: String = "Timeout while connecting to Chronos"
+      data.replyTo ! Error(msg)
+      stop(Failure(msg))
+    case Event(e: Error, data: WaitLocalData) =>
+      val msg: String = e.message
+      data.replyTo ! Error(msg)
+      stop(Failure(msg))
   }
 
   // TODO: implement a reconciliation algorithm: http://mesos.apache.org/documentation/latest/reconciliation/
-  def waitForNodes(requestId: String, remainingNodes: Set[String], expectedNodeCount: Int): Receive = {
-    case WorkerJobComplete(node) =>
-      if (remainingNodes == Set(node)) {
-        context.become(waitForDataSet(requestId, expectedNodeCount))
+  when (WaitForNodes) {
+    case Event(WorkerJobComplete(node), data: WaitingForNodesData) =>
+      if (data.remainingNodes == Set(node)) {
+        goto(WaitForIntermediateResults) using data.copy(remainingNodes = Set())
       } else {
-        context.become(waitForNodes(requestId, remainingNodes - node, expectedNodeCount))
+        goto(WaitForNodes) using data.copy(remainingNodes = data.remainingNodes - node)
       }
-    case WorkerJobError(node, message) => {
+    case Event(WorkerJobError(node, message), data: WaitingForNodesData) => {
       log.error(message)
-      if (remainingNodes == Set(node)) {
-        context.become(waitForDataSet(requestId, expectedNodeCount))
+      if (data.remainingNodes == Set(node)) {
+        goto(WaitForIntermediateResults) using data.copy(remainingNodes = Set())
       } else {
-        context.become(waitForNodes(requestId, remainingNodes - node, expectedNodeCount))
+        goto(WaitForNodes) using data.copy(remainingNodes = data.remainingNodes - node)
       }
     }
-    case e => log.error(s"Unhandled message: $e")
   }
 
-  def waitForChronos(requestId: String): Receive = {
-    case Ok => context.become(waitForData(requestId))
-    case e: Timeout => context.parent ! Error("Timeout while connecting to Chronos")
-    case e: Error => {
-      log.error(e.message)
-      replyTo ! e
-    }
-    case e => log.error(s"Unhandled message: $e")
+  when (WaitForIntermediateResults) {
+
   }
 
-  def waitForData(requestId: String): Receive = {
-    import core.clients.DatabaseService._
-    implicit val executionContext: ExecutionContext = context.dispatcher
+  when (WaitForFinalResult) {
 
-    val checkSchedule: Cancellable = context.system.scheduler.schedule(100.milliseconds, 200.milliseconds, self, CheckDb)
-    val receive = LoggingReceive {
-
-      case CheckDb => {
-        log.debug("Checking database...")
-        databaseService ! GetBoxPlotResults(requestId)
-      }
-
-      case BoxPlotResults(data) if data.nonEmpty => {
-        checkSchedule.cancel()
-        reply(data, requestId)
-      }
-      case BoxPlotResults(_) => ()
-
-      case Failure(t) => {
-        checkSchedule.cancel()
-        log.error(t, "Database error")
-        replyTo ! Error(t.toString)
-      }
-      case e: Timeout => {
-        checkSchedule.cancel()
-        replyTo ! Error("Timeout while connecting to Chronos")
-      }
-      case e: Error => {
-        checkSchedule.cancel()
-        log.error(e.message)
-        replyTo ! e
-      }
-      case e => log.error(s"Unhandled message: $e")
-    }
-    receive
   }
 
-  def waitForDataSet(requestId: String, expectedNodeCount: Int): Receive = {
-    import core.clients.DatabaseService._
-    implicit val executionContext: ExecutionContext = context.dispatcher
+  onTransition {
 
-    val checkSchedule: Cancellable = context.system.scheduler.schedule(100.milliseconds, 200.milliseconds, self, CheckDb)
-    val receive = LoggingReceive {
+    case _ -> WaitForChronos =>
+      import ChronosService._
+      val chronosJob: ChronosJob = JobToChronos.enrich(nextStateData.job)
+      chronosService ! Schedule(chronosJob)
 
-      case CheckDb => {
-        log.debug("Checking database...")
-        databaseService ! GetBoxPlotResults(requestId)
-      }
+    case _ -> WaitForIntermediateResults =>
+      
 
-      case BoxPlotResults(data) if data.nonEmpty => {
-        checkSchedule.cancel()
-        reply(data, requestId)
-      }
-      case BoxPlotResults(_) => ()
-
-      case Failure(t) => {
-        checkSchedule.cancel()
-        log.error(t, "Database error")
-        replyTo ! Error(t.toString)
-      }
-      case e: Timeout => {
-        checkSchedule.cancel()
-        replyTo ! Error("Timeout while connecting to Chronos")
-      }
-      case e: Error => {
-        checkSchedule.cancel()
-        log.error(e.message)
-        replyTo ! e
-      }
-      case e => log.error(s"Unhandled message: $e")
-    }
-    receive
   }
 
-  def reply(values: Seq[BoxPlotResult], requestId: String) = replyTo ! Results(code = requestId, date = DateTimeFormatter.ISO_INSTANT.format(ZonedDateTime.now()),
+  initialize()
+
+  def reply(values: Seq[String], requestId: String) = replyTo ! Results(code = requestId, date = DateTimeFormatter.ISO_INSTANT.format(ZonedDateTime.now()),
     header = Seq("name", "min", "q1", "median", "q3", "max"),
-    data = Stats(
-      min = values.map(_.min),
-      q1 = values.map(_.q1),
-      median = values.map(_.median),
-      q3 = values.map(_.q3),
-      max = values.map(_.max)
-    )
+    data = values
   )
 
 }

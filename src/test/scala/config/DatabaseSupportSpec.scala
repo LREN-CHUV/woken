@@ -1,7 +1,7 @@
 package config
 
+import core.model.JobResult
 import dao.JobResultDao
-import core.model.results.JobResult
 import org.specs2.mutable.Specification
 import org.specs2.specification.BeforeAfterEach
 import slick.jdbc.meta.MTable
