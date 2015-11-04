@@ -17,7 +17,7 @@ object DatabaseService {
   // Results
   case class JobResults(results: Seq[JobResult]) extends DatabaseResult
 
-  def props(dal: DAL, db: Database): Props = Props(classOf[DatabaseService], dal)
+  def props(dal: DAL, db: Database): Props = Props(classOf[DatabaseService], dal, db)
 }
 
 class DatabaseService(val dal: DAL, db: Database) extends Actor {

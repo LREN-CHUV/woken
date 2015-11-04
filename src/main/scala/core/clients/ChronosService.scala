@@ -1,7 +1,8 @@
 package core.clients
 
-import akka.actor.{ActorLogging, Actor}
+import akka.actor.{ActorLogging, Actor, Status}
 import akka.io.IO
+import akka.pattern.AskTimeoutException
 import akka.util.Timeout
 import models.ChronosJob
 import spray.can.Http
@@ -37,15 +38,19 @@ class ChronosService extends Actor with ActorLogging {
       import ChronosJob._
       log.warning(spray.json.PrettyPrinter.apply(chronosJobFormat.write(job)))
       val originalSender = sender()
-      val chronosResponse: Future[HttpResponse] =
-        (IO(Http) ? Post(chronosServerUrl + "/scheduler/iso8601", job)).mapTo[HttpResponse]
+        val chronosResponse: Future[_] =
+          IO(Http) ? Post(chronosServerUrl + "/scheduler/iso8601", job)
 
-      chronosResponse.map {
-        case HttpResponse(statusCode: StatusCode, entity, _, _) => statusCode match {
-          case ok: StatusCodes.Success => Ok
-          case _ => Error(s"Error $statusCode: ${entity.asString}")
-        }
-      } pipeTo originalSender
+        chronosResponse.map {
+          case HttpResponse(statusCode: StatusCode, entity, _, _) => statusCode match {
+            case ok: StatusCodes.Success => Ok
+            case _ => Error(s"Error $statusCode: ${entity.asString}")
+          }
+          case f: Status.Failure => Error(f.cause.getMessage)
+        }.recover {
+          case e: AskTimeoutException => Error("Connection timeout")
+          case e: Throwable => Error(e.getMessage)
+        } pipeTo originalSender
     }
 
   }
