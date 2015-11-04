@@ -5,8 +5,8 @@ import dao.JobResultDao
 import org.specs2.mutable.Specification
 import org.specs2.specification.BeforeAfterEach
 import slick.jdbc.meta.MTable
-import DatabaseConfig._
-import DatabaseConfig.profile.api._
+import ResultDatabaseConfig._
+import ResultDatabaseConfig.profile.api._
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration

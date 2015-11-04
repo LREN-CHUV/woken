@@ -1,8 +1,8 @@
 package core
 
-import akka.actor.{Props, ActorSystem}
+import akka.actor.{ActorRef, Props, ActorSystem}
+import config.{FederatedDatabaseConfig, DatabaseConfig, ResultDatabaseConfig}
 import core.clients.{DatabaseService, ChronosService}
-import dao.JobResultDao
 
 /**
  * Core is type containing the ``system: ActorSystem`` member. This enables us to use it in our
@@ -21,7 +21,8 @@ trait Core {
 trait CoreActors {
   this: Core =>
 
-  val chronosHttp = system.actorOf(Props[ChronosService], "http.chronos")
-  val databaseService = system.actorOf(DatabaseService.props(JobResultDao), "db")
+  val chronosHttp: ActorRef = system.actorOf(Props[ChronosService], "http.chronos")
+  val resultDatabaseService: ActorRef = system.actorOf(DatabaseService.props(ResultDatabaseConfig.dal, ResultDatabaseConfig.db), "db")
+  val federatedDatabaseService: Option[ActorRef] = FederatedDatabaseConfig.config.map(c => system.actorOf(DatabaseService.props(c.dal, c.db), "db"))
 
 }

@@ -1,11 +1,11 @@
 package core.clients
 
 import akka.actor.{Props, Actor}
-import config.DatabaseConfig._
 import core.model.JobResult
-import dao.JobResultDao
+import dao.DAL
 
 import scala.concurrent.ExecutionContext
+import slick.jdbc.JdbcBackend.Database
 
 object DatabaseService {
   trait DatabaseWork
@@ -17,10 +17,10 @@ object DatabaseService {
   // Results
   case class JobResults(results: Seq[JobResult]) extends DatabaseResult
 
-  def props(jobResultDao: JobResultDao): Props = Props(classOf[DatabaseService], jobResultDao)
+  def props(dal: DAL, db: Database): Props = Props(classOf[DatabaseService], dal)
 }
 
-class DatabaseService(val jobResultDao: JobResultDao) extends Actor {
+class DatabaseService(val dal: DAL, db: Database) extends Actor {
   import DatabaseService._
 
   def receive = {
@@ -32,7 +32,7 @@ class DatabaseService(val jobResultDao: JobResultDao) extends Actor {
       val originalSender = sender()
       val results = db.run {
         for {
-          results <- jobResultDao.get(requestId)
+          results <- dal.getJobResults(requestId)
         } yield results
       }
 

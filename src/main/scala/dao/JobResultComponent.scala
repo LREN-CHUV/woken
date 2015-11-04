@@ -1,18 +1,12 @@
 package dao
 
-import config.DatabaseConfig._
 import core.model.JobResult
-import profile.api._
 
-trait JobResultDao {
-
-  def create()
-
-  def get(requestId: String): DBIO[Seq[JobResult]]
-
-}
-
-trait JobResultDaoSlickImpl extends JobResultDao {
+/**
+  * JobResultComponent provides database definitions for JobResult objects
+  */
+trait JobResultComponent { this: DriverComponent =>
+  import driver.api._
 
   class JobResults(tag: Tag) extends Table[JobResult](tag, "job_result") {
     def requestId: Rep[String] = column[String]("request_id")
@@ -27,11 +21,8 @@ trait JobResultDaoSlickImpl extends JobResultDao {
 
   val jobResults = TableQuery[JobResults]
 
-  override def create() = jobResults.schema.create
+  def createJobResults() = jobResults.schema.create
 
-  override def get(requestId: String): DBIO[Seq[JobResult]] = jobResults.filter(_.requestId === requestId).result
+  def getJobResults(requestId: String): DBIO[Seq[JobResult]] = jobResults.filter(_.requestId === requestId).result
 
 }
-
-object JobResultDao extends JobResultDaoSlickImpl
-

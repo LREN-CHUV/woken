@@ -16,6 +16,6 @@ trait Api extends HttpService with CoreActors with Core {
 
   val routes =
     new SwaggerService().routes ~
-    new JobService(chronosHttp, databaseService).routes
+    new JobService(chronosHttp, resultDatabaseService, federatedDatabaseService).routes
 
 }

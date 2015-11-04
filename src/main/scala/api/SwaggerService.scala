@@ -1,6 +1,6 @@
 package api
 
-import akka.actor.{ActorRefFactory, ActorContext}
+import akka.actor.ActorRefFactory
 import com.gettyimages.spray.swagger.SwaggerHttpService
 import com.wordnik.swagger.model.ApiInfo
 

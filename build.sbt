@@ -23,7 +23,7 @@ libraryDependencies ++= {
     "com.typesafe.akka"   %%  "akka-actor"     % akkaVersion,
     "com.typesafe.akka"   %%  "akka-testkit"   % akkaVersion   % "test",
     "org.specs2"          %%  "specs2-core"    % "2.3.11"      % "test",
-    "com.typesafe.slick"  %%  "slick"          % "3.0.3",
+    "com.typesafe.slick"  %%  "slick"          % "3.1.0",
     "org.slf4j"            %  "slf4j-nop"      % "1.7.7",
     "org.slf4j"            %  "slf4j-api"      % "1.7.7",
     "org.scalatest"        %  "scalatest_2.11" % "2.2.1" % "test",
