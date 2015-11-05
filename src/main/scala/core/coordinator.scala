@@ -69,7 +69,7 @@ case class WaitLocalData(job: JobDto, replyTo: ActorRef) extends StateData
  *  - One request to Chronos to start the job
  *  - Then a separate request in the database for the results, repeated until enough results are present
  */
-trait CoordinatorActor extends Actor with ActorLogging with FSM[State, StateData] {
+trait CoordinatorActor extends Actor with ActorLogging with LoggingFSM[State, StateData] {
 
   def chronosService: ActorRef
   def resultDatabaseService: ActorRef
@@ -116,6 +116,13 @@ trait CoordinatorActor extends Actor with ActorLogging with FSM[State, StateData
       stop(Failure(msg))
   }
 
+  whenUnhandled {
+    case Event(e, s) =>
+      log.warning("Received unhandled request {} in state {}/{}", e, stateName, s)
+      stay
+  }
+
+
   def transitions: TransitionHandler = {
 
     case _ -> WaitForChronos =>
@@ -124,6 +131,7 @@ trait CoordinatorActor extends Actor with ActorLogging with FSM[State, StateData
       chronosService ! Schedule(chronosJob)
 
     case _ -> WaitForFinalResult =>
+      log.debug("Wait for final results")
       resultDatabaseService ! GetJobResults(nextStateData.job.requestId)
 
   }
@@ -225,9 +233,7 @@ class FederationCoordinatorActor(val chronosService: ActorRef, val resultDatabas
 
   override def transitions = super.transitions orElse {
     case _ -> WaitForIntermediateResults =>
-      federatedDatabaseService ! GetJobResults(nextStateData.job.requestId)
-
-    case _ -> WaitForIntermediateResults =>
+      log.debug("Wait for intermediate results")
       federatedDatabaseService ! GetJobResults(nextStateData.job.requestId)
   }
 

@@ -1,16 +1,13 @@
 
-CREATE TABLE result_box_stats
+CREATE TABLE job_result
 (
   request_id character varying(32) NOT NULL,
   node character varying(32) NOT NULL,
-  id numeric,
-  min numeric,
-  q1 numeric,
-  median numeric,
-  q3 numeric,
-  max numeric,
+  timestamp timestamp,
+  data text,
+  error character varying(256),
 
-  CONSTRAINT pk_result_box_stats PRIMARY KEY (request_id, node, id)
+  CONSTRAINT pk_job_result PRIMARY KEY (request_id, node)
 )
 WITH (
   OIDS=FALSE

@@ -1,12 +1,9 @@
 package config
 
 import core.model.JobResult
-import dao.JobResultDao
 import org.specs2.mutable.Specification
 import org.specs2.specification.BeforeAfterEach
 import slick.jdbc.meta.MTable
-import ResultDatabaseConfig._
-import ResultDatabaseConfig.profile.api._
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -22,13 +19,16 @@ object DatabaseSupportSpec {
 
 trait SpecSupport extends Specification with BeforeAfterEach {
 
+  import ResultDatabaseConfig._
+  import ResultDatabaseConfig.profile.api._
+
   def createSchema = {
-    val dropAll = JobResultDao.jobResults.schema.drop
+    val dropAll = dal.jobResults.schema.drop
 
     val createAll =
       DBIO.seq(
-        JobResultDao.jobResults.schema.create,
-        JobResultDao.jobResults ++= DatabaseSupportSpec.jobResults
+        dal.jobResults.schema.create,
+        dal.jobResults ++= DatabaseSupportSpec.jobResults
       )
 
     val results = db.run(MTable.getTables).flatMap {

@@ -1,49 +1,52 @@
 {
-  "name": "test",
+  "name": "hbp_node_r_linear_regression_t001",
   "shell": false,
   "environmentVariables": [{
     "name": "REQUEST_ID",
-    "value": "001"
+    "value": "t001"
   }, {
     "name": "NODE",
     "value": "federation"
   }, {
-    "name": "a",
-    "value": "1"
+    "name": "PARAM_y",
+    "value": "select tissue1_volume from brain_feature where feature_name='Hippocampus_R' order by tissue1_volume limit 300"
+  }, {
+    "name": "PARAM_A",
+    "value": "select tissue1_volume from brain_feature where feature_name='Hippocampus_L' order by tissue1_volume limit 300"
   }, {
     "name": "IN_JDBC_DRIVER",
     "value": "org.postgresql.Driver"
   }, {
     "name": "IN_JDBC_JAR_PATH",
-    "value": "/usr/lib/R/libraries/postgresql-9.3-1103.jdbc41.jar"
+    "value": "/usr/lib/R/libraries/postgresql-9.4-1201.jdbc41.jar"
   }, {
     "name": "IN_JDBC_URL",
-    "value": "jdbc:postgresql://hbps2.intranet.chuv:31432/analytics"
+    "value": "jdbc:postgresql://155.105.202.59:5432/analytics"
   }, {
     "name": "IN_JDBC_USER",
-    "value": "analytics"
+    "value": "postgres"
   }, {
     "name": "IN_JDBC_PASSWORD",
-    "value": "HBP=neuroinfo"
+    "value": "test"
   }, {
     "name": "OUT_JDBC_DRIVER",
     "value": "org.postgresql.Driver"
   }, {
     "name": "OUT_JDBC_JAR_PATH",
-    "value": "/usr/lib/R/libraries/postgresql-9.3-1103.jdbc41.jar"
+    "value": "/usr/lib/R/libraries/postgresql-9.4-1201.jdbc41.jar"
   }, {
     "name": "OUT_JDBC_URL",
-    "value": "jdbc:postgresql://hbps2.intranet.chuv:31432/analytics"
+    "value": "jdbc:postgresql://155.105.202.59:5432/analytics"
   }, {
     "name": "OUT_JDBC_USER",
-    "value": "analytics"
+    "value": "postgres"
   }, {
     "name": "OUT_JDBC_PASSWORD",
-    "value": "HBP=neuroinfo"
+    "value": "test"
   }],
   "container": {
     "type": "DOCKER",
-    "image": "hello"
+    "image": "registry.federation.mip.hbp/hbp_node/r-linear-regression:latest"
   },
   "epsilon": "PT5M",
   "command": "compute",
