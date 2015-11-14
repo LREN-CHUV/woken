@@ -1,0 +1,3 @@
+[submodule "dev-env/analytics-db"]
+	path = dev-env/analytics-db
+	url = git@gitlab.intranet.chuv:/mip-infra/analytics-db.git
