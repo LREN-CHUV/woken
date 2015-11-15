@@ -6,6 +6,10 @@ if [ -z "$id" ]; then
   id=$(date +'%s')
 fi
 
+./analytics-db/start-db.sh -p 5432
+
+java -Dconfig.file=test-application.conf -jar ../target/scala-2.11/workflow-assembly-0.1.jar &
+
 http -v --timeout 180 PUT localhost:8087/job \
          requestId="$id" \
          dockerImage="registry.federation.mip.hbp/mip_node/r-box-stats:latest" \

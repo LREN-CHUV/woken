@@ -18,4 +18,4 @@ Follow these steps to get started:
 
         > sbt run
 
-5. Browse to [http://localhost:8080](http://localhost:8080/)
+5. Browse to [http://localhost:8087](http://localhost:8087/)
