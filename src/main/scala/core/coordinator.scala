@@ -9,6 +9,9 @@ import core.clients.{JobClientService, ChronosService}
 import core.model.JobToChronos
 import core.model.JobResult
 import models.ChronosJob
+import spray.http.StatusCodes
+import spray.httpx.marshalling.ToResponseMarshaller
+import spray.json.DefaultJsonProtocol
 
 import scala.concurrent.duration._
 
@@ -19,7 +22,11 @@ import scala.concurrent.duration._
 object CoordinatorActor {
 
   // Incoming messages
-  case class Start(job: JobDto) extends RestMessage
+  case class Start(job: JobDto) extends RestMessage {
+    import spray.httpx.SprayJsonSupport._
+    override def marshaller: ToResponseMarshaller[Start] = ToResponseMarshaller.fromMarshaller(StatusCodes.OK)(DefaultJsonProtocol.jsonFormat1(Start))
+  }
+
   type WorkerJobComplete = JobClientService.JobComplete
   val WorkerJobComplete = JobClientService.JobComplete
   val WorkerJobError = JobClientService.JobError
@@ -32,7 +39,10 @@ object CoordinatorActor {
   type Result = core.model.JobResult
   val Result = core.model.JobResult
 
-  case class ErrorResponse(message: String) extends RestMessage
+  case class ErrorResponse(message: String) extends RestMessage {
+    import spray.httpx.SprayJsonSupport._
+    override def marshaller: ToResponseMarshaller[ErrorResponse] = ToResponseMarshaller.fromMarshaller(StatusCodes.InternalServerError)(DefaultJsonProtocol.jsonFormat1(ErrorResponse))
+  }
 
   import JobResult._
   implicit val resultFormat = jsonFormat5(Result.apply)

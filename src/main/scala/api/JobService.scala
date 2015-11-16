@@ -1,7 +1,6 @@
 package api
 
 import akka.actor.{ActorSystem, ActorRef}
-import core.model.JobResult
 import core.{RestMessage, CoordinatorActor}
 import spray.http._
 import spray.routing.Route
@@ -14,8 +13,6 @@ class JobService(val chronosService: ActorRef, val resultDatabaseService: ActorR
 
   import JobDto._
   import CoordinatorActor._
-
-  implicit val seqBoxPlotResFormat = seqFormat[JobResult]
 
   implicit object EitherErrorSelector extends ErrorSelector[ErrorResponse.type] {
     def apply(v: ErrorResponse.type): StatusCode = StatusCodes.BadRequest
