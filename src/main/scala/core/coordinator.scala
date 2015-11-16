@@ -24,7 +24,8 @@ object CoordinatorActor {
   // Incoming messages
   case class Start(job: JobDto) extends RestMessage {
     import spray.httpx.SprayJsonSupport._
-    override def marshaller: ToResponseMarshaller[Start] = ToResponseMarshaller.fromMarshaller(StatusCodes.OK)(DefaultJsonProtocol.jsonFormat1(Start))
+    import DefaultJsonProtocol._
+    override def marshaller: ToResponseMarshaller[Start] = ToResponseMarshaller.fromMarshaller(StatusCodes.OK)(jsonFormat1(Start))
   }
 
   type WorkerJobComplete = JobClientService.JobComplete
@@ -41,7 +42,8 @@ object CoordinatorActor {
 
   case class ErrorResponse(message: String) extends RestMessage {
     import spray.httpx.SprayJsonSupport._
-    override def marshaller: ToResponseMarshaller[ErrorResponse] = ToResponseMarshaller.fromMarshaller(StatusCodes.InternalServerError)(DefaultJsonProtocol.jsonFormat1(ErrorResponse))
+    import DefaultJsonProtocol._
+    override def marshaller: ToResponseMarshaller[ErrorResponse] = ToResponseMarshaller.fromMarshaller(StatusCodes.InternalServerError)(jsonFormat1(ErrorResponse))
   }
 
   import JobResult._
