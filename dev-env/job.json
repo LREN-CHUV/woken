@@ -1,5 +1,5 @@
 {
-  "requestId": "001",
+  "jobId": "001",
   "dockerImage": "registry.federation.mip.hbp/mip_node/r-linear-regression:latest",
   "inputDb": "analytics",
   "outputDb": "analytics",

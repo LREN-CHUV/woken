@@ -23,7 +23,7 @@ object JobToChronos {
 
     val container = Container("DOCKER", job.dockerImage)
     val environmentVariables: List[EV] = List(
-      EV("REQUEST_ID", job.requestId),
+      EV("JOB_ID", job.jobId),
       EV("NODE", jobs.node)) ++
          job.parameters.toList.map(kv => EV(kv._1, kv._2)) ++
          job.inputDb.fold(List[EV]())(dbEnvironment(_, "IN_")) ++

@@ -7,13 +7,13 @@ import scala.annotation.meta.field
 
 @ApiModel(description = "Definition of a calculation")
 case class JobDto(
-  @(ApiModelProperty @field)(required = true, value = "Id of the request. Must be unique")
-  requestId: String,
+  @(ApiModelProperty @field)(required = true, value = "Id of the job. Must be unique")
+  jobId: String,
 
   @(ApiModelProperty @field)(required = true, value = "name of the Docker image to use. Include the version to ensure reproducibility")
   dockerImage: String,
 
-  @(ApiModelProperty @field)(value = "name of the job in Chronos. Must be unique. Default value is constructed from requestId and jobName")
+  @(ApiModelProperty @field)(value = "name of the job in Chronos. Must be unique. Default value is constructed from jobId and jobName")
   jobName: Option[String],
 
   @(ApiModelProperty @field)(value = "name of the input database")
@@ -29,7 +29,7 @@ case class JobDto(
   nodes: Set[String] = Set()
 ) {
 
-  def jobNameResolved: String =  jobName.getOrElse(dockerImage.replaceAll("^.*?/", "").takeWhile(_ != ':') + "_" + requestId).replaceAll("[/.-]", "_")
+  def jobNameResolved: String =  jobName.getOrElse(dockerImage.replaceAll("^.*?/", "").takeWhile(_ != ':') + "_" + jobId).replaceAll("[/.-]", "_")
 
 }
 

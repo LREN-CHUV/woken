@@ -7,7 +7,7 @@ if [ -z "$id" ]; then
 fi
 
 http -v --timeout 180 PUT hbps2.chuv.ch/workflow/job \
-         requestId="$id" \
+         jobId="$id" \
          dockerImage="registry.federation.mip.hbp/mip_node/r-box-stats:latest" \
          inputDb=ldsm \
          outputDb=analytics \

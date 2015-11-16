@@ -132,7 +132,7 @@ trait CoordinatorActor extends Actor with ActorLogging with LoggingFSM[State, St
 
     case _ -> WaitForFinalResult =>
       log.debug("Wait for final results")
-      resultDatabaseService ! GetJobResults(nextStateData.job.requestId)
+      resultDatabaseService ! GetJobResults(nextStateData.job.jobId)
 
   }
 
@@ -141,6 +141,7 @@ trait CoordinatorActor extends Actor with ActorLogging with LoggingFSM[State, St
 }
 
 class LocalCoordinatorActor(val chronosService: ActorRef, val resultDatabaseService: ActorRef) extends CoordinatorActor {
+  log.info ("Local coordinator actor started...")
 
   when (WaitForNewJob) {
     case Event(Start(job), data: StateData) => {
@@ -234,7 +235,7 @@ class FederationCoordinatorActor(val chronosService: ActorRef, val resultDatabas
   override def transitions = super.transitions orElse {
     case _ -> WaitForIntermediateResults =>
       log.debug("Wait for intermediate results")
-      federatedDatabaseService ! GetJobResults(nextStateData.job.requestId)
+      federatedDatabaseService ! GetJobResults(nextStateData.job.jobId)
   }
 
   initialize()

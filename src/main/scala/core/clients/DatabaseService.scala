@@ -12,7 +12,7 @@ object DatabaseService {
   trait DatabaseResult
 
   // Requests
-  case class GetJobResults(requestId: String) extends DatabaseWork
+  case class GetJobResults(jobId: String) extends DatabaseWork
 
   // Results
   case class JobResults(results: Seq[JobResult]) extends DatabaseResult
@@ -25,14 +25,14 @@ class DatabaseService(val dal: DAL, db: Database) extends Actor {
 
   def receive = {
 
-    case GetJobResults(requestId) => {
+    case GetJobResults(jobId) => {
       import akka.pattern.pipe
       implicit val executionContext: ExecutionContext = context.dispatcher
 
       val originalSender = sender()
       val results = db.run {
         for {
-          results <- dal.getJobResults(requestId)
+          results <- dal.getJobResults(jobId)
         } yield results
       }
 
