@@ -88,20 +88,16 @@ trait CoordinatorActor extends Actor with ActorLogging with LoggingFSM[State, St
       stop(Failure(msg))
   }
 
-  when (RequestFinalResult) {
-    case _ => goto(WaitForFinalResult)
+  when (RequestFinalResult, stateTimeout = 200.milliseconds) {
+    case Event(StateTimeout, _) => goto(WaitForFinalResult)
   }
 
   when (WaitForFinalResult) {
     case Event(results: JobResults, data: WaitLocalData) =>
       if (results.results.nonEmpty) {
-        data.replyTo ! results.results.head
+        data.replyTo ! PutJobResults(results.results)
         stop()
-      } else {
-        import context.dispatcher
-        context.system.scheduler.scheduleOnce(200.milliseconds, self, RequestFinalResult)
-        stay()
-      }
+      } else goto(RequestFinalResult)
 
     case Event(failure: Status.Failure, data: WaitLocalData) =>
       log.error(failure.cause, "Cannot query result database")
@@ -205,19 +201,15 @@ class FederationCoordinatorActor(val chronosService: ActorRef, val resultDatabas
     }
   }
 
-  when (RequestIntermediateResults) {
-    case _ => goto(WaitForIntermediateResults)
+  when (RequestIntermediateResults, stateTimeout = 200.milliseconds) {
+    case Event(StateTimeout, _) => goto(WaitForIntermediateResults)
   }
 
   when (WaitForIntermediateResults) {
     case Event(results: JobResults, data: WaitingForNodesData) =>
       if (results.results.size == data.totalNodeCount) {
         goto(WaitForChronos) using WaitLocalData(data.job, data.replyTo)
-      } else {
-        import context.dispatcher
-        context.system.scheduler.scheduleOnce(200.milliseconds, self, RequestIntermediateResults)
-        stay()
-      }
+      } else goto(RequestIntermediateResults)
 
     case Event(failure: Status.Failure, data: WaitingForNodesData) =>
       log.error(failure.cause, "Cannot query federated database")
