@@ -23,7 +23,7 @@ object PutJobResults extends DefaultJsonProtocol {
   implicit val seqJobResultFormat = seqFormat[JobResult]
 
   implicit object putJobResultsFormat extends RootJsonFormat[PutJobResults] {
-    override def write(r: PutJobResults) = seqJobResultFormat.write(r.results)
+    override def write(r: PutJobResults) = if (r.results.length == 1) jobResultFormat.write(r.results.head) else seqJobResultFormat.write(r.results)
     override def read(json: JsValue): PutJobResults = throw new NotImplementedError("Cannot read a PutJobResult")
   }
 }
