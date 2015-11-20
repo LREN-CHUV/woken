@@ -51,7 +51,7 @@ object CoordinatorActor {
   implicit val errorResponseFormat = jsonFormat1(ErrorResponse.apply)
 
   def props(chronosService: ActorRef, resultDatabaseService: ActorRef, federationDatabaseService: Option[ActorRef]): Props =
-    federationDatabaseService.map(fds => Props(classOf[FederationCoordinatorActor], chronosService, fds))
+    federationDatabaseService.map(fds => Props(classOf[FederationCoordinatorActor], chronosService, resultDatabaseService, fds))
       .getOrElse(Props(classOf[LocalCoordinatorActor], chronosService, resultDatabaseService))
 
 }
