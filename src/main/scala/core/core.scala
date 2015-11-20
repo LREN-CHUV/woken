@@ -1,7 +1,7 @@
 package core
 
 import akka.actor.{ActorRef, Props, ActorSystem}
-import config.{FederatedDatabaseConfig, DatabaseConfig, ResultDatabaseConfig}
+import config.{FederationDatabaseConfig, DatabaseConfig, ResultDatabaseConfig}
 import core.clients.{DatabaseService, ChronosService}
 
 /**
@@ -23,6 +23,6 @@ trait CoreActors {
 
   val chronosHttp: ActorRef = system.actorOf(Props[ChronosService], "http.chronos")
   val resultDatabaseService: ActorRef = system.actorOf(DatabaseService.props(ResultDatabaseConfig.dal, ResultDatabaseConfig.db), "db")
-  val federatedDatabaseService: Option[ActorRef] = FederatedDatabaseConfig.config.map(c => system.actorOf(DatabaseService.props(c.dal, c.db), "db"))
+  val federationDatabaseService: Option[ActorRef] = FederationDatabaseConfig.config.map(c => system.actorOf(DatabaseService.props(c.dal, c.db), "db"))
 
 }

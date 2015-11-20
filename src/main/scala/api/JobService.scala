@@ -6,7 +6,7 @@ import spray.http._
 import spray.routing.Route
 
 // this trait defines our service behavior independently from the service actor
-class JobService(val chronosService: ActorRef, val resultDatabaseService: ActorRef, val federatedDatabaseService: Option[ActorRef])(implicit system: ActorSystem) extends JobServiceDoc with PerRequestCreator with DefaultJsonFormats {
+class JobService(val chronosService: ActorRef, val resultDatabaseService: ActorRef, val federationDatabaseService: Option[ActorRef])(implicit system: ActorSystem) extends JobServiceDoc with PerRequestCreator with DefaultJsonFormats {
 
   override def context = system
   val routes: Route = initJob
@@ -29,6 +29,6 @@ class JobService(val chronosService: ActorRef, val resultDatabaseService: ActorR
   }
 
   def chronosJob(message : RestMessage): Route =
-    ctx => perRequest(ctx, CoordinatorActor.props(chronosService, resultDatabaseService, federatedDatabaseService), message)
+    ctx => perRequest(ctx, CoordinatorActor.props(chronosService, resultDatabaseService, federationDatabaseService), message)
 
 }

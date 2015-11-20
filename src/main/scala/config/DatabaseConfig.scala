@@ -29,15 +29,15 @@ object ResultDatabaseConfig extends DatabaseConfig {
 }
 
 /**
-  * Configuration for the federated database (Denodo) gathering the results from the other nodes.
+  * Configuration for the federation database (Denodo) gathering the results from the other nodes.
   */
 //Based on play-slick driver loader
-object FederatedDatabaseConfig {
+object FederationDatabaseConfig {
   import Config._
 
-  val config: Option[DatabaseConfig] = if (!jobs.jobsConf.hasPath("federatedDb")) None else
+  val config: Option[DatabaseConfig] = if (!jobs.jobsConf.hasPath("federationDb")) None else
     Some(new DatabaseConfig {
-      val config = dbConfig(jobs.jobsConf.getString("federatedDb"))
+      val config = dbConfig(jobs.jobsConf.getString("federationDb"))
       import config._
       lazy val db: Database = Database.forURL(jdbcUrl, jdbcUser, jdbcPassword, driver = jdbcDriver)
       lazy val profile: JdbcProfile = jdbcDriver match {

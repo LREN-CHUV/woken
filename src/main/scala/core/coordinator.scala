@@ -50,8 +50,8 @@ object CoordinatorActor {
   implicit val resultFormat = jsonFormat5(Result.apply)
   implicit val errorResponseFormat = jsonFormat1(ErrorResponse.apply)
 
-  def props(chronosService: ActorRef, resultDatabaseService: ActorRef, federatedDatabaseService: Option[ActorRef]): Props =
-    federatedDatabaseService.map(fds => Props(classOf[FederationCoordinatorActor], chronosService, fds))
+  def props(chronosService: ActorRef, resultDatabaseService: ActorRef, federationDatabaseService: Option[ActorRef]): Props =
+    federationDatabaseService.map(fds => Props(classOf[FederationCoordinatorActor], chronosService, fds))
       .getOrElse(Props(classOf[LocalCoordinatorActor], chronosService, resultDatabaseService))
 
 }
@@ -173,7 +173,7 @@ class LocalCoordinatorActor(val chronosService: ActorRef, val resultDatabaseServ
 
 }
 
-class FederationCoordinatorActor(val chronosService: ActorRef, val resultDatabaseService: ActorRef, val federatedDatabaseService: ActorRef) extends CoordinatorActor {
+class FederationCoordinatorActor(val chronosService: ActorRef, val resultDatabaseService: ActorRef, val federationDatabaseService: ActorRef) extends CoordinatorActor {
 
   import CoordinatorActor._
 
@@ -239,7 +239,7 @@ class FederationCoordinatorActor(val chronosService: ActorRef, val resultDatabas
   override def transitions = super.transitions orElse {
     case _ -> WaitForIntermediateResults =>
       log.debug("Wait for intermediate results")
-      federatedDatabaseService ! GetJobResults(nextStateData.job.jobId)
+      federationDatabaseService ! GetJobResults(nextStateData.job.jobId)
   }
 
   initialize()
