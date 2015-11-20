@@ -181,12 +181,12 @@ class FederationCoordinatorActor(val chronosService: ActorRef, val resultDatabas
     case Event(Start(job), data: StateData) => {
       import config.Config
       val replyTo = sender()
-      val nodes = if (job.nodes.isEmpty) Config.jobs.nodes else job.nodes
+      val nodes = job.nodes.getOrElse(Config.jobs.nodes)
 
       if (nodes.nonEmpty) {
         for (node <- nodes) {
           val workerNode = context.actorOf(Props(classOf[JobClientService], node))
-          workerNode ! Start(job.copy(nodes = Set()))
+          workerNode ! Start(job.copy(nodes = None))
         }
         goto(WaitForNodes) using WaitingForNodesData(job, replyTo, nodes, nodes.size)
       } else {

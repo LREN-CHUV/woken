@@ -17,16 +17,13 @@ case class JobDto(
   jobName: Option[String],
 
   @(ApiModelProperty @field)(value = "name of the input database")
-  inputDb: Option[String] = None,
-
-  @(ApiModelProperty @field)(value = "name of the output database")
-  outputDb: Option[String] = None,
+  inputDb: Option[String],
 
   @(ApiModelProperty @field)(required = true, value = "additional parameters")
   parameters: Map[String, String],
 
   @(ApiModelProperty @field)(required = false, value = "selected nodes")
-  nodes: Set[String] = Set()
+  nodes: Option[Set[String]]
 ) {
 
   def jobNameResolved: String =  jobName.getOrElse(dockerImage.replaceAll("^.*?/", "").takeWhile(_ != ':') + "_" + jobId).replaceAll("[/.-]", "_")
@@ -34,5 +31,5 @@ case class JobDto(
 }
 
 object JobDto extends DefaultJsonProtocol {
-  implicit val jobDtoFormat = jsonFormat7(JobDto.apply)
+  implicit val jobDtoFormat = jsonFormat6(JobDto.apply)
 }

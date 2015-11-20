@@ -22,12 +22,16 @@ object JobToChronos {
   def enrich(job: JobDto): ChronosJob = {
 
     val container = Container("DOCKER", job.dockerImage)
+    // On Federation, use the federationDb, otherwise look for the input db in the task or in the configuration of the node
+    val inputDb = jobs.federationDb orElse job.inputDb orElse jobs.ldsmDb getOrElse (throw new IllegalArgumentException("federationDb or ldsmDb should be defined in the configuration"))
+    val outputDb = jobs.resultDb
+
     val environmentVariables: List[EV] = List(
       EV("JOB_ID", job.jobId),
       EV("NODE", jobs.node)) ++
          job.parameters.toList.map(kv => EV(kv._1, kv._2)) ++
-         job.inputDb.fold(List[EV]())(dbEnvironment(_, "IN_")) ++
-         job.outputDb.fold(List[EV]())(dbEnvironment(_, "OUT_"))
+         dbEnvironment(inputDb, "IN_") ++
+         dbEnvironment(outputDb, "OUT_")
 
     ChronosJob(
       schedule = "R1//PT24H",

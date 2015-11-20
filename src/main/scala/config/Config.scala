@@ -1,7 +1,7 @@
 package config
 
 import com.typesafe.config.ConfigFactory
-
+import cromwell.util.ConfigUtil._
 
 object Config {
   private val config =  ConfigFactory.load()
@@ -24,6 +24,8 @@ object Config {
     val node = jobsConf.getString("node")
     val owner = jobsConf.getString("owner")
     val chronosServerUrl = jobsConf.getString("chronosServerUrl")
+    val ldsmDb = jobsConf.getStringOption("ldsmDb")
+    val federationDb = jobsConf.getStringOption("federationDb")
     val resultDb = jobsConf.getString("resultDb")
 
     import scala.collection.JavaConversions._

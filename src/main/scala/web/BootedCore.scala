@@ -33,7 +33,7 @@ trait BootedCore extends Core with Api with StaticResources {
   /**
    * Ensure that the constructed ActorSystem is shut down when the JVM shuts down
    */
-  sys.addShutdownHook(system.terminate())
+  sys.addShutdownHook(system.shutdown())
 
 }
 

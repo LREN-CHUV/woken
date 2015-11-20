@@ -6,3 +6,4 @@
     https://orrsella.com/2014/09/24/integration-and-end-to-end-test-configurations-in-sbt-for-scala-java-projects/
     https://github.com/pawelkaczor/ddd-leaven-akka-v2/tree/master/e2e-tests
 
+* Check good ideas in https://github.com/softwaremill/bootzooka : Flyway integration, Akka HTTP...
