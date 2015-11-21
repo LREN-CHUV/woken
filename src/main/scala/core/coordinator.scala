@@ -181,7 +181,9 @@ class FederationCoordinatorActor(val chronosService: ActorRef, val resultDatabas
     case Event(Start(job), data: StateData) => {
       import config.Config
       val replyTo = sender()
-      val nodes = job.nodes.getOrElse(Config.jobs.nodes)
+      val nodes = job.nodes.filter(_.isEmpty).getOrElse(Config.jobs.nodes)
+
+      log.warning(s"List of nodes: ${nodes.mkString(",")}")
 
       if (nodes.nonEmpty) {
         for (node <- nodes) {

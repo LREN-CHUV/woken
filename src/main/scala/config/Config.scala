@@ -27,10 +27,11 @@ object Config {
     val ldsmDb = jobsConf.getStringOption("ldsmDb")
     val federationDb = jobsConf.getStringOption("federationDb")
     val resultDb = jobsConf.getString("resultDb")
+    val nodesConf = jobsConf.getConfig("nodes")
 
     import scala.collection.JavaConversions._
-    def nodes: Set[String] = jobsConf.getConfig("nodes").entrySet().map(_.getKey)(collection.breakOut)
-    def nodeConfig(node: String): JobServerConf = JobServerConf(jobsConf.getConfig(node).getString("jobsUrl"))
+    def nodes: Set[String] = nodesConf.entrySet().map(_.getKey.takeWhile(_ != '.'))(collection.breakOut)
+    def nodeConfig(node: String): JobServerConf = JobServerConf(nodesConf.getConfig(node).getString("jobsUrl"))
   }
 
   case class DbConfig(
