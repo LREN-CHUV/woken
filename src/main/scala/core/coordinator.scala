@@ -222,7 +222,12 @@ class FederationCoordinatorActor(val chronosService: ActorRef, val resultDatabas
   when (WaitForIntermediateResults) {
     case Event(results: JobResults, data: WaitingForNodesData) =>
       if (results.results.size == data.totalNodeCount) {
-        goto(WaitForChronos) using WaitLocalData(data.job, data.replyTo)
+        data.job.federationDockerImage.fold {
+          data.replyTo ! PutJobResults(results.results)
+          stop()
+        } { federationDockerImage =>
+          goto(WaitForChronos) using WaitLocalData(data.job.copy(dockerImage = federationDockerImage), data.replyTo)
+        }
       } else goto(RequestIntermediateResults)
 
     case Event(failure: Status.Failure, data: WaitingForNodesData) =>

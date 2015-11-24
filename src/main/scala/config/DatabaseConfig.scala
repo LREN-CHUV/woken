@@ -1,6 +1,6 @@
 package config
 
-import dao.DAL
+import dao.{FederationDAL, NodeDAL, DAL}
 import slick.driver.{ H2Driver, JdbcProfile, PostgresDriver }
 import slick.jdbc.JdbcBackend._
 
@@ -25,7 +25,7 @@ object ResultDatabaseConfig extends DatabaseConfig {
     case "org.postgresql.Driver" => PostgresDriver
     case "org.h2.Driver" => H2Driver
   }
-  lazy val dal = new DAL(profile)
+  lazy val dal = new NodeDAL(profile)
 }
 
 /**
@@ -45,6 +45,6 @@ object FederationDatabaseConfig {
         case "org.h2.Driver" => H2Driver
         case "com.denodo.vdp.jdbc.Driver" => PostgresDriver
       }
-      lazy val dal = new DAL(profile)
+      lazy val dal = new FederationDAL(profile)
     })
 }

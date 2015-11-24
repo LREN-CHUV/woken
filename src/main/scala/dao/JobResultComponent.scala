@@ -5,13 +5,12 @@ import java.sql.Timestamp
 
 import core.model.JobResult
 
-object JobResultComponent {
-
-}
 /**
   * JobResultComponent provides database definitions for JobResult objects
   */
 trait JobResultComponent { this: DriverComponent =>
+  def tableName: String
+
   import driver.api._
 
   // A ColumnType that maps Longs to sql Timestamp
@@ -20,7 +19,7 @@ trait JobResultComponent { this: DriverComponent =>
     { ts => OffsetDateTime.of(ts.toLocalDateTime, ZoneOffset.UTC) } // map Timestamp to OffsetDateTime
   )
 
-  class JobResults(tag: Tag) extends Table[JobResult](tag, "job_result") {
+  class JobResults(tag: Tag) extends Table[JobResult](tag, tableName) {
     def jobId: Rep[String] = column[String]("job_id")
     def node: Rep[String] = column[String]("node")
     def timestamp: Rep[OffsetDateTime] = column[OffsetDateTime]("timestamp")
@@ -37,4 +36,12 @@ trait JobResultComponent { this: DriverComponent =>
 
   def getJobResults(jobId: String): DBIO[Seq[JobResult]] = jobResults.filter(_.jobId === jobId).result
 
+}
+
+trait NodeJobResultComponent extends JobResultComponent { this: DriverComponent =>
+  val tableName = "job_result"
+}
+
+trait FederationJobResultComponent extends JobResultComponent { this: DriverComponent =>
+  val tableName = "job_result_nodes"
 }
