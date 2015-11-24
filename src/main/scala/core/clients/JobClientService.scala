@@ -1,6 +1,6 @@
 package core.clients
 
-import akka.actor.Actor
+import akka.actor.{ActorLogging, AbstractLoggingActor, Actor}
 import akka.io.IO
 import akka.util.Timeout
 import models.ChronosJob
@@ -23,7 +23,7 @@ object JobClientService {
   case class JobError(node: String, message: String)
 }
 
-class JobClientService(node: String) extends Actor {
+class JobClientService(node: String) extends Actor with ActorLogging {
   import JobClientService._
   import config.Config.jobs._
 
@@ -31,10 +31,13 @@ class JobClientService(node: String) extends Actor {
     case Start(job) => {
       import akka.pattern.{ask, pipe}
       import spray.httpx.SprayJsonSupport._
-      import ChronosJob._
+      import api.JobDto._
       implicit val system = context.system
       implicit val executionContext = context.dispatcher
       implicit val timeout: Timeout = Timeout(180.seconds)
+
+      log.warning(s"Send PUT request to ${nodeConfig(node).jobsUrl}/job")
+      log.warning(jobDtoFormat.write(job).prettyPrint)
 
       val originalSender = sender()
       val jobResponse: Future[HttpResponse] =
