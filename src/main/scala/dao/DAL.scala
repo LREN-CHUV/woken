@@ -19,15 +19,15 @@ trait DAL {
 object DAL {
   implicit val DateTimeMeta: Meta[OffsetDateTime] =
     Meta[java.sql.Timestamp].nxmap(
-      ts => OffsetDateTime.of(LocalDateTime.ofEpochSecond(ts.getTime, 0, ZoneOffset.UTC), ZoneOffset.UTC),
-      dt => new java.sql.Timestamp(dt.toEpochSecond)
+      ts => OffsetDateTime.of(ts.toLocalDateTime, ZoneOffset.UTC),
+      dt => java.sql.Timestamp.valueOf(dt.toLocalDateTime)
     )
 }
 
 class NodeDAL(xa: Transactor[IO]) extends DAL {
   import DAL._
 
-  def queryJobResults(jobId: String): ConnectionIO[List[JobResult]] = sql"select node, data, job_id, error from job_result where job_id = $jobId".query[JobResult].list
+  def queryJobResults(jobId: String): ConnectionIO[List[JobResult]] = sql"select job_id, node, timestamp, data, error from job_result where job_id = $jobId".query[JobResult].list
 
   override def findJobResults(jobId: String) = queryJobResults(jobId).transact(xa).unsafePerformIO
 
@@ -36,7 +36,7 @@ class NodeDAL(xa: Transactor[IO]) extends DAL {
 class FederationDAL(xa: Transactor[IO]) extends DAL {
   import DAL._
 
-  def queryJobResults(jobId: String): ConnectionIO[List[JobResult]] = sql"select node, data, job_id, error from job_result_nodes where job_id = $jobId".query[JobResult].list
+  def queryJobResults(jobId: String): ConnectionIO[List[JobResult]] = sql"select job_id, node, timestamp, data, error from job_result_nodes where job_id = $jobId".query[JobResult].list
 
   override def findJobResults(jobId: String) = queryJobResults(jobId).transact(xa).unsafePerformIO
 

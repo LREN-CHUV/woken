@@ -4,10 +4,10 @@ import akka.actor.FSM.Failure
 import akka.actor._
 import api.JobDto
 import core.CoordinatorActor.Start
-import core.clients.DatabaseService.{JobResults, GetJobResults}
 import core.clients.{JobClientService, ChronosService}
 import core.model.JobToChronos
 import core.model.JobResult
+import dao.DAL
 import models.ChronosJob
 import spray.http.StatusCodes
 import spray.httpx.marshalling.ToResponseMarshaller
@@ -50,25 +50,23 @@ object CoordinatorActor {
   implicit val resultFormat: JsonFormat[Result] = JobResult.jobResultFormat
   implicit val errorResponseFormat = jsonFormat1(ErrorResponse.apply)
 
-  def props(chronosService: ActorRef, resultDatabaseService: ActorRef, federationDatabaseService: Option[ActorRef]): Props =
-    federationDatabaseService.map(fds => Props(classOf[FederationCoordinatorActor], chronosService, resultDatabaseService, fds))
-      .getOrElse(Props(classOf[LocalCoordinatorActor], chronosService, resultDatabaseService))
+  def props(chronosService: ActorRef, resultDatabase: DAL, federationDatabase: Option[DAL]): Props =
+    federationDatabase.map(fd => Props(classOf[FederationCoordinatorActor], chronosService, resultDatabase, fd))
+      .getOrElse(Props(classOf[LocalCoordinatorActor], chronosService, resultDatabase))
 
 }
 
 sealed trait State
 case object WaitForNewJob extends State
 case object WaitForChronos extends State
-case object RequestFinalResult extends State
-case object WaitForFinalResult extends State
 case object WaitForNodes extends State
+case object RequestFinalResult extends State
 case object RequestIntermediateResults extends State
-case object WaitForIntermediateResults extends State
 
 trait StateData {
   def job: JobDto
 }
-case object EmptyStateData extends StateData {
+case object Uninitialized extends StateData {
   def job = throw new IllegalAccessException()
 }
 case class WaitingForNodesData(job: JobDto, replyTo: ActorRef, remainingNodes: Set[String] = Set(), totalNodeCount: Int) extends StateData
@@ -83,10 +81,12 @@ case class WaitLocalData(job: JobDto, replyTo: ActorRef) extends StateData
  */
 trait CoordinatorActor extends Actor with ActorLogging with LoggingFSM[State, StateData] {
 
-  def chronosService: ActorRef
-  def resultDatabaseService: ActorRef
+  val repeatDuration = 200.milliseconds
 
-  startWith(WaitForNewJob, EmptyStateData)
+  def chronosService: ActorRef
+  def resultDatabase: DAL
+
+  startWith(WaitForNewJob, Uninitialized)
 
   when (WaitForChronos) {
     case Event(Ok, data: WaitLocalData) => goto(RequestFinalResult) using data
@@ -100,28 +100,16 @@ trait CoordinatorActor extends Actor with ActorLogging with LoggingFSM[State, St
       stop(Failure(msg))
   }
 
-  when (RequestFinalResult, stateTimeout = 200.milliseconds) {
-    case Event(StateTimeout, _) => goto(WaitForFinalResult)
-  }
-
-  when (WaitForFinalResult) {
-    case Event(results: JobResults, data: WaitLocalData) =>
-      if (results.results.nonEmpty) {
-        data.replyTo ! PutJobResults(results.results)
+  when (RequestFinalResult, stateTimeout = repeatDuration) {
+    case Event(StateTimeout, data: WaitLocalData) => {
+      val results = resultDatabase.findJobResults(data.job.jobId)
+      if (results.nonEmpty) {
+        data.replyTo ! PutJobResults(results)
         stop()
-      } else goto(RequestFinalResult)
-
-    case Event(failure: Status.Failure, data: WaitLocalData) =>
-      log.error(failure.cause, "Cannot query result database")
-      val msg: String = failure.cause.getMessage
-      data.replyTo ! Error(msg)
-      stop(Failure(msg))
-
-    case Event(e: Timeout @unchecked, data: WaitLocalData) =>
-      val msg: String = "Timeout while querying result database"
-      log.error(msg)
-      data.replyTo ! Error(msg)
-      stop(Failure(msg))
+      } else {
+        stay() forMax repeatDuration
+      }
+    }
   }
 
   whenUnhandled {
@@ -138,17 +126,13 @@ trait CoordinatorActor extends Actor with ActorLogging with LoggingFSM[State, St
       val chronosJob: ChronosJob = JobToChronos.enrich(nextStateData.job)
       chronosService ! Schedule(chronosJob)
 
-    case _ -> WaitForFinalResult =>
-      log.debug("Wait for final results")
-      resultDatabaseService ! GetJobResults(nextStateData.job.jobId)
-
   }
 
   onTransition( transitions )
 
 }
 
-class LocalCoordinatorActor(val chronosService: ActorRef, val resultDatabaseService: ActorRef) extends CoordinatorActor {
+class LocalCoordinatorActor(val chronosService: ActorRef, val resultDatabase: DAL) extends CoordinatorActor {
   log.info ("Local coordinator actor started...")
 
   when (WaitForNewJob) {
@@ -165,15 +149,11 @@ class LocalCoordinatorActor(val chronosService: ActorRef, val resultDatabaseServ
     case _ => stop(Failure("Unexpected state RequestIntermediateResults"))
   }
 
-  when (WaitForIntermediateResults) {
-    case _ => stop(Failure("Unexpected state WaitForIntermediateResults"))
-  }
-
   initialize()
 
 }
 
-class FederationCoordinatorActor(val chronosService: ActorRef, val resultDatabaseService: ActorRef, val federationDatabaseService: ActorRef) extends CoordinatorActor {
+class FederationCoordinatorActor(val chronosService: ActorRef, val resultDatabase: DAL, val federationDatabase: DAL) extends CoordinatorActor {
 
   import CoordinatorActor._
 
@@ -215,38 +195,20 @@ class FederationCoordinatorActor(val chronosService: ActorRef, val resultDatabas
     }
   }
 
-  when (RequestIntermediateResults, stateTimeout = 200.milliseconds) {
-    case Event(StateTimeout, _) => goto(WaitForIntermediateResults)
-  }
-
-  when (WaitForIntermediateResults) {
-    case Event(results: JobResults, data: WaitingForNodesData) =>
-      if (results.results.size == data.totalNodeCount) {
+  when (RequestIntermediateResults, stateTimeout = repeatDuration) {
+    case Event(StateTimeout, data: WaitingForNodesData) => {
+      val results = federationDatabase.findJobResults(data.job.jobId)
+      if (results.size == data.totalNodeCount) {
         data.job.federationDockerImage.fold {
-          data.replyTo ! PutJobResults(results.results)
+          data.replyTo ! PutJobResults(results)
           stop()
         } { federationDockerImage =>
           goto(WaitForChronos) using WaitLocalData(data.job.copy(dockerImage = federationDockerImage), data.replyTo)
         }
-      } else goto(RequestIntermediateResults)
-
-    case Event(failure: Status.Failure, data: WaitingForNodesData) =>
-      log.error(failure.cause, "Cannot query federated database")
-      val msg: String = failure.cause.getMessage
-      data.replyTo ! Error(msg)
-      stop(Failure(msg))
-
-    case Event(e: Timeout @unchecked, data: WaitingForNodesData) =>
-      val msg: String = "Timeout while querying federated database"
-      log.error(msg)
-      data.replyTo ! Error(msg)
-      stop(Failure(msg))
-  }
-
-  override def transitions = super.transitions orElse {
-    case _ -> WaitForIntermediateResults =>
-      log.debug("Wait for intermediate results")
-      federationDatabaseService ! GetJobResults(nextStateData.job.jobId)
+      } else {
+        stay() forMax repeatDuration
+      }
+    }
   }
 
   initialize()

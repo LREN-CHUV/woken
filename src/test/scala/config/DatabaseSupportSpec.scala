@@ -1,11 +1,10 @@
 package config
 
-import java.time.{ZoneId, Instant, Clock, OffsetDateTime}
+import java.time.{ZoneId, Instant, OffsetDateTime}
 
 import core.model.JobResult
 import org.specs2.mutable.Specification
 import org.specs2.specification.BeforeAfterEach
-import slick.jdbc.meta.MTable
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -23,9 +22,10 @@ object DatabaseSupportSpec {
 trait SpecSupport extends Specification with BeforeAfterEach {
 
   import ResultDatabaseConfig._
-  import ResultDatabaseConfig.profile.api._
+  //import ResultDatabaseConfig.profile.api._
 
   def createSchema = {
+    /*
     val dropAll = dal.jobResults.schema.drop
 
     val createAll =
@@ -39,8 +39,9 @@ trait SpecSupport extends Specification with BeforeAfterEach {
         db.run(dropAll).flatMap(_ => db.run(createAll))
       } else db.run(createAll)
     }
-
     Await.result(results, Duration.Inf)
+    */
+
   }
 
   override def before: Unit= {
