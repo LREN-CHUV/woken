@@ -22,7 +22,7 @@ trait CoreActors {
   this: Core =>
 
   val chronosHttp: ActorRef = system.actorOf(Props[ChronosService], "http.chronos")
-  val resultDatabaseService: ActorRef = system.actorOf(DatabaseService.props(ResultDatabaseConfig.dal, ResultDatabaseConfig.db), "db.result")
-  val federationDatabaseService: Option[ActorRef] = FederationDatabaseConfig.config.map(c => system.actorOf(DatabaseService.props(c.dal, c.db), "db.federation"))
+  val resultDatabaseService: ActorRef = system.actorOf(DatabaseService.props(ResultDatabaseConfig.dal), "db.result")
+  val federationDatabaseService: Option[ActorRef] = FederationDatabaseConfig.config.map(c => system.actorOf(DatabaseService.props(c.dal), "db.federation"))
 
 }

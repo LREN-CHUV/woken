@@ -11,7 +11,7 @@ import core.model.JobResult
 import models.ChronosJob
 import spray.http.StatusCodes
 import spray.httpx.marshalling.ToResponseMarshaller
-import spray.json.DefaultJsonProtocol
+import spray.json.{JsonFormat, DefaultJsonProtocol}
 
 import scala.concurrent.duration._
 
@@ -47,7 +47,7 @@ object CoordinatorActor {
   }
 
   import JobResult._
-  implicit val resultFormat = jsonFormat5(Result.apply)
+  implicit val resultFormat: JsonFormat[Result] = JobResult.jobResultFormat
   implicit val errorResponseFormat = jsonFormat1(ErrorResponse.apply)
 
   def props(chronosService: ActorRef, resultDatabaseService: ActorRef, federationDatabaseService: Option[ActorRef]): Props =

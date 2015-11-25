@@ -4,9 +4,6 @@ import akka.actor.{Props, Actor}
 import core.model.JobResult
 import dao.DAL
 
-import scala.concurrent.ExecutionContext
-import slick.jdbc.JdbcBackend.Database
-
 object DatabaseService {
   trait DatabaseWork
   trait DatabaseResult
@@ -17,26 +14,20 @@ object DatabaseService {
   // Results
   case class JobResults(results: Seq[JobResult]) extends DatabaseResult
 
-  def props(dal: DAL, db: Database): Props = Props(classOf[DatabaseService], dal, db)
+  def props(dal: DAL): Props = Props(classOf[DatabaseService], dal)
 }
 
-class DatabaseService(val dal: DAL, db: Database) extends Actor {
+class DatabaseService(val dal: DAL) extends Actor {
   import DatabaseService._
 
   def receive = {
 
     case GetJobResults(jobId) => {
-      import akka.pattern.pipe
-      implicit val executionContext: ExecutionContext = context.dispatcher
 
       val originalSender = sender()
-      val results = db.run {
-        for {
-          results <- dal.getJobResults(jobId)
-        } yield results
-      }
+      val results = dal.findJobResults(jobId)
 
-      results.map(JobResults) pipeTo originalSender
+      originalSender ! results
     }
 
   }

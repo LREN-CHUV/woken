@@ -1,19 +1,43 @@
 package dao
 
-import slick.driver.JdbcProfile
+import java.time.{ZoneOffset, LocalDateTime, OffsetDateTime}
 
-trait DAL extends JobResultComponent with DriverComponent
+import core.model.JobResult
+import doobie.imports._
+
+import scalaz.effect.IO
 
 /**
-  * The Data Access Layer contains all components and a driver
+  * Created by ludovic on 25/11/15.
   */
-class NodeDAL(val driver: JdbcProfile) extends DAL with NodeJobResultComponent {
-  import driver.api._
+trait DAL {
 
-  def create = jobResults.schema.create
+  def findJobResults(jobId: String): List[JobResult]
 
 }
 
-class FederationDAL(val driver: JdbcProfile) extends DAL with FederationJobResultComponent {
-  // create schema not possible with Denodo
+object DAL {
+  implicit val DateTimeMeta: Meta[OffsetDateTime] =
+    Meta[java.sql.Timestamp].nxmap(
+      ts => OffsetDateTime.of(LocalDateTime.ofEpochSecond(ts.getTime, 0, ZoneOffset.UTC), ZoneOffset.UTC),
+      dt => new java.sql.Timestamp(dt.toEpochSecond)
+    )
+}
+
+class NodeDAL(xa: Transactor[IO]) extends DAL {
+  import DAL._
+
+  def queryJobResults(jobId: String): ConnectionIO[List[JobResult]] = sql"select node, data, job_id, error from job_result where job_id = $jobId".query[JobResult].list
+
+  override def findJobResults(jobId: String) = queryJobResults(jobId).transact(xa).unsafePerformIO
+
+}
+
+class FederationDAL(xa: Transactor[IO]) extends DAL {
+  import DAL._
+
+  def queryJobResults(jobId: String): ConnectionIO[List[JobResult]] = sql"select node, data, job_id, error from job_result_nodes where job_id = $jobId".query[JobResult].list
+
+  override def findJobResults(jobId: String) = queryJobResults(jobId).transact(xa).unsafePerformIO
+
 }
