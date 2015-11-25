@@ -1,5 +1,7 @@
 package config
 
+import java.time.{ZoneId, Instant, Clock, OffsetDateTime}
+
 import core.model.JobResult
 import org.specs2.mutable.Specification
 import org.specs2.specification.BeforeAfterEach
@@ -10,10 +12,11 @@ import scala.concurrent.duration.Duration
 
 object DatabaseSupportSpec {
 
+  private def ofEpochMilli(epochMilli: Long) = OffsetDateTime.ofInstant(Instant.ofEpochMilli(epochMilli), ZoneId.of("GMT"))
   lazy val jobResults = Seq(
-    JobResult("001", "ldsm1", 1446216571000L, Some(""" [1,2,3] """)),
-    JobResult("002", "ldsm1", 1446216571000L, Some(""" [2,4,6] """)),
-    JobResult("003", "ldsm1", 1446216571000L, Some(""" [3,6,9] """))
+    JobResult("001", "ldsm1", ofEpochMilli(1446216571000L), Some(""" [1,2,3] """)),
+    JobResult("002", "ldsm1", ofEpochMilli(1446216571000L), Some(""" [2,4,6] """)),
+    JobResult("003", "ldsm1", ofEpochMilli(1446216571000L), Some(""" [3,6,9] """))
   )
 }
 

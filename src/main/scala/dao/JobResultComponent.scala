@@ -26,13 +26,15 @@ trait JobResultComponent { this: DriverComponent =>
     def data: Rep[Option[String]] = column[Option[String]]("data")
     def error: Rep[Option[String]] = column[Option[String]]("error")
 
-    def pk = primaryKey("pk_job_result", jobId)
+    def pk = primaryKey("pk_job_result", (jobId, node))
     def * = (jobId, node, timestamp, data, error) <>((JobResult.apply _).tupled, JobResult.unapply)
   }
 
   val jobResults = TableQuery[JobResults]
 
   def createJobResults() = jobResults.schema.create
+
+  def getJobResults(): DBIO[Seq[JobResult]] = jobResults.result
 
   def getJobResults(jobId: String): DBIO[Seq[JobResult]] = jobResults.filter(_.jobId === jobId).result
 

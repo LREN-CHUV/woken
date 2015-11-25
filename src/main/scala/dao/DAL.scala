@@ -15,8 +15,5 @@ class NodeDAL(val driver: JdbcProfile) extends DAL with NodeJobResultComponent {
 }
 
 class FederationDAL(val driver: JdbcProfile) extends DAL with FederationJobResultComponent {
-  import driver.api._
-
-  def create = jobResults.schema.create
-
+  // create schema not possible with Denodo
 }
