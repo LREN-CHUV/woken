@@ -7,7 +7,7 @@ val versions = new {
   val spray = "1.3.2"
   val slick = "3.1.0"
   val scalaz = "7.1.3"
-  val slf4j = "1.7.10"
+  val slf4j = "1.7.13"
   val config = "1.2.1"
   val postgres = "9.4-1203-jdbc42"
   val scalaTest = "2.2.1"
@@ -23,6 +23,7 @@ libraryDependencies ++= {
     "com.typesafe.slick"  %%  "slick"            % versions.slick,
     "org.slf4j"            %  "slf4j-nop"        % versions.slf4j,
     "org.slf4j"            %  "slf4j-api"        % versions.slf4j,
+    "org.slf4j"            %  "log4j-over-slf4j" % versions.slf4j, // For Denodo JDBC driver
     "org.scalaz"           %  "scalaz-core_2.11" % versions.scalaz,
     "com.typesafe"         %  "config"           % versions.config,
     "org.postgresql"       %  "postgresql"       % versions.postgres,
