@@ -203,7 +203,10 @@ class FederationCoordinatorActor(val chronosService: ActorRef, val resultDatabas
           data.replyTo ! PutJobResults(results)
           stop()
         } { federationDockerImage =>
-          goto(WaitForChronos) using WaitLocalData(data.job.copy(dockerImage = federationDockerImage), data.replyTo)
+          val parameters = Map(
+            "PARAM_query" -> s"select data from job_result_nodes where job_id='${data.job.jobId}'"
+          )
+          goto(WaitForChronos) using WaitLocalData(data.job.copy(dockerImage = federationDockerImage, parameters = parameters), data.replyTo)
         }
       } else {
         stay() forMax repeatDuration
