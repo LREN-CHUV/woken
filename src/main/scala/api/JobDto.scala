@@ -16,7 +16,7 @@ case class JobDto(
   @(ApiModelProperty @field)(required = true, value = "name of the Docker image to use on Federation. Include the version to ensure reproducibility")
   federationDockerImage: Option[String],
 
-  @(ApiModelProperty @field)(value = "name of the job in Chronos. Must be unique. Default value is constructed from jobId and jobName")
+  @(ApiModelProperty @field)(value = "name of the job in Chronos. Must be unique. Default value is constructed from jobId and dockerImage")
   jobName: Option[String],
 
   @(ApiModelProperty @field)(value = "name of the input database")

@@ -1,0 +1,364 @@
+swagger: '2.0'
+info:
+  title: MIP workflow API
+  description: Execute distributed calculations powered by native functions.
+  version: 0.1.0
+host: hbpfed1.chuv.ch:8087
+schemes:
+  - http
+basePath: /v0
+produces:
+  - application/json
+paths:
+  /function/summary_statistics:
+    put:
+      summary: Perform distributed summary statistics
+      description: |
+        Execute the summary statistics.
+      parameters:
+        - name: params
+          in: body
+          description: Parameters for the summary statistics function.
+          required: true
+          schema:
+            $ref: '#/definitions/SummaryStatistics'
+      tags:
+        - Jobs
+      responses:
+        '200':
+          description: The result of the summary statistics
+          schema:
+            $ref: '#/definitions/SummaryStatisticsResult'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+  /function/linear_regression:
+    put:
+      summary: Perform distributed linear regression
+      description: |
+        Execute the linear regression.
+      parameters:
+        - name: params
+          in: body
+          description: Parameters for the linear regression function.
+          required: true
+          schema:
+            $ref: '#/definitions/LinearRegression'
+      tags:
+        - Jobs
+      responses:
+        '200':
+          description: The result of the linear regression
+          schema:
+            $ref: '#/definitions/LinearRegressionResult'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+  /job:
+    put:
+      summary: Start a job
+      description: |
+        Launch a new job and distribute its processing over all nodes by default, or execute it only on the
+        nodes selected. 
+      parameters:
+        - name: job
+          in: body
+          description: Definition of the job to execute.
+          required: true
+          schema:
+            $ref: '#/definitions/Job'
+      tags:
+        - Jobs
+      responses:
+        '200':
+          description: The result of the distributed computation.
+          schema:
+            $ref: '#/definitions/JobResult'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+  # Future
+  /capabilities/functions:
+    get:
+      summary: List the functions available
+      responses:
+        '200':
+          description: list of functions
+          schema:
+            type: array
+            items:
+              type: string
+  /capabilities/function:
+    get:
+      summary: Get details about one function
+      parameters:
+        - name: dockerImage
+          in: query
+          description: Full name of the Docker image containing the function. Include the version number to ensure reproducibility.
+          type: string
+      responses:
+        '200':
+          description: details about one function
+          schema:
+            type: object
+  /capabilities/nodes:
+    get:
+      summary: Get the list of nodes
+      responses:
+        '200':
+          description: list of nodes + databases on this node
+          schema:
+            type: array
+            items:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Name of the node
+                databases:
+                  description: List of databases available on the node
+                  type: array
+                  items:
+                    type: string
+  /health:
+    get:
+      summary: Get the health of the workflow system
+      responses:
+        '200':
+          description: good health
+          schema:
+            type: string
+
+definitions:
+  Job:
+    type: object
+    required:
+      - jobId
+      - dockerImage
+    properties:
+      jobId:
+        type: string
+        description: Unique identifier representing a job.
+      dockerImage:
+        type: string
+        description: |
+          Full name of the Docker image containing the function to execute on a Node.
+          Include the version number to ensure reproducibility.
+      federationDockerImage:
+        type: string
+        description: |
+          Full name of the Docker image containing the function to execute on the Federation to build the final result from intermediate results.
+          Include the version number to ensure reproducibility.
+      jobName:
+        type: string
+        description: Name of the job as it will appear in Chronos. Must be unique. Default value is constructed from jobId and dockerImage.
+      inputDb:
+        type: string
+        description: |
+          Name of the input database, default to the LDSM database present at the local node
+      oututDb:
+        type: string
+        description: |
+          Name of the output database, default to analyticsdb
+      nodes:
+        type: array
+        description: List of the nodes selected for the distributed execution of the job
+        items:
+          type: string
+      parameters:
+        type: object
+        description: |
+          List of parameters required by the function to execute. See the documentation of the particular function you
+          want to call for details.
+
+  JobResult:
+    type: object
+    properties:
+      jobId:
+        type: string
+        description: Unique identifier representing a job.
+      node:
+        description: |
+          List of the nodes where the job was executed. TODO - make this an array
+        type: array
+        items:
+          type: string
+      timestamp:
+        type: string
+        format: dateTime
+        description: Timestamp indicating when the job completed its execution.
+      data:
+        type: object
+        description: Json representation of the response from the function.
+      error:
+        type: string
+        description: Error message if any.
+
+  SummaryStatistics:
+    type: object
+    required:
+      - jobId
+      - query
+    properties:
+      jobId:
+        type: string
+        description: Unique identifier representing a job.
+      query:
+        type: string
+        description: |
+          The SQL query selecting the input dataset.
+          TODO: replace this with a selection of variables
+      nodes:
+        type: array
+        description: List of the nodes selected for the distributed execution of the job
+        items:
+          type: string
+      dockerImage:
+        type: string
+        description: |
+          Full name of the Docker image containing the function to execute on a Node.
+          Include the version number to ensure reproducibility.
+      federationDockerImage:
+        type: string
+        description: |
+          Full name of the Docker image containing the function to execute on the Federation to build the final result from intermediate results.
+          Include the version number to ensure reproducibility.
+
+  # TODO: Ugly flattened JSON to please Virtua
+  SummaryStatisticsResult:
+    type: object
+    properties:
+      code:
+        type: string
+        description: No idea what that was meant to be. I put there the job id.
+      date:
+        type: string
+        format: dateTime
+        description: A timestamp
+      header:
+        description: Metadata describing the contents of the data object
+        type: object
+        properties:
+          'DX_bl':
+            description: |
+              Metadata for the DX_bl column. Defined as ['label'] here.
+            type: array
+            items:
+              type: string
+          'SUV_Frontal':
+            description: |
+              Metadata for the SUV_Frontal column. Defined as ['min','q1','median','q3','max','std'] here.
+            type: array
+            items:
+              type: string
+      data:
+        description: Data object. Contains the results of the summary statistics applied to the dataset.
+        type: object
+        properties:
+          'DX_bl':
+            description: |
+              The list of variables.
+            type: array
+            items:
+              type: string
+          'SUV_Frontal':
+            description: |
+              A map containing as key a variable and as value an array of values representing the min, q1, median,
+              q3, max and std values respectively.
+            type: object
+
+  LinearRegression:
+    type: object
+    required:
+      - jobId
+      - query
+      - variable
+      - covariables
+    properties:
+      jobId:
+        type: string
+        description: Unique identifier representing a job.
+      query:
+        type: string
+        description: |
+          The SQL query selecting the input dataset.
+          TODO: replace this with a selection of variables
+      variable:
+        type: string
+        description: The name of the target variable for the linear regression
+      covariables:
+        description: List of covariables to use in the linear regression
+        type: array
+        items:
+          type: string
+      nodes:
+        type: array
+        description: List of the nodes selected for the distributed execution of the job
+        items:
+          type: string
+      dockerImage:
+        type: string
+        description: |
+          Full name of the Docker image containing the function to execute on a Node.
+          Include the version number to ensure reproducibility.
+      federationDockerImage:
+        type: string
+        description: |
+          Full name of the Docker image containing the function to execute on the Federation to build the final result from intermediate results.
+          Include the version number to ensure reproducibility.
+
+  # TODO: Ugly flattened JSON to please Virtua
+  LinearRegressionResult:
+    type: object
+    properties:
+      code:
+        type: string
+        description: No idea what that was meant to be. I put there the job id.
+      date:
+        type: string
+        format: dateTime
+        description: A timestamp
+      header:
+        description: Metadata describing the contents of the data object
+        type: object
+        properties:
+          'DX_bl':
+            description: |
+              Metadata for the DX_bl column. Defined as ['label'] here.
+            type: array
+            items:
+              type: string
+          'SUV_Frontal':
+            description: |
+              Metadata for the SUV_Frontal column. Defined as ['min','q1','median','q3','max','std'] here.
+            type: array
+            items:
+              type: string
+      data:
+        description: Data object. Contains the results of the linear regression applied to the dataset.
+        type: object
+        properties:
+          'DX_bl':
+            description: |
+              The list of variables.
+            type: array
+            items:
+              type: string
+          'SUV_Frontal':
+            description: |
+              A map containing as key a variable and as value an array of values representing the min, q1, median,
+              q3, max and std values respectively.
+            type: object
+
+  Error:
+    type: object
+    properties:
+      code:
+        type: string
+      message:
+        type: string
+      fields:
+        type: string
