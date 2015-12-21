@@ -29,6 +29,16 @@ class JobService(val chronosService: ActorRef, val resultDatabase: DAL, val fede
     }
   }
 
+  override def virtuaRequests: Route = path("requests") {
+    post {
+      entity(as[JobDto]) { job =>
+        chronosJob {
+          Start(job)
+        }
+      }
+    }
+  }
+
   def chronosJob(message : RestMessage): Route =
     ctx => perRequest(ctx, CoordinatorActor.props(chronosService, resultDatabase, federationDatabase), message)
 

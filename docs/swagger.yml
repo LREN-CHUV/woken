@@ -17,10 +17,10 @@ basePath: /v0
 produces:
   - application/json
 paths:
-  /virtua/requests:
+  /requests:
     post:
       description: |
-        Execute a query.
+        Execute a query. Virtua API for front end.
       parameters:
         - name: query
           in: body
@@ -231,14 +231,31 @@ definitions:
       - jobId
       - query
     properties:
-      jobId:
-        type: string
-        description: Unique identifier representing a job.
-      query:
-        type: string
+      variables:
         description: |
-          The SQL query selecting the input dataset.
-          TODO: replace this with a selection of variables
+          List of variables used by the request, only code values are sent
+        type: array
+        items:
+          $ref: '#/definitions/VariableId'
+      covariables:
+        description: |
+          List of covariables used by the request, only code values are sent.
+          These variables are returned in dataset object header.
+        type: array
+        items:
+          $ref: '#/definitions/VariableId'
+      grouping:
+        description: |
+          List of grouping variables used by the request, only code values are sent.
+        type: array
+        items:
+          $ref: '#/definitions/VariableId'
+      filters:
+        description: |
+          List of filters objects used by the request.
+        type: array
+        items:
+          $ref: '#/definitions/Filter'
       nodes:
         type: array
         description: List of the nodes selected for the distributed execution of the job
@@ -442,6 +459,9 @@ definitions:
         description: URL to get result after asynchronous operation, returned if asynchronous process is finished.
   Group:
     type: object
+    description: |
+      A group object represents a variable scope. Each variable is associated to a group.
+      Each group can be contained in other group. The group chaining can be interpreted like a hierarchy.
     properties:
       code:
         type: string
@@ -450,7 +470,7 @@ definitions:
         type: string
         description: Group label
       groups:
-        description: Sub groups
+        description: Sub groups - TODO: rename to subgroups
         type: array
         items:
           $ref: '#/definitions/Subgroup'
@@ -463,6 +483,14 @@ definitions:
       label:
         type: string
         description: Group label
+  VariableId:
+    type: object
+    description: Identifier for a variable object.
+    properties:
+      code:
+        type: string
+        description: |
+          Unique variable code, used to request
   Variable:
     type: object
     description: A variable object represents a business variable. All variable information should be stored in this object.
@@ -542,7 +570,7 @@ definitions:
     properties:
       code:
         type: string
-        description: Unique code of dataset
+        description: Unique code identifying the dataset
       date:
         type: string
         format: dateTime
@@ -576,7 +604,7 @@ definitions:
       variable:
         description: |
           Variable used to filter, only code value is sent
-        '$ref': '#/definitions/Variable'
+        '$ref': '#/definitions/VariableId'
       operator:
         description: |
           Filter operator : eq, lt, gt, gte, lte, neq, in, notin, between.
@@ -610,20 +638,20 @@ definitions:
           List of variables used by the request, only code values are sent
         type: array
         items:
-          $ref: '#/definitions/Variable'
+          $ref: '#/definitions/VariableId'
       covariables:
         description: |
           List of covariables used by the request, only code values are sent.
           These variables are returned in dataset object header.
         type: array
         items:
-          $ref: '#/definitions/Variable'
+          $ref: '#/definitions/VariableId'
       grouping:
         description: |
           List of grouping variables used by the request, only code values are sent.
         type: array
         items:
-          $ref: '#/definitions/Variable'
+          $ref: '#/definitions/VariableId'
       filters:
         description: |
           List of filters objects used by the request.

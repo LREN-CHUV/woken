@@ -27,4 +27,5 @@ trait JobServiceDoc extends Directives {
   ))
   def initJob: Route
 
+  def virtuaRequests: Route
 }

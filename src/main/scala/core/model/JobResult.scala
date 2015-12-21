@@ -11,14 +11,14 @@ case class JobResult(jobId: String, node: String, timestamp: OffsetDateTime,
 
 object JobResult extends DefaultJsonProtocol {
 
-  implicit object OffsetDateTimeJsonFormat extends JsonFormat[OffsetDateTime] {
+  implicit object OffsetDateTimeJsonFormat extends RootJsonFormat[OffsetDateTime] {
     override def write(x: OffsetDateTime) = {
       require(x ne null)
       JsNumber(x.toEpochSecond)
     }
     override def read(value: JsValue) = value match {
       case JsNumber(x) => OffsetDateTime.of(LocalDateTime.ofEpochSecond(x.toLong, 0, ZoneOffset.UTC), ZoneOffset.UTC)
-      case x => deserializationError("Expected OffsetDateTime as JsNumber, but got " + x)
+      case unknown => deserializationError("Expected OffsetDateTime as JsNumber, but got " + unknown)
     }
   }
 
