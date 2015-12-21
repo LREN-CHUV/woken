@@ -13,7 +13,7 @@ trait JobServiceDoc extends Directives {
   @ApiOperation(
     value = "Init a job",
     notes = "Init a job and return id",
-    httpMethod = "PUT",
+    httpMethod = "POST",
     consumes="application/json",
     response = classOf[Result]
   )

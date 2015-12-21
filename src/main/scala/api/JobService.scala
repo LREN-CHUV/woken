@@ -20,7 +20,7 @@ class JobService(val chronosService: ActorRef, val resultDatabase: DAL, val fede
   }
 
   override def initJob: Route = path("job") {
-    put {
+    post {
       entity(as[JobDto]) { job =>
         chronosJob {
           Start(job)

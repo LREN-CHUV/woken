@@ -1,3 +1,10 @@
+#
+# Author: Ludovic Claude
+#
+# External references:
+# * VIRTUA_APIRequirements_PocCHUV_1.3.pdf
+#
+
 swagger: '2.0'
 info:
   title: MIP workflow API
@@ -10,8 +17,29 @@ basePath: /v0
 produces:
   - application/json
 paths:
+  /virtua/requests:
+    post:
+      description: |
+        Execute a query.
+      parameters:
+        - name: query
+          in: body
+          description: |
+            The query defining the function to execute, the variables, covariables, groupings and filters.
+          required: true
+          schema:
+            $ref: '#/definitions/Query'
+      responses:
+        '200':
+          description: The result dataset
+          schema:
+            $ref: '#/definitions/Dataset'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
   /function/summary_statistics:
-    put:
+    post:
       summary: Perform distributed summary statistics
       description: |
         Execute the summary statistics.
@@ -34,7 +62,7 @@ paths:
           schema:
             $ref: '#/definitions/Error'
   /function/linear_regression:
-    put:
+    post:
       summary: Perform distributed linear regression
       description: |
         Execute the linear regression.
@@ -57,7 +85,7 @@ paths:
           schema:
             $ref: '#/definitions/Error'
   /job:
-    put:
+    post:
       summary: Start a job
       description: |
         Launch a new job and distribute its processing over all nodes by default, or execute it only on the
@@ -237,20 +265,26 @@ definitions:
       date:
         type: string
         format: dateTime
-        description: A timestamp
+        description: A timestamp # TODO: rename to timestamp
       header:
         description: Metadata describing the contents of the data object
         type: object
         properties:
-          'DX_bl':
+          'GROUPING':
             description: |
-              Metadata for the DX_bl column. Defined as ['label'] here.
+              Metadata for the GROUPING column. Defined as ['label'] here.
             type: array
             items:
               type: string
-          'SUV_Frontal':
+          'COVARIABLE1':
             description: |
-              Metadata for the SUV_Frontal column. Defined as ['min','q1','median','q3','max','std'] here.
+              Metadata for the COVARIABLE1 column. Defined as ['min','q1','median','q3','max','std'] here.
+            type: array
+            items:
+              type: string
+          'COVARIABLE2':
+            description: |
+              Metadata for the COVARIABLE2 column. Defined as ['min','q1','median','q3','max','std'] here.
             type: array
             items:
               type: string
@@ -258,13 +292,18 @@ definitions:
         description: Data object. Contains the results of the summary statistics applied to the dataset.
         type: object
         properties:
-          'DX_bl':
+          'GROUPING':
             description: |
-              The list of variables.
+              The list of groups.
             type: array
             items:
               type: string
-          'SUV_Frontal':
+          'COVARIABLE1':
+            description: |
+              A map containing as key a variable and as value an array of values representing the min, q1, median,
+              q3, max and std values respectively.
+            type: object
+          'COVARIABLE2':
             description: |
               A map containing as key a variable and as value an array of values representing the min, q1, median,
               q3, max and std values respectively.
@@ -320,20 +359,26 @@ definitions:
       date:
         type: string
         format: dateTime
-        description: A timestamp
+        description: A timestamp # TODO: rename to timestamp
       header:
         description: Metadata describing the contents of the data object
         type: object
         properties:
-          'DX_bl':
+          'GROUPING':
             description: |
-              Metadata for the DX_bl column. Defined as ['label'] here.
+              Metadata for the GROUPING column. Defined as ['label'] here.
             type: array
             items:
               type: string
-          'SUV_Frontal':
+          'COVARIABLE1':
             description: |
-              Metadata for the SUV_Frontal column. Defined as ['min','q1','median','q3','max','std'] here.
+              Metadata for the COVARIABLE1 column. Defined as ['min','q1','median','q3','max','std'] here.
+            type: array
+            items:
+              type: string
+          'COVARIABLE2':
+            description: |
+              Metadata for the COVARIABLE2 column. Defined as ['min','q1','median','q3','max','std'] here.
             type: array
             items:
               type: string
@@ -341,13 +386,18 @@ definitions:
         description: Data object. Contains the results of the linear regression applied to the dataset.
         type: object
         properties:
-          'DX_bl':
+          'GROUPING':
             description: |
-              The list of variables.
+              The list of groups.
             type: array
             items:
               type: string
-          'SUV_Frontal':
+          'COVARIABLE1':
+            description: |
+              A map containing as key a variable and as value an array of values representing the min, q1, median,
+              q3, max and std values respectively.
+            type: object
+          'COVARIABLE2':
             description: |
               A map containing as key a variable and as value an array of values representing the min, q1, median,
               q3, max and std values respectively.
@@ -356,9 +406,230 @@ definitions:
   Error:
     type: object
     properties:
-      code:
+      errorCode:
         type: string
+        description: Unique error code
+      errorType:
+        type: string
+        description: Error type
+      time:
+        type: string
+        format: dateTime
+        description: Time of the error # TODO: rename to timestamp
       message:
         type: string
-      fields:
+        description: Error message
+      detail:
+        type: string
+        description: Details about the error
+      request:
+        type: string
+        description: URL called at the outbreak of the error
+  AsynchronousToken:
+    type: object
+    properties:
+      token:
+        type: string
+        description: Unique token
+      progress:
+        type: integer
+        description: A value from 0 to 100 indicating current progression
+      asyncUrl:
+        type: string
+        description: URL to get asynchronous operation progression
+      resultUrl:
+        type: string
+        description: URL to get result after asynchronous operation, returned if asynchronous process is finished.
+  Group:
+    type: object
+    properties:
+      code:
+        type: string
+        description: Unique group code
+      label:
+        type: string
+        description: Group label
+      groups:
+        description: Sub groups
+        type: array
+        items:
+          $ref: '#/definitions/Subgroup'
+  Subgroup:
+    type: object
+    properties:
+      code:
+        type: string
+        description: Unique group code
+      label:
+        type: string
+        description: Group label
+  Variable:
+    type: object
+    description: A variable object represents a business variable. All variable information should be stored in this object.
+    properties:
+      code:
+        type: string
+        description: |
+          Unique variable code, used to request
+      label:
+        type: string
+        description: |
+          Variable label, used to display
+      group:
+        description: |
+          Variable group (only the variable path)
+        '$ref': '#/definitions/Group'
+      type:
+        type: string
+        description: |
+          I: Integer, T: Text, N: Decimal, D: Date, B: Boolean.
+        enum:
+          - I # Integer
+          - T # Text
+          - N # Decimal
+          - D # Date
+          - B # Boolean
+      length:
+        type: integer
+        description: |
+          For text, number of characters of value
+      minValue:
+        type: number
+        description: |
+          Minimum allowed value (for integer or numeric)
+      maxValue:
+        type: number
+        description: |
+          Maximum allowed value (for integer or numeric)
+      units:
+        type: string
+        description: Variable unit
+      isVariable:
+        type: boolean
+        description: Can the variable can be used as a variable
+      isGrouping:
+        type: boolean
+        description: Can the variable can be used as a group
+      isCovariable:
+        type: boolean
+        description: Can the variable can be used as a covariable
+      isFilter:
+        type: boolean
+        description: Can the variable can be used as a filter
+      values:
+        description: |
+          List of variable values (if is an enumeration variable).
+        type: array
+        items:
+          $ref: '#/definitions/Value'
+  Value:
+    type: object
+    description: A value object is a business variable value. All value information should be stored in this object.
+    properties:
+      code:
+        type: string
+        description: |
+          Unique code of value (for variable), used to request
+      label:
+        type: string
+        description: |
+          Label of value, used to display
+  Dataset:
+    type: object
+    description: |
+      A dataset object contains all the request data.
+      Each data row must contain the same number of value. An empty value must be set to null.
+    properties:
+      code:
+        type: string
+        description: Unique code of dataset
+      date:
+        type: string
+        format: dateTime
+        description: A timestamp # TODO: rename to timestamp
+      header:
+        description: Metadata describing the contents of the data object
+        type: array
+        items:
+         type: string
+      data:
+        description: Data object. Contains the results of the linear regression applied to the dataset.
+        type: array
+        items:
+          $ref: '#/definitions/Datarow'
+  Datarow:
+    type: object
+    description: A row of data values
+    properties:
+      label:
+        type: string
+        description: Name of the row
+      values:
+        description: The list of values. The type should really be 'any' but there is a limitation in the Swagger spec.
+        type: array
+        items:
+          type: string
+  Filter:
+    type: object
+    description: A filter in a query
+    properties:
+      variable:
+        description: |
+          Variable used to filter, only code value is sent
+        '$ref': '#/definitions/Variable'
+      operator:
+        description: |
+          Filter operator : eq, lt, gt, gte, lte, neq, in, notin, between.
+        type: string
+        enum:
+          - eq
+          - lt
+          - gt
+          - gte
+          - lte
+          - neq
+          - in
+          - notin
+          - between
+      values:
+        description: |
+          List of values used to filter.
+          With operators “eq”, “lt”, “gt”, “gte”, “lte”, ”neq”, the filter mode “OR” is used.
+          With operator “between”, only two values are sent, they represents the range limits.
+        type: array
+        items:
+          type: string
+  Query:
+    type: object
+    description: |
+      A query object represents a request to the CHUV API.
+      This object contains all information required by the API to compute a result (dataset) and return it.
+    properties:
+      variables:
+        description: |
+          List of variables used by the request, only code values are sent
+        type: array
+        items:
+          $ref: '#/definitions/Variable'
+      covariables:
+        description: |
+          List of covariables used by the request, only code values are sent.
+          These variables are returned in dataset object header.
+        type: array
+        items:
+          $ref: '#/definitions/Variable'
+      grouping:
+        description: |
+          List of grouping variables used by the request, only code values are sent.
+        type: array
+        items:
+          $ref: '#/definitions/Variable'
+      filters:
+        description: |
+          List of filters objects used by the request.
+        type: array
+        items:
+          $ref: '#/definitions/Filter'
+      request:
+        description: Plot type
         type: string
