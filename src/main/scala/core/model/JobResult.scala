@@ -24,19 +24,3 @@ object JobResult extends DefaultJsonProtocol {
 
   implicit val jobResultFormat = lazyFormat(jsonFormat5(JobResult.apply))
 }
-
-/**
-  * Adapt the conversion to JSON to match the horrible JSON format required by the frontend.
-  */
-object FederationJobResult extends DefaultJsonProtocol {
-
-  implicit val OffsetDateTimeJsonFormat = JobResult.OffsetDateTimeJsonFormat
-
-  implicit object jobResultFormat extends JsonFormat[JobResult] {
-    override def write(x: JobResult): JsValue = {
-      ???
-    }
-    override def read(value: JsValue): JobResult = throw new NotImplementedError("Cannot read from the FederationJobResult Json format")
-  }
-
-}
