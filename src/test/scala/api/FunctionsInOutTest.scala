@@ -5,7 +5,7 @@ import java.time.OffsetDateTime
 import core.model.JobResult
 import org.scalatest.{FlatSpec, Matchers}
 
-object FunctionResultsTest {
+object FunctionsInOutTest {
 
   object RSummaryStatistics {
 
@@ -19,10 +19,10 @@ object FunctionResultsTest {
   }
 }
 
-class FunctionResultsTest extends FlatSpec with Matchers {
+class FunctionsInOutTest extends FlatSpec with Matchers {
 
-  import FunctionResults._
-  import FunctionResultsTest._
+  import FunctionsInOut._
+  import FunctionsInOutTest._
 
   "Results coming from a summary statistics calculation in R" should "be converted to a dataset in the format accepted by Virtua" in {
     val dataset = summaryStatsResult2Dataset(RSummaryStatistics.jobResult)

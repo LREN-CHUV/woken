@@ -47,7 +47,100 @@ case class Dataset(
   data: JsValue
 )
 
+object Operators extends Enumeration {
+  type Operators = Value
+  val eq = Value("eq")
+  val lt = Value("lt")
+  val gt = Value("gt")
+  val lte = Value("lte")
+  val gte = Value("gte")
+  val neq = Value("neq")
+  val in = Value("in")
+  val notin = Value("notin")
+  val between = Value("between")
+}
+
+case class Filter(
+  variable: VariableId,
+  operator: Operators.Operators,
+  values: Seq[String]
+)
+
+case class Query(
+  variables: Seq[VariableId],
+  covariables: Seq[VariableId],
+  grouping: Seq[VariableId],
+  request: String
+)
+
 /*
+
+  Filter:
+    type: object
+    description: A filter in a query
+    properties:
+      variable:
+        description: |
+          Variable used to filter, only code value is sent
+        '$ref': '#/definitions/VariableId'
+      operator:
+        description: |
+          Filter operator : eq, lt, gt, gte, lte, neq, in, notin, between.
+        type: string
+        enum:
+          - eq
+          - lt
+          - gt
+          - gte
+          - lte
+          - neq
+          - in
+          - notin
+          - between
+      values:
+        description: |
+          List of values used to filter.
+          With operators “eq”, “lt”, “gt”, “gte”, “lte”, ”neq”, the filter mode “OR” is used.
+          With operator “between”, only two values are sent, they represents the range limits.
+        type: array
+        items:
+          type: string
+
+  Query:
+    type: object
+    description: |
+      A query object represents a request to the CHUV API.
+      This object contains all information required by the API to compute a result (dataset) and return it.
+    properties:
+      variables:
+        description: |
+          List of variables used by the request, only code values are sent
+        type: array
+        items:
+          $ref: '#/definitions/VariableId'
+      covariables:
+        description: |
+          List of covariables used by the request, only code values are sent.
+          These variables are returned in dataset object header.
+        type: array
+        items:
+          $ref: '#/definitions/VariableId'
+      grouping:
+        description: |
+          List of grouping variables used by the request, only code values are sent.
+        type: array
+        items:
+          $ref: '#/definitions/VariableId'
+      filters:
+        description: |
+          List of filters objects used by the request.
+        type: array
+        items:
+          $ref: '#/definitions/Filter'
+      request:
+        description: Plot type
+        type: string
+
   Variable:
     type: object
     description: A variable object represents a business variable. All variable information should be stored in this object.

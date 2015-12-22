@@ -30,8 +30,11 @@ class JobService(val chronosService: ActorRef, val resultDatabase: DAL, val fede
   }
 
   override def virtuaRequests: Route = path("requests") {
+    import FunctionsInOut._
+
     post {
-      entity(as[JobDto]) { job =>
+      entity(as[Query]) { query =>
+        val job = query2job(query)
         chronosJob {
           Start(job)
         }

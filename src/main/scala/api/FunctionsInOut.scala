@@ -4,7 +4,12 @@ import core.model.JobResult
 import core.Error
 import spray.json.{JsObject, JsArray, JsonParser}
 
-object FunctionResults {
+/**
+  * Transformations for input and output values of functions
+  */
+object FunctionsInOut {
+
+  def query2job(query: Query): JobDto = ???
 
   lazy val summaryStatsHeader = JsonParser(""" [["min","q1","median","q3","max","mean","std","sum","count"]] """)
 
