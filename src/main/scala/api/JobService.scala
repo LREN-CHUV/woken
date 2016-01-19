@@ -1,7 +1,7 @@
 package api
 
 import akka.actor.{ActorSystem, ActorRef}
-import core.{RestMessage, CoordinatorActor}
+import core.{JobResults, RestMessage, CoordinatorActor}
 import dao.DAL
 import spray.http._
 import spray.routing.Route
@@ -10,10 +10,11 @@ import spray.routing.Route
 class JobService(val chronosService: ActorRef, val resultDatabase: DAL, val federationDatabase: Option[DAL])(implicit system: ActorSystem) extends JobServiceDoc with PerRequestCreator with DefaultJsonFormats {
 
   override def context = system
-  val routes: Route = initJob
+  val routes: Route = initJob ~ virtuaRequest
 
   import JobDto._
   import CoordinatorActor._
+  import ApiJsonSupport._
 
   implicit object EitherErrorSelector extends ErrorSelector[ErrorResponse.type] {
     def apply(v: ErrorResponse.type): StatusCode = StatusCodes.BadRequest
@@ -22,27 +23,27 @@ class JobService(val chronosService: ActorRef, val resultDatabase: DAL, val fede
   override def initJob: Route = path("job") {
     post {
       entity(as[JobDto]) { job =>
-        chronosJob {
+        chronosJob() {
           Start(job)
         }
       }
     }
   }
 
-  override def virtuaRequests: Route = path("requests") {
+  override def virtuaRequest: Route = path("request") {
     import FunctionsInOut._
 
     post {
       entity(as[Query]) { query =>
         val job = query2job(query)
-        chronosJob {
+        chronosJob(DatasetResults) {
           Start(job)
         }
       }
     }
   }
 
-  def chronosJob(message : RestMessage): Route =
-    ctx => perRequest(ctx, CoordinatorActor.props(chronosService, resultDatabase, federationDatabase), message)
+  def chronosJob(jobResultsFactory: JobResults.Factory = JobResults.defaultFactory)(message : RestMessage): Route =
+    ctx => perRequest(ctx, CoordinatorActor.props(chronosService, resultDatabase, federationDatabase, jobResultsFactory), message)
 
 }

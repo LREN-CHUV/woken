@@ -10,7 +10,7 @@ val versions = new {
   val config = "1.2.1"
   val postgres = "9.4-1203-jdbc42"
   val doobie = "0.2.3"
-  val scalaTest = "2.2.4"
+  val scalaTest = "2.2.5"
   val spec2 = "2.3.11"
 }
 

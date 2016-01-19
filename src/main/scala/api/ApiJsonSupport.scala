@@ -6,15 +6,15 @@ import spray.json._
 
 object ApiJsonSupport extends DefaultJsonProtocol {
 
-  implicit val OffsetDateTimeJsonFormat = JobResult.OffsetDateTimeJsonFormat
+  implicit val offsetDateTimeJsonFormat = JobResult.OffsetDateTimeJsonFormat
 
-  implicit val SubGroupJsonFormat = jsonFormat2(Subgroup)
-  implicit val GroupJsonFormat = jsonFormat3(Group)
-  implicit val VariableIdJsonFormat = jsonFormat1(VariableId)
-  implicit val VariableJsonFormat = jsonFormat3(Variable)
-  implicit val DatasetJsonFormat = jsonFormat4(Dataset)
+  implicit val subGroupJsonFormat: JsonFormat[Subgroup] = jsonFormat2(Subgroup)
+  implicit val groupJsonFormat: JsonFormat[Group] = jsonFormat3(Group)
+  implicit val variableIdJsonFormat: JsonFormat[VariableId] = jsonFormat1(VariableId)
+  implicit val variableJsonFormat: JsonFormat[Variable] = jsonFormat3(Variable)
+  implicit val datasetJsonFormat: JsonFormat[Dataset] = jsonFormat4(Dataset)
 
-  implicit val ErrorJsonFormat = jsonFormat1(Error)
+  implicit val errorJsonFormat: JsonFormat[Error] = jsonFormat1(Error)
 
   def jsonEnum[T <: Enumeration](enu: T) = new JsonFormat[T#Value] {
 		def write(obj: T#Value) = JsString(obj.toString)
@@ -25,8 +25,9 @@ object ApiJsonSupport extends DefaultJsonProtocol {
 		}
 	}
 
-  implicit val OperatorsJsonFormat = jsonEnum(Operators)
-  implicit val FilterJsonFormat = jsonFormat3(Filter)
-  implicit val QueryJsonFormat = jsonFormat4(Query)
+  implicit val operatorsJsonFormat = jsonEnum(Operators)
+  implicit val filterJsonFormat: JsonFormat[Filter] = jsonFormat3(Filter)
+  implicit val requestJsonFormat: JsonFormat[Request] = jsonFormat1(Request)
+  implicit val queryJsonFormat: RootJsonFormat[Query] = jsonFormat5(Query)
 }
 

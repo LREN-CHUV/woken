@@ -12,13 +12,20 @@ trait RestMessage {
   def marshaller: ToResponseMarshaller[this.type]
 }
 
+object JobResults {
+  type Factory = scala.collection.Seq[JobResult] => RestMessage
+
+  val defaultFactory: Factory = PutJobResults
+}
+
 case class PutJobResults(results: scala.collection.Seq[JobResult]) extends RestMessage {
   import PutJobResults._
   import spray.httpx.SprayJsonSupport._
   override def marshaller: ToResponseMarshaller[PutJobResults] = ToResponseMarshaller.fromMarshaller(StatusCodes.OK)(sprayJsonMarshaller(putJobResultsFormat))
 }
 
-object PutJobResults extends DefaultJsonProtocol {
+object PutJobResults extends DefaultJsonProtocol with JobResults.Factory {
+
   import JobResult._
   implicit val seqJobResultFormat = seqFormat[JobResult]
 

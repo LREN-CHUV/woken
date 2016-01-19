@@ -52,4 +52,6 @@ object Config {
       jdbcPassword = dbConf.getString("jdbc_password")
     )
   }
+
+  def defaults = config.getConfig("defaultSettings")
 }

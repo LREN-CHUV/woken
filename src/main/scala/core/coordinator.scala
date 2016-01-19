@@ -50,9 +50,9 @@ object CoordinatorActor {
   implicit val resultFormat: JsonFormat[Result] = JobResult.jobResultFormat
   implicit val errorResponseFormat = jsonFormat1(ErrorResponse.apply)
 
-  def props(chronosService: ActorRef, resultDatabase: DAL, federationDatabase: Option[DAL]): Props =
-    federationDatabase.map(fd => Props(classOf[FederationCoordinatorActor], chronosService, resultDatabase, fd))
-      .getOrElse(Props(classOf[LocalCoordinatorActor], chronosService, resultDatabase))
+  def props(chronosService: ActorRef, resultDatabase: DAL, federationDatabase: Option[DAL], jobResultsFactory: JobResults.Factory): Props =
+    federationDatabase.map(fd => Props(classOf[FederationCoordinatorActor], chronosService, resultDatabase, fd, jobResultsFactory))
+      .getOrElse(Props(classOf[LocalCoordinatorActor], chronosService, resultDatabase, jobResultsFactory))
 
 }
 
@@ -85,6 +85,7 @@ trait CoordinatorActor extends Actor with ActorLogging with LoggingFSM[State, St
 
   def chronosService: ActorRef
   def resultDatabase: DAL
+  def jobResultsFactory: JobResults.Factory
 
   startWith(WaitForNewJob, Uninitialized)
 
@@ -104,7 +105,7 @@ trait CoordinatorActor extends Actor with ActorLogging with LoggingFSM[State, St
     case Event(StateTimeout, data: WaitLocalData) => {
       val results = resultDatabase.findJobResults(data.job.jobId)
       if (results.nonEmpty) {
-        data.replyTo ! PutJobResults(results)
+        data.replyTo ! jobResultsFactory(results)
         stop()
       } else {
         stay() forMax repeatDuration
@@ -132,7 +133,8 @@ trait CoordinatorActor extends Actor with ActorLogging with LoggingFSM[State, St
 
 }
 
-class LocalCoordinatorActor(val chronosService: ActorRef, val resultDatabase: DAL) extends CoordinatorActor {
+class LocalCoordinatorActor(val chronosService: ActorRef, val resultDatabase: DAL,
+                            val jobResultsFactory: JobResults.Factory) extends CoordinatorActor {
   log.info ("Local coordinator actor started...")
 
   when (WaitForNewJob) {
@@ -153,7 +155,8 @@ class LocalCoordinatorActor(val chronosService: ActorRef, val resultDatabase: DA
 
 }
 
-class FederationCoordinatorActor(val chronosService: ActorRef, val resultDatabase: DAL, val federationDatabase: DAL) extends CoordinatorActor {
+class FederationCoordinatorActor(val chronosService: ActorRef, val resultDatabase: DAL, val federationDatabase: DAL,
+                                 val jobResultsFactory: JobResults.Factory) extends CoordinatorActor {
 
   import CoordinatorActor._
 

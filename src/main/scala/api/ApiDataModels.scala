@@ -2,7 +2,11 @@ package api
 
 import java.time.OffsetDateTime
 
-import spray.json.JsValue
+import core.{JobResults, RestMessage}
+import core.model.JobResult
+import spray.http.StatusCodes
+import spray.httpx.marshalling.ToResponseMarshaller
+import spray.json.{RootJsonFormat, DefaultJsonProtocol, JsValue}
 
 /**
   * A group object represents a variable scope. Each variable is associated to a group.
@@ -66,11 +70,16 @@ case class Filter(
   values: Seq[String]
 )
 
+case class Request(
+  plot: String
+)
+
 case class Query(
   variables: Seq[VariableId],
   covariables: Seq[VariableId],
   grouping: Seq[VariableId],
-  request: String
+  filters: Seq[Filter],
+  request: Request
 )
 
 /*
