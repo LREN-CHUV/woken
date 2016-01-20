@@ -1,0 +1,7 @@
+workflow:
+  build: Dockerfile
+  image: registry.federation.mip.hbp/mip_apps/workflow
+  pre:
+    - echo "Preparing workflow"
+  post:
+    - echo "Finished workflow"
