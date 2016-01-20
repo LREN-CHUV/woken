@@ -38,4 +38,5 @@ else
   DOCKER_COMPOSE="sudo docker-compose"
 fi
 
+export HOST="$(hostname).intranet.chuv"
 $DOCKER_COMPOSE up

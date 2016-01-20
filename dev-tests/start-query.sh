@@ -9,6 +9,6 @@ fi
 http -v --timeout 180 POST localhost:8087/request \
          variables:='[{"code":"tissue1_volume"}]' \
          grouping:='[]' \
-         covariables:='[{"code":"tissue1_volume"}]' \
+         covariables:='[]' \
          filters:='[]' \
          request:='{"plot":"boxplot"}'

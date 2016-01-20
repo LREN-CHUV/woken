@@ -64,3 +64,5 @@ workflow:
   volumes:
     - ./workflow/config:/opt/workflow/config
     - ./workflow/lib:/opt/workflow/lib
+  environment:
+    HOST: "${HOST}"
