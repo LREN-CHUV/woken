@@ -22,8 +22,8 @@ object FunctionsInOut {
     val defaultDb = requestConfig.getString("inDb")
     val mainTable = requestConfig.getString("mainTable")
     val parameters = Map[String, String](
-      "PARAM_query" -> s"select ${query.variables.map(_.code).mkString(",")}, ${query.covariables.map(_.code).mkString(",")} from $mainTable",
-      "PARAM_colnames" -> query.covariables.map(_.code).mkString(",")
+      "PARAM_query" -> s"select ${query.variables.map(_.code).mkString(",")} from $mainTable",
+      "PARAM_colnames" -> query.variables.map(_.code).mkString(",")
     )
 
     JobDto(jobId, dockerImage, None, None, Some(defaultDb), parameters, None)
@@ -67,7 +67,7 @@ object DatasetResults extends DefaultJsonProtocol with JobResults.Factory {
       case _          => Left(Dataset("", OffsetDateTime.now(), JsArray(), JsString(s"No results returned")))
     }
 
-    datasetAdapted.fold(DatasetResults(_) , DatasetResults(_))
+    datasetAdapted.fold(DatasetResults(_) , DatasetResults(_)): DatasetResults
   }
 
   import ApiJsonSupport._
