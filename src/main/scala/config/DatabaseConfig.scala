@@ -3,6 +3,8 @@ package config
 import dao.{FederationDAL, NodeDAL, DAL}
 import doobie.imports._
 import scalaz.effect.IO
+import com.typesafe.scalalogging.slf4j._
+import org.slf4j.LoggerFactory
 
 trait DatabaseConfig {
   def xa: Transactor[IO]
@@ -14,12 +16,23 @@ trait DatabaseConfig {
   */
 //Based on play-slick driver loader
 object ResultDatabaseConfig extends DatabaseConfig {
+  val logger = Logger(LoggerFactory.getLogger("database"))
+
+  def testConnection(xa: Transactor[IO], jdbcUrl: String) = try {
+    sql"select 1".query[Int].unique.transact(xa).unsafePerformIO
+  } catch {
+    case e: java.sql.SQLException =>
+      logger.error(s"Cannot connect to $jdbcUrl", e)
+  }
+
   import Config._
   val config = dbConfig(jobs.resultDb)
   import config._
   lazy val xa = DriverManagerTransactor[IO](
     jdbcDriver, jdbcUrl, jdbcUser, jdbcPassword
   )
+  testConnection(xa, jdbcUrl)
+
   lazy val dal = new NodeDAL(xa)
 }
 
@@ -29,6 +42,7 @@ object ResultDatabaseConfig extends DatabaseConfig {
 //Based on play-slick driver loader
 object FederationDatabaseConfig {
   import Config._
+  import ResultDatabaseConfig.testConnection
 
   val config: Option[DatabaseConfig] = if (!jobs.jobsConf.hasPath("federationDb")) None else
     Some(new DatabaseConfig {
@@ -37,6 +51,8 @@ object FederationDatabaseConfig {
       lazy val xa = DriverManagerTransactor[IO](
         jdbcDriver, jdbcUrl, jdbcUser, jdbcPassword
       )
+      testConnection(xa, jdbcUrl)
+
       lazy val dal = new FederationDAL(xa)
     })
 }

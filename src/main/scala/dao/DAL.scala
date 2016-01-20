@@ -1,6 +1,6 @@
 package dao
 
-import java.time.{ZoneOffset, LocalDateTime, OffsetDateTime}
+import java.time.{ZoneOffset, OffsetDateTime}
 
 import core.model.JobResult
 import doobie.imports._

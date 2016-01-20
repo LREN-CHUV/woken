@@ -33,7 +33,7 @@ class ChronosService extends Actor with ActorLogging {
       import ChronosJob._
       implicit val system = context.system
       implicit val executionContext = context.dispatcher
-      implicit val timeout: Timeout = Timeout(15.seconds)
+      implicit val timeout: Timeout = Timeout(30.seconds)
 
       import ChronosJob._
       log.warning(spray.json.PrettyPrinter.apply(chronosJobFormat.write(job)))
@@ -44,12 +44,24 @@ class ChronosService extends Actor with ActorLogging {
         chronosResponse.map {
           case HttpResponse(statusCode: StatusCode, entity, _, _) => statusCode match {
             case ok: StatusCodes.Success => Ok
-            case _ => Error(s"Error $statusCode: ${entity.asString}")
+            case _ => {
+              log.warning(s"Post to Chronos on $chronosServerUrl returned error $statusCode: ${entity.asString}")
+              Error(s"Error $statusCode: ${entity.asString}")
+            }
           }
-          case f: Status.Failure => Error(f.cause.getMessage)
+          case f: Status.Failure => {
+            log.warning(s"Post to Chronos on $chronosServerUrl returned error ${f.cause.getMessage}")
+            Error(f.cause.getMessage)
+          }
         }.recover {
-          case e: AskTimeoutException => Error("Connection timeout")
-          case e: Throwable => Error(e.getMessage)
+          case e: AskTimeoutException => {
+            log.warning(s"Post to Chronos on $chronosServerUrl timed out after $timeout")
+            Error("Connection timeout")
+          }
+          case e: Throwable => {
+            log.warning(s"Post to Chronos on $chronosServerUrl returned an error $e")
+            Error(e.getMessage)
+          }
         } pipeTo originalSender
     }
 
