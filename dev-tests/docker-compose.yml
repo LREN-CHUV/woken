@@ -58,6 +58,15 @@ analyticsdb:
   environment:
     POSTGRES_PASSWORD: test
 
+adnimergedb:
+  image: postgres:9.4.5
+  ports:
+    - "65432:5432"
+  volumes:
+    - ./adni-merge-db/sql:/docker-entrypoint-initdb.d/
+  environment:
+    POSTGRES_PASSWORD: test
+
 workflow:
   build: workflow
   net: host
