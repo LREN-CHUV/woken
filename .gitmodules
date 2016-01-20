@@ -1,3 +1,6 @@
 [submodule "dev-tests/analytics-db"]
 	path = dev-tests/analytics-db
 	url = https://github.com/LREN-CHUV/analytics-db.git
+[submodule "dev-tests/adni-merge-db"]
+	path = dev-tests/adni-merge-db
+	url = git@gitlab.intranet.chuv:mip-private/adni-merge-db.git
