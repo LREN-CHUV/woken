@@ -16,14 +16,21 @@ import spray.json._
 object FunctionsInOut {
 
   def query2job(query: Query): JobDto = {
+    // Convert variable to lowercase as Postgres returns lowercase fields in its result set
+    // ADNI variables have been adjusted to be valid field names using the following conversions:
+    // * replace - by _
+    // * prepend _ to the variable name if it starts by a number
+
+    def toField(v: VariableId) = v.code.toLowerCase().replaceAll("-", "_").replaceFirst("^(\\d)", "_$1")
+
     val jobId = UUID.randomUUID().toString
     val requestConfig = Config.defaults.getConfig("request")
     val dockerImage = requestConfig.getConfig("functions").getString(query.request.plot)
     val defaultDb = requestConfig.getString("inDb")
     val mainTable = requestConfig.getString("mainTable")
     val parameters = Map[String, String](
-      "PARAM_query" -> s"select ${query.variables.map(_.code).mkString(",")} from $mainTable",
-      "PARAM_colnames" -> query.variables.map(_.code).mkString(",")
+      "PARAM_query" -> s"select ${query.variables.map(toField).mkString(",")} from $mainTable",
+      "PARAM_colnames" -> query.variables.map(toField).mkString(",")
     )
 
     JobDto(jobId, dockerImage, None, None, Some(defaultDb), parameters, None)
