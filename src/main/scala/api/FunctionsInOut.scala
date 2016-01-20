@@ -14,24 +14,40 @@ import spray.json._
   * Transformations for input and output values of functions
   */
 object FunctionsInOut {
+  private[this] val requestConfig = Config.defaults.getConfig("request")
+  private[this] val mainTable = requestConfig.getString("mainTable")
+
+  /** Convert variable to lowercase as Postgres returns lowercase fields in its result set
+    * ADNI variables have been adjusted to be valid field names using the following conversions:
+    * + replace - by _
+    * + prepend _ to the variable name if it starts by a number
+    */
+  private[this] val toField = (v: VariableId) => v.code.toLowerCase().replaceAll("-", "_").replaceFirst("^(\\d)", "_$1")
+
+  // TODO: filter is never used
+  private[this] val selectQueryVariable = (query: Query) => Map[String, String] (
+    "PARAM_query" -> s"select ${query.variables.map(toField).mkString(",")} from $mainTable",
+    "PARAM_colnames" -> query.variables.map(toField).mkString(",")
+  )
+
+  // TODO: grouping is never used, nor filter
+  private[this] val regressionParameters = (query: Query) => Map[String, String] (
+    "PARAM_query" -> s"select ${(query.variables ++ query.covariables).map(toField).mkString(",")} from $mainTable",
+    "PARAM_varname" -> query.variables.map(toField).mkString(","),
+    "PARAM_covarnames" -> query.covariables.map(toField).mkString(",")
+  )
+
+  val queryToParameters: Map[String, Query => Map[String, String]] = Map(
+    "boxplot" -> selectQueryVariable,
+    "linearregression" -> regressionParameters
+  )
 
   def query2job(query: Query): JobDto = {
-    // Convert variable to lowercase as Postgres returns lowercase fields in its result set
-    // ADNI variables have been adjusted to be valid field names using the following conversions:
-    // * replace - by _
-    // * prepend _ to the variable name if it starts by a number
-
-    def toField(v: VariableId) = v.code.toLowerCase().replaceAll("-", "_").replaceFirst("^(\\d)", "_$1")
 
     val jobId = UUID.randomUUID().toString
-    val requestConfig = Config.defaults.getConfig("request")
     val dockerImage = requestConfig.getConfig("functions").getString(query.request.plot)
     val defaultDb = requestConfig.getString("inDb")
-    val mainTable = requestConfig.getString("mainTable")
-    val parameters = Map[String, String](
-      "PARAM_query" -> s"select ${query.variables.map(toField).mkString(",")} from $mainTable",
-      "PARAM_colnames" -> query.variables.map(toField).mkString(",")
-    )
+    val parameters = queryToParameters(query.request.plot.toLowerCase)(query)
 
     JobDto(jobId, dockerImage, None, None, Some(defaultDb), parameters, None)
   }
