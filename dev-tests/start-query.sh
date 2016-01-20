@@ -7,8 +7,8 @@ if [ -z "$id" ]; then
 fi
 
 http -v --timeout 180 POST localhost:8087/request \
-         variables:='[{"code":"LeftAmygdala"}]' \
-         grouping:='[{"code":"COLPROT"}]' \
-         covariables:='[{"code":"AGE"}]' \
+         variables:='[{"code":"tissue1_volume"}]' \
+         grouping:='[]' \
+         covariables:='[{"code":"tissue1_volume"}]' \
          filters:='[]' \
          request:='{"plot":"boxplot"}'
