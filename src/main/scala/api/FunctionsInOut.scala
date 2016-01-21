@@ -71,6 +71,23 @@ object FunctionsInOut {
       Left(Dataset(result.jobId, result.timestamp, JsArray(), JsString(result.error.getOrElse("unknown error"))))
   }
 
+  // Left Dataset indicates an error
+  def linearRegressionResult2Dataset(result: JobResult): Either[Dataset, Dataset] = {
+
+    result.data.map { data =>
+      val json = JsonParser(data).asJsObject
+      val correctedData = json.fields.mapValues {
+        case JsArray(values) => JsArray(values.flatMap {
+          case JsArray(nested) => nested
+          case simple => Vector(simple)
+        })
+        case _ => throw new IllegalArgumentException("[Summary stats] Unexpected json format: " + data)
+      }
+      Right(Dataset(result.jobId, result.timestamp, summaryStatsHeader, JsObject(correctedData)))
+    } getOrElse
+      Left(Dataset(result.jobId, result.timestamp, JsArray(), JsString(result.error.getOrElse("unknown error"))))
+  }
+
 }
 
 case class DatasetResults(dataset: Dataset) extends RestMessage {
