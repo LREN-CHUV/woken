@@ -14,8 +14,8 @@ import spray.json._
   * Transformations for input and output values of functions
   */
 object FunctionsInOut {
-  private[this] val requestConfig = Config.defaults.getConfig("request")
-  private[this] val mainTable = requestConfig.getString("mainTable")
+  private[this] lazy val requestConfig = Config.defaults.getConfig("request")
+  private[this] lazy val mainTable = requestConfig.getString("mainTable")
 
   /** Convert variable to lowercase as Postgres returns lowercase fields in its result set
     * ADNI variables have been adjusted to be valid field names using the following conversions:
@@ -59,7 +59,7 @@ object FunctionsInOut {
 
     result.data.map { data =>
       val json = JsonParser(data).asJsObject
-      val correctedData = json.fields.mapValues {
+      val correctedData = json.fields.filterKeys(_ != "_row").mapValues {
         case JsArray(values) => JsArray(values.flatMap {
           case JsArray(nested) => nested
           case simple => Vector(simple)
@@ -76,14 +76,18 @@ object FunctionsInOut {
 
     result.data.map { data =>
       val json = JsonParser(data).asJsObject
-      val correctedData = json.fields.mapValues {
-        case JsArray(values) => JsArray(values.flatMap {
-          case JsArray(nested) => nested
-          case simple => Vector(simple)
-        })
-        case _ => throw new IllegalArgumentException("[Summary stats] Unexpected json format: " + data)
-      }
-      Right(Dataset(result.jobId, result.timestamp, summaryStatsHeader, JsObject(correctedData)))
+      val coefficients = json.fields("coefficients")
+      val residuals = json.fields("residuals").asJsObject()
+      val columns = residuals.fields("_row")
+      val header = JsObject(
+        "coefficients" -> columns,
+        "residuals" -> JsArray(columns)
+      )
+      val dataset = JsObject(
+        "coefficients" -> coefficients,
+        "residuals" -> JsObject(residuals.fields.filterKeys(_ != "_row"))
+      )
+      Right(Dataset(result.jobId, result.timestamp, header, dataset))
     } getOrElse
       Left(Dataset(result.jobId, result.timestamp, JsArray(), JsString(result.error.getOrElse("unknown error"))))
   }
