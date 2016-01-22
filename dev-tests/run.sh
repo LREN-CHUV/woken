@@ -14,7 +14,7 @@ get_script_dir () {
 
 ROOT_DIR="$(get_script_dir)"
 
-used_ports=$(sudo /bin/sh -c "lsof -iTCP -sTCP:LISTEN -P -n | grep -E ':(8087|5432|2181|2888|3888|5050|5051|4400)'" || true)
+used_ports=$(sudo /bin/sh -c "lsof -iTCP -sTCP:LISTEN -P -n | grep -E ':(8087|5432|2181|2888|3888|5050|5051|4400|65432)'" || true)
 
 if [ "$used_ports" != "" ]; then
   echo "Some applications already use the ports required by this set of applications. Please close them."
