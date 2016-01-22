@@ -5,7 +5,8 @@ import java.time.{LocalDateTime, ZoneOffset, OffsetDateTime}
 import spray.json._
 
 case class JobResult(jobId: String, node: String, timestamp: OffsetDateTime,
-                      data: Option[String] = None, error: Option[String] = None) {
+                      data: Option[String] = None, error: Option[String] = None,
+                      shape: String, function: String) {
 
 }
 
@@ -22,5 +23,5 @@ object JobResult extends DefaultJsonProtocol {
     }
   }
 
-  implicit val jobResultFormat = lazyFormat(jsonFormat5(JobResult.apply))
+  implicit val jobResultFormat = lazyFormat(jsonFormat7(JobResult.apply))
 }

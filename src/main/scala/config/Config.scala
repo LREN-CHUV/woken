@@ -53,5 +53,5 @@ object Config {
     )
   }
 
-  def defaults = config.getConfig("defaultSettings")
+  def defaultSettings = config.getConfig("defaultSettings")
 }

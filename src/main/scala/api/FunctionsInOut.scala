@@ -14,7 +14,7 @@ import spray.json._
   * Transformations for input and output values of functions
   */
 object FunctionsInOut {
-  private[this] lazy val requestConfig = Config.defaults.getConfig("request")
+  private[this] lazy val requestConfig = Config.defaultSettings.getConfig("request")
   private[this] lazy val mainTable = requestConfig.getString("mainTable")
 
   /** Convert variable to lowercase as Postgres returns lowercase fields in its result set
@@ -31,7 +31,7 @@ object FunctionsInOut {
   )
 
   // TODO: grouping is never used, nor filter
-  private[this] val regressionParameters = (query: Query) => Map[String, String] (
+  private[this] val linerarRegressionParameters = (query: Query) => Map[String, String] (
     "PARAM_query" -> s"select ${(query.variables ++ query.covariables).map(toField).mkString(",")} from $mainTable",
     "PARAM_varname" -> query.variables.map(toField).mkString(","),
     "PARAM_covarnames" -> query.covariables.map(toField).mkString(",")
@@ -39,13 +39,18 @@ object FunctionsInOut {
 
   val queryToParameters: Map[String, Query => Map[String, String]] = Map(
     "boxplot" -> selectQueryVariable,
-    "linearregression" -> regressionParameters
+    "linearregression" -> linerarRegressionParameters
+  )
+
+  val resultToDataset: Map[String, JobResult => Either[Dataset, Dataset]] = Map(
+    "r-summary-stats" -> summaryStatsResult2Dataset,
+    "r-linear-regression" -> linearRegressionResult2Dataset
   )
 
   def query2job(query: Query): JobDto = {
 
     val jobId = UUID.randomUUID().toString
-    val dockerImage = requestConfig.getConfig("functions").getString(query.request.plot)
+    val dockerImage = requestConfig.getConfig("functions").getString(query.request.plot.toLowerCase())
     val defaultDb = requestConfig.getString("inDb")
     val parameters = queryToParameters(query.request.plot.toLowerCase)(query)
 
@@ -106,7 +111,7 @@ object DatasetResults extends DefaultJsonProtocol with JobResults.Factory {
     import FunctionsInOut._
 
     val datasetAdapted: Either[Dataset, Dataset] = results match {
-      case res :: Nil => summaryStatsResult2Dataset(res)
+      case res :: Nil => resultToDataset(res.function)(res)
       case res :: _   => Left(Dataset(res.jobId, res.timestamp, JsArray(), JsString(s"Expected one job result, got ${results.length}")))
       case _          => Left(Dataset("", OffsetDateTime.now(), JsArray(), JsString(s"No results returned")))
     }

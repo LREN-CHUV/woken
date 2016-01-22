@@ -27,7 +27,7 @@ object DAL {
 class NodeDAL(xa: Transactor[IO]) extends DAL {
   import DAL._
 
-  def queryJobResults(jobId: String): ConnectionIO[List[JobResult]] = sql"select job_id, node, timestamp, data, error from job_result where job_id = $jobId".query[JobResult].list
+  def queryJobResults(jobId: String): ConnectionIO[List[JobResult]] = sql"select job_id, node, timestamp, data, error, shape, function from job_result where job_id = $jobId".query[JobResult].list
 
   override def findJobResults(jobId: String) = queryJobResults(jobId).transact(xa).unsafePerformIO
 
@@ -36,7 +36,7 @@ class NodeDAL(xa: Transactor[IO]) extends DAL {
 class FederationDAL(xa: Transactor[IO]) extends DAL {
   import DAL._
 
-  def queryJobResults(jobId: String): ConnectionIO[List[JobResult]] = sql"select job_id, node, timestamp, data, error from job_result_nodes where job_id = $jobId".query[JobResult].list
+  def queryJobResults(jobId: String): ConnectionIO[List[JobResult]] = sql"select job_id, node, timestamp, data, error, shape, function from job_result_nodes where job_id = $jobId".query[JobResult].list
 
   override def findJobResults(jobId: String) = queryJobResults(jobId).transact(xa).unsafePerformIO
 

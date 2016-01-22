@@ -38,5 +38,7 @@ else
   DOCKER_COMPOSE="sudo docker-compose"
 fi
 
+trap '$DOCKER_COMPOSE rm -f' SIGINT SIGQUIT
+
 export HOST="$(hostname).intranet.chuv"
 $DOCKER_COMPOSE up
