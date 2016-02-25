@@ -30,11 +30,12 @@ object FunctionsInOut {
     "PARAM_colnames" -> query.variables.map(toField).mkString(",")
   )
 
-  // TODO: grouping is never used, nor filter
+  // TODO: filter is never used
   private[this] val linerarRegressionParameters = (query: Query) => Map[String, String] (
-    "PARAM_query" -> s"select ${(query.variables ++ query.covariables).map(toField).mkString(",")} from $mainTable",
+    "PARAM_query" -> s"select ${(query.variables ++ query.covariables ++ query.grouping).map(toField).mkString(",")} from $mainTable",
     "PARAM_varname" -> query.variables.map(toField).mkString(","),
-    "PARAM_covarnames" -> query.covariables.map(toField).mkString(",")
+    "PARAM_covarnames" -> query.covariables.map(toField).mkString(","),
+    "PARAM_groups" -> query.grouping.map(toField).mkString(",")
   )
 
   val queryToParameters: Map[String, Query => Map[String, String]] = Map(
@@ -80,6 +81,7 @@ object FunctionsInOut {
   def linearRegressionResult2Dataset(result: JobResult): Either[Dataset, Dataset] = {
 
     result.data.map { data =>
+      println(data)
       val json = JsonParser(data).asJsObject
       val coefficients = json.fields("coefficients")
       val residuals = json.fields("residuals").asJsObject()
