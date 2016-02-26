@@ -1,7 +1,7 @@
 package api
 
 import akka.actor.ActorSystem
-import config.{FederationDatabaseConfig, ResultDatabaseConfig}
+import config.{FederationDatabaseConfig, ResultDatabaseConfig, LdsmDatabaseConfig}
 import core.{CoreActors, Core}
 import spray.routing.HttpService
 
@@ -17,6 +17,6 @@ trait Api extends HttpService with CoreActors with Core {
 
   val routes =
     new SwaggerService().routes ~
-    new JobService(chronosHttp, ResultDatabaseConfig.dal, FederationDatabaseConfig.config.map(_.dal)).routes
+    new JobService(chronosHttp, ResultDatabaseConfig.dal, FederationDatabaseConfig.config.map(_.dal), LdsmDatabaseConfig.dal).routes
 
 }

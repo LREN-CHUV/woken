@@ -7,7 +7,7 @@ import core.CoordinatorActor.Start
 import core.clients.{JobClientService, ChronosService}
 import core.model.JobToChronos
 import core.model.JobResult
-import dao.DAL
+import dao.JobResultsDAL
 import models.ChronosJob
 import spray.http.StatusCodes
 import spray.httpx.marshalling.ToResponseMarshaller
@@ -50,7 +50,7 @@ object CoordinatorActor {
   implicit val resultFormat: JsonFormat[Result] = JobResult.jobResultFormat
   implicit val errorResponseFormat = jsonFormat1(ErrorResponse.apply)
 
-  def props(chronosService: ActorRef, resultDatabase: DAL, federationDatabase: Option[DAL], jobResultsFactory: JobResults.Factory): Props =
+  def props(chronosService: ActorRef, resultDatabase: JobResultsDAL, federationDatabase: Option[JobResultsDAL], jobResultsFactory: JobResults.Factory): Props =
     federationDatabase.map(fd => Props(classOf[FederationCoordinatorActor], chronosService, resultDatabase, fd, jobResultsFactory))
       .getOrElse(Props(classOf[LocalCoordinatorActor], chronosService, resultDatabase, jobResultsFactory))
 
@@ -84,7 +84,7 @@ trait CoordinatorActor extends Actor with ActorLogging with LoggingFSM[State, St
   val repeatDuration = 200.milliseconds
 
   def chronosService: ActorRef
-  def resultDatabase: DAL
+  def resultDatabase: JobResultsDAL
   def jobResultsFactory: JobResults.Factory
 
   startWith(WaitForNewJob, Uninitialized)
@@ -133,7 +133,7 @@ trait CoordinatorActor extends Actor with ActorLogging with LoggingFSM[State, St
 
 }
 
-class LocalCoordinatorActor(val chronosService: ActorRef, val resultDatabase: DAL,
+class LocalCoordinatorActor(val chronosService: ActorRef, val resultDatabase: JobResultsDAL,
                             val jobResultsFactory: JobResults.Factory) extends CoordinatorActor {
   log.info ("Local coordinator actor started...")
 
@@ -155,7 +155,7 @@ class LocalCoordinatorActor(val chronosService: ActorRef, val resultDatabase: DA
 
 }
 
-class FederationCoordinatorActor(val chronosService: ActorRef, val resultDatabase: DAL, val federationDatabase: DAL,
+class FederationCoordinatorActor(val chronosService: ActorRef, val resultDatabase: JobResultsDAL, val federationDatabase: JobResultsDAL,
                                  val jobResultsFactory: JobResults.Factory) extends CoordinatorActor {
 
   import CoordinatorActor._

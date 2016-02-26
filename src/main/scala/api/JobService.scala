@@ -2,12 +2,15 @@ package api
 
 import akka.actor.{ActorSystem, ActorRef}
 import core.{JobResults, RestMessage, CoordinatorActor}
-import dao.DAL
+import dao.{LdsmDAL, JobResultsDAL}
 import spray.http._
 import spray.routing.Route
 
 // this trait defines our service behavior independently from the service actor
-class JobService(val chronosService: ActorRef, val resultDatabase: DAL, val federationDatabase: Option[DAL])(implicit system: ActorSystem) extends JobServiceDoc with PerRequestCreator with DefaultJsonFormats {
+class JobService(val chronosService: ActorRef,
+                 val resultDatabase: JobResultsDAL,
+                 val federationDatabase: Option[JobResultsDAL],
+                 val ldsmDatabase: LdsmDAL)(implicit system: ActorSystem) extends JobServiceDoc with PerRequestCreator with DefaultJsonFormats {
 
   override def context = system
   val routes: Route = initJob ~ virtuaRequest
@@ -34,10 +37,15 @@ class JobService(val chronosService: ActorRef, val resultDatabase: DAL, val fede
     import FunctionsInOut._
 
     post {
-      entity(as[Query]) { query =>
-        val job = query2job(query)
-        chronosJob(DatasetResults) {
-          Start(job)
+      entity(as[Query]) {
+        case Query(_, covariables, _, _, Request(plot)) if plot == "" || plot == "data" => {
+          ctx => ctx.complete(ldsmDatabase.queryData(covariables.map(_.code)))
+        }
+        case query: Query => {
+          val job = query2job(query)
+          chronosJob(DatasetResults) {
+            Start(job)
+          }
         }
       }
     }

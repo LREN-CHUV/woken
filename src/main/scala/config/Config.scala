@@ -53,5 +53,11 @@ object Config {
     )
   }
 
-  def defaultSettings = config.getConfig("defaultSettings")
+  object defaultSettings {
+    val defaultSettingsConf = config.getConfig("defaultSettings")
+    lazy val requestConfig = defaultSettingsConf.getConfig("request")
+    lazy val mainTable = requestConfig.getString("mainTable")
+    def dockerImage(plot: String) = requestConfig.getConfig("functions").getString(plot.toLowerCase())
+    val defaultDb = requestConfig.getString("inDb")
+  }
 }

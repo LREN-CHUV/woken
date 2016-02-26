@@ -14,8 +14,7 @@ import spray.json._
   * Transformations for input and output values of functions
   */
 object FunctionsInOut {
-  private[this] lazy val requestConfig = Config.defaultSettings.getConfig("request")
-  private[this] lazy val mainTable = requestConfig.getString("mainTable")
+  import Config.defaultSettings._
 
   /** Convert variable to lowercase as Postgres returns lowercase fields in its result set
     * ADNI variables have been adjusted to be valid field names using the following conversions:
@@ -51,11 +50,9 @@ object FunctionsInOut {
   def query2job(query: Query): JobDto = {
 
     val jobId = UUID.randomUUID().toString
-    val dockerImage = requestConfig.getConfig("functions").getString(query.request.plot.toLowerCase())
-    val defaultDb = requestConfig.getString("inDb")
     val parameters = queryToParameters(query.request.plot.toLowerCase)(query)
 
-    JobDto(jobId, dockerImage, None, None, Some(defaultDb), parameters, None)
+    JobDto(jobId, dockerImage(query.request.plot), None, None, Some(defaultDb), parameters, None)
   }
 
   lazy val summaryStatsHeader = JsonParser(""" [["min","q1","median","q3","max","mean","std","sum","count"]] """)
