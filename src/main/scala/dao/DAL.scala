@@ -115,8 +115,21 @@ class LdsmDAL(jdbcDriver: String, jdbcUrl: String, jdbcUser: String, jdbcPasswor
     "java.lang.Long" -> ((obj: Object) => JsNumber(obj.asInstanceOf[Long])),
     "java.lang.Double" -> ((obj: Object) => JsNumber(obj.asInstanceOf[Double])),
     "java.lang.Float" -> ((obj: Object) => JsNumber(obj.asInstanceOf[Float])),
-    "java.lang.Boolean" -> ((obj: Object) => JsBoolean(obj.asInstanceOf[Boolean])),
+    "java.lang.BigInteger" -> ((obj: Object) => JsNumber(obj.asInstanceOf[java.math.BigInteger])),
+    "java.math.BigDecimal" -> ((obj: Object) => JsNumber(obj.asInstanceOf[java.math.BigDecimal])),
+    "java.math.Boolean" -> ((obj: Object) => JsBoolean(obj.asInstanceOf[Boolean])),
     "java.lang.String" -> ((obj: Object) => JsString(obj.asInstanceOf[String])))
+
+  val resultsetJsTypes: Map[String, JsString] = Map(
+    "java.lang.Integer" -> JsString("number"),
+    "java.lang.Long" -> JsString("number"),
+    "java.lang.Double" -> JsString("number"),
+    "java.lang.Float" -> JsString("number"),
+    "java.math.BigInteger" -> JsString("number"),
+    "java.math.BigDecimal" -> JsString("number"),
+    "java.lang.Boolean" -> JsString("boolean"),
+    "java.lang.String" ->  JsString("string")
+  )
 
   def queryData(columns: Seq[String]) = {
     val (meta, data) = runQuery(ldsmConnection, s"select ${columns.mkString(",")} from $table")
@@ -130,7 +143,9 @@ class LdsmDAL(jdbcDriver: String, jdbcUrl: String, jdbcUser: String, jdbcPasswor
             "items" -> JsObject(
               "type" -> JsString("record"),
               "name" -> JsString("row"),
-              "fields" -> JsObject()
+              "fields" -> JsArray(meta.map(col =>
+                JsObject("name" -> JsString(col.label),
+                  "type" -> resultsetJsTypes(col.datatype))) :_*)
             )
           ),
           "init" -> JsArray(data.toVector)
