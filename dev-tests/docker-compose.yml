@@ -52,7 +52,6 @@ chronos:
 
 analyticsdb:
   image: postgres:9.4.5
-  net: host
   volumes:
     - ./analytics-db/sql:/docker-entrypoint-initdb.d/
   environment:
@@ -60,8 +59,6 @@ analyticsdb:
 
 adnimergedb:
   image: postgres:9.4.5
-  ports:
-    - "65432:5432"
   volumes:
     - ./adni-merge-db/sql:/docker-entrypoint-initdb.d/
   environment:
@@ -69,9 +66,13 @@ adnimergedb:
 
 workflow:
   build: workflow
-  net: host
+  ports:
+    - 8087:8087
   volumes:
     - ./workflow/config:/opt/workflow/config
     - ./workflow/lib:/opt/workflow/lib
+  links:
+    - analyticsdb:analyticsdb
+    - adnimergedb:adnimergedb
   environment:
     HOST: "${HOST}"

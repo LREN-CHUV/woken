@@ -54,7 +54,7 @@ class LdsmDAL(jdbcDriver: String, jdbcUrl: String, jdbcUser: String, jdbcPasswor
 
   case class ColumnMeta(index: Int, label: String, datatype: String)
 
-  def runQuery(dbConnection: Connection, query: String): (List[ColumnMeta], Stream[JsObject]) = {
+  def runQuery(dbConnection: Connection, query: String): (List[ColumnMeta], Stream[JsArray]) = {
     val rs = dbConnection.prepareStatement(query).executeQuery
     implicit val cols = getColumnMeta(rs.getMetaData)
     (cols, getStreamOfResults(rs))
@@ -73,24 +73,24 @@ class LdsmDAL(jdbcDriver: String, jdbcUrl: String, jdbcUser: String, jdbcPasswor
   /**
     * Creates a stream of results on top of a ResultSet.
     */
-  def getStreamOfResults(rs: ResultSet)(implicit cols: List[ColumnMeta]): Stream[JsObject] =
-    new Iterator[JsObject] {
+  def getStreamOfResults(rs: ResultSet)(implicit cols: List[ColumnMeta]): Stream[JsArray] =
+    new Iterator[JsArray] {
       def hasNext = rs.next
       def next() = {
-        rowToObj(rs)
+        rowToArray(rs)
       }
     }.toStream
 
   /**
     * Given a row from a ResultSet produces a JSON document.
     */
-  def rowToObj(rs: ResultSet)(implicit cols: List[ColumnMeta]): JsObject = {
+  def rowToArray(rs: ResultSet)(implicit cols: List[ColumnMeta]): JsArray = {
     val fields = for {
       ColumnMeta(index, label, datatype) <- cols
       clazz = Class.forName(datatype)
       value = columnValueGetter(datatype, index, rs)
-    } yield (label -> value)
-    JsObject(fields: _*)
+    } yield value
+    JsArray(fields: _*)
   }
 
   /**
@@ -118,6 +118,26 @@ class LdsmDAL(jdbcDriver: String, jdbcUrl: String, jdbcUser: String, jdbcPasswor
     "java.lang.Boolean" -> ((obj: Object) => JsBoolean(obj.asInstanceOf[Boolean])),
     "java.lang.String" -> ((obj: Object) => JsString(obj.asInstanceOf[String])))
 
-  def queryData(columns: Seq[String]) = JsArray(runQuery(ldsmConnection, s"select ${columns.mkString(",")} from $table")._2.toVector)
+  def queryData(columns: Seq[String]) = {
+    val (meta, data) = runQuery(ldsmConnection, s"select ${columns.mkString(",")} from $table")
+    JsObject(
+      "input" -> JsString("null"),
+      "output" -> JsString("null"),
+      "cells" -> JsObject("data" ->
+        JsObject(
+          "type" -> JsObject(
+            "type" -> JsString("array"),
+            "items" -> JsObject(
+              "type" -> JsString("record"),
+              "name" -> JsString("row"),
+              "fields" -> JsObject()
+            )
+          ),
+          "init" -> JsArray(data.toVector)
+        )
+      ),
+      "action" -> JsArray(JsObject("cell" -> JsString("data")))
+    )
+  }
 
 }
