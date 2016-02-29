@@ -134,6 +134,7 @@ class LdsmDAL(jdbcDriver: String, jdbcUrl: String, jdbcUser: String, jdbcPasswor
   def queryData(columns: Seq[String]) = {
     val (meta, data) = runQuery(ldsmConnection, s"select ${columns.mkString(",")} from $table")
     JsObject(
+      "doc" -> JsString(s"Raw data for variables ${meta.map(_.label).mkString(", ")}"),
       "input" -> JsString("null"),
       "output" -> JsString("null"),
       "cells" -> JsObject("data" ->
