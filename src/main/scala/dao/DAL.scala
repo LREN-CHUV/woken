@@ -54,7 +54,7 @@ class LdsmDAL(jdbcDriver: String, jdbcUrl: String, jdbcUser: String, jdbcPasswor
 
   case class ColumnMeta(index: Int, label: String, datatype: String)
 
-  def runQuery(dbConnection: Connection, query: String): (List[ColumnMeta], Stream[JsArray]) = {
+  def runQuery(dbConnection: Connection, query: String): (List[ColumnMeta], Stream[JsObject]) = {
     val rs = dbConnection.prepareStatement(query).executeQuery
     implicit val cols = getColumnMeta(rs.getMetaData)
     (cols, getStreamOfResults(rs))
@@ -73,24 +73,24 @@ class LdsmDAL(jdbcDriver: String, jdbcUrl: String, jdbcUser: String, jdbcPasswor
   /**
     * Creates a stream of results on top of a ResultSet.
     */
-  def getStreamOfResults(rs: ResultSet)(implicit cols: List[ColumnMeta]): Stream[JsArray] =
-    new Iterator[JsArray] {
+  def getStreamOfResults(rs: ResultSet)(implicit cols: List[ColumnMeta]): Stream[JsObject] =
+    new Iterator[JsObject] {
       def hasNext = rs.next
       def next() = {
-        rowToArray(rs)
+        rowToObj(rs)
       }
     }.toStream
 
   /**
     * Given a row from a ResultSet produces a JSON document.
     */
-  def rowToArray(rs: ResultSet)(implicit cols: List[ColumnMeta]): JsArray = {
+  def rowToObj(rs: ResultSet)(implicit cols: List[ColumnMeta]): JsObject = {
     val fields = for {
       ColumnMeta(index, label, datatype) <- cols
       clazz = Class.forName(datatype)
       value = columnValueGetter(datatype, index, rs)
-    } yield value
-    JsArray(fields: _*)
+    } yield label -> value
+    JsObject(fields: _*)
   }
 
   /**

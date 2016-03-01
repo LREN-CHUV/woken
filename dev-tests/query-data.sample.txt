@@ -1,0 +1,131 @@
+
+ludovic@LAB02186 ~/P/m/w/dev-tests> ./query-data.sh 
+POST /request HTTP/1.1
+Accept: application/json
+Accept-Encoding: gzip, deflate
+Connection: keep-alive
+Content-Length: 137
+Content-Type: application/json
+Host: localhost:8087
+User-Agent: HTTPie/0.9.2
+
+{
+    "covariables": [
+        {
+            "code": "AGE"
+        }, 
+        {
+            "code": "LeftAmygdala"
+        }
+    ], 
+    "filters": [], 
+    "grouping": [], 
+    "request": {
+        "plot": "data"
+    }, 
+    "variables": []
+}
+
+HTTP/1.1 200 OK
+Content-Length: 110330
+Content-Type: application/json; charset=UTF-8
+Date: Tue, 01 Mar 2016 13:51:00 GMT
+Server: spray-can/1.3.2
+
+{
+    "action": [
+        {
+            "cell": "data"
+        }
+    ], 
+    "cells": {
+        "data": {
+            "init": [
+                {
+                    "age": 81.3, 
+                    "leftamygdala": 0.76432049
+                }, 
+                {
+                    "age": 81.3, 
+                    "leftamygdala": 0.76365632
+                }, 
+                {
+                    "age": 81.3, 
+                    "leftamygdala": 0.73336071
+                }, 
+                {
+                    "age": 81.3, 
+                    "leftamygdala": 0.71439093
+                }, 
+                {
+                    "age": 73.7, 
+                    "leftamygdala": 0.7216202
+                }, 
+                {
+                    "age": 73.7, 
+                    "leftamygdala": 0.71553141
+                }, 
+                {
+                    "age": 73.7, 
+                    "leftamygdala": 0.72786677
+                }, 
+                {
+                    "age": 73.7, 
+                    "leftamygdala": 0.69065928
+                }, 
+                {
+                    "age": 88.6, 
+                    "leftamygdala": 0.76814425
+                }, 
+                {
+                    "age": 73.7, 
+                    "leftamygdala": 0.69667345
+                }, 
+                {
+                    "age": 73.9, 
+                    "leftamygdala": 0.71417081
+                }, 
+                {
+                    "age": 73.9, 
+                    "leftamygdala": 0.74149913
+                }, 
+                {
+                    "age": 73.9, 
+                    "leftamygdala": 0.69891065
+                }, 
+                {
+                    "age": 73.9, 
+                    "leftamygdala": 0.71550357
+                }, 
+                {
+                    "age": 65.4, 
+                    "leftamygdala": 0.90020281
+                }, 
+                {
+                    "age": 65.4, 
+                    "leftamygdala": 0.89237964
+                }
+            ], 
+            "type": {
+                "items": {
+                    "fields": [
+                        {
+                            "name": "age", 
+                            "type": "number"
+                        }, 
+                        {
+                            "name": "leftamygdala", 
+                            "type": "number"
+                        }
+                    ], 
+                    "name": "row", 
+                    "type": "record"
+                }, 
+                "type": "array"
+            }
+        }
+    }, 
+    "doc": "Raw data for variables age, leftamygdala", 
+    "input": "null", 
+    "output": "null"
+}
