@@ -1,6 +1,5 @@
 package api
 
-import java.time.OffsetDateTime
 import java.util.UUID
 
 import config.Config
@@ -42,11 +41,6 @@ object FunctionsInOut {
     "linearregression" -> linerarRegressionParameters
   )
 
-  val resultToDataset: Map[String, JobResult => Either[Dataset, Dataset]] = Map(
-    "r-summary-stats" -> summaryStatsResult2Dataset,
-    "r-linear-regression" -> linearRegressionResult2Dataset
-  )
-
   def query2job(query: Query): JobDto = {
 
     val jobId = UUID.randomUUID().toString
@@ -57,72 +51,37 @@ object FunctionsInOut {
 
   lazy val summaryStatsHeader = JsonParser(""" [["min","q1","median","q3","max","mean","std","sum","count"]] """)
 
-  // Left Dataset indicates an error
-  def summaryStatsResult2Dataset(result: JobResult): Either[Dataset, Dataset] = {
-
-    result.data.map { data =>
-      val json = JsonParser(data).asJsObject
-      val correctedData = json.fields.filterKeys(_ != "_row").mapValues {
-        case JsArray(values) => JsArray(values.flatMap {
-          case JsArray(nested) => nested
-          case simple => Vector(simple)
-        })
-        case _ => throw new IllegalArgumentException("[Summary stats] Unexpected json format: " + data)
-      }
-      Right(Dataset(result.jobId, result.timestamp, summaryStatsHeader, JsObject(correctedData)))
-    } getOrElse
-      Left(Dataset(result.jobId, result.timestamp, JsArray(), JsString(result.error.getOrElse("unknown error"))))
-  }
-
-  // Left Dataset indicates an error
-  def linearRegressionResult2Dataset(result: JobResult): Either[Dataset, Dataset] = {
-
-    result.data.map { data =>
-      println(data)
-      val json = JsonParser(data).asJsObject
-      val coefficients = json.fields("coefficients")
-      val residuals = json.fields("residuals").asJsObject()
-      val columns = residuals.fields("_row")
-      val header = JsObject(
-        "coefficients" -> columns,
-        "residuals" -> JsArray(columns)
-      )
-      val dataset = JsObject(
-        "coefficients" -> coefficients,
-        "residuals" -> JsObject(residuals.fields.filterKeys(_ != "_row"))
-      )
-      Right(Dataset(result.jobId, result.timestamp, header, dataset))
-    } getOrElse
-      Left(Dataset(result.jobId, result.timestamp, JsArray(), JsString(result.error.getOrElse("unknown error"))))
-  }
-
 }
 
-case class DatasetResults(dataset: Dataset) extends RestMessage {
-  import DatasetResults._
+case class JsonMessage(json: JsValue) extends RestMessage {
   import spray.httpx.SprayJsonSupport._
-  override def marshaller: ToResponseMarshaller[DatasetResults] = ToResponseMarshaller.fromMarshaller(StatusCodes.OK)(sprayJsonMarshaller(datasetResultsFormat))
+  import ApiJsonSupport._
+  val JsonFormat = lift(new RootJsonWriter[JsonMessage] {
+    override def write(obj: JsonMessage): JsValue = JsValueFormat.write(json)
+  })
+  override def marshaller: ToResponseMarshaller[JsonMessage] = ToResponseMarshaller.fromMarshaller(StatusCodes.OK)(sprayJsonMarshaller(JsonFormat))
 }
 
-object DatasetResults extends DefaultJsonProtocol with JobResults.Factory {
-
-  def apply(results: scala.collection.Seq[JobResult]) = {
-    import FunctionsInOut._
-
-    val datasetAdapted: Either[Dataset, Dataset] = results match {
-      case res :: Nil => resultToDataset(res.function)(res)
-      case res :: _   => Left(Dataset(res.jobId, res.timestamp, JsArray(), JsString(s"Expected one job result, got ${results.length}")))
-      case _          => Left(Dataset("", OffsetDateTime.now(), JsArray(), JsString(s"No results returned")))
-    }
-
-    datasetAdapted.fold(DatasetResults(_) , DatasetResults(_)): DatasetResults
-  }
+object RequestProtocol extends DefaultJsonProtocol with JobResults.Factory {
 
   import ApiJsonSupport._
 
-  implicit object datasetResultsFormat extends RootJsonFormat[DatasetResults] {
-    override def write(r: DatasetResults) = datasetJsonFormat.write(r.dataset)
-    override def read(json: JsValue): DatasetResults = throw new NotImplementedError("Cannot read a DatasetResult")
+  def apply(results: scala.collection.Seq[JobResult]): RestMessage = {
+    print (results)
+
+    results match {
+      case res :: Nil => res.shape match {
+        case "pfa_yaml" => {
+          val json = yaml2Json(Yaml(res.data.getOrElse("'No results returned'")))
+          JsonMessage(json)
+        }
+        case "pfa_json" => {
+          val str = res.data.getOrElse("'No results returned'")
+          val json = JsonParser(str)
+          JsonMessage(json)
+        }
+      }
+    }
   }
 }
 

@@ -50,15 +50,20 @@ chronos:
   command: '/usr/bin/chronos run_jar --http_port 4400 --zk_hosts localhost:2181 --master zk://localhost:2181/mesos'
   net: host
 
+# Expose the database to the host, including the Docker container running the algorithms
 analyticsdb:
   image: postgres:9.4.5
+  net: host
   volumes:
     - ./analytics-db/sql:/docker-entrypoint-initdb.d/
   environment:
     POSTGRES_PASSWORD: test
 
+# Expose the database to the host, including the Docker container running the algorithms
 adnimergedb:
   image: postgres:9.4.5
+  ports:
+    - "65432:5432"
   volumes:
     - ./adni-merge-db/sql:/docker-entrypoint-initdb.d/
   environment:
@@ -66,13 +71,9 @@ adnimergedb:
 
 workflow:
   build: workflow
-  ports:
-    - 8087:8087
+  net: host
   volumes:
     - ./workflow/config:/opt/workflow/config
     - ./workflow/lib:/opt/workflow/lib
-  links:
-    - analyticsdb:analyticsdb
-    - adnimergedb:adnimergedb
   environment:
     HOST: "${HOST}"

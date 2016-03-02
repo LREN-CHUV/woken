@@ -10,6 +10,7 @@ val versions = new {
   val config = "1.2.1"
   val postgres = "9.4-1203-jdbc42"
   val doobie = "0.2.3"
+  val snakeyaml = "1.17"
   val scalaTest = "2.2.5"
   val spec2 = "2.3.11"
 }
@@ -29,6 +30,7 @@ libraryDependencies ++= {
     "org.tpolecat"        %%  "doobie-core"      % versions.doobie,
     "com.gettyimages"     %%  "spray-swagger"    % "0.5.0" excludeAll ExclusionRule(organization = "io.spray"),
     "org.webjars"          %  "swagger-ui"       % "2.0.12",
+    "org.yaml"             %  "snakeyaml"        % versions.snakeyaml,
     //---------- Test libraries -------------------//
     "org.scalatest"        %  "scalatest_2.11"   % versions.scalaTest % "test",
     "org.specs2"          %%  "specs2-core"      % versions.spec2     % "test",

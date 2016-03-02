@@ -43,7 +43,7 @@ class JobService(val chronosService: ActorRef,
         }
         case query: Query => {
           val job = query2job(query)
-          chronosJob(DatasetResults) {
+          chronosJob(RequestProtocol) {
             Start(job)
           }
         }
