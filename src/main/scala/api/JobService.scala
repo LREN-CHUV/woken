@@ -13,7 +13,7 @@ class JobService(val chronosService: ActorRef,
                  val ldsmDatabase: LdsmDAL)(implicit system: ActorSystem) extends JobServiceDoc with PerRequestCreator with DefaultJsonFormats {
 
   override def context = system
-  val routes: Route = initJob ~ virtuaRequest
+  val routes: Route = initJob ~ request
 
   import JobDto._
   import CoordinatorActor._
@@ -33,13 +33,13 @@ class JobService(val chronosService: ActorRef,
     }
   }
 
-  override def virtuaRequest: Route = path("request") {
+  override def request: Route = path("request") {
     import FunctionsInOut._
 
     post {
       entity(as[Query]) {
-        case Query(_, covariables, _, _, Request(plot)) if plot == "" || plot == "data" => {
-          ctx => ctx.complete(ldsmDatabase.queryData(covariables.map(_.code)))
+        case Query(_, covariables, groups, _, Request(algorithm)) if algorithm == "" || algorithm == "data" => {
+          ctx => ctx.complete(ldsmDatabase.queryData({ covariables ++ groups }.map(_.code)))
         }
         case query: Query => {
           val job = query2job(query)

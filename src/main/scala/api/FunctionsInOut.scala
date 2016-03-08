@@ -44,9 +44,9 @@ object FunctionsInOut {
   def query2job(query: Query): JobDto = {
 
     val jobId = UUID.randomUUID().toString
-    val parameters = queryToParameters(query.request.plot.toLowerCase)(query)
+    val parameters = queryToParameters(query.request.algorithm.toLowerCase)(query)
 
-    JobDto(jobId, dockerImage(query.request.plot), None, None, Some(defaultDb), parameters, None)
+    JobDto(jobId, dockerImage(query.request.algorithm), None, None, Some(defaultDb), parameters, None)
   }
 
   lazy val summaryStatsHeader = JsonParser(""" [["min","q1","median","q3","max","mean","std","sum","count"]] """)

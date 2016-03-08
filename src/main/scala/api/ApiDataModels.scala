@@ -71,7 +71,7 @@ case class Filter(
 )
 
 case class Request(
-  plot: String
+  algorithm: String
 )
 
 case class Query(

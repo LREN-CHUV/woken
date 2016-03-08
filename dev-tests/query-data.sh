@@ -5,4 +5,4 @@ http -v --timeout 180 POST localhost:8087/request \
          grouping:='[]' \
          covariables:='[{"code":"AGE"},{"code":"LeftAmygdala"}]' \
          filters:='[]' \
-         request:='{"plot":"data"}'
+         request:='{"algorithm":"data"}'

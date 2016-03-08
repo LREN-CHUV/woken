@@ -21,7 +21,7 @@ User-Agent: HTTPie/0.9.2
     "filters": [], 
     "grouping": [], 
     "request": {
-        "plot": "data"
+        "algorithm": "data"
     }, 
     "variables": []
 }

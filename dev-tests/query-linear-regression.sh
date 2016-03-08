@@ -5,4 +5,4 @@ http -v --timeout 180 POST localhost:8087/request \
          grouping:='[{"code":"COLPROT"}]' \
          covariables:='[{"code":"AGE"}]' \
          filters:='[]' \
-         request:='{"plot":"linearRegression"}'
+         request:='{"algorithm":"linearRegression"}'

@@ -5,7 +5,7 @@ import core.CoordinatorActor.Result
 import spray.routing._
 
 /**
- * Document the API, try to to pollute the code with annotations
+ * Document the API, try not to pollute the code with annotations
  */
 @SwaggerApi(value = "/job", description = "Operations for jobs.", consumes = "application/json",  produces = "application/json")
 trait JobServiceDoc extends Directives {
@@ -27,5 +27,8 @@ trait JobServiceDoc extends Directives {
   ))
   def initJob: Route
 
-  def virtuaRequest: Route
+  /**
+    * The request API
+    */
+  def request: Route
 }
