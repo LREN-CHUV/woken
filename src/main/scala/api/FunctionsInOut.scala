@@ -23,23 +23,17 @@ object FunctionsInOut {
   private[this] val toField = (v: VariableId) => v.code.toLowerCase().replaceAll("-", "_").replaceFirst("^(\\d)", "_$1")
 
   // TODO: filter is never used
-  private[this] val selectQueryVariable = (query: Query) => Map[String, String] (
-    "PARAM_query" -> s"select ${query.variables.map(toField).mkString(",")} from $mainTable",
-    "PARAM_colnames" -> query.variables.map(toField).mkString(",")
-  )
-
-  // TODO: filter is never used
-  private[this] val linerarRegressionParameters = (query: Query) => Map[String, String] (
+  private[this] val standardParameters = (query: Query) => Map[String, String] (
     "PARAM_query" -> s"select ${(query.variables ++ query.covariables ++ query.grouping).map(toField).mkString(",")} from $mainTable",
-    "PARAM_varname" -> query.variables.map(toField).mkString(","),
-    "PARAM_covarnames" -> query.covariables.map(toField).mkString(","),
+    "PARAM_variables" -> query.variables.map(toField).mkString(","),
+    "PARAM_covariables" -> query.covariables.map(toField).mkString(","),
     "PARAM_groups" -> query.grouping.map(toField).mkString(",")
   )
 
   val queryToParameters: Map[String, Query => Map[String, String]] = Map(
-    "boxplot" -> selectQueryVariable,
-    "linearregression" -> linerarRegressionParameters
-  )
+    "boxplot" -> standardParameters,
+    "linearregression" -> standardParameters
+  ).withDefaultValue(standardParameters)
 
   def query2job(query: Query): JobDto = {
 
