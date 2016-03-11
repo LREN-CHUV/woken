@@ -28,7 +28,6 @@ object ApiJsonSupport extends DefaultJsonProtocol {
 
   implicit val operatorsJsonFormat = jsonEnum(Operators)
   implicit val filterJsonFormat: JsonFormat[Filter] = jsonFormat3(Filter)
-  implicit val requestJsonFormat: JsonFormat[Request] = jsonFormat1(Request)
   implicit val queryJsonFormat: RootJsonFormat[Query] = jsonFormat5(Query)
 
   case class Yaml(yaml: String)

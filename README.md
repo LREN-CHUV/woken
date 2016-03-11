@@ -36,9 +36,13 @@ Execute the following commands to distribute Workflow as a Docker container:
 
 ## Available commands
 
-### Requests
+### Mining query
 
-Path: /request
+Performs a data mining task.
+
+TODO: align this API with Exareme
+
+Path: /mining
 Verb: POST
 
 Takes a Json document in the body, returns a Json document.
@@ -51,9 +55,7 @@ Json input should be of the form:
     "covariables": [],
     "grouping": [],
     "filters": [],
-    "request": {
-      "algorithm": ""
-    }
+    "algorithm": ""
   }
 ```
 

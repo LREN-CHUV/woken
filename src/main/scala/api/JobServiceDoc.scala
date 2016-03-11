@@ -28,7 +28,7 @@ trait JobServiceDoc extends Directives {
   def initJob: Route
 
   /**
-    * The request API
+    * The data mining API
     */
-  def request: Route
+  def mining: Route
 }

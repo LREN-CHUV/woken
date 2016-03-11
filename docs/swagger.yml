@@ -17,10 +17,10 @@ basePath: /v0
 produces:
   - application/json
 paths:
-  /requests:
+  /mining:
     post:
       description: |
-        Execute a query. Virtua API for front end.
+        Performs data mining.
       parameters:
         - name: query
           in: body
@@ -28,7 +28,7 @@ paths:
             The query defining the function to execute, the variables, covariables, groupings and filters.
           required: true
           schema:
-            $ref: '#/definitions/Query'
+            $ref: '#/definitions/MiningQuery'
       responses:
         '200':
           description: The result dataset
@@ -627,7 +627,7 @@ definitions:
         type: array
         items:
           type: string
-  Query:
+  MiningQuery:
     type: object
     description: |
       A query object represents a request to the CHUV API.

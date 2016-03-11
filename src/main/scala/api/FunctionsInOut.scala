@@ -24,7 +24,7 @@ object FunctionsInOut {
 
   // TODO: filter is never used
   private[this] val standardParameters = (query: Query) => Map[String, String] (
-    "PARAM_query" -> s"select ${(query.variables ++ query.covariables ++ query.grouping).map(toField).mkString(",")} from $mainTable",
+    "PARAM_query" -> s"select ${(query.variables ++ query.covariables ++ query.grouping).distinct.map(toField).mkString(",")} from $mainTable",
     "PARAM_variables" -> query.variables.map(toField).mkString(","),
     "PARAM_covariables" -> query.covariables.map(toField).mkString(","),
     "PARAM_groups" -> query.grouping.map(toField).mkString(",")
@@ -38,9 +38,9 @@ object FunctionsInOut {
   def query2job(query: Query): JobDto = {
 
     val jobId = UUID.randomUUID().toString
-    val parameters = queryToParameters(query.request.algorithm.toLowerCase)(query)
+    val parameters = queryToParameters(query.algorithm.toLowerCase)(query)
 
-    JobDto(jobId, dockerImage(query.request.algorithm), None, None, Some(defaultDb), parameters, None)
+    JobDto(jobId, dockerImage(query.algorithm), None, None, Some(defaultDb), parameters, None)
   }
 
   lazy val summaryStatsHeader = JsonParser(""" [["min","q1","median","q3","max","mean","std","sum","count"]] """)

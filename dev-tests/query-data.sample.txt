@@ -1,6 +1,6 @@
 
 ludovic@LAB02186 ~/P/m/w/dev-tests> ./query-data.sh 
-POST /request HTTP/1.1
+POST /mining HTTP/1.1
 Accept: application/json
 Accept-Encoding: gzip, deflate
 Connection: keep-alive
@@ -20,10 +20,8 @@ User-Agent: HTTPie/0.9.2
     ], 
     "filters": [], 
     "grouping": [], 
-    "request": {
-        "algorithm": "data"
-    }, 
-    "variables": []
+    "variables": [],
+    "algorithm": "data"
 }
 
 HTTP/1.1 200 OK

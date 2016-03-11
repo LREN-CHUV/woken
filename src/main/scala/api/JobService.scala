@@ -13,7 +13,7 @@ class JobService(val chronosService: ActorRef,
                  val ldsmDatabase: LdsmDAL)(implicit system: ActorSystem) extends JobServiceDoc with PerRequestCreator with DefaultJsonFormats {
 
   override def context = system
-  val routes: Route = initJob ~ request
+  val routes: Route = initJob ~ mining
 
   import JobDto._
   import CoordinatorActor._
@@ -33,13 +33,13 @@ class JobService(val chronosService: ActorRef,
     }
   }
 
-  override def request: Route = path("request") {
+  override def mining: Route = path("mining") {
     import FunctionsInOut._
 
     post {
       entity(as[Query]) {
-        case Query(_, covariables, groups, _, Request(algorithm)) if algorithm == "" || algorithm == "data" => {
-          ctx => ctx.complete(ldsmDatabase.queryData({ covariables ++ groups }.map(_.code)))
+        case Query(variables, covariables, groups, _, algorithm) if algorithm == "" || algorithm == "data" => {
+          ctx => ctx.complete(ldsmDatabase.queryData({ variables ++ covariables ++ groups }.distinct.map(_.code)))
         }
         case query: Query => {
           val job = query2job(query)

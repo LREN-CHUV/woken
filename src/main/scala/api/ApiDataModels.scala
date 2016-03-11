@@ -70,16 +70,12 @@ case class Filter(
   values: Seq[String]
 )
 
-case class Request(
-  algorithm: String
-)
-
 case class Query(
   variables: Seq[VariableId],
   covariables: Seq[VariableId],
   grouping: Seq[VariableId],
   filters: Seq[Filter],
-  request: Request
+  algorithm: String
 )
 
 /*
