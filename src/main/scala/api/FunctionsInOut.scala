@@ -27,7 +27,7 @@ object FunctionsInOut {
     "PARAM_query" -> s"select ${(query.variables ++ query.covariables ++ query.grouping).distinct.map(toField).mkString(",")} from $mainTable",
     "PARAM_variables" -> query.variables.map(toField).mkString(","),
     "PARAM_covariables" -> query.covariables.map(toField).mkString(","),
-    "PARAM_groups" -> query.grouping.map(toField).mkString(",")
+    "PARAM_grouping" -> query.grouping.map(toField).mkString(",")
   )
 
   val queryToParameters: Map[String, Query => Map[String, String]] = Map(
