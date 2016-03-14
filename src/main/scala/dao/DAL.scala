@@ -136,7 +136,10 @@ class LdsmDAL(jdbcDriver: String, jdbcUrl: String, jdbcUser: String, jdbcPasswor
     JsObject(
       "doc" -> JsString(s"Raw data for variables ${meta.map(_.label).mkString(", ")}"),
       "input" -> JsString("null"),
-      "output" -> JsString("null"),
+      "output" -> JsObject(
+        "type" -> JsString("array"),
+        "items" -> JsObject("type" -> JsString("row"))
+      ),
       "cells" -> JsObject("data" ->
         JsObject(
           "type" -> JsObject(
