@@ -1,4 +1,4 @@
-# Leenaards: Workflow for Analytics
+# woken: Workflow for Analytics
 
 An orchestration platform for Docker containers running data mining algorithms.
 
@@ -74,3 +74,10 @@ Currently, the following algorithms are supported:
 * data: returns the raw data matching the query
 * linearRegression: performs a linear regression
 * summaryStatistics: performs a summary statistics than can be used to draw box plots.
+
+# What's in a name?
+
+Woken :
+* the Woken river in China - we were looking for rivers in China
+* passive form of awake - it launches Docker containers and computations
+* workflow - the previous name, not too different
