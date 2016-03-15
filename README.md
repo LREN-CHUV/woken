@@ -6,7 +6,7 @@ Follow these steps to get started:
 
 1. Git-clone this repository.
 
-        $ git clone https://github.com/LREN-CHUV/workflow.git
+        $ git clone https://github.com/LREN-CHUV/Leenaards.git
 
 2. Change directory into your clone:
 
