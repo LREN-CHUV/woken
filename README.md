@@ -1,4 +1,8 @@
-# Workflow for Analytics
+# Leenaards: Workflow for Analytics
+
+An orchestration platform for Docker containers running data mining algorithms.
+
+This project exposes a web interface to execute on demand data mining algorithms defined in Docker containers and implemented using any tool or language (R, Python, Java and more are supported)
 
 ## Getting started
 
