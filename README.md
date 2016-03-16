@@ -39,17 +39,6 @@ TODO: define those features - parameters passed as environment variables, in and
 
 The project [functions-repository](https://github.com/LREN-CHUV/functions-repository) contains the Docker images that can be used with woken.
 
-## Docker build
-
-Execute the following commands to distribute Workflow as a Docker container:
-
-```
-  ./build.sh
-  cd docker
-  ./build.sh
-  ./push.sh
-```
-
 ## Available commands
 
 ### Mining query
@@ -86,6 +75,17 @@ Currently, the following algorithms are supported:
 * data: returns the raw data matching the query
 * linearRegression: performs a linear regression
 * summaryStatistics: performs a summary statistics than can be used to draw box plots.
+
+## Docker build
+
+Execute the following commands to distribute Workflow as a Docker container:
+
+```
+  ./build.sh
+  cd docker
+  ./build.sh
+  ./push.sh
+```
 
 ## Installation
 
