@@ -27,7 +27,7 @@ trait PerRequest extends Actor with ActorLogging {
 
   def receive = {
     case res: RestMessage => complete(OK, res)(res.marshaller.asInstanceOf[ToResponseMarshaller[RestMessage]])
-    case v: Validation    => complete(BadRequest, v)
+    case v: core.Validation    => complete(BadRequest, v)
     case v: Error         => complete(BadRequest, v)
     case ReceiveTimeout   => complete(GatewayTimeout, Error("Request timeout"))
     case e: Any           => log.error(s"Unhandled message: $e")

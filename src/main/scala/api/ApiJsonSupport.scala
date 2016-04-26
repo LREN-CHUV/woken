@@ -14,6 +14,8 @@ object ApiJsonSupport extends DefaultJsonProtocol {
   implicit val variableIdJsonFormat: JsonFormat[VariableId] = jsonFormat1(VariableId)
   implicit val variableJsonFormat: JsonFormat[Variable] = jsonFormat3(Variable)
   implicit val datasetJsonFormat: JsonFormat[Dataset] = jsonFormat4(Dataset)
+  implicit val algorithmJsonFormat: JsonFormat[Algorithm] = jsonFormat3(Algorithm)
+  implicit val validationJsonFormat: JsonFormat[Validation] = jsonFormat3(Validation)
 
   implicit val errorJsonFormat: JsonFormat[Error] = jsonFormat1(Error)
 
@@ -28,7 +30,8 @@ object ApiJsonSupport extends DefaultJsonProtocol {
 
   implicit val operatorsJsonFormat = jsonEnum(Operators)
   implicit val filterJsonFormat: JsonFormat[Filter] = jsonFormat3(Filter)
-  implicit val queryJsonFormat: RootJsonFormat[Query] = jsonFormat5(Query)
+  implicit val SimpleQueryJsonFormat: RootJsonFormat[SimpleQuery] = jsonFormat5(SimpleQuery)
+  implicit val experimentQueryJsonFormat: RootJsonFormat[ExperimentQuery] = jsonFormat6(ExperimentQuery)
 
   case class Yaml(yaml: String)
   /**

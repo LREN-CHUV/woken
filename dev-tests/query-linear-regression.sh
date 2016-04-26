@@ -5,4 +5,4 @@ http -v --timeout 180 POST localhost:8087/mining \
          grouping:='[{"code":"COLPROT"}]' \
          covariables:='[{"code":"AGE"}]' \
          filters:='[]' \
-         algorithm='linearRegression'
+         algorithm:='{"code":"linearRegression", "label": "linearRegression", "parameters": {}}'
