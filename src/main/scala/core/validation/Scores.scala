@@ -1,17 +1,8 @@
 package core.validation
 
-import com.opendatagroup.hadrian.datatype.AvroEnum
+import com.opendatagroup.hadrian.datatype.{AvroEnum, AvroString}
 import com.opendatagroup.hadrian.jvmcompiler.PFAEngine
-import spray.json.DefaultJsonProtocol._
-import spray.json.{JsObject, JsString, JsValue, JsonFormat, _}
-
-object ClassificationScores {
-  implicit val classificationScoresFormat = jsonFormat2(ClassificationScores.apply)
-}
-
-object RegressionScores {
-  implicit val regressionScoresFormat = jsonFormat5(RegressionScores.apply)
-}
+import spray.json.{JsNumber, JsObject, JsString, JsValue, JsonFormat, _}
 
 /**
   * Created by Arnaud Jutzeler
@@ -33,7 +24,6 @@ trait Scores {
 
     inputData.zip(labels.iterator).foreach({ case (x, y) => {
 
-      //average.update(engine.jsonOutput(engine.action(x)), y)
       this.update(engine.jsonOutput(engine.action(x)), y)
     }
     })
@@ -42,6 +32,106 @@ trait Scores {
 }
 
 object Scores {
+
+  def apply(model: String, data: List[JsObject], labels: List[JsObject]): Scores = {
+
+    // Load the PFA file into a scoring engine
+    val engine = PFAEngine.fromJson(model).head
+
+    val score: Scores = engine.outputType match {
+      case s: AvroString => new ClassificationScores()
+      case _ => new RegressionScores()
+    }
+
+    // Make an iterator for the input data
+    val inputData = engine.jsonInputIterator[AnyRef](data.map(o => o.compactPrint).iterator)
+
+    inputData.zip(labels.iterator).foreach({ case (x, y) => {
+
+      score.update(engine.jsonOutput(engine.action(x)), y)
+    }
+    })
+
+    score
+  }
+
+  def apply(model: String): Scores = {
+
+    // Load the PFA file into a scoring engine
+    val engine = PFAEngine.fromJson(model).head
+
+    val score: Scores = engine.outputType match {
+      case s: AvroString => new ClassificationScores()
+      case _ => new RegressionScores()
+    }
+
+    score
+  }
+}
+
+//TODO Add accuracy, precision, sensitivity, ...
+//TODO Have a specific BinaryClassificationScores?
+case class ClassificationScores() extends Scores {
+
+  val classes: scala.collection.mutable.Set[String] = scala.collection.mutable.Set.empty[String]
+  val confusion: scala.collection.mutable.Map[(String, String), Int] = scala.collection.mutable.Map.empty[(String, String), Int]
+
+  override def update(output: String, label: JsObject) = {
+
+    import spray.json.DefaultJsonProtocol._
+    val output_string = JsonParser(output).convertTo[String]
+    val label_string = label.fields.values.head.convertTo[String]
+
+    classes.add(output_string)
+    classes.add(label_string)
+
+    if (!confusion.contains((output_string, label_string))) {
+      confusion.put((output_string, label_string), 0)
+    }
+
+    confusion((output_string, label_string)) += 1
+  }
+}
+
+case class RegressionScores(`type`: String = "regression") extends Scores {
+
+  val metrics = Map("MSE" -> new MSE(), "RMSE" -> new RMSE(), "R2" -> new R2(), "FAC2" -> new FAC2())
+
+  override def update(output: String, label: JsObject) = {
+
+    val y = output.toDouble
+    val f = label.fields.values.head.prettyPrint.toDouble
+
+    metrics.foreach(_._2.update(y, f))
+  }
+}
+
+object ScoresProtocol extends DefaultJsonProtocol {
+
+  implicit object ClassificationScoresJsonFormat extends RootJsonFormat[ClassificationScores] {
+    def write(c: ClassificationScores) = {
+      // Construct the matrix
+      val nb = c.classes.size
+      val classes = c.classes.toList.sortWith(_ < _)
+      val order = classes.zipWithIndex.toMap
+      val confusion_matrix: Array[Array[Int]] = Array.fill(nb, nb)(0)
+      c.confusion.foreach({case ((x, y), z) => confusion_matrix(order(x))(order(y)) = z})
+      JsObject("classes" -> classes.toJson, "confusion_matrix" -> confusion_matrix.toJson)
+    }
+
+    def read(value: JsValue) = value match {
+      case _ => deserializationError("To be implemented")
+    }
+  }
+
+  implicit object RegressionScoresJsonFormat extends RootJsonFormat[RegressionScores] {
+    def write(r: RegressionScores) =
+      JsObject(r.metrics.mapValues(m => JsNumber(m.get())))
+
+    def read(value: JsValue) = value match {
+      case _ => deserializationError("To be implemented")
+    }
+  }
 
   implicit object ScoresJsonFormat extends JsonFormat[Scores] {
     def write(s: Scores): JsValue = s match {
@@ -58,68 +148,5 @@ object Scores {
         case JsString("regression") => value.convertTo[RegressionScores]
       }
     }
-  }
-
-  def apply(model: String, data: List[JsObject], labels: List[JsObject]): Scores = {
-
-    // Load the PFA file into a scoring engine
-    val engine = PFAEngine.fromJson(model).head
-
-    val score: Scores = engine.outputType match {
-      case enum: AvroEnum => new ClassificationScores(enum.symbols)
-      case _ => new RegressionScores()
-    }
-
-    // Make an iterator for the input data
-    val inputData = engine.jsonInputIterator[AnyRef](data.map(o => o.compactPrint).iterator)
-
-    inputData.zip(labels.iterator).foreach({ case (x, y) => {
-
-      //average.update(engine.jsonOutput(engine.action(x)), y)
-      score.update(engine.jsonOutput(engine.action(x)), y)
-    }
-    })
-
-    score
-  }
-
-  def apply(model: String): Scores = {
-
-    // Load the PFA file into a scoring engine
-    val engine = PFAEngine.fromJson(model).head
-
-    val score: Scores = engine.outputType match {
-      case enum: AvroEnum => new ClassificationScores(enum.symbols)
-      case _ => new RegressionScores()
-    }
-
-    score
-  }
-}
-
-case class ClassificationScores(symbols: Seq[String], val `type`: String = "classification") extends Scores {
-
-  private val order = symbols.toList.zipWithIndex map {case (l, i) => l -> i } toMap
-  private val confusionMatrix: Array[Array[Int]] = Array.tabulate(symbols.size, symbols.size)((x, y) => 0)
-
-  override def update(output: String, label: JsObject) = {
-
-    val value = label.fields.values.head.prettyPrint
-
-    confusionMatrix(order(output))(order(value)) += 1
-  }
-}
-
-case class RegressionScores(var mse: Double = 0.0, var rmse: Double = 0.0, var r2: Double = 0.0, var fac2: Double = 0.0, val `type`: String = "regression") extends Scores {
-
-  override def update(output: String, label: JsObject) = {
-
-    val value = label.fields.values.head.prettyPrint.toDouble
-
-    //TODO Implement correct metrics
-    mse += scala.math.abs(output.toDouble - value)
-    rmse += scala.math.abs(output.toDouble - value)
-    r2 += scala.math.abs(output.toDouble - value)
-    fac2 += scala.math.abs(output.toDouble - value)
   }
 }

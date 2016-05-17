@@ -2,6 +2,7 @@ package core.validation
 
 import com.opendatagroup.hadrian.jvmcompiler.PFAEngine
 import org.scalatest._
+import spray.json
 import spray.json.{JsNumber, JsObject, JsString}
 
 class KFoldCrossValidationTest extends FlatSpec with Matchers {
@@ -167,20 +168,67 @@ class KFoldCrossValidationTest extends FlatSpec with Matchers {
           "v2" -> JsNumber(5)) ::
         List()
 
-    val labels = JsNumber("1.0") :: JsNumber("10.0") :: JsNumber("1.0") :: List()
-    val models = List(model, model, model)
+    val labels: List[JsObject] = JsObject("output" -> JsNumber("1.0")) :: JsObject("output" -> JsNumber("10.0")) :: JsObject("output" -> JsNumber("1.0")) :: List()
+    val models = Map("0" -> model, "1" -> model, "2" -> model)
     val validation = new KFoldCrossValidation(data.toStream, labels.toStream, 3)
     val results = validation.validate(models)
 
-    results(0) shouldBe a [JsObject]
-    results(0).asJsObject.fields should contain ("kind" -> JsString("regression"))
-    results.size should be (3)
+    println(results)
+
+    /*results shouldBe a JsObject
+    results.asJsObject.fields should contain ("kind" -> JsString("regression"))
+    results.size should be (3)*/
   }
 
-  /*it should "throw NoSuchElementException if an empty stack is popped" in {
-          val emptyStack = new Stack[Int]
-          a [NoSuchElementException] should be thrownBy {
-                  emptyStack.pop()
-          }
-  }*/
+  "An experiment JSON object " should "be readable" in {
+
+    import spray.json._
+    import api.ApiJsonSupport._
+
+    val source = """{"variables":[{"code":"LeftAmygdala"}],"grouping":[{"code":"COLPROT"}], "covariables":[{"code":"AGE"}], "filters":[], "algorithms":[{"code":"linearRegression", "label": "linearRegression", "parameters": []}], "validations":[{"code":"kfold", "label": "kfold", "parameters": [{"code": "k", "value": "2"}]}]}"""
+    val jsonAst = source.parseJson
+    val validation = jsonAst.convertTo[api.ExperimentQuery]
+
+    println(validation)
+  }
+
+  "A validation JSON object " should "be readable" in {
+
+    import spray.json._
+    import api.ApiJsonSupport._
+
+    val source = """{"code":"kfold", "label": "kfold", "parameters": [{"code": "k", "value": "2"}]}"""
+    val jsonAst = source.parseJson
+    val validation = jsonAst.convertTo[api.Validation]
+
+    println(validation)
+  }
+
+  "Metrics " should "be correct" in {
+
+    import org.scalactic.TolerantNumerics
+    implicit val doubleEquality = TolerantNumerics.tolerantDoubleEquality(0.01)
+
+    var r2 = new R2()
+    var rmse = new RMSE()
+
+    var y = Array[Double](123.56, 0.67, 1078.42, 64.2, 1.76, 1.23)
+    var f = Array[Double](15.6, 0.0051, 23.5, 0.421, 1.2, 0.0325)
+
+    y.zip(f).foreach({case (y, f) => r2.update(y, f); rmse.update(y, f)})
+
+    r2.get() should equal (0.0)
+    rmse.get() should equal (433.7)
+
+    r2 = new R2()
+    rmse = new RMSE()
+
+    y = Array[Double](123.56, 0.67, 1078.42, 64.2, 1.76, 1.23)
+    f = Array[Double](165.3, 1.65, 700.23, 66.7, 0.5, 2.3)
+
+    y.zip(f).foreach({case (y, f) => r2.update(y, f); rmse.update(y, f)})
+
+    r2.get() should equal (0.84153)
+    rmse.get() should equal (155.34)
+  }
 }

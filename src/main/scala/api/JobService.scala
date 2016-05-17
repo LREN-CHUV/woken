@@ -38,107 +38,156 @@ class JobService(val chronosService: ActorRef,
 
   override def listMethods: Route = path("list-methods") {
 
+    // TODO Gather this information from all the containers
     val mock =
       """
-    {
-      "algorithms": {
-
-        "linearRegression": {
-        "type": "regression",
-        "docker_image": "hbpmip/r-linear-regression:52198fd",
-        "environment": "R",
-        "description": "Linear Regression... ",
-        "results": {},
-        "covariables": {
-        "number": "1..n",
-        "domains": "double",
-        "mixed": false
-      },
-        "grouping": {
-        "number": "0..n",
-        "domains": ["binominal", "multinominal"],
-        "mixed": true
-      }
-      },
-        "anova": {
-        "type": "regression",
-        "docker_image": "hbpmip/r-linear-regression:52198fd",
-        "environment": "R",
-        "description": "ANOVA... ",
-        "results": {},
-        "covariables": {
-        "number": "0..n",
-        "domains": "double",
-        "mixed": false
-      },
-        "grouping": {
-        "number": "1..n",
-        "domains": ["binominal", "multinominal"],
-        "mixed": true
-      }
-      },
-        "knn": {
-        "type": ["regression", "classification"],
-        "docker_image": "hbpmip/java-rapidminer:latest",
-        "environment": "RapidMiner",
-        "description": "Knn... ",
-        "results": {},
-        "covariables": {
-        "number": "1..n",
-        "domains": "double",
-        "mixed": false
-      },
-        "grouping": {
-        "number": "0"
-      }
-      },
-        "naiveBayes": {
-        "type": "classification",
-        "docker_image": "hbpmip/java-rapidminer:latest",
-        "environment": "RapidMiner",
-        "description": "Naive Bayes... ",
-        "results": {},
-        "covariables": {
-        "number": "1..n",
-        "domains": "double",
-        "mixed": false
-      },
-        "grouping": {
-        "number": "0"
-      }
-      },
-        "tSNE": {
-        "type": "features_extraction",
-        "docker_image": "hbpmip/r-tsne:latest",
-        "environment": "R",
-        "covariables": {
-        "number": "1..n",
-        "domains": "double",
-        "mixed": false
-      },
-        "grouping": {
-        "number": "0"
-      }
-      },
-        "boxplot": {
-        "type": "stats",
-        "docker_image": "hbpmip/r-summary-stats:52198fd"
-
-      },
-        "summarystatistics": {
-        "type": "stats",
-        "docker_image": "hbpmip/r-summary-stats:52198fd"
-
-      }
-      },
-      "validations": {
-        "kFoldCrossValidation": {
-        "parameters": [
-      {"name" : "k", "type": "integer", "default": 5, "interval": "[1, 100]"}
-        ]
-      }
-      }
-    }
+        {
+            "algorithms": [
+            {
+                "code": "boxplot",
+                "label": "Box plot",
+                "type": ["statistics"],
+                "environment": "R",
+                "description": "Box plot...",
+                "docker_image": "hbpmip/r-summary-stats:52198fd",
+                "constraints": {}
+            },
+            {
+                "code": "summarystatistics",
+                "label": "Statistical summary",
+                "type": ["statistics"],
+                "environment": "R",
+                "description": "Statistical summary",
+                "docker_image": "hbpmip/r-summary-stats:52198fd",
+                "constraints": {}
+            },
+            {
+                "code": "linearRegression",
+                "label": "Linear Regression",
+                "type": ["regressor"],
+                "docker_image": "hbpmip/r-linear-regression:52198fd",
+                "environment": "R",
+                "description": "Standard Linear Regression...",
+                "parameters": [],
+                "constraints": {
+                    "groupings": {
+                        "min_count": "0",
+                        "max_count": null
+                    },
+                    "covariables": {
+                        "min_count": "0",
+                        "max_count": null
+                    },
+                    "mixed": true
+                }
+            },
+            {
+                "code": "anova",
+                "label": "Anova",
+                "type": ["regressor"],
+                "docker_image": "hbpmip/r-linear-regression:52198fd",
+                "environment": "R",
+                "description": "ANOVA...",
+                "parameters": [],
+                "constraints": {
+                    "groupings": {
+                        "min_count": "1",
+                        "max_count": null
+                    },
+                    "covariables": {
+                        "min_count": "0",
+                        "max_count": null
+                    },
+                    "mixed": true
+                }
+            },
+            {
+                "code": "knn",
+                "label": "K-nearest neighbors",
+                "type": ["regressor", "classifier"],
+                "docker_image": "hbpmip/java-rapidminer-knn:latest",
+                "environment": "Java/RapidmMiner",
+                "description": "K-nearest neighbors...",
+                "parameters": [{
+                    "code": "k",
+                    "label": "k",
+                    "default_value": "5",
+                    "type": "int",
+                    "constraints": {
+                        "min": "1",
+                        "max": null
+                    },
+                    "description": "The number of closest neighbours to take into consideration. Typical values range from 2 to 10."
+                }],
+                "constraints": {
+                    "groupings": {
+                        "min_count": "0",
+                        "max_count": "0"
+                    },
+                    "covariables": {
+                        "min_count": "1",
+                        "max_count": null
+                    },
+                    "mixed": false
+                }
+            },
+            {
+                "code": "naiveBayes",
+                "label": "Naive Bayes",
+                "type": ["classifier"],
+                "docker_image": "hbpmip/java-rapidminer-naivebayes:latest",
+                "environment": "Java/RapidmMiner",
+                "description": "Naive Bayes...",
+                "parameters": [],
+                "constraints": {
+                    "groupings": {
+                        "min_count": "0",
+                        "max_count": "0"
+                    },
+                    "covariables": {
+                        "min_count": "1",
+                        "max_count": null
+                    },
+                    "mixed": false
+                }
+            },
+            {
+                "code": "tSNE",
+                "label": "tSNE",
+                "type": ["features_extraction"],
+                "docker_image": "hbpmip/r-tsne:latest",
+                "environment": "R",
+                "description": "tSNE...",
+                "parameters": [],
+                "constraints": {
+                    "groupings": {
+                        "min_count": "0",
+                        "max_count": "0"
+                    },
+                    "covariables": {
+                        "min_count": "1",
+                        "max_count": null
+                    },
+                    "mixed": false
+                }
+            }
+            ],
+            "validations": [{
+                "code": "kFoldCrossValidation",
+                "label": "Random k-fold Cross Validation",
+                "parameters": [{
+                    "code": "fold",
+                    "label": "Fold",
+                    "default_value": "5",
+                    "type": "int",
+                    "constraints": {
+                        "min": "2",
+                        "max": "20"
+                    },
+                    "description": "The number of cross-validation fold"
+                }]
+            }]
+        }
       """
 
     get {

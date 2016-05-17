@@ -14,8 +14,35 @@ object ApiJsonSupport extends DefaultJsonProtocol {
   implicit val variableIdJsonFormat: JsonFormat[VariableId] = jsonFormat1(VariableId)
   implicit val variableJsonFormat: JsonFormat[Variable] = jsonFormat3(Variable)
   implicit val datasetJsonFormat: JsonFormat[Dataset] = jsonFormat4(Dataset)
-  implicit val algorithmJsonFormat: JsonFormat[Algorithm] = jsonFormat3(Algorithm)
-  implicit val validationJsonFormat: JsonFormat[Validation] = jsonFormat3(Validation)
+
+
+  implicit val algorithmJsonFormat: JsonFormat[Algorithm] = AlgorithmJsonFormat
+
+  implicit object AlgorithmJsonFormat extends JsonFormat[Algorithm] {
+    def write(a: Algorithm): JsValue = {
+      JsObject("code" -> JsString(a.code), "label" -> JsString(a.label), "parameters" -> JsArray(a.parameters.map(x => JsObject("code" -> JsString(x._1.toString()), "value" -> JsString(x._2.toString()))).toVector))
+    }
+
+    def read(value: JsValue) = {
+      val parameters = value.asJsObject.fields.get("parameters").get.asInstanceOf[JsArray].elements.map(x => (x.asJsObject.fields.get("code").get.convertTo[String], x.asJsObject.fields.get("value").get.convertTo[String])).toMap
+      new Algorithm(value.asJsObject.fields.get("code").get.convertTo[String], value.asJsObject.fields.get("label").get.convertTo[String], parameters)
+    }
+  }
+1
+  implicit val validationJsonFormat: JsonFormat[Validation] = ValidationJsonFormat
+
+  implicit object ValidationJsonFormat extends JsonFormat[Validation] {
+    def write(v: Validation): JsValue = {
+      JsObject("code" -> JsString(v.code), "label" -> JsString(v.label), "parameters" -> JsArray(v.parameters.map(x => JsObject("code" -> JsString(x._1.toString()), "value" -> JsString(x._2.toString()))).toVector))
+    }
+
+    def read(value: JsValue) = {
+      val parameters = value.asJsObject.fields.get("parameters").get.asInstanceOf[JsArray].elements.map(x => (x.asJsObject.fields.get("code").get.convertTo[String], x.asJsObject.fields.get("value").get.convertTo[String])).toMap
+      new Validation(value.asJsObject.fields.get("code").get.convertTo[String], value.asJsObject.fields.get("label").get.convertTo[String], parameters)
+    }
+  }
+
+
 
   implicit val errorJsonFormat: JsonFormat[Error] = jsonFormat1(Error)
 

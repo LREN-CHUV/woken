@@ -30,16 +30,14 @@ object FunctionsInOut {
     "PARAM_grouping" -> query.grouping.map(toField).mkString(",")
   )
 
-  // TODO dynamically
-  val queryToParameters: Map[String, Query => Map[String, String]] = Map(
-    "boxplot" -> standardParameters,
-    "linearregression" -> standardParameters
-  ).withDefaultValue(standardParameters)
+  def algoParameters(algorithm: Algorithm): Map[String, String] = {
+    algorithm.parameters.map({case (key, value) => ("PARAM_MODEL_" + key, value)})
+  }
 
   def query2job(query: SimpleQuery): JobDto = {
 
     val jobId = UUID.randomUUID().toString
-    val parameters = queryToParameters(query.algorithm.code.toLowerCase)(query)
+    val parameters = standardParameters(query)
 
     JobDto(jobId, dockerImage(query.algorithm.code), None, None, Some(defaultDb), parameters, None)
   }

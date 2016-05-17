@@ -289,8 +289,9 @@ class ExperimentActor(val chronosService: ActorRef, val resultDatabase: JobResul
 
   def reduceAndStop(data: ExperimentActor.Data): State = {
 
-    //TODO Put all the PFA together
-    val output = new JsObject(data.results.map({case (key, value) => (key.label, JsonParser(value))}).toMap)
+    //TODO WP3 Save the results in results DB
+
+    val output = JsArray(data.results.map({case (key, value) => JsObject("code" -> JsString(key.code), "label" -> JsString(key.label), "data" -> JsonParser(value))}).toVector)
 
     data.replyTo ! jobResultsFactory(Seq(JobResult(data.job.jobId, "",  OffsetDateTime.now(), Some(output.compactPrint), None, "pfa_json", "")))
     stop
@@ -395,19 +396,20 @@ class AlgorithmActor(val chronosService: ActorRef, val resultDatabase: JobResult
       val algorithm = job.algorithm
       val validations = job.validations
 
+      val parameters = job.parameters ++ FunctionsInOut.algoParameters(algorithm)
+
       log.warning(s"List of validations: ${validations.size}")
 
       // Spawn a LocalCoordinatorActor
       val jobId = UUID.randomUUID().toString
-      val parameters = FunctionsInOut.queryToParameters(algorithm.code.toLowerCase)
-      val subjob = JobDto(jobId, dockerImage(algorithm.code), None, None, Some(defaultDb), job.parameters, None)
+      val subjob = JobDto(jobId, dockerImage(algorithm.code), None, Some(algorithm.label), Some(defaultDb), parameters, None)
       val worker = context.actorOf(CoordinatorActor.props(chronosService, resultDatabase, None, jobResultsFactory))
       worker ! CoordinatorActor.Start(subjob)
 
       // Spawn a ValidationActor for every validation
       for (v <- validations) {
         val jobId = UUID.randomUUID().toString
-        val subjob = ValidationActor.Job(jobId, job.inputDb, algorithm, v, job.parameters)
+        val subjob = ValidationActor.Job(jobId, job.inputDb, algorithm, v, parameters)
         val validationWorker = context.actorOf(Props(classOf[ValidationActor], chronosService, resultDatabase, federationDatabase, jobResultsFactory))
         validationWorker ! ValidationActor.Start(subjob)
       }
@@ -510,7 +512,7 @@ class ValidationActor(val chronosService: ActorRef, val resultDatabase: JobResul
         val jobId = UUID.randomUUID().toString
         // TODO To be removed in WP3
         val parameters = adjust(job.parameters, "PARAM_query")((x: String) => x + " EXCEPT ALL (" + x + s" OFFSET ${s} LIMIT ${n})")
-        val subjob = JobDto(jobId, dockerImage(algorithm.code), None, Some(fold), Some(defaultDb), parameters, None)
+        val subjob = JobDto(jobId, dockerImage(algorithm.code), None, Some(algorithm.label + "_" + fold), Some(defaultDb), parameters, None)
         val worker = context.actorOf(CoordinatorActor.props(chronosService, resultDatabase, federationDatabase, jobResultsFactory))
         workers(worker) = fold
         worker ! CoordinatorActor.Start(subjob)

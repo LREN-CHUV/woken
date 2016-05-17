@@ -50,6 +50,7 @@ class KFoldCrossValidation(data: Stream[JsObject], labels: Stream[JsObject], k: 
     * @return
     */
   def validate(models: Map[String, String]): JsValue = {
+    import core.validation.ScoresProtocol._
 
     var folds: Map[String, JsValue] = Map()
     val aggregate: Scores = Scores(models.head._2)
@@ -60,7 +61,6 @@ class KFoldCrossValidation(data: Stream[JsObject], labels: Stream[JsObject], k: 
     }
     })
 
-    import core.validation.Scores.ScoresJsonFormat
     JsObject("type" -> JsString("KFoldCrossValidation"), "average" -> aggregate.toJson, "folds" -> JsObject(folds))
   }
 }
