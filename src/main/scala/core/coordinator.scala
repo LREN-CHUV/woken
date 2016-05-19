@@ -17,7 +17,7 @@ import dao.{JobResultsDAL, LdsmDAL}
 import models.ChronosJob
 import spray.http.StatusCodes
 import spray.httpx.marshalling.ToResponseMarshaller
-import spray.json._
+import spray.json.{JsString, _}
 
 import scala.concurrent.duration._
 
@@ -291,7 +291,7 @@ class ExperimentActor(val chronosService: ActorRef, val resultDatabase: JobResul
 
     //TODO WP3 Save the results in results DB
 
-    val output = JsArray(data.results.map({case (key, value) => JsObject("code" -> JsString(key.code), "label" -> JsString(key.label), "data" -> JsonParser(value))}).toVector)
+    val output = JsArray(data.results.map({case (key, value) => JsObject("code" -> JsString(key.code), "name" -> JsString(key.name), "data" -> JsonParser(value))}).toVector)
 
     data.replyTo ! jobResultsFactory(Seq(JobResult(data.job.jobId, "",  OffsetDateTime.now(), Some(output.compactPrint), None, "pfa_json", "")))
     stop
@@ -378,7 +378,7 @@ class AlgorithmActor(val chronosService: ActorRef, val resultDatabase: JobResult
 
   def reduceAndStop(data: AlgorithmActor.Data): State = {
 
-    val validations = new JsObject(data.results.map({case (v, s) => (v.label -> JsonParser(s))}).toMap)
+    val validations = JsArray(data.results.map({case (key, value) => JsObject("code" -> JsString(key.code), "name" -> JsString(key.name), "data" -> JsonParser(value))}).toVector)
 
     // TODO Do better by merging JsObject (not yet supproted by Spray...)
     val pfa = data.model.get.replaceFirst("\"cells\":\\{", "\"cells\":{\"validations\":" + validations.compactPrint + ",")
@@ -402,7 +402,7 @@ class AlgorithmActor(val chronosService: ActorRef, val resultDatabase: JobResult
 
       // Spawn a LocalCoordinatorActor
       val jobId = UUID.randomUUID().toString
-      val subjob = JobDto(jobId, dockerImage(algorithm.code), None, Some(algorithm.label), Some(defaultDb), parameters, None)
+      val subjob = JobDto(jobId, dockerImage(algorithm.code), None, Some(algorithm.name), Some(defaultDb), parameters, None)
       val worker = context.actorOf(CoordinatorActor.props(chronosService, resultDatabase, None, jobResultsFactory))
       worker ! CoordinatorActor.Start(subjob)
 
@@ -512,7 +512,7 @@ class ValidationActor(val chronosService: ActorRef, val resultDatabase: JobResul
         val jobId = UUID.randomUUID().toString
         // TODO To be removed in WP3
         val parameters = adjust(job.parameters, "PARAM_query")((x: String) => x + " EXCEPT ALL (" + x + s" OFFSET ${s} LIMIT ${n})")
-        val subjob = JobDto(jobId, dockerImage(algorithm.code), None, Some(algorithm.label + "_" + fold), Some(defaultDb), parameters, None)
+        val subjob = JobDto(jobId, dockerImage(algorithm.code), None, Some(algorithm.name + "_" + fold), Some(defaultDb), parameters, None)
         val worker = context.actorOf(CoordinatorActor.props(chronosService, resultDatabase, federationDatabase, jobResultsFactory))
         workers(worker) = fold
         worker ! CoordinatorActor.Start(subjob)

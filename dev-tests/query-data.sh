@@ -5,4 +5,4 @@ http -v --timeout 180 POST localhost:8087/mining \
          grouping:='[]' \
          covariables:='[{"code":"AGE"},{"code":"LeftAmygdala"}]' \
          filters:='[]' \
-         algorithm:='{"code":"data", "label": "data", "parameters": []}'
+         algorithm:='{"code":"data", "name": "data", "parameters": []}'

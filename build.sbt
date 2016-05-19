@@ -42,8 +42,7 @@ libraryDependencies ++= {
   )
 }
 
-//resolvers += "opendatagroup" at "http://repository.opendatagroup.com/maven"
-resolvers += "Local Maven Repository" at "file:///home/arnaud/.m2/repository"
+resolvers += "opendatagroup" at "http://repository.opendatagroup.com/maven"
 
 scalacOptions ++= Seq(
   "-unchecked",

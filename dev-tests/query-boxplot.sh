@@ -5,6 +5,6 @@ http -v --timeout 180 POST localhost:8087/mining \
          grouping:='[{"code":"COLPROT"}]' \
          covariables:='[{"code":"AGE"}]' \
          filters:='[]' \
-         algorithm:='{"code":"summarystatistics", "label": "summarystatistics", "parameters": []}'
+         algorithm:='{"code":"summarystatistics", "name": "summarystatistics", "parameters": []}'
 
 # boxplot is an alias for summarystatistics

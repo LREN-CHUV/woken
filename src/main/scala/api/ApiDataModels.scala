@@ -43,7 +43,7 @@ case class Algorithm(
   /** */
   code: String,
   /** */
-  label: String,
+  name: String,
   /** */
   parameters: Map[String, String]
 )
@@ -52,7 +52,7 @@ case class Validation(
   /** */
   code: String,
   /** */
-  label: String,
+  name: String,
   /** */
   parameters: Map[String, String]
 )

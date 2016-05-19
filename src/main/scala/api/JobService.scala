@@ -84,7 +84,7 @@ class JobService(val chronosService: ActorRef,
             {
                 "code": "anova",
                 "label": "Anova",
-                "type": ["regressor"],
+                "type": ["statistics"],
                 "docker_image": "hbpmip/r-linear-regression:52198fd",
                 "environment": "R",
                 "description": "ANOVA...",
@@ -106,7 +106,7 @@ class JobService(val chronosService: ActorRef,
                 "label": "K-nearest neighbors",
                 "type": ["regressor", "classifier"],
                 "docker_image": "hbpmip/java-rapidminer-knn:latest",
-                "environment": "Java/RapidmMiner",
+                "environment": "Java/RapidMiner",
                 "description": "K-nearest neighbors...",
                 "parameters": [{
                     "code": "k",
@@ -132,11 +132,39 @@ class JobService(val chronosService: ActorRef,
                 }
             },
             {
+                "code": "gpr",
+                "label": "Gaussian Process Regression",
+                "type": ["regressor"],
+                "environment": "Java/GPJ",
+                "disable": true
+            },
+            {
+                "code": "svm",
+                "label": "SVM",
+                "type": ["regressor", "classifier"],
+                "environment": "Java/RapidMiner",
+                "disable": true
+            },
+            {
+                "code": "ffneuralnet",
+                "label": "Feedforward Neural Network",
+                "type": ["classifier"],
+                "environment": "Java/RapidMiner",
+                "disable": true
+            },
+            {
+                "code": "randomforest",
+                "label": "Random Forest",
+                "type": ["regressor", "classifier"],
+                "environment": "Java/RapidMiner",
+                "disable": true
+            },
+            {
                 "code": "naiveBayes",
                 "label": "Naive Bayes",
                 "type": ["classifier"],
                 "docker_image": "hbpmip/java-rapidminer-naivebayes:latest",
-                "environment": "Java/RapidmMiner",
+                "environment": "Java/RapidMiner",
                 "description": "Naive Bayes...",
                 "parameters": [],
                 "constraints": {
