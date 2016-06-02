@@ -402,7 +402,7 @@ class AlgorithmActor(val chronosService: ActorRef, val resultDatabase: JobResult
 
       // Spawn a LocalCoordinatorActor
       val jobId = UUID.randomUUID().toString
-      val subjob = JobDto(jobId, dockerImage(algorithm.code), None, Some(algorithm.name), Some(defaultDb), parameters, None)
+      val subjob = JobDto(jobId, dockerImage(algorithm.code), None, None, Some(defaultDb), parameters, None)
       val worker = context.actorOf(CoordinatorActor.props(chronosService, resultDatabase, None, jobResultsFactory))
       worker ! CoordinatorActor.Start(subjob)
 
@@ -512,7 +512,7 @@ class ValidationActor(val chronosService: ActorRef, val resultDatabase: JobResul
         val jobId = UUID.randomUUID().toString
         // TODO To be removed in WP3
         val parameters = adjust(job.parameters, "PARAM_query")((x: String) => x + " EXCEPT ALL (" + x + s" OFFSET ${s} LIMIT ${n})")
-        val subjob = JobDto(jobId, dockerImage(algorithm.code), None, Some(algorithm.name + "_" + fold), Some(defaultDb), parameters, None)
+        val subjob = JobDto(jobId, dockerImage(algorithm.code), None, None, Some(defaultDb), parameters, None)
         val worker = context.actorOf(CoordinatorActor.props(chronosService, resultDatabase, federationDatabase, jobResultsFactory))
         workers(worker) = fold
         worker ! CoordinatorActor.Start(subjob)

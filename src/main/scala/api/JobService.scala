@@ -72,7 +72,7 @@ class JobService(val chronosService: ActorRef,
                 "constraints": {
                     "groupings": {
                         "min_count": "0",
-                        "max_count": null
+                        "max_count": "1"
                     },
                     "covariables": {
                         "min_count": "0",
