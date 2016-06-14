@@ -4,3 +4,6 @@
 [submodule "dev-tests/adni-merge-db"]
 	path = dev-tests/adni-merge-db
 	url = http://hbps1.intranet.chuv:7000/mip-private/adni-merge-db.git
+[submodule "hadrian"]
+	path = hadrian
+	url = https://github.com/ajutzeler/hadrian.git
