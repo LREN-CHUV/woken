@@ -50,7 +50,13 @@ class JobService(val chronosService: ActorRef,
                 "environment": "R",
                 "description": "Box plot...",
                 "docker_image": "hbpmip/r-summary-stats:52198fd",
-                "constraints": {}
+                "constraints": {
+                    "variable": {
+                      "real": true,
+                      "binominal": true,
+                      "polynominal": true
+                    }
+                }
             },
             {
                 "code": "summarystatistics",
@@ -59,23 +65,34 @@ class JobService(val chronosService: ActorRef,
                 "environment": "R",
                 "description": "Statistical summary",
                 "docker_image": "hbpmip/r-summary-stats:52198fd",
-                "constraints": {}
+                "constraints": {
+                    "variable": {
+                      "real": true,
+                      "binominal": true,
+                      "polynominal": true
+                    }
+                }
             },
             {
                 "code": "linearRegression",
                 "label": "Linear Regression",
-                "type": ["regressor"],
+                "type": ["statistics"],
                 "docker_image": "hbpmip/r-linear-regression:52198fd",
                 "environment": "R",
                 "description": "Standard Linear Regression...",
                 "parameters": [],
                 "constraints": {
+                    "variable": {
+                      "real": true,
+                      "binominal": false,
+                      "polynominal": false
+                    },
                     "groupings": {
-                        "min_count": "0",
-                        "max_count": "1"
+                        "min_count": 0,
+                        "max_count": 1
                     },
                     "covariables": {
-                        "min_count": "0",
+                        "min_count": 0,
                         "max_count": null
                     },
                     "mixed": true
@@ -90,12 +107,17 @@ class JobService(val chronosService: ActorRef,
                 "description": "ANOVA...",
                 "parameters": [],
                 "constraints": {
+                    "variable": {
+                      "real": true,
+                      "binominal": false,
+                      "polynominal": false
+                    },
                     "groupings": {
-                        "min_count": "1",
+                        "min_count": 1,
                         "max_count": null
                     },
                     "covariables": {
-                        "min_count": "0",
+                        "min_count": 0,
                         "max_count": null
                     },
                     "mixed": true
@@ -104,25 +126,30 @@ class JobService(val chronosService: ActorRef,
             {
                 "code": "knn",
                 "label": "K-nearest neighbors",
-                "type": ["regressor", "classifier"],
+                "type": ["predictive_model"],
                 "docker_image": "hbpmip/java-rapidminer-knn:latest",
                 "environment": "Java/RapidMiner",
                 "description": "K-nearest neighbors...",
                 "parameters": [{
                     "code": "k",
                     "label": "k",
-                    "default_value": "5",
+                    "default_value": 5,
                     "type": "int",
                     "constraints": {
-                        "min": "1",
+                        "min": 1,
                         "max": null
                     },
                     "description": "The number of closest neighbours to take into consideration. Typical values range from 2 to 10."
                 }],
                 "constraints": {
+                    "variable": {
+                      "real": true,
+                      "binominal": true,
+                      "polynominal": true
+                    },
                     "groupings": {
-                        "min_count": "0",
-                        "max_count": "0"
+                        "min_count": 0,
+                        "max_count": 0
                     },
                     "covariables": {
                         "min_count": "1",
@@ -134,28 +161,28 @@ class JobService(val chronosService: ActorRef,
             {
                 "code": "gpr",
                 "label": "Gaussian Process Regression",
-                "type": ["regressor"],
+                "type": ["predictive_model"],
                 "environment": "Java/GPJ",
                 "disable": true
             },
             {
                 "code": "svm",
                 "label": "SVM",
-                "type": ["regressor", "classifier"],
+                "type": ["predictive_model"],
                 "environment": "Java/RapidMiner",
                 "disable": true
             },
             {
                 "code": "ffneuralnet",
                 "label": "Feedforward Neural Network",
-                "type": ["classifier"],
+                "type": ["predictive_model"],
                 "environment": "Java/RapidMiner",
                 "disable": true
             },
             {
                 "code": "randomforest",
                 "label": "Random Forest",
-                "type": ["regressor", "classifier"],
+                "type": ["predictive_model"],
                 "environment": "Java/RapidMiner",
                 "disable": true
             },
@@ -168,12 +195,17 @@ class JobService(val chronosService: ActorRef,
                 "description": "Naive Bayes...",
                 "parameters": [],
                 "constraints": {
+                    "variable": {
+                      "real": false,
+                      "binominal": true,
+                      "polynominal": true
+                    },
                     "groupings": {
-                        "min_count": "0",
-                        "max_count": "0"
+                        "min_count": 0,
+                        "max_count": 0
                     },
                     "covariables": {
-                        "min_count": "1",
+                        "min_count": 1,
                         "max_count": null
                     },
                     "mixed": false
@@ -188,12 +220,17 @@ class JobService(val chronosService: ActorRef,
                 "description": "tSNE...",
                 "parameters": [],
                 "constraints": {
+                    "variable": {
+                      "real": true,
+                      "binominal": true,
+                      "polynominal": true
+                    },
                     "groupings": {
-                        "min_count": "0",
-                        "max_count": "0"
+                        "min_count": 0,
+                        "max_count": 0
                     },
                     "covariables": {
-                        "min_count": "1",
+                        "min_count": 1,
                         "max_count": null
                     },
                     "mixed": false
@@ -206,11 +243,11 @@ class JobService(val chronosService: ActorRef,
                 "parameters": [{
                     "code": "fold",
                     "label": "Fold",
-                    "default_value": "5",
+                    "default_value": 5,
                     "type": "int",
                     "constraints": {
-                        "min": "2",
-                        "max": "20"
+                        "min": 2,
+                        "max": 20
                     },
                     "description": "The number of cross-validation fold"
                 }]
