@@ -189,7 +189,7 @@ class JobService(val chronosService: ActorRef,
             {
                 "code": "naiveBayes",
                 "label": "Naive Bayes",
-                "type": ["classifier"],
+                "type": ["predictive_model"],
                 "docker_image": "hbpmip/java-rapidminer-naivebayes:latest",
                 "environment": "Java/RapidMiner",
                 "description": "Naive Bayes...",
