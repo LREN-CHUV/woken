@@ -6,7 +6,7 @@ workflow-build:
   post:
     - echo "Finished building workflow-build"
     - echo "Building project..."
-    - docker run --rm -ti -v ~/.m2:/root/.m2 -v $(pwd):/root/workflow hbpmip/workflow-build
+    - docker run --rm -ti -v ~/.m2:/root/.m2 -v ~/.ivy2:/root/.ivy2 -v $(pwd):/root/workflow hbpmip/workflow-build
     - cp target/scala-2.11/workflow-assembly-0.1.jar docker/downloads/workflow.jar
     - cp target/scala-2.11/workflow-assembly-0.1.jar dev-tests/workflow/lib/workflow.jar
   test:

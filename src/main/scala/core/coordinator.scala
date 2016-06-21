@@ -308,7 +308,7 @@ class ExperimentActor(val chronosService: ActorRef, val resultDatabase: JobResul
 
       log.warning(s"List of algorithms: ${algorithms.mkString(",")}")
 
-      if (algorithms.nonEmpty && validations.nonEmpty) {
+      if (algorithms.nonEmpty) {
 
         // Spawn an AlgorithmActor for every algorithm
         for (a <- algorithms) {
@@ -380,7 +380,7 @@ class AlgorithmActor(val chronosService: ActorRef, val resultDatabase: JobResult
 
     val validations = JsArray(data.results.map({case (key, value) => JsObject("code" -> JsString(key.code), "name" -> JsString(key.name), "data" -> JsonParser(value))}).toVector)
 
-    // TODO Do better by merging JsObject (not yet supproted by Spray...)
+    // TODO Do better by merging JsObject (not yet supported by Spray...)
     val pfa = data.model.get.replaceFirst("\"cells\":\\{", "\"cells\":{\"validations\":" + validations.compactPrint + ",")
 
     data.replyTo ! AlgorithmActor.ResultResponse(data.job.algorithm, pfa)

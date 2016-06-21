@@ -262,13 +262,12 @@ class JobService(val chronosService: ActorRef,
     }
   }
 
-  //TODO TO be changed that it can take parameters of alrogithms!!!!!
   override def mining: Route = path("mining") {
     import FunctionsInOut._
 
     post {
       entity(as[SimpleQuery]) {
-        case SimpleQuery(variables, covariables, groups, _, Algorithm(c, l, p)) if c == "" || c == "data" => {
+        case SimpleQuery(variables, covariables, groups, _, Algorithm(c, n, p)) if c == "" || c == "data" => {
           ctx => ctx.complete(ldsmDatabase.queryData({ variables ++ covariables ++ groups }.distinct.map(_.code)))
         }
         case query: SimpleQuery => {
