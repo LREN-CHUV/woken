@@ -1,4 +1,4 @@
-FROM java:8u66-jre
+FROM java:8u92-jre-alpine
 
 MAINTAINER ludovic.claude54@gmail.com
 
