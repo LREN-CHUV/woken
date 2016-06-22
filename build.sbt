@@ -42,7 +42,7 @@ libraryDependencies ++= {
   )
 }
 
-resolvers += "Local Maven Repository" at "file:///root/.m2/repository"
+resolvers += "Local Maven Repository" at "file://" + sys.props.getOrElse("user.home", default="/root") + "/.m2/repository"
 
 scalacOptions ++= Seq(
   "-unchecked",

@@ -1,13 +1,13 @@
-workflow-build:
+woken-build:
   build: Dockerfile.BUILD
-  image: hbpmip/workflow-build
+  image: hbpmip/woken-build
   pre:
     - ./after-update.sh
   post:
-    - echo "Finished building workflow-build"
+    - echo "Finished building woken-build"
     - echo "Building project..."
-    - docker run --rm -ti -v ~/.m2:/root/.m2 -v ~/.ivy2:/root/.ivy2 -v $(pwd):/root/workflow hbpmip/workflow-build
-    - cp target/scala-2.11/workflow-assembly-0.1.jar docker/downloads/workflow.jar
-    - cp target/scala-2.11/workflow-assembly-0.1.jar dev-tests/workflow/lib/workflow.jar
+    - docker run --rm -ti -v ~/.m2:/root/.m2 -v ~/.ivy2:/root/.ivy2 -v $(pwd):/root/woken hbpmip/woken-build
+    - cp target/scala-2.11/woken-assembly-0.1.jar docker/downloads/woken.jar
+    - cp target/scala-2.11/woken-assembly-0.1.jar dev-tests/woken/lib/woken.jar
   test:
     - tests/test.sh

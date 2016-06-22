@@ -30,11 +30,11 @@ RUN \
 
 
 # Volume
-RUN mkdir /root/workflow
+RUN mkdir /root/woken
 
 # Define working directory
 WORKDIR /root
 
-CMD ["/root/workflow/build/startup.sh"]
+CMD ["/root/woken/build/startup.sh"]
 
 

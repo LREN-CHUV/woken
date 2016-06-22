@@ -7,7 +7,7 @@
 
 swagger: '2.0'
 info:
-  title: MIP workflow API
+  title: MIP woken API
   description: Execute distributed calculations powered by native functions.
   version: 0.1.0
 host: hbpfed1.chuv.ch:8087
@@ -153,7 +153,7 @@ paths:
                     type: string
   /health:
     get:
-      summary: Get the health of the workflow system
+      summary: Get the health of the woken system
       responses:
         '200':
           description: good health

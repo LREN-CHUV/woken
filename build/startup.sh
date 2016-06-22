@@ -1,3 +1,3 @@
 #!/bin/sh
-cd /root/workflow/hadrian/hadrian && mvn install
-cd /root/workflow && sbt assembly
+cd /root/woken/hadrian/hadrian && mvn install
+cd /root/woken && sbt assembly
