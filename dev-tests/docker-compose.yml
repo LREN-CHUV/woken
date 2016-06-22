@@ -69,11 +69,11 @@ adnimergedb:
   environment:
     POSTGRES_PASSWORD: test
 
-workflow:
-  build: workflow
+woken:
+  build: woken
   net: host
   volumes:
-    - ./workflow/config:/opt/workflow/config
-    - ./workflow/lib:/opt/workflow/lib
+    - ./woken/config:/opt/woken/config
+    - ./woken/lib:/opt/woken/lib
   environment:
     HOST: "${HOST}"

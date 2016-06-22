@@ -1,7 +1,7 @@
-workflow:
+woken:
   build: Dockerfile
-  image: hbpmip/workflow
+  image: hbpmip/woken
   pre:
-    - echo "Preparing workflow"
+    - echo "Preparing woken"
   post:
-    - echo "Finished workflow"
+    - echo "Finished woken"

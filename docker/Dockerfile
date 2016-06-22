@@ -9,10 +9,10 @@ LABEL eu.humanbrainproject.function=linear-regression \
       eu.humanbrainproject.function.organisation="LREN, CHUV" \
       eu.humanbrainproject.function.date="2015-10-09"
 
-COPY downloads/workflow.jar /opt/workflow/
-COPY downloads/workflow.sh /opt/workflow/
+COPY downloads/woken.jar /opt/woken/
+COPY downloads/woken.sh /opt/woken/
 
-RUN chmod +x /opt/workflow/workflow.sh && \
-    ln -s /opt/workflow/workflow.sh /run.sh
+RUN chmod +x /opt/woken/woken.sh && \
+    ln -s /opt/woken/woken.sh /run.sh
 
 CMD /run.sh

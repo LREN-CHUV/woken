@@ -1,3 +1,3 @@
 #!/bin/sh -e
 
-java -Dconfig.file=/opt/workflow/config/application.conf -jar /opt/workflow/workflow.jar
+java -Dconfig.file=/opt/woken/config/application.conf -jar /opt/woken/woken.jar

@@ -28,9 +28,9 @@ if pgrep -lf sshuttle > /dev/null ; then
   exit 1
 fi
 
-echo "Starting the Mesos environment and the workflow application..."
+echo "Starting the Mesos environment and the woken application..."
 
-cp $ROOT_DIR/../target/scala-2.11/workflow-assembly-0.1.jar workflow/lib/workflow.jar
+cp $ROOT_DIR/../target/scala-2.11/woken-assembly-0.1.jar woken/lib/woken.jar
 
 if groups $USER | grep &>/dev/null '\bdocker\b'; then
   DOCKER_COMPOSE="docker-compose"

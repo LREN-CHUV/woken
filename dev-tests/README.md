@@ -1,5 +1,5 @@
 
-Run the workflow application and the result database locally, use Chronos on hbpfedqa1.
+Run the woken application and the result database locally, use Chronos on hbpfedqa1.
 
 Usage:
 
