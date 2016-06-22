@@ -31,6 +31,8 @@ libraryDependencies ++= {
     "com.gettyimages"     %%  "spray-swagger"    % "0.5.0" excludeAll ExclusionRule(organization = "io.spray"),
     "org.webjars"          %  "swagger-ui"       % "2.0.12",
     "org.yaml"             %  "snakeyaml"        % versions.snakeyaml,
+    "com.opendatagroup"    %  "hadrian"          % "0.8.4-scala2.11",
+
     //---------- Test libraries -------------------//
     "org.scalatest"        %  "scalatest_2.11"   % versions.scalaTest % "test",
     "org.specs2"          %%  "specs2-core"      % versions.spec2     % "test",
@@ -39,6 +41,8 @@ libraryDependencies ++= {
     "io.spray"            %%  "spray-testkit"    % versions.spray     % "test"
   )
 }
+
+resolvers += "Local Maven Repository" at "file:///root/.m2/repository"
 
 scalacOptions ++= Seq(
   "-unchecked",

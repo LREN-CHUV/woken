@@ -3,4 +3,7 @@
 	url = https://github.com/LREN-CHUV/analytics-db.git
 [submodule "dev-tests/adni-merge-db"]
 	path = dev-tests/adni-merge-db
-	url = git@gitlab.intranet.chuv:mip-private/adni-merge-db.git
+	url = http://hbps1.intranet.chuv:7000/mip-private/adni-merge-db.git
+[submodule "hadrian"]
+	path = hadrian
+	url = https://github.com/ajutzeler/hadrian.git

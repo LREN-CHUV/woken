@@ -28,7 +28,7 @@ object FunctionsInOutTest {
   }
 }
 
-class FunctionsInOutTest extends FlatSpec with Matchers {
+/*class FunctionsInOutTest extends FlatSpec with Matchers {
 
   import FunctionsInOut._
   import FunctionsInOutTest._
@@ -59,4 +59,4 @@ class FunctionsInOutTest extends FlatSpec with Matchers {
 
   }
 
-}
+}*/

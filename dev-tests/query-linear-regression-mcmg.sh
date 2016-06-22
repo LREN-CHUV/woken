@@ -7,4 +7,4 @@ http -v --timeout 180 POST localhost:8087/mining \
          grouping:='[{"code":"AGE"},{"code":"ptgender"}]' \
          covariables:='[{"code":"leftmprgprecentralgyrusmedialsegment"},{"code":"rightporgposteriororbitalgyrus"},{"code":"rightaorganteriororbitalgyrus"}]' \
          filters:='[]' \
-         algorithm='linearRegression'
+         algorithm:='{"code":"linearRegression", "name": "linearRegression", "parameters": []}'

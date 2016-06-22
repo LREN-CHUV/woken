@@ -2,11 +2,7 @@ package api
 
 import java.time.OffsetDateTime
 
-import core.{JobResults, RestMessage}
-import core.model.JobResult
-import spray.http.StatusCodes
-import spray.httpx.marshalling.ToResponseMarshaller
-import spray.json.{RootJsonFormat, DefaultJsonProtocol, JsValue}
+import spray.json.{DefaultJsonProtocol, JsValue}
 
 /**
   * A group object represents a variable scope. Each variable is associated to a group.
@@ -43,6 +39,24 @@ case class Variable(
 /* .... and so on ... */
 )
 
+case class Algorithm(
+  /** */
+  code: String,
+  /** */
+  name: String,
+  /** */
+  parameters: Map[String, String]
+)
+
+case class Validation(
+  /** */
+  code: String,
+  /** */
+  name: String,
+  /** */
+  parameters: Map[String, String]
+)
+
 case class Dataset(
   /** Unique code identifying the dataset */
   code: String,
@@ -70,13 +84,29 @@ case class Filter(
   values: Seq[String]
 )
 
-case class Query(
+abstract class Query() {
+  def variables: Seq[VariableId]
+  def covariables: Seq[VariableId]
+  def grouping: Seq[VariableId]
+  def filters: Seq[Filter]
+}
+
+case class SimpleQuery(
   variables: Seq[VariableId],
   covariables: Seq[VariableId],
   grouping: Seq[VariableId],
   filters: Seq[Filter],
-  algorithm: String
-)
+  algorithm: Algorithm
+) extends Query
+
+case class ExperimentQuery(
+   variables: Seq[VariableId],
+   covariables: Seq[VariableId],
+   grouping: Seq[VariableId],
+   filters: Seq[Filter],
+   algorithms: Seq[Algorithm],
+   validations: Seq[Validation]
+) extends Query
 
 /*
 

@@ -4,7 +4,7 @@ import java.util.UUID
 
 import config.Config
 import core.model.JobResult
-import core.{JobResults, RestMessage}
+import core.{ExperimentActor, JobResults, RestMessage}
 import spray.http.StatusCodes
 import spray.httpx.marshalling.ToResponseMarshaller
 import spray.json._
@@ -30,17 +30,24 @@ object FunctionsInOut {
     "PARAM_grouping" -> query.grouping.map(toField).mkString(",")
   )
 
-  val queryToParameters: Map[String, Query => Map[String, String]] = Map(
-    "boxplot" -> standardParameters,
-    "linearregression" -> standardParameters
-  ).withDefaultValue(standardParameters)
+  def algoParameters(algorithm: Algorithm): Map[String, String] = {
+    algorithm.parameters.map({case (key, value) => ("PARAM_MODEL_" + key, value)})
+  }
 
-  def query2job(query: Query): JobDto = {
+  def query2job(query: SimpleQuery): JobDto = {
 
     val jobId = UUID.randomUUID().toString
-    val parameters = queryToParameters(query.algorithm.toLowerCase)(query)
+    val parameters = standardParameters(query) ++ algoParameters(query.algorithm)
 
-    JobDto(jobId, dockerImage(query.algorithm), None, None, Some(defaultDb), parameters, None)
+    JobDto(jobId, dockerImage(query.algorithm.code), None, None, Some(defaultDb), parameters, None)
+  }
+
+  def query2job(query: ExperimentQuery): ExperimentActor.Job = {
+
+    val jobId = UUID.randomUUID().toString
+    val parameters = standardParameters(query)
+
+    ExperimentActor.Job(jobId, Some(defaultDb), query.algorithms, query.validations, parameters)
   }
 
   lazy val summaryStatsHeader = JsonParser(""" [["min","q1","median","q3","max","mean","std","sum","count"]] """)

@@ -15,6 +15,35 @@ object ApiJsonSupport extends DefaultJsonProtocol {
   implicit val variableJsonFormat: JsonFormat[Variable] = jsonFormat3(Variable)
   implicit val datasetJsonFormat: JsonFormat[Dataset] = jsonFormat4(Dataset)
 
+
+  implicit val algorithmJsonFormat: JsonFormat[Algorithm] = AlgorithmJsonFormat
+
+  implicit object AlgorithmJsonFormat extends JsonFormat[Algorithm] {
+    def write(a: Algorithm): JsValue = {
+      JsObject("code" -> JsString(a.code), "name" -> JsString(a.name), "parameters" -> JsArray(a.parameters.map(x => JsObject("code" -> JsString(x._1.toString()), "value" -> JsString(x._2.toString()))).toVector))
+    }
+
+    def read(value: JsValue) = {
+      val parameters = value.asJsObject.fields.get("parameters").get.asInstanceOf[JsArray].elements.map(x => (x.asJsObject.fields.get("code").get.convertTo[String], x.asJsObject.fields.get("value").get.convertTo[String])).toMap
+      new Algorithm(value.asJsObject.fields.get("code").get.convertTo[String], value.asJsObject.fields.get("name").get.convertTo[String], parameters)
+    }
+  }
+
+  implicit val validationJsonFormat: JsonFormat[Validation] = ValidationJsonFormat
+
+  implicit object ValidationJsonFormat extends JsonFormat[Validation] {
+    def write(v: Validation): JsValue = {
+      JsObject("code" -> JsString(v.code), "name" -> JsString(v.name), "parameters" -> JsArray(v.parameters.map(x => JsObject("code" -> JsString(x._1.toString()), "value" -> JsString(x._2.toString()))).toVector))
+    }
+
+    def read(value: JsValue) = {
+      val parameters = value.asJsObject.fields.get("parameters").get.asInstanceOf[JsArray].elements.map(x => (x.asJsObject.fields.get("code").get.convertTo[String], x.asJsObject.fields.get("value").get.convertTo[String])).toMap
+      new Validation(value.asJsObject.fields.get("code").get.convertTo[String], value.asJsObject.fields.get("name").get.convertTo[String], parameters)
+    }
+  }
+
+
+
   implicit val errorJsonFormat: JsonFormat[Error] = jsonFormat1(Error)
 
   def jsonEnum[T <: Enumeration](enu: T) = new JsonFormat[T#Value] {
@@ -28,7 +57,8 @@ object ApiJsonSupport extends DefaultJsonProtocol {
 
   implicit val operatorsJsonFormat = jsonEnum(Operators)
   implicit val filterJsonFormat: JsonFormat[Filter] = jsonFormat3(Filter)
-  implicit val queryJsonFormat: RootJsonFormat[Query] = jsonFormat5(Query)
+  implicit val SimpleQueryJsonFormat: RootJsonFormat[SimpleQuery] = jsonFormat5(SimpleQuery)
+  implicit val experimentQueryJsonFormat: RootJsonFormat[ExperimentQuery] = jsonFormat6(ExperimentQuery)
 
   case class Yaml(yaml: String)
   /**
