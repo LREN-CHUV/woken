@@ -69,8 +69,6 @@ object Scores {
   }
 }
 
-//TODO Add accuracy, precision, sensitivity, ...
-//TODO Have a specific BinaryClassificationScores?
 case class ClassificationScores() extends Scores {
 
   val classes: scala.collection.mutable.Set[String] = scala.collection.mutable.Set.empty[String]

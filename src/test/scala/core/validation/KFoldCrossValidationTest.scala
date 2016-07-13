@@ -2,161 +2,168 @@ package core.validation
 
 import com.opendatagroup.hadrian.jvmcompiler.PFAEngine
 import org.scalatest._
-import spray.json
-import spray.json.{JsNumber, JsObject, JsString}
+import spray.json.{JsNumber, JsObject, JsArray}
 
 class KFoldCrossValidationTest extends FlatSpec with Matchers {
 
   "A simple regression model" should "validate" in {
 
-    var model =
-      """
+    val r = scala.util.Random
+    val point_number = 1000
+
+    val training_data: Seq[JsObject] = for (i <- 0 to point_number) yield JsObject("vars" -> JsArray(JsNumber(r.nextDouble()), JsNumber(r.nextDouble())), "label" -> JsNumber(r.nextDouble()))
+
+    val model =
+      s"""
      {
-        |  "input": {
-        |    "doc": "Input is the list of covariables and groups",
-        |    "name": "DependentVariables",
-        |    "type":"map",
-        |    "values": "double"
-        |  },
-        |  "output": {
-        |    "doc": "Output is the estimate of the variable",
-        |    "type": "double"
-        |  },
-        |  "cells": {
-        |    "model": {
-        |      "type": {
-        |        "name": "knn_model",
-        |        "type":"record",
-        |        "fields": [
-        |          {
-        |            "name": "k",
-        |            "type": "int"
-        |          },
-        |          {
-        |            "name": "samples",
-        |            "type":{
-        |              "type": "array",
-        |              "items": {
-        |                "type": "record",
-        |                "name": "Sample",
-        |                "fields": [
-        |                  {
-        |                    "name": "vars",
-        |                    "type":{
-        |                      "type": "array",
-        |                      "items": "double"
-        |                    }
-        |                  },
-        |                  {
-        |                    "name": "label",
-        |                    "type": "double"
-        |                  }
-        |                ]
-        |              }
-        |            }
-        |          }
-        |        ]
-        |      },
-        |      "init": {
-        |        "k": 2,
-        |        "samples": [{"vars":[1.0, 1.0], "label": 10.0},{"vars":[2.0, 2.0], "label": 20.0}]
-        |      }
-        |    }
-        |  },
-        |
+         |  "input": {
+         |    "doc": "Input is the list of covariables and groups",
+         |    "name": "DependentVariables",
+         |    "type":"map",
+         |    "values": "double"
+         |  },
+         |  "output": {
+         |    "doc": "Output is the estimate of the variable",
+         |    "type": "double"
+         |  },
+         |  "cells": {
+         |    "model": {
+         |      "type": {
+         |        "name": "knn_model",
+         |        "type":"record",
+         |        "fields": [
+         |          {
+         |            "name": "k",
+         |            "type": "int"
+         |          },
+         |          {
+         |            "name": "samples",
+         |            "type":{
+         |              "type": "array",
+         |              "items": {
+         |                "type": "record",
+         |                "name": "Sample",
+         |                "fields": [
+         |                  {
+         |                    "name": "vars",
+         |                    "type":{
+         |                      "type": "array",
+         |                      "items": "double"
+         |                    }
+         |                  },
+         |                  {
+         |                    "name": "label",
+         |                    "type": "double"
+         |                  }
+         |                ]
+         |              }
+         |            }
+         |          }
+         |        ]
+         |      },
+         |      "init": {
+         |        "k": 5,
+         |        "samples": ${JsArray(training_data.toVector).compactPrint}
+         |      }
+         |    }
+         |  },
+         |
         |  "fcns": {
-        |    "toArray": {
-        |      "params": [
-        |        {
-        |          "m": {
-        |            "type": "map",
-        |            "values": "double"
-        |          }
-        |        }
-        |      ],
-        |      "ret": {"type": "array", "items": "double"},
-        |      "do": [
-        |        {"let": {"input_map": "m"}},
-        |        {
-        |          "a.map": [
-        |            {"type": {"type": "array", "items": "string"},
-        |              "value": ["v1", "v2"]},
-        |            {
-        |              "params": [
-        |                {
-        |                  "key": {
-        |                    "type": "string"
-        |                  }
-        |                }
-        |              ],
-        |              "ret": "double",
-        |              "do": [
-        |                {"attr": "input_map", "path": ["key"]}
-        |              ]
-        |            }
-        |          ]
-        |        }
-        |      ]
-        |    }
-        |  },
-        |
+         |    "toArray": {
+         |      "params": [
+         |        {
+         |          "m": {
+         |            "type": "map",
+         |            "values": "double"
+         |          }
+         |        }
+         |      ],
+         |      "ret": {"type": "array", "items": "double"},
+         |      "do": [
+         |        {"let": {"input_map": "m"}},
+         |        {
+         |          "a.map": [
+         |            {"type": {"type": "array", "items": "string"},
+         |              "value": ["v1", "v2"]},
+         |            {
+         |              "params": [
+         |                {
+         |                  "key": {
+         |                    "type": "string"
+         |                  }
+         |                }
+         |              ],
+         |              "ret": "double",
+         |              "do": [
+         |                {"attr": "input_map", "path": ["key"]}
+         |              ]
+         |            }
+         |          ]
+         |        }
+         |      ]
+         |    }
+         |  },
+         |
         |  "action": [
-        |    {
-        |      "let": {"model": {"cell": "model"}}
-        |    },
-        |    {
-        |      "let": {
-        |        "knn":
-        |        {
-        |          "model.neighbor.nearestK": [
-        |            "model.k",
-        |            {"u.toArray": ["input"]},
-        |            "model.samples",
-        |            {
-        |              "params": [
-        |                {
-        |                  "x": {
-        |                    "type": "array",
-        |                    "items": "double"
-        |                  }
-        |                },
-        |                {
-        |                  "y": "Sample"
-        |                }
-        |              ],
-        |              "ret": "double",
-        |              "do": {
-        |                "metric.simpleEuclidean": [
-        |                  "x",
-        |                  "y.vars"
-        |                ]
-        |              }
-        |            }
-        |          ]
-        |        }
-        |      }
-        |    },
-        |    {
-        |      "let": {"label_list": {"type": {"type": "array", "items": "double"},
-        |        "value": []}}
-        |    },
-        |    {
-        |      "foreach": "neighbour",
-        |      "in": "knn",
-        |      "do": [
-        |        {"set": {"label_list": {"a.append": ["label_list", "neighbour.label"]}}}
-        |      ]
-        |    },
-        |    {
-        |      "a.mean": ["label_list"]
-        |    }
-        |  ]
-        |}
+         |    {
+         |      "let": {"model": {"cell": "model"}}
+         |    },
+         |    {
+         |      "let": {
+         |        "knn":
+         |        {
+         |          "model.neighbor.nearestK": [
+         |            "model.k",
+         |            {"u.toArray": ["input"]},
+         |            "model.samples",
+         |            {
+         |              "params": [
+         |                {
+         |                  "x": {
+         |                    "type": "array",
+         |                    "items": "double"
+         |                  }
+         |                },
+         |                {
+         |                  "y": "Sample"
+         |                }
+         |              ],
+         |              "ret": "double",
+         |              "do": {
+         |                "metric.simpleEuclidean": [
+         |                  "x",
+         |                  "y.vars"
+         |                ]
+         |              }
+         |            }
+         |          ]
+         |        }
+         |      }
+         |    },
+         |    {
+         |      "let": {"label_list": {"type": {"type": "array", "items": "double"},
+         |        "value": []}}
+         |    },
+         |    {
+         |      "foreach": "neighbour",
+         |      "in": "knn",
+         |      "do": [
+         |        {"set": {"label_list": {"a.append": ["label_list", "neighbour.label"]}}}
+         |      ]
+         |    },
+         |    {
+         |      "a.mean": ["label_list"]
+         |    }
+         |  ]
+         |}
       """.stripMargin
 
     val engine = PFAEngine.fromJson(model).head
 
-    val data =
+    val test_data: Seq[JsObject] = for (i <- 0 to point_number) yield JsObject("v1" -> JsNumber(r.nextDouble()), "v2" -> JsNumber(r.nextDouble()))
+    val test_labels: Seq[JsObject] = for (i <- 0 to point_number) yield JsObject("output" -> JsNumber(r.nextDouble()))
+
+    /*data =
       JsObject(
         "v1" -> JsNumber(1),
         "v2" -> JsNumber(2)) ::
@@ -166,15 +173,18 @@ class KFoldCrossValidationTest extends FlatSpec with Matchers {
         JsObject(
           "v1" -> JsNumber(1),
           "v2" -> JsNumber(5)) ::
-        List()
+        data*/
 
-    val labels: List[JsObject] = JsObject("output" -> JsNumber("1.0")) :: JsObject("output" -> JsNumber("10.0")) :: JsObject("output" -> JsNumber("1.0")) :: List()
+    //val labels: List[JsObject] = JsObject("output" -> JsNumber("1.0")) :: JsObject("output" -> JsNumber("10.0")) :: JsObject("output" -> JsNumber("1.0")) :: List()
     val models = Map("0" -> model, "1" -> model, "2" -> model)
-    val validation = new KFoldCrossValidation(data.toStream, labels.toStream, 3)
-    val results = validation.validate(models)
+    for (i <- 0 to 50) {
+      val validation = new KFoldCrossValidation(test_data.toStream, test_labels.toStream, 3)
+      val results = validation.validate(models)
 
-    println(results)
+      println(results)
+    }
 
+    // TODO actual tests
     /*results shouldBe a JsObject
     results.asJsObject.fields should contain ("kind" -> JsString("regression"))
     results.size should be (3)*/
@@ -182,10 +192,10 @@ class KFoldCrossValidationTest extends FlatSpec with Matchers {
 
   "An experiment JSON object " should "be readable" in {
 
-    import spray.json._
     import api.ApiJsonSupport._
+    import spray.json._
 
-    val source = """{"variables":[{"code":"LeftAmygdala"}],"grouping":[{"code":"COLPROT"}], "covariables":[{"code":"AGE"}], "filters":[], "algorithms":[{"code":"linearRegression", "label": "linearRegression", "parameters": []}], "validations":[{"code":"kfold", "label": "kfold", "parameters": [{"code": "k", "value": "2"}]}]}"""
+    val source = """{"variables":[{"code":"LeftAmygdala"}],"grouping":[{"code":"COLPROT"}], "covariables":[{"code":"AGE"}], "filters":[], "algorithms":[{"code":"linearRegression", "name": "linearRegression", "parameters": []}], "validations":[{"code":"kfold", "name": "kfold", "parameters": [{"code": "k", "value": "2"}]}]}"""
     val jsonAst = source.parseJson
     val validation = jsonAst.convertTo[api.ExperimentQuery]
 
@@ -194,10 +204,10 @@ class KFoldCrossValidationTest extends FlatSpec with Matchers {
 
   "A validation JSON object " should "be readable" in {
 
-    import spray.json._
     import api.ApiJsonSupport._
+    import spray.json._
 
-    val source = """{"code":"kfold", "label": "kfold", "parameters": [{"code": "k", "value": "2"}]}"""
+    val source = """{"code":"kfold", "name": "kfold", "parameters": [{"code": "k", "value": "2"}]}"""
     val jsonAst = source.parseJson
     val validation = jsonAst.convertTo[api.Validation]
 
