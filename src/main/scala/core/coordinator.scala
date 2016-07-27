@@ -2,6 +2,7 @@ package core
 
 import java.time.OffsetDateTime
 import java.util.UUID
+import scala.util.Random
 
 import akka.actor.FSM.Failure
 import akka.actor._
@@ -13,8 +14,10 @@ import core.clients.{ChronosService, JobClientService}
 import core.model.JobToChronos
 import core.model.JobResult
 import core.validation.KFoldCrossValidation
+import core.validation.ValidationPoolManager
+import core.validation.Scores
 import dao.{JobResultsDAL, LdsmDAL}
-import models.ChronosJob
+import models.{ChronosJob, Container, EnvironmentVariable => EV}
 import spray.http.StatusCodes
 import spray.httpx.marshalling.ToResponseMarshaller
 import spray.json.{JsString, _}
@@ -409,9 +412,9 @@ class AlgorithmActor(val chronosService: ActorRef, val resultDatabase: JobResult
       // Spawn a ValidationActor for every validation
       for (v <- validations) {
         val jobId = UUID.randomUUID().toString
-        val subjob = ValidationActor.Job(jobId, job.inputDb, algorithm, v, parameters)
-        val validationWorker = context.actorOf(Props(classOf[ValidationActor], chronosService, resultDatabase, federationDatabase, jobResultsFactory))
-        validationWorker ! ValidationActor.Start(subjob)
+        val subjob = CrossValidationActor.Job(jobId, job.inputDb, algorithm, v, parameters)
+        val validationWorker = context.actorOf(Props(classOf[CrossValidationActor], chronosService, resultDatabase, federationDatabase, jobResultsFactory))
+        validationWorker ! CrossValidationActor.Start(subjob)
       }
 
       goto(WaitForWorkers) using Some(Data(job, replyTo, None, collection.mutable.Map(), validations.size))
@@ -429,11 +432,11 @@ class AlgorithmActor(val chronosService: ActorRef, val resultDatabase: JobResult
       context.parent ! ErrorResponse(data.job.algorithm, message)
       stop
     }
-    case Event(ValidationActor.ResultResponse(validation, results), Some(data: Data)) => {
+    case Event(CrossValidationActor.ResultResponse(validation, results), Some(data: Data)) => {
       data.results(validation) = results
       if ((data.results.size == data.validationCount) && data.model.isDefined) reduceAndStop(data) else stay
     }
-    case Event(ValidationActor.ErrorResponse(validation, message), Some(data: Data)) => {
+    case Event(CrossValidationActor.ErrorResponse(validation, message), Some(data: Data)) => {
       log.error(message)
       data.results(validation) = message
       if ((data.results.size == data.validationCount) && data.model.isDefined) reduceAndStop(data) else stay
@@ -443,18 +446,26 @@ class AlgorithmActor(val chronosService: ActorRef, val resultDatabase: JobResult
   initialize()
 }
 
+// TODO This code will be common to all Akka service in containers -> put it as a small common lib!
+class RemotePathExtensionImpl(system: ExtendedActorSystem) extends Extension {
+  def getPath(actor: Actor) = {
+    actor.self.path.toStringWithAddress(system.provider.getDefaultAddress)
+  }
+}
+object RemotePathExtension extends ExtensionKey[RemotePathExtensionImpl]
+
 /**
   * We use the companion object to hold all the messages that the ``ValidationActor``
   * receives.
   */
-object ValidationActor {
+object CrossValidationActor {
 
   // FSM States
   case object WaitForNewJob extends State
   case object WaitForWorkers extends State
 
   // FSM Data
-  case class Data(job: Job, replyTo: ActorRef, var validation: KFoldCrossValidation, workers: Map[ActorRef, String], var results: collection.mutable.Map[String, String], foldsCount: Int)
+  case class Data(job: Job, replyTo: ActorRef, var validation: KFoldCrossValidation, workers: Map[ActorRef, String], var average: Option[Scores], var results: collection.mutable.Map[String, Scores], foldsCount: Int)
 
   // Incoming messages
   case class Job(
@@ -476,23 +487,33 @@ object ValidationActor {
   implicit val errorResponseFormat = jsonFormat2(ErrorResponse.apply)*/
 }
 
-class ValidationActor(val chronosService: ActorRef, val resultDatabase: JobResultsDAL, val federationDatabase: Option[JobResultsDAL],
-                      val jobResultsFactory: JobResults.Factory) extends Actor with ActorLogging with LoggingFSM[State, Option[ValidationActor.Data]] {
+class CrossValidationActor(val chronosService: ActorRef, val resultDatabase: JobResultsDAL, val federationDatabase: Option[JobResultsDAL],
+                           val jobResultsFactory: JobResults.Factory) extends Actor with ActorLogging with LoggingFSM[State, Option[CrossValidationActor.Data]] {
 
   def adjust[A, B](m: Map[A, B], k: A)(f: B => B) = m.updated(k, f(m(k)))
 
-  def reduceAndStop(data: ValidationActor.Data): State = {
-    val results = data.validation.validate(data.results.toMap)
-    data.replyTo ! ValidationActor.ResultResponse(data.job.validation, results.compactPrint)
+  def reduceAndStop(data: CrossValidationActor.Data): State = {
+
+    import core.validation.ScoresProtocol._
+
+    // Aggregation of results from all folds
+    // Where?
+    val jsonValidation = JsObject(
+      "type" -> JsString("KFoldCrossValidation"),
+      "average" -> data.average.get.toJson,
+      "folds" -> new JsObject(data.results.mapValues(s => s.toJson).toMap)
+    )
+
+    data.replyTo ! CrossValidationActor.ResultResponse(data.job.validation, jsonValidation.compactPrint)
     stop
   }
 
-  import ValidationActor._
+  import CrossValidationActor._
 
-  startWith(ValidationActor.WaitForNewJob, None)
+  startWith(CrossValidationActor.WaitForNewJob, None)
 
-  when (ValidationActor.WaitForNewJob) {
-    case Event(ValidationActor.Start(job), _) => {
+  when (CrossValidationActor.WaitForNewJob) {
+    case Event(CrossValidationActor.Start(job), _) => {
       val replyTo = sender()
 
       val algorithm = job.algorithm
@@ -517,22 +538,54 @@ class ValidationActor(val chronosService: ActorRef, val resultDatabase: JobResul
         workers(worker) = fold
         worker ! CoordinatorActor.Start(subjob)
       }})
-      goto(WaitForWorkers) using Some(Data(job, replyTo, xvalidation, workers.toMap, collection.mutable.Map(), k))
+      goto(WaitForWorkers) using Some(Data(job, replyTo, xvalidation, workers.toMap, None, collection.mutable.Map(), k))
     }
   }
 
   when (WaitForWorkers) {
     case Event(JsonMessage(pfa: JsValue), Some(data: Data)) => {
-      data.results(data.workers(sender)) = pfa.compactPrint
+      // Validate the results
+      log.info("Received result from local method.")
+      val model = pfa.toString()
+      val fold = data.workers(sender)
+      val testData = data.validation.getTestSet(fold)._1.map(d => d.compactPrint)
+
+      // Send to a random (simple load balancing) validation node of the pool
+      val validationPool = ValidationPoolManager.validationPool
+      val sendTo = context.actorSelection(validationPool.toList(Random.nextInt(validationPool.size)))
+      log.info("Send a validation work for fold " + fold + " to pool agent: " + sendTo)
+      sendTo ! ("Work", fold,  model, testData)
+      stay
+    }
+    case Event(("Done", fold: String, variableType: String, results: List[String]), Some(data: Data)) => {
+      log.info("Received validation results for fold " + fold + ".")
+      // Score the results
+      val groundTruth = data.validation.getTestSet(fold)._2
+      data.results(fold) = Scores(results, groundTruth, variableType)
+
+      // Update the average score
+      if (data.average.nonEmpty)
+        data.average.get.++(results, groundTruth)
+      else
+        data.average = Some(Scores(results, groundTruth, variableType))
+
+      // If we have validated all the fold we finish!
       if (data.results.size == data.foldsCount) reduceAndStop(data) else stay
+    }
+    case Event(("Error", message: String), Some(data: Data)) => {
+      log.error(message)
+      // On testing fold fails, we notify supervisor and we stop
+      context.parent ! CrossValidationActor.ErrorResponse(data.job.validation, message)
+      stop
     }
     case Event(Error(message), Some(data: Data)) => {
       log.error(message)
-      // On validation fold fails, we notify supervisor and we stop
-      context.parent ! ValidationActor.ErrorResponse(data.job.validation, message)
+      // On training fold fails, we notify supervisor and we stop
+      context.parent ! CrossValidationActor.ErrorResponse(data.job.validation, message)
       stop
     }
   }
 
   initialize()
 }
+

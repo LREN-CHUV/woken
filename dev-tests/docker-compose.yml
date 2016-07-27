@@ -75,5 +75,7 @@ woken:
   volumes:
     - ./woken/config:/opt/woken/config
     - ./woken/lib:/opt/woken/lib
+  ports:
+    - "8088:8088"
   environment:
     HOST: "${HOST}"

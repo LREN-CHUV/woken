@@ -1,8 +1,9 @@
 package core.validation
 
-import com.opendatagroup.hadrian.datatype.{AvroEnum, AvroString}
-import com.opendatagroup.hadrian.jvmcompiler.PFAEngine
 import spray.json.{JsNumber, JsObject, JsString, JsValue, JsonFormat, _}
+
+import spray.json._
+
 
 /**
   * Created by Arnaud Jutzeler
@@ -12,95 +13,82 @@ import spray.json.{JsNumber, JsObject, JsString, JsValue, JsonFormat, _}
   */
 trait Scores {
 
-  def update(output: String, label: JsObject): Unit
+  def update(output: String, label: String): Unit
 
-  def ++(model: String, data: List[JsObject], labels: List[JsObject]): Unit = {
+  def ++(output: List[String], groundTruth: List[JsValue]): Unit = {
 
-    // Load the PFA file into a scoring engine
-    val engine = PFAEngine.fromJson(model).head
+    // TODO check type!
 
-    // Make an iterator for the input data
-    val inputData = engine.jsonInputIterator[AnyRef](data.map(o => o.compactPrint).iterator)
-
-    inputData.zip(labels.iterator).foreach({ case (x, y) => {
-
-      this.update(engine.jsonOutput(engine.action(x)), y)
+    output.zip(groundTruth).foreach({ case (x, y) => {
+      this.update(x, y.asJsObject.fields.toList.head._2.toString())
     }
     })
   }
-
 }
 
 object Scores {
 
-  def apply(model: String, data: List[JsObject], labels: List[JsObject]): Scores = {
+  /*def getType(output: List[String], groundTruth: List[JsValue]): String = {
 
-    // Load the PFA file into a scoring engine
-    val engine = PFAEngine.fromJson(model).head
+    // TODO it is wrong, there can be case where the class are number...
+    // TODO get type elsewhere!
+    try {
+      Some(output.head.toDouble)
+    } catch {
+      case _ => return "nominal"
+    }
 
-    val score: Scores = engine.outputType match {
-      case s: AvroString => new ClassificationScores()
+    return "real"
+  }*/
+
+  def apply(output: List[String], groundTruth: List[JsValue], variableType: String = "real"): Scores = {
+
+    val score: Scores = variableType match {
+      case "nominal" => new ClassificationScores()
       case _ => new RegressionScores()
     }
 
-    // Make an iterator for the input data
-    val inputData = engine.jsonInputIterator[AnyRef](data.map(o => o.compactPrint).iterator)
-
-    inputData.zip(labels.iterator).foreach({ case (x, y) => {
-
-      score.update(engine.jsonOutput(engine.action(x)), y)
+    output.zip(groundTruth).foreach({ case (x, y) => {
+      score.update(x, y.asJsObject.fields.toList.head._2.toString())
     }
     })
 
     score
   }
-
-  def apply(model: String): Scores = {
-
-    // Load the PFA file into a scoring engine
-    val engine = PFAEngine.fromJson(model).head
-
-    val score: Scores = engine.outputType match {
-      case s: AvroString => new ClassificationScores()
-      case _ => new RegressionScores()
-    }
-
-    score
-  }
 }
 
-//TODO Add accuracy, precision, sensitivity, ...
-//TODO Have a specific BinaryClassificationScores?
 case class ClassificationScores() extends Scores {
 
   val classes: scala.collection.mutable.Set[String] = scala.collection.mutable.Set.empty[String]
   val confusion: scala.collection.mutable.Map[(String, String), Int] = scala.collection.mutable.Map.empty[(String, String), Int]
 
-  override def update(output: String, label: JsObject) = {
+  override def update(output: String, label: String) = {
 
-    import spray.json.DefaultJsonProtocol._
-    val output_string = JsonParser(output).convertTo[String]
-    val label_string = label.fields.values.head.convertTo[String]
+    classes.add(output)
+    classes.add(label)
 
-    classes.add(output_string)
-    classes.add(label_string)
-
-    if (!confusion.contains((output_string, label_string))) {
-      confusion.put((output_string, label_string), 0)
+    if (!confusion.contains((output, label))) {
+      confusion.put((output, label), 0)
     }
 
-    confusion((output_string, label_string)) += 1
+    confusion((output, label)) += 1
   }
 }
 
+/**
+  *
+  * TODO Add residual statistics
+  *
+  * @param `type`
+  */
 case class RegressionScores(`type`: String = "regression") extends Scores {
 
   val metrics = Map("MSE" -> new MSE(), "RMSE" -> new RMSE(), "R2" -> new R2(), "FAC2" -> new FAC2())
 
-  override def update(output: String, label: JsObject) = {
+  override def update(output: String, label: String) = {
 
     val y = output.toDouble
-    val f = label.fields.values.head.prettyPrint.toDouble
+    val f = label.toDouble
 
     metrics.foreach(_._2.update(y, f))
   }

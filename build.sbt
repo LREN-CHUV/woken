@@ -21,6 +21,8 @@ libraryDependencies ++= {
     "io.spray"            %%  "spray-routing-shapeless2" % versions.spray,
     "io.spray"            %%  "spray-json"       % versions.spray,
     "com.typesafe.akka"   %%  "akka-actor"       % versions.akka,
+    "com.typesafe.akka"   %%  "akka-remote"      % versions.akka,
+    "com.typesafe.akka"   %%  "akka-cluster"     % versions.akka,
     "org.slf4j"            %  "slf4j-nop"        % versions.slf4j,
     "org.slf4j"            %  "slf4j-api"        % versions.slf4j,
     "org.slf4j"            %  "log4j-over-slf4j" % versions.slf4j, // For Denodo JDBC driver
@@ -31,7 +33,6 @@ libraryDependencies ++= {
     "com.gettyimages"     %%  "spray-swagger"    % "0.5.0" excludeAll ExclusionRule(organization = "io.spray"),
     "org.webjars"          %  "swagger-ui"       % "2.0.12",
     "org.yaml"             %  "snakeyaml"        % versions.snakeyaml,
-    "com.opendatagroup"    %  "hadrian"          % "0.8.4-scala2.11",
 
     //---------- Test libraries -------------------//
     "org.scalatest"        %  "scalatest_2.11"   % versions.scalaTest % "test",
@@ -41,8 +42,6 @@ libraryDependencies ++= {
     "io.spray"            %%  "spray-testkit"    % versions.spray     % "test"
   )
 }
-
-resolvers += "Local Maven Repository" at "file://" + sys.props.getOrElse("user.home", default="/root") + "/.m2/repository"
 
 scalacOptions ++= Seq(
   "-unchecked",
