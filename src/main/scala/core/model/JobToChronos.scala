@@ -43,7 +43,7 @@ object JobToChronos {
       runAsUser = "root",
       container = container,
       cpus = "0.5",
-      mem = "128",
+      mem = "512",
       uris = List(),
       async = false,
       owner = jobs.owner,

@@ -75,5 +75,7 @@ workflow:
   volumes:
     - ./workflow/config:/opt/workflow/config
     - ./workflow/lib:/opt/workflow/lib
+  ports:
+    - "8088:8088"
   environment:
     HOST: "${HOST}"

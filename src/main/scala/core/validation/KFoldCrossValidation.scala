@@ -1,6 +1,6 @@
 package core.validation
 
-import core.ValidationActor
+import core.CrossValidationActor
 import dao.LdsmDAL
 import spray.json.{JsValue, _}
 
@@ -39,29 +39,11 @@ class KFoldCrossValidation(data: Stream[JsObject], labels: Stream[JsObject], k: 
     * @param k
     * @return
     */
-  private def getTestSet(k : String): List[JsValue] = {
-    return data.toList.slice(partition(k)._1, partition(k)._1 + partition(k)._2)
-  }
-
-  /**
-    * TODO To be changed in WP3
-    *
-    * @param models
-    * @return
-    */
-  def validate(models: Map[String, String]): JsValue = {
-    import core.validation.ScoresProtocol._
-
-    var folds: Map[String, JsValue] = Map()
-    val aggregate: Scores = Scores(models.head._2)
-
-    partition.foreach({case (k, (s, n)) => {
-      folds += k -> Scores(models(k), data.toList.slice(s, s + n), labels.toList.slice(s, s + n)).toJson
-      aggregate.++(models(k), data.toList.slice(s, s + n), labels.toList.slice(s, s + n))
-    }
-    })
-
-    JsObject("type" -> JsString("KFoldCrossValidation"), "average" -> aggregate.toJson, "folds" -> JsObject(folds))
+  def getTestSet(k : String): (List[JsValue], List[JsValue]) = {
+     (
+       data.toList.slice(partition(k)._1, partition(k)._1 + partition(k)._2),
+       labels.toList.slice(partition(k)._1, partition(k)._1 + partition(k)._2)
+     )
   }
 }
 
@@ -73,7 +55,7 @@ class KFoldCrossValidation(data: Stream[JsObject], labels: Stream[JsObject], k: 
   */
 object KFoldCrossValidation {
 
-  def apply(job: ValidationActor.Job, k: Int) = {
+  def apply(job: CrossValidationActor.Job, k: Int) = {
 
     val conf = config.Config.dbConfig(job.inputDb.get)
     val dal = new LdsmDAL(conf.jdbcDriver, conf.jdbcUrl, conf.jdbcUser, conf.jdbcPassword, "")
