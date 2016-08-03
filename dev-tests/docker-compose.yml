@@ -79,3 +79,12 @@ woken:
     - "8088:8088"
   environment:
     HOST: "${HOST}"
+
+woken-validation:
+  image: hbpmip/woken-validation:latest
+  net: host
+  volumes:
+    - ./woken/config/validation/application.conf:/root/woken-validation/config/application.conf
+  ports:
+    - "8082:8082"
+
