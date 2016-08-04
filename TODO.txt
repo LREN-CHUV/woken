@@ -7,3 +7,6 @@
     https://github.com/pawelkaczor/ddd-leaven-akka-v2/tree/master/e2e-tests
 
 * Check good ideas in https://github.com/softwaremill/bootzooka : Flyway integration, Akka HTTP...
+
+* Proper typed configuration
+https://github.com/iheartradio/ficus
