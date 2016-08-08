@@ -36,14 +36,15 @@ class ValidationActor extends Actor with ActorLogging {
           case _ => "invalid"
         }
         val inputData = engine.jsonInputIterator[AnyRef](data.iterator)
-        val outputData = inputData.map(x => engine.jsonOutput(engine.action(x))).toList
+        val outputData : List[String] = inputData.map(x => engine.jsonOutput(engine.action(x))).toList
         log.info("Validation work for " + fold + " done!")
 
         replyTo ! ("Done", fold, variableType, outputData)
       } catch {
+        // TODO Too generic!
         case e: Exception => {
           log.error("Error in validation work: " + e)
-          replyTo ! ("Error", e)
+          replyTo ! ("Error", e.toString())
         }
       }
     case _ => log.error("Validation work not recognized!")

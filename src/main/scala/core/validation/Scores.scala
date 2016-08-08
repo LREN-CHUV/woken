@@ -20,7 +20,7 @@ trait Scores {
     // TODO check type!
 
     output.zip(groundTruth).foreach({ case (x, y) => {
-      this.update(x, y.asJsObject.fields.toList.head._2.toString())
+      this.update(x, y.asJsObject.fields.toList.head._2.compactPrint)
     }
     })
   }
@@ -41,6 +41,14 @@ object Scores {
     return "real"
   }*/
 
+  /**
+    * output is a list of JSON files (string literals are quoted!)
+    *
+    * @param output
+    * @param groundTruth
+    * @param variableType
+    * @return
+    */
   def apply(output: List[String], groundTruth: List[JsValue], variableType: String = "real"): Scores = {
 
     val score: Scores = variableType match {
@@ -49,7 +57,7 @@ object Scores {
     }
 
     output.zip(groundTruth).foreach({ case (x, y) => {
-      score.update(x, y.asJsObject.fields.toList.head._2.toString())
+      score.update(x, y.asJsObject.fields.toList.head._2.compactPrint)
     }
     })
 
@@ -64,14 +72,17 @@ case class ClassificationScores() extends Scores {
 
   override def update(output: String, label: String) = {
 
-    classes.add(output)
-    classes.add(label)
+    val clean_output = output.replaceAll("^\"|\"$", "")
+    val clean_label = label.replaceAll("^\"|\"$", "")
 
-    if (!confusion.contains((output, label))) {
-      confusion.put((output, label), 0)
+    classes.add(clean_output)
+    classes.add(clean_label)
+
+    if (!confusion.contains((clean_output, clean_label))) {
+      confusion.put((clean_output, clean_label), 0)
     }
 
-    confusion((output, label)) += 1
+    confusion((clean_output, clean_label)) += 1
   }
 }
 
