@@ -9,4 +9,8 @@
 * Check good ideas in https://github.com/softwaremill/bootzooka : Flyway integration, Akka HTTP...
 
 * Proper typed configuration
-https://github.com/iheartradio/ficus
+  https://github.com/iheartradio/ficus
+
+* Put the list of available algorithms in a repository, eg Elasticsearch
+
+* Create a template to configure the Docker container only with environment variables

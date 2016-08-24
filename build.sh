@@ -7,3 +7,5 @@ fi
 
 $CAPTAIN build
 $CAPTAIN test
+
+cd docker && ./build.sh
