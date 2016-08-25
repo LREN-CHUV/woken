@@ -1,7 +1,0 @@
-woken:
-  build: Dockerfile
-  image: hbpmip/woken
-  pre:
-    - echo "Preparing woken"
-  post:
-    - echo "Finished woken"

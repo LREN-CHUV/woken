@@ -26,4 +26,4 @@ else
   CAPTAIN="sudo captain"
 fi
 
-$CAPTAIN build
+$CAPTAIN test
