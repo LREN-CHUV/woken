@@ -1,3 +1,5 @@
+# Verified with http://hadolint.lukasmartinelli.ch/
+
 FROM java:openjdk-8u92-jdk-alpine
 
 MAINTAINER ludovic.claude54@gmail.com
@@ -18,7 +20,7 @@ LABEL org.label-schema.schema-version="1.0" \
         org.label-schema.url="https://github.com/LREN-CHUV/woken" \
         org.label-schema.vcs-type="git" \
         org.label-schema.vcs-url="https://github.com/LREN-CHUV/woken" \
-        org.label-schema.vendor="CHUV" \
+        org.label-schema.vendor="LREN CHUV" \
         org.label-schema.version="$WOKEN_VERSION" \
         org.label-schema.docker.dockerfile="Dockerfile" \
         org.label-schema.memory-hint="2048"
