@@ -1,7 +1,9 @@
 
-version       := "githash"
+name         := "woken-validation"
 
-scalaVersion  := "2.11.7"
+version      := "githash"
+
+scalaVersion := "2.11.7"
 
 
 val versions = new {

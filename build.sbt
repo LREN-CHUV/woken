@@ -1,7 +1,7 @@
 
 name := "woken"
 
-version       := "0.1"
+version       := "githash"
 
 scalaVersion  := "2.11.8"
 

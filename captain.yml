@@ -3,7 +3,7 @@
 # Do not push this image to Docker hub.
 builder:
   build: Dockerfile.builder
-  image: woken-builder
+  image: woken-build
   pre:
     - echo "Building woken builder image"
     - ./after-update.sh
@@ -11,7 +11,7 @@ builder:
     - echo "Finished building woken builder image"
     - echo "Building project..."
     - docker run --rm -ti -v $WORKSPACE:/build/ -v $HOME/.m2:/home/build/.m2/ -v $HOME/.ivy2:/home/build/.ivy2 woken-builder
-    - cp target/scala-2.11/woken-assembly-0.1.jar dev-tests/woken/lib/woken.jar
+    - cp target/scala-2.11/woken-assembly-githash.jar dev-tests/woken/lib/woken.jar
     - echo "Finished building project"
   test:
     - tests/test.sh

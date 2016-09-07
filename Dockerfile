@@ -9,7 +9,7 @@ COPY docker/runner/woken.sh /opt/woken/
 RUN chmod +x /opt/woken/woken.sh && \
     ln -s /opt/woken/woken.sh /run.sh
 
-ENV WOKEN_VERSION=0.1
+ENV WOKEN_VERSION=githash
 
 # org.label-schema.build-date=$BUILD_DATE
 # org.label-schema.vcs-ref=$VCS_REF
