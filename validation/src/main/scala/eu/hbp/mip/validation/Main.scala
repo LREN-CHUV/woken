@@ -30,20 +30,27 @@ class ValidationActor extends Actor with ActorLogging {
       try {
         // Run the model on data
         val engine = PFAEngine.fromJson(model).head
+        //TODO It is not exact, it can be polynominal or binominal. To be removed from here when we can query the type from somewhere...
         val variableType: String = engine.outputType match {
-          case v: AvroString => "nominal"
+          case v: AvroString => "polynominal"
           case v: AvroDouble => "real"
           case _ => "invalid"
         }
+
         val inputData = engine.jsonInputIterator[AnyRef](data.iterator)
-        val outputData : List[String] = inputData.map(x => engine.jsonOutput(engine.action(x))).toList
+        val outputData : List[String] = inputData.map(x => {engine.jsonOutput(engine.action(x))}).toList
         log.info("Validation work for " + fold + " done!")
 
         replyTo ! ("Done", fold, variableType, outputData)
       } catch {
         // TODO Too generic!
         case e: Exception => {
-          log.error("Error in validation work: " + e)
+          import java.io.StringWriter
+          import java.io.PrintWriter
+          val sw = new StringWriter
+          e.printStackTrace(new PrintWriter(sw))
+          log.error("Error while validating model: " + model)
+          log.error(sw.toString)
           replyTo ! ("Error", e.toString())
         }
       }

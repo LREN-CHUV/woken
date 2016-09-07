@@ -242,7 +242,12 @@ object ExperimentActor {
   case object WaitForWorkers extends State
 
   // FSM Data
-  case class Data(job: Job, replyTo: ActorRef, results: collection.mutable.Map[Algorithm, String], algorithmsCount: Int)
+  case class Data(
+                   job: Job,
+                   replyTo: ActorRef,
+                   results: collection.mutable.Map[Algorithm, String],
+                   algorithms: Seq[Algorithm]
+                 )
 
   // Incoming messages
   case class Job(
@@ -294,7 +299,8 @@ class ExperimentActor(val chronosService: ActorRef, val resultDatabase: JobResul
 
     //TODO WP3 Save the results in results DB
 
-    val output = JsArray(data.results.map({case (key, value) => JsObject("code" -> JsString(key.code), "name" -> JsString(key.name), "data" -> JsonParser(value))}).toVector)
+    // Concatenate results while respecting received algorithms order
+    val output = JsArray(data.algorithms.map(a => JsObject("code" -> JsString(a.code), "name" -> JsString(a.name), "data" -> JsonParser(data.results.get(a).get))).toVector)
 
     data.replyTo ! jobResultsFactory(Seq(JobResult(data.job.jobId, "",  OffsetDateTime.now(), Some(output.compactPrint), None, "pfa_json", "")))
     stop
@@ -321,7 +327,7 @@ class ExperimentActor(val chronosService: ActorRef, val resultDatabase: JobResul
           worker ! AlgorithmActor.Start(subjob)
         }
 
-        goto(WaitForWorkers) using Some(Data(job, replyTo, collection.mutable.Map(), algorithms.size))
+        goto(WaitForWorkers) using Some(Data(job, replyTo, collection.mutable.Map(), algorithms))
       } else {
         stay
       }
@@ -331,12 +337,12 @@ class ExperimentActor(val chronosService: ActorRef, val resultDatabase: JobResul
   when (WaitForWorkers) {
     case Event(AlgorithmActor.ResultResponse(algorithm, results), Some(data: Data)) => {
       data.results(algorithm) = results
-      if (data.results.size == data.algorithmsCount) reduceAndStop(data) else stay
+      if (data.results.size == data.algorithms.length) reduceAndStop(data) else stay
     }
     case Event(AlgorithmActor.ErrorResponse(algorithm, message), Some(data: Data)) => {
       log.error(message)
       data.results(algorithm) = message
-      if (data.results.size == data.algorithmsCount) reduceAndStop(data) else stay
+      if (data.results.size == data.algorithms.length) reduceAndStop(data) else stay
     }
   }
 
@@ -465,7 +471,7 @@ object CrossValidationActor {
   case object WaitForWorkers extends State
 
   // FSM Data
-  case class Data(job: Job, replyTo: ActorRef, var validation: KFoldCrossValidation, workers: Map[ActorRef, String], var average: Option[Scores], var results: collection.mutable.Map[String, Scores], foldsCount: Int)
+  case class Data(job: Job, replyTo: ActorRef, var validation: KFoldCrossValidation, workers: Map[ActorRef, String], var variableType: String, var average: (List[String], List[String]), var results: collection.mutable.Map[String, Scores], foldsCount: Int)
 
   // Incoming messages
   case class Job(
@@ -487,6 +493,15 @@ object CrossValidationActor {
   implicit val errorResponseFormat = jsonFormat2(ErrorResponse.apply)*/
 }
 
+/**
+  *
+  * TODO Better Integration with Spark!
+  *
+  * @param chronosService
+  * @param resultDatabase
+  * @param federationDatabase
+  * @param jobResultsFactory
+  */
 class CrossValidationActor(val chronosService: ActorRef, val resultDatabase: JobResultsDAL, val federationDatabase: Option[JobResultsDAL],
                            val jobResultsFactory: JobResults.Factory) extends Actor with ActorLogging with LoggingFSM[State, Option[CrossValidationActor.Data]] {
 
@@ -497,10 +512,9 @@ class CrossValidationActor(val chronosService: ActorRef, val resultDatabase: Job
     import core.validation.ScoresProtocol._
 
     // Aggregation of results from all folds
-    // Where?
     val jsonValidation = JsObject(
       "type" -> JsString("KFoldCrossValidation"),
-      "average" -> data.average.get.toJson,
+      "average" -> Scores(data.average._1, data.average._2, data.variableType).toJson,
       "folds" -> new JsObject(data.results.mapValues(s => s.toJson).toMap)
     )
 
@@ -538,7 +552,7 @@ class CrossValidationActor(val chronosService: ActorRef, val resultDatabase: Job
         workers(worker) = fold
         worker ! CoordinatorActor.Start(subjob)
       }})
-      goto(WaitForWorkers) using Some(Data(job, replyTo, xvalidation, workers.toMap, None, collection.mutable.Map(), k))
+      goto(WaitForWorkers) using Some(Data(job, replyTo, xvalidation, workers.toMap, null, (Nil, Nil), collection.mutable.Map(), k))
     }
   }
 
@@ -552,6 +566,7 @@ class CrossValidationActor(val chronosService: ActorRef, val resultDatabase: Job
 
       // Send to a random (simple load balancing) validation node of the pool
       val validationPool = ValidationPoolManager.validationPool
+      //TODO If validationPool.size == 0, we cannot perform the cross validation we should throw an error!
       val sendTo = context.actorSelection(validationPool.toList(Random.nextInt(validationPool.size)))
       log.info("Send a validation work for fold " + fold + " to pool agent: " + sendTo)
       sendTo ! ("Work", fold,  model, testData)
@@ -560,14 +575,13 @@ class CrossValidationActor(val chronosService: ActorRef, val resultDatabase: Job
     case Event(("Done", fold: String, variableType: String, results: List[String]), Some(data: Data)) => {
       log.info("Received validation results for fold " + fold + ".")
       // Score the results
-      val groundTruth = data.validation.getTestSet(fold)._2
+      val groundTruth = data.validation.getTestSet(fold)._2.map(x => x.asJsObject.fields.toList.head._2.compactPrint)
       data.results(fold) = Scores(results, groundTruth, variableType)
 
+      // TODO To be improved with new Spark integration
       // Update the average score
-      if (data.average.nonEmpty)
-        data.average.get.++(results, groundTruth)
-      else
-        data.average = Some(Scores(results, groundTruth, variableType))
+      data.variableType = variableType
+      data.average = (data.average._1 ::: results,  data.average._2 ::: groundTruth)
 
       // If we have validated all the fold we finish!
       if (data.results.size == data.foldsCount) reduceAndStop(data) else stay

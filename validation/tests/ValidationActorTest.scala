@@ -3,6 +3,11 @@ package eu.hbp.mip.validation
 import com.opendatagroup.hadrian.jvmcompiler.PFAEngine
 import org.scalatest._
 import spray.json.{JsNumber, JsObject}
+import akka.testkit.TestActorRef
+import akka.pattern.ask
+import scala.util.Success
+import akka.util.Timeout
+import akka.actor.{ActorSystem}
 
 class ValidationActorTest extends FlatSpec with Matchers {
 
@@ -57,7 +62,7 @@ class ValidationActorTest extends FlatSpec with Matchers {
         |        ]
         |      },
         |      "init": {
-        |        "k": 2,
+        |        "k": 1,
         |        "samples": [{"vars":[1.0, 1.0], "label": 10.0},{"vars":[2.0, 2.0], "label": 20.0}]
         |      }
         |    }
@@ -154,28 +159,15 @@ class ValidationActorTest extends FlatSpec with Matchers {
       """.stripMargin
 
     val engine = PFAEngine.fromJson(model).head
+    val data = List("{\"v1\": 1, \"v2\": 2}", "{\"v1\": 2, \"v2\": 3}", "{\"v1\": 1, \"v2\": 5}")
+    val labels = List("10.0", "20.0", "20.0")
 
-    val data =
-      JsObject(
-        "v1" -> JsNumber(1),
-        "v2" -> JsNumber(2)) ::
-        JsObject(
-          "v1" -> JsNumber(2),
-          "v2" -> JsNumber(3)) ::
-        JsObject(
-          "v1" -> JsNumber(1),
-          "v2" -> JsNumber(5)) ::
-        List()
+    implicit val system = ActorSystem("test")
+    implicit val timeout = Timeout(1000)
+    val actorRef = TestActorRef(new ValidationActor)
+    val future = actorRef ? ("Work", "0", model, data)
+    val Success((_, _, _, result :List[String])) = future.value.get
 
-    val labels: List[JsObject] = JsObject("output" -> JsNumber("1.0")) :: JsObject("output" -> JsNumber("10.0")) :: JsObject("output" -> JsNumber("1.0")) :: List()
-    val models = Map("0" -> model, "1" -> model, "2" -> model)
-    //val validation = new KFoldCrossValidation(data.toStream, labels.toStream, 3)
-    //val results = validation.validate(models)
-
-    //println(results)
-
-    /*results shouldBe a JsObject
-    results.asJsObject.fields should contain ("kind" -> JsString("regression"))
-    results.size should be (3)*/
+    result should contain theSameElementsInOrderAs (labels)
   }
 }

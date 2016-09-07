@@ -34,6 +34,7 @@ libraryDependencies ++= {
     "com.opendatagroup"    %  "hadrian"                  % versions.hadrian,
 
     //---------- Test libraries -------------------//
+    "com.typesafe.akka"   %%  "akka-testkit"     % versions.akka      % "test",
     "org.scalatest"        %  "scalatest_2.11"   % versions.scalaTest % "test",
     "org.specs2"          %%  "specs2-core"      % versions.spec2     % "test",
     "com.netaporter"      %%  "pre-canned"       % versions.precanned % "test",

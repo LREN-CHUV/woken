@@ -82,7 +82,7 @@ woken:
 
 woken-validation:
   image: hbpmip/woken-validation:latest
-  net: host
+  net: woken_port
   volumes:
     - ./woken/config/validation/application.conf:/root/woken-validation/config/application.conf
   ports:

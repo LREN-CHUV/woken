@@ -8,6 +8,7 @@ scalaVersion  := "2.11.8"
 val versions = new {
   val akka = "2.3.14"
   val spray = "1.3.2"
+  val spark = "2.0.0"
   val scalaz = "7.1.3"
   val slf4j = "1.7.13"
   val config = "1.2.1"
@@ -26,9 +27,9 @@ libraryDependencies ++= {
     "com.typesafe.akka"   %%  "akka-actor"       % versions.akka,
     "com.typesafe.akka"   %%  "akka-remote"      % versions.akka,
     "com.typesafe.akka"   %%  "akka-cluster"     % versions.akka,
-    "org.slf4j"            %  "slf4j-nop"        % versions.slf4j,
+    //"org.slf4j"            %  "slf4j-nop"        % versions.slf4j,
     "org.slf4j"            %  "slf4j-api"        % versions.slf4j,
-    "org.slf4j"            %  "log4j-over-slf4j" % versions.slf4j, // For Denodo JDBC driver
+    //"org.slf4j"            %  "log4j-over-slf4j" % versions.slf4j, // For Denodo JDBC driver
     "org.scalaz"           %  "scalaz-core_2.11" % versions.scalaz,
     "com.typesafe"         %  "config"           % versions.config,
     "org.postgresql"       %  "postgresql"       % versions.postgres,
@@ -36,8 +37,13 @@ libraryDependencies ++= {
     "com.gettyimages"     %%  "spray-swagger"    % "0.5.0" excludeAll ExclusionRule(organization = "io.spray"),
     "org.webjars"          %  "swagger-ui"       % "2.0.12",
     "org.yaml"             %  "snakeyaml"        % versions.snakeyaml,
+    ("org.apache.spark"     %  "spark-mllib_2.11" % versions.spark).
+      exclude("commons-beanutils", "commons-beanutils-core").
+      exclude("commons-collections", "commons-collections").
+      exclude("commons-logging", "commons-logging"),
 
-    //---------- Test libraries -------------------//
+
+  //---------- Test libraries -------------------//
     "org.scalatest"        %  "scalatest_2.11"   % versions.scalaTest % "test",
     "org.specs2"          %%  "specs2-core"      % versions.spec2     % "test",
     "com.netaporter"      %%  "pre-canned"       % "0.0.7"            % "test",
@@ -70,4 +76,22 @@ mainClass in Runtime := Some("web.Web")
 
 test in assembly := {} // Do not run tests when building the assembly
 
-net.virtualvoid.sbt.graph.Plugin.graphSettings
+assemblyMergeStrategy in assembly := {
+  case PathList("org", "apache", "spark", "unused", xs @ _*) => MergeStrategy.first
+  case PathList("org", "apache", "hadoop", "yarn", xs @ _*) => MergeStrategy.first
+  case PathList("org", "apache", "hadoop", "yarn", xs @ _*) => MergeStrategy.first
+  case PathList("org", "aopalliance", xs @ _*) => MergeStrategy.first
+  case PathList("javax", "ws", "rs", xs @ _*) => MergeStrategy.first
+  case PathList("javax", "inject", xs @ _*) => MergeStrategy.first
+  case x =>
+    val oldStrategy = (assemblyMergeStrategy in assembly).value
+    oldStrategy(x)
+}
+
+// TODO Instead of exclude and merge strategy it is safer to use
+// Read dependence tree
+/*assemblyShadeRules in assembly := Seq(
+  ShadeRule.rename("org.apache.commons.io.**" -> "shadeio.@1").inLibrary("commons-io" % "commons-io" % "2.4", ...).inProject
+)*/
+
+//net.virtualvoid.sbt.graph.Plugin.graphSettings
