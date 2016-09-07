@@ -40,4 +40,4 @@ VOLUME /build
 # Define working directory
 WORKDIR /build
 
-CMD ["/build-in-docker.sh"]
+ENTRYPOINT ["/build-in-docker.sh"]

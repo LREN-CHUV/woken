@@ -25,6 +25,6 @@ LABEL org.label-schema.schema-version="1.0" \
         org.label-schema.docker.dockerfile="Dockerfile" \
         org.label-schema.memory-hint="2048"
 
-COPY target/scala-2.11/woken_2.11-$WOKEN_VERSION.jar /opt/woken/woken.jar
+COPY target/scala-2.11/woken-assembly-$WOKEN_VERSION.jar /opt/woken/woken.jar
 
 CMD ["/run.sh"]
