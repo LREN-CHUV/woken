@@ -1,6 +1,6 @@
 # hbpmip/woken
 
-[![](https://images.microbadger.com/badges/version/hbpmip/woken.svg)](http://microbadger.com/images/hbpmip/woken "Get your own version badge on microbadger.com") [![](https://images.microbadger.com/badges/image/hbpmip/woken.svg)](http://microbadger.com/images/hbpmip/woken "Get your own image badge on microbadger.com")
+[![](https://images.microbadger.com/badges/version/hbpmip/woken.svg)](https://hub.docker.com/r/hbpmip/woken/ "hbpmip/woken") [![](https://images.microbadger.com/badges/image/hbpmip/woken.svg)](https://hub.docker.com/r/hbpmip/woken/ "hbpmip/woken")
 
 ## Docker image for Woken
 
