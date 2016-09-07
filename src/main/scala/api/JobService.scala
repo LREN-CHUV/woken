@@ -252,107 +252,107 @@ class JobService(val chronosService: ActorRef,
                     "description": "The number of cross-validation fold"
                 }]
             }],
-            metrics: {
-                regression: [
+            "metrics": {
+                "regression": [
                     {
-                        code: "MSE",
-                        label: "Mean square error",
-                        type: "numeric",
-                        tooltip: "To be completed"
+                        "code": "MSE",
+                        "label": "Mean square error",
+                        "type": "numeric",
+                        "tooltip": "To be completed"
                     },
                     {
-                        code: "RMSE" ,
-                        label: "Root mean square error",
-                        type: "numeric",
-                        tooltip: "To be completed"
+                        "code": "RMSE" ,
+                        "label": "Root mean square error",
+                        "type": "numeric",
+                        "tooltip": "To be completed"
                     },
                     {
-                        code: "MAE",
-                        label: "Mean absolute error",
-                        type: "numeric",
-                        tooltip: "To be completed"
+                        "code": "MAE",
+                        "label": "Mean absolute error",
+                        "type": "numeric",
+                        "tooltip": "To be completed"
                     },
                     {
-                        code: "R-squared",
-                        label: "Coefficient of determination (R²)",
-                        type: "numeric",
-                        tooltip: "To be completed"
+                        "code": "R-squared",
+                        "label": "Coefficient of determination (R²)",
+                        "type": "numeric",
+                        "tooltip": "To be completed"
                     },
                     {
-                        code: "Explained variance",
-                        label: "Explained variance",
-                        type: "numeric",
-                        tooltip: "To be completed"
+                        "code": "Explained variance",
+                        "label": "Explained variance",
+                        "type": "numeric",
+                        "tooltip": "To be completed"
                     }
                 ],
-                binominal_classification: [
+                "binominal_classification": [
                     {
-                        code: "Confusion matrix",
-                        label: "Confusion matrix",
-                        type: "confusion_matrix",
-                        tooltip: "To be completed"
+                        "code": "Confusion matrix",
+                        "label": "Confusion matrix",
+                        "type": "confusion_matrix",
+                        "tooltip": "To be completed"
                     },
                     {
-                        code: "Accuracy",
-                        label: "Mean square error",
-                        type: "numeric",
-                        tooltip: "To be completed"
+                        "code": "Accuracy",
+                        "label": "Mean square error",
+                        "type": "numeric",
+                        "tooltip": "To be completed"
                     },
                     {
-                        code: "Precision",
-                        label: "Root mean square error",
-                        type: "numeric",
-                        tooltip: "To be completed"
+                        "code": "Precision",
+                        "label": "Root mean square error",
+                        "type": "numeric",
+                        "tooltip": "To be completed"
                     },
                     {
-                        code: "Sensitivity",
-                        label: "Mean absolute error",
-                        type: "numeric",
-                        tooltip: "To be completed"
+                        "code": "Sensitivity",
+                        "label": "Mean absolute error",
+                        "type": "numeric",
+                        "tooltip": "To be completed"
                     },
                     {
-                        code: "False positive rate",
-                        label: "False positive rate",
-                        type: "numeric",
-                        tooltip: "To be completed"
+                        "code": "False positive rate",
+                        "label": "False positive rate",
+                        "type": "numeric",
+                        "tooltip": "To be completed"
                     }
                 ],
-                classification: [
+                "classification": [
                     {
-                        code: "Confusion matrix",
-                        label: "Confusion matrix",
-                        type: "confusion_matrix",
-                        tooltip: "To be completed"
+                        "code": "Confusion matrix",
+                        "label": "Confusion matrix",
+                        "type": "confusion_matrix",
+                        "tooltip": "To be completed"
                     },
                     {
-                        code: "Accuracy",
-                        label: "Accuracy",
-                        type: "numeric",
-                        tooltip: "To be completed"
+                        "code": "Accuracy",
+                        "label": "Accuracy",
+                        "type": "numeric",
+                        "tooltip": "To be completed"
                     },
                     {
-                        code: "Weighted Precision",
-                        label: "Weighted Precision",
-                        type: "numeric",
-                        tooltip: "To be completed"
+                        "code": "Weighted Precision",
+                        "label": "Weighted Precision",
+                        "type": "numeric",
+                        "tooltip": "To be completed"
                     },
                     {
-                        code: "Weighted Recall",
-                        label: "Weighted Recall",
-                        type: "numeric",
-                        tooltip: "To be completed"
+                        "code": "Weighted Recall",
+                        "label": "Weighted Recall",
+                        "type": "numeric",
+                        "tooltip": "To be completed"
                     },
                     {
-                        code: "Weighted F1-score",
-                        label: "Weighted F1-score",
-                        type: "numeric",
-                        tooltip: "To be completed"
+                        "code": "Weighted F1-score",
+                        "label": "Weighted F1-score",
+                        "type": "numeric",
+                        "tooltip": "To be completed"
                     },
                     {
-                        code: "Weighted false positive rate",
-                        label: "Weighted false positive rate",
-                        type: "numeric",
-                        tooltip: "To be completed"
+                        "code": "Weighted false positive rate",
+                        "label": "Weighted false positive rate",
+                        "type": "numeric",
+                        "tooltip": "To be completed"
                     }
                 ]
             }
