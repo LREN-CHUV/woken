@@ -403,7 +403,7 @@ class AlgorithmActor(val chronosService: ActorRef, val resultDatabase: JobResult
       val replyTo = sender()
 
       val algorithm = job.algorithm
-      val validations = job.validations
+      val validations = if (isPredictive(algorithm.code)) job.validations else List()
 
       val parameters = job.parameters ++ FunctionsInOut.algoParameters(algorithm)
 
