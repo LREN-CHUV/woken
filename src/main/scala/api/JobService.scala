@@ -53,23 +53,8 @@ class JobService(val chronosService: ActorRef,
                 "constraints": {
                     "variable": {
                       "real": true,
-                      "binominal": true,
-                      "polynominal": true
-                    }
-                }
-            },
-            {
-                "code": "summarystatistics",
-                "label": "Statistical summary",
-                "type": ["statistics"],
-                "environment": "R",
-                "description": "Statistical summary",
-                "docker_image": "hbpmip/r-summary-stats:52198fd",
-                "constraints": {
-                    "variable": {
-                      "real": true,
-                      "binominal": true,
-                      "polynominal": true
+                      "binominal": false,
+                      "polynominal": false
                     }
                 }
             },
@@ -214,6 +199,7 @@ class JobService(val chronosService: ActorRef,
             {
                 "code": "tSNE",
                 "label": "tSNE",
+                "disable": true,
                 "type": ["features_extraction"],
                 "docker_image": "hbpmip/r-tsne:latest",
                 "environment": "R",
