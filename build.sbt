@@ -40,7 +40,8 @@ libraryDependencies ++= {
     ("org.apache.spark"     %  "spark-mllib_2.11" % versions.spark).
       exclude("commons-beanutils", "commons-beanutils-core").
       exclude("commons-collections", "commons-collections").
-      exclude("commons-logging", "commons-logging"),
+      exclude("commons-logging", "commons-logging").
+      exclude("org.apache.ivy", "ivy"),
 
 
   //---------- Test libraries -------------------//

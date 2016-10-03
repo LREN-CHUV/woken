@@ -28,8 +28,10 @@ class ValidationActor extends Actor with ActorLogging {
       // Reconstruct model using hadrian and validate over the provided data
       val replyTo = sender()
       try {
+
         // Run the model on data
         val engine = PFAEngine.fromJson(model).head
+
         //TODO It is not exact, it can be polynominal or binominal. To be removed from here when we can query the type from somewhere...
         val variableType: String = engine.outputType match {
           case v: AvroString => "polynominal"

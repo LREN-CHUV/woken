@@ -27,4 +27,7 @@ LABEL org.label-schema.schema-version="1.0" \
 
 COPY target/scala-2.11/woken-assembly-$WOKEN_VERSION.jar /opt/woken/woken.jar
 
+EXPOSE 8087
+EXPOSE 8088
+
 CMD ["/run.sh"]

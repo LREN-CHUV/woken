@@ -7,6 +7,9 @@
     https://github.com/pawelkaczor/ddd-leaven-akka-v2/tree/master/e2e-tests
 
 * Check good ideas in https://github.com/softwaremill/bootzooka : Flyway integration, Akka HTTP...
+  also https://github.com/waylayio/kairosdb-scala/blob/master/build.sbt
+
+  https://github.com/ArchDev/akka-http-rest/blob/master/src/main/scala/me/archdev/restapi/Main.scala
 
 * Proper typed configuration
   https://github.com/iheartradio/ficus
@@ -14,3 +17,4 @@
 * Put the list of available algorithms in a repository, eg Elasticsearch
 
 * Create a template to configure the Docker container only with environment variables
+  see https://github.com/mhamrah/akka-docker-cluster-example

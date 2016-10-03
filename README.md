@@ -1,5 +1,5 @@
 [![Build Status](https://travis-ci.org/LREN-CHUV/woken.svg?branch=master)](https://travis-ci.org/LREN-CHUV/woken)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/3a1e546e9f124b44a829f2d0ea488a96)](https://www.codacy.com/app/hbp-mip/woken?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=LREN-CHUV/woken&amp;utm_campaign=Badge_Grade)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/3a1e546e9f124b44a829f2d0ea488a96)](https://www.codacy.com/app/hbp-mip/woken?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=LREN-CHUV/woken&amp;utm_campaign=Badge_Grade) [![Codacy Badge](https://api.codacy.com/project/badge/Coverage/3a1e546e9f124b44a829f2d0ea488a96)](https://www.codacy.com/app/hbp-mip/woken?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=LREN-CHUV/woken&amp;utm_campaign=Badge_Coverage) [![Dependencies](https://app.updateimpact.com/badge/776816605463187456/woken.svg?config=compile)](https://app.updateimpact.com/latest/776816605463187456/woken)
 <!-- TODO
 [![codecov.io](https://codecov.io/github/LREN-CHUV/woken/coverage.svg?branch=master)](https://codecov.io/github/LREN-CHUV/woken?branch=master)
 -->
