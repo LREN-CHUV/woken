@@ -10,7 +10,7 @@ builder:
   post:
     - echo "Finished building woken builder image"
     - echo "Building project..."
-    - docker run --rm -ti -v $WORKSPACE:/build/ -v $USER_HOME/.m2:/home/build/.m2/ -v $USER_HOME/.ivy2:/home/build/.ivy2 woken-builder
+    - docker run --rm -ti -u build -v $WORKSPACE:/build/ -v $USER_HOME/.m2:/home/build/.m2/ -v $USER_HOME/.ivy2:/home/build/.ivy2 woken-build
     - cp target/scala-2.11/woken-assembly-githash.jar dev-tests/woken/lib/woken.jar
     - echo "Finished building project"
   test:
