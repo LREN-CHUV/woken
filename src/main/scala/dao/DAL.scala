@@ -132,7 +132,7 @@ class LdsmDAL(jdbcDriver: String, jdbcUrl: String, jdbcUser: String, jdbcPasswor
   )
 
   def queryData(columns: Seq[String]) = {
-    val (meta, data) = runQuery(ldsmConnection, s"select ${columns.mkString(",")} from $table")
+    val (meta, data) = runQuery(ldsmConnection, s"select ${columns.mkString(",")} from $table where ${columns.map(_ + " is not null").mkString(" and ")}")
     JsObject(
       "doc" -> JsString(s"Raw data for variables ${meta.map(_.label).mkString(", ")}"),
       "input" -> JsString("null"),
