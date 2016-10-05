@@ -24,7 +24,7 @@ object FunctionsInOut {
 
   // TODO: filter is never used
   private[this] val standardParameters = (query: Query) => Map[String, String] (
-    "PARAM_query" -> s"select ${(query.variables ++ query.covariables ++ query.grouping).distinct.map(toField).mkString(",")} from $mainTable",
+    "PARAM_query" -> s"select ${(query.variables ++ query.covariables ++ query.grouping).distinct.map(toField).mkString(",")} from $mainTable where ${(query.variables ++ query.covariables ++ query.grouping).distinct.map(toField).map(_ + " is not null").mkString(" and ")}",
     "PARAM_variables" -> query.variables.map(toField).mkString(","),
     "PARAM_covariables" -> query.covariables.map(toField).mkString(","),
     "PARAM_grouping" -> query.grouping.map(toField).mkString(",")
