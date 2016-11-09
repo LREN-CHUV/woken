@@ -91,7 +91,7 @@ abstract class Query() {
   def filters: Seq[Filter]
 }
 
-case class SimpleQuery(
+case class MiningQuery(
   variables: Seq[VariableId],
   covariables: Seq[VariableId],
   grouping: Seq[VariableId],

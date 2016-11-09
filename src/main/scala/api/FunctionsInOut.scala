@@ -34,7 +34,7 @@ object FunctionsInOut {
     algorithm.parameters.map({case (key, value) => ("PARAM_MODEL_" + key, value)})
   }
 
-  def query2job(query: SimpleQuery): JobDto = {
+  def query2job(query: MiningQuery): JobDto = {
 
     val jobId = UUID.randomUUID().toString
     val parameters = standardParameters(query) ++ algoParameters(query.algorithm)
