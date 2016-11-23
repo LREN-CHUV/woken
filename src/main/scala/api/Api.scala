@@ -16,7 +16,7 @@ trait Api extends HttpService with CoreActors with Core {
   protected implicit val system: ActorSystem
 
   val routes =
-    new SwaggerService().routes
+    new SwaggerService().routes ~
     new JobService(chronosHttp, ResultDatabaseConfig.dal, FederationDatabaseConfig.config.map(_.dal), LdsmDatabaseConfig.dal).routes ~
     new MiningService(chronosHttp, ResultDatabaseConfig.dal, FederationDatabaseConfig.config.map(_.dal), LdsmDatabaseConfig.dal).routes
 

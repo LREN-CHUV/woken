@@ -28,7 +28,7 @@ class MiningService(val chronosService: ActorRef,
     def apply(v: ErrorResponse.type): StatusCode = StatusCodes.BadRequest
   }
 
-  override def listMethods: Route = path("mining/list-methods") {
+  override def listMethods: Route = path("mining" / "list-methods") {
 
     // TODO Gather this information from all the containers
     val mock =
@@ -344,7 +344,7 @@ class MiningService(val chronosService: ActorRef,
     }
   }
 
-  override def mining: Route = path("mining/job") {
+  override def mining: Route = path("mining" / "job") {
     import FunctionsInOut._
 
     post {
@@ -362,7 +362,7 @@ class MiningService(val chronosService: ActorRef,
     }
   }
 
-  override def experiment: Route = path("mining/experiment") {
+  override def experiment: Route = path("mining" / "experiment") {
     import FunctionsInOut._
 
     post {
