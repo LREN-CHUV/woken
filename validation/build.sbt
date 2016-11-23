@@ -7,6 +7,7 @@ scalaVersion := "2.11.7"
 
 
 val versions = new {
+  val woken_messages = "a0244b0"
   val akka = "2.3.14"
   val spray = "1.3.2"
   val scalaz = "7.1.3"
@@ -15,29 +16,30 @@ val versions = new {
   val snakeyaml = "1.17"
   val scalaTest = "2.2.5"
   val spec2 = "2.3.11"
-  val hadrian = "0.8.4-scala2.11"
+  val hadrian = "0.8.4"
   val precanned = "0.0.7"
 }
 
 libraryDependencies ++= {
   Seq(
+    "woken-messages"      %%  "woken-messages"           % versions.woken_messages,
     "io.spray"            %%  "spray-can"                % versions.spray exclude("io.spray", "spray-routing"),
     "io.spray"            %%  "spray-routing-shapeless2" % versions.spray,
     "io.spray"            %%  "spray-json"               % versions.spray,
     "com.typesafe.akka"   %%  "akka-actor"               % versions.akka,
     "com.typesafe.akka"   %%  "akka-remote"              % versions.akka,
     "com.typesafe.akka"   %%  "akka-cluster"             % versions.akka,
-    "org.slf4j"            %  "slf4j-nop"                % versions.slf4j,
-    "org.slf4j"            %  "slf4j-api"                % versions.slf4j,
-    "org.slf4j"            %  "log4j-over-slf4j"         % versions.slf4j, // For Denodo JDBC driver
-    "org.scalaz"           %  "scalaz-core_2.11"         % versions.scalaz,
-    "com.typesafe"         %  "config"                   % versions.config,
-    "org.yaml"             %  "snakeyaml"                % versions.snakeyaml,
-    "com.opendatagroup"    %  "hadrian"                  % versions.hadrian,
+    "org.slf4j"           %   "slf4j-nop"                % versions.slf4j,
+    "org.slf4j"           %   "slf4j-api"                % versions.slf4j,
+    "org.slf4j"           %   "log4j-over-slf4j"         % versions.slf4j, // For Denodo JDBC driver
+    "org.scalaz"          %%  "scalaz-core"              % versions.scalaz,
+    "com.typesafe"        %   "config"                   % versions.config,
+    "org.yaml"            %   "snakeyaml"                % versions.snakeyaml,
+    "com.opendatagroup"   %   "hadrian"                  % versions.hadrian,
 
     //---------- Test libraries -------------------//
     "com.typesafe.akka"   %%  "akka-testkit"     % versions.akka      % "test",
-    "org.scalatest"        %  "scalatest_2.11"   % versions.scalaTest % "test",
+    "org.scalatest"       %%  "scalatest"        % versions.scalaTest % "test",
     "org.specs2"          %%  "specs2-core"      % versions.spec2     % "test",
     "com.netaporter"      %%  "pre-canned"       % versions.precanned % "test",
     "com.typesafe.akka"   %%  "akka-testkit"     % versions.akka      % "test",
@@ -45,8 +47,8 @@ libraryDependencies ++= {
   )
 }
 
-// Add our own repository that contains the modified version of hadrian
 resolvers += "hbpmip artifactory" at "http://lab01560:9082/artifactory/libs-release/"
+resolvers += "opendatagroup maven" at "http://repository.opendatagroup.com/maven"
 
 scalacOptions ++= Seq(
   "-unchecked",
