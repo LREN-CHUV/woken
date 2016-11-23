@@ -8,6 +8,8 @@ import spray.http._
 import spray.json._
 import spray.routing.Route
 
+import eu.hbp.mip.messages.external._
+
 
 // this trait defines our service behavior independently from the service actor
 class MiningService(val chronosService: ActorRef,

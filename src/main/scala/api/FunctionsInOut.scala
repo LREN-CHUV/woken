@@ -9,6 +9,8 @@ import spray.http.StatusCodes
 import spray.httpx.marshalling.ToResponseMarshaller
 import spray.json._
 
+import eu.hbp.mip.messages.external._
+
 /**
   * Transformations for input and output values of functions
   */

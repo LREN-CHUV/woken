@@ -5,17 +5,13 @@ import core.model.JobResult
 import org.yaml.snakeyaml.{Yaml => YamlParser}
 import spray.json._
 
+import eu.hbp.mip.messages.external._
+
 object ApiJsonSupport extends DefaultJsonProtocol {
 
   implicit val offsetDateTimeJsonFormat = JobResult.OffsetDateTimeJsonFormat
 
-  implicit val subGroupJsonFormat: JsonFormat[Subgroup] = jsonFormat2(Subgroup)
-  implicit val groupJsonFormat: JsonFormat[Group] = jsonFormat3(Group)
   implicit val variableIdJsonFormat: JsonFormat[VariableId] = jsonFormat1(VariableId)
-  implicit val variableJsonFormat: JsonFormat[Variable] = jsonFormat3(Variable)
-  implicit val datasetJsonFormat: JsonFormat[Dataset] = jsonFormat4(Dataset)
-
-
   implicit val algorithmJsonFormat: JsonFormat[Algorithm] = AlgorithmJsonFormat
 
   implicit object AlgorithmJsonFormat extends JsonFormat[Algorithm] {

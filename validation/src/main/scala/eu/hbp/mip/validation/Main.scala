@@ -5,6 +5,8 @@ import akka.cluster.Cluster
 import com.opendatagroup.hadrian.datatype.{AvroDouble, AvroString}
 import com.opendatagroup.hadrian.jvmcompiler.PFAEngine
 
+import eu.hbp.mip.messages.validation.{ValidationError, ValidationQuery, ValidationResult}
+
 // TODO This code will be common to all Akka service in containers -> put it as a small woken common lib!
 class RemotePathExtensionImpl(system: ExtendedActorSystem) extends Extension {
   def getPath(actor: Actor) = {
@@ -23,7 +25,7 @@ object RemoteAddressExtension extends ExtensionKey[RemoteAddressExtensionImpl]
 class ValidationActor extends Actor with ActorLogging {
 
   def receive = {
-    case ("Work", fold: String, model: String, data: List[String]) ⇒
+    case ValidationQuery(fold, model, data) ⇒
       log.info("Received validation work!")
       // Reconstruct model using hadrian and validate over the provided data
       val replyTo = sender()
@@ -43,7 +45,7 @@ class ValidationActor extends Actor with ActorLogging {
         val outputData : List[String] = inputData.map(x => {engine.jsonOutput(engine.action(x))}).toList
         log.info("Validation work for " + fold + " done!")
 
-        replyTo ! ("Done", fold, variableType, outputData)
+        replyTo ! ValidationResult(fold, variableType, outputData)
       } catch {
         // TODO Too generic!
         case e: Exception => {
@@ -53,7 +55,7 @@ class ValidationActor extends Actor with ActorLogging {
           e.printStackTrace(new PrintWriter(sw))
           log.error("Error while validating model: " + model)
           log.error(sw.toString)
-          replyTo ! ("Error", e.toString())
+          replyTo ! ValidationError(e.toString())
         }
       }
     case _ => log.error("Validation work not recognized!")
