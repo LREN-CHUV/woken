@@ -6,7 +6,7 @@ MAINTAINER arnaud@ahead-solutions.ch
 #ENV JAVA_MAINCLASS=eu.hbp.mip.validation.Main
 #ENV JAVA_CONFIG=/dist/config/application.conf
 
-COPY target/scala-2.11/woken-validation-assembly-githash.jar /opt/woken-validation/woken-validation.jar
+COPY target/scala-2.11/woken-validation.jar /opt/woken-validation/woken-validation.jar
 
 RUN mkdir /opt/woken-validation/config
 

@@ -1,7 +1,7 @@
 
 name         := "woken-validation"
 
-version      := "githash"
+version      := sys.env.get("VERSION")getOrElse("dev")
 
 scalaVersion := "2.11.7"
 

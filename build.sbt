@@ -1,7 +1,7 @@
 
-name := "woken"
+name          := "woken"
 
-version       := "githash"
+version       := sys.env.get("VERSION")getOrElse("dev")
 
 scalaVersion  := "2.11.8"
 

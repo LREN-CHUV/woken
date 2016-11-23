@@ -24,4 +24,7 @@ else
   CAPTAIN="sudo captain"
 fi
 
+# Get git hash as version (temporary solution waiting on better captain)
+export VERSION="$(git log --pretty=format:'%h' -n 1)"
+
 WORKSPACE="$(get_script_dir)" USER_HOME="$HOME" $CAPTAIN build
