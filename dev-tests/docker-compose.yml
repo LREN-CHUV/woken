@@ -60,12 +60,12 @@ analyticsdb:
     POSTGRES_PASSWORD: test
 
 # Expose the database to the host, including the Docker container running the algorithms
-adnimergedb:
+sciencedb:
   image: postgres:9.4.5
   ports:
     - "65432:5432"
   volumes:
-    - ./adni-merge-db/sql:/docker-entrypoint-initdb.d/
+    - ./sample-datasets-db/sql:/docker-entrypoint-initdb.d/
   environment:
     POSTGRES_PASSWORD: test
 

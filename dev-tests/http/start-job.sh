@@ -12,4 +12,4 @@ http -v --timeout 180 POST localhost:8087/job \
          inputDb=ldsm \
          outputDb=analytics \
          nodes:='[]' \
-         parameters:='{"PARAM_query":"select tissue1_volume from brain_feature order by tissue1_volume", "PARAM_colnames":"tissue1_volume"}'
+         parameters:='{"PARAM_query":"select cognitive_task2 from linreg_sample order by practice_task2", "PARAM_colnames":"cognitive_task2"}'

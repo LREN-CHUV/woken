@@ -30,7 +30,7 @@ fi
 
 echo "Starting the Mesos environment and the woken application..."
 
-cp $ROOT_DIR/../target/scala-2.11/woken-assembly-githash.jar woken/lib/woken.jar
+cp $ROOT_DIR/../target/scala-2.11/woken.jar woken/lib/woken.jar
 
 if groups $USER | grep &>/dev/null '\bdocker\b'; then
   DOCKER_COMPOSE="docker-compose"

@@ -21,7 +21,7 @@ trait MiningServiceDoc extends Directives {
     response = classOf[Result]
   )
   @ApiImplicitParams(Array(
-    new ApiImplicitParam(name = "body", value = "Process to execute", required = true, dataType = "api.SimpleQuery", paramType = "body")
+    new ApiImplicitParam(name = "body", value = "Process to execute", required = true, dataType = "eu.hbp.mip.messages.external.SimpleQuery", paramType = "body")
   ))
   @ApiResponses(Array(
     new ApiResponse(code = 201, message = "Mining job initialized", response = classOf[Result]),
@@ -39,7 +39,7 @@ trait MiningServiceDoc extends Directives {
     response = classOf[Result]
   )
   @ApiImplicitParams(Array(
-    new ApiImplicitParam(name = "body", value="Process to execute", required = true, dataType = "api.ExperimentQuery", paramType = "body" )
+    new ApiImplicitParam(name = "body", value="Process to execute", required = true, dataType = "eu.hbp.mip.messages.external.ExperimentQuery", paramType = "body" )
   ))
   @ApiResponses(Array(
     new ApiResponse(code = 201, message = "Experiment initialized", response = classOf[ExperimentResult]),

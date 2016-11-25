@@ -16,7 +16,7 @@ val versions = new {
   val snakeyaml = "1.17"
   val scalaTest = "2.2.5"
   val spec2 = "2.3.11"
-  val hadrian = "0.8.4"
+  val hadrian = "0.8.4-scala2.11"
   val precanned = "0.0.7"
 }
 
