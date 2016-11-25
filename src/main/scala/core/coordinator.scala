@@ -326,7 +326,7 @@ class ExperimentActor(val chronosService: ActorRef, val resultDatabase: JobResul
         for (a <- algorithms) {
           val jobId = UUID.randomUUID().toString
           val subjob = AlgorithmActor.Job(jobId, Some(defaultDb), a, validations, job.parameters)
-          val worker = context.actorOf(Props(classOf[AlgorithmActor], chronosService, resultDatabase, federationDatabase, jobResultsFactory))
+          val worker = context.actorOf(Props(classOf[AlgorithmActor], chronosService, resultDatabase, federationDatabase, RequestProtocol))
           worker ! AlgorithmActor.Start(subjob)
         }
 

@@ -32,7 +32,7 @@ class MiningService(val chronosService: ActorRef,
 
     // TODO Gather this information from all the containers
     val mock =
-      """
+    """
         {
             "algorithms": [
             {
@@ -335,7 +335,7 @@ class MiningService(val chronosService: ActorRef,
                 ]
             }
         }
-      """
+    """
 
     get {
       respondWithMediaType(`application/json`) {
@@ -369,7 +369,7 @@ class MiningService(val chronosService: ActorRef,
       entity(as[ExperimentQuery]) {
         case query: ExperimentQuery => {
           val job = query2job(query)
-          ExperimentJob(RequestProtocol) {
+          experimentJob(RequestProtocol) {
             ExperimentActor.Start(job)
           }
         }
@@ -377,10 +377,14 @@ class MiningService(val chronosService: ActorRef,
     }
   }
 
-  def chronosJob(jobResultsFactory: JobResults.Factory = JobResults.defaultFactory)(message : RestMessage): Route =
-    ctx => perRequest(ctx, CoordinatorActor.props(chronosService, resultDatabase, federationDatabase, jobResultsFactory), message)
+  def newCoordinatorActor(jobResultsFactory: JobResults.Factory = JobResults.defaultFactory) = context.actorOf(CoordinatorActor.props(chronosService, resultDatabase, federationDatabase, jobResultsFactory))
 
-  def ExperimentJob(jobResultsFactory: JobResults.Factory = JobResults.defaultFactory)(message : RestMessage): Route =
-    ctx => perRequest(ctx, context.actorOf(Props(classOf[ExperimentActor], chronosService, resultDatabase, federationDatabase, jobResultsFactory)), message)
+  def newExperimentActor(jobResultsFactory: JobResults.Factory = JobResults.defaultFactory) = context.actorOf(Props(classOf[ExperimentActor], chronosService, resultDatabase, federationDatabase, jobResultsFactory))
+
+  def chronosJob(jobResultsFactory: JobResults.Factory = JobResults.defaultFactory)(message : RestMessage): Route =
+    ctx => perRequest(ctx, newCoordinatorActor(jobResultsFactory), message)
+
+  def experimentJob(jobResultsFactory: JobResults.Factory = JobResults.defaultFactory)(message : RestMessage): Route =
+    ctx => perRequest(ctx, newExperimentActor(jobResultsFactory), message)
 
 }

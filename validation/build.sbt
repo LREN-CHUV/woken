@@ -42,7 +42,6 @@ libraryDependencies ++= {
     "org.scalatest"       %%  "scalatest"        % versions.scalaTest % "test",
     "org.specs2"          %%  "specs2-core"      % versions.spec2     % "test",
     "com.netaporter"      %%  "pre-canned"       % versions.precanned % "test",
-    "com.typesafe.akka"   %%  "akka-testkit"     % versions.akka      % "test",
     "io.spray"            %%  "spray-testkit"    % versions.spray     % "test"
   )
 }

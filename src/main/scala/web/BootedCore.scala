@@ -37,7 +37,12 @@ trait BootedCore extends Core with Api with StaticResources {
   /**
    * Create and start our service actor
    */
-  val rootService = system.actorOf(Props(classOf[RoutedHttpService], routes ~ staticResources ), app.jobServiceName)
+  val rootService = system.actorOf(Props(classOf[RoutedHttpService], routes ~ staticResources), app.jobServiceName)
+
+  /**
+    * Create and start actor that acts as akka entry-point
+    */
+  val mainRouter = system.actorOf(Props(classOf[api.MasterRouter], this), name = "entrypoint")
 
   /**
    * Create and start actor responsible to register validation node
