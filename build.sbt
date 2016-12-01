@@ -6,7 +6,7 @@ version       := sys.env.get("VERSION")getOrElse("dev")
 scalaVersion  := "2.11.8"
 
 val versions = new {
-  val woken_messages = "a0244b0"
+  val woken_messages = "d455fa0"
   val akka = "2.3.14"
   val spray = "1.3.2"
   val spark = "2.0.0"
