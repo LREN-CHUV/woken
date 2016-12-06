@@ -44,12 +44,12 @@ class MasterRouter(api: Api) extends Actor {
 
         if (miningRouter.routees.contains(ActorRefRoutee(a))) {
           miningRouter = miningRouter.removeRoutee(a)
-          val r = context.actorOf(Props[LocalCoordinatorActor])
+          val r = api.mining_service.newCoordinatorActor(factory)
           context watch r
           miningRouter = miningRouter.addRoutee(r)
         } else {
           experimentRouter = experimentRouter.removeRoutee(a)
-          val r = context.actorOf(Props[ExperimentActor])
+          val r = api.mining_service.newExperimentActor(factory)
           context watch r
           experimentRouter = experimentRouter.addRoutee(r)
         }
