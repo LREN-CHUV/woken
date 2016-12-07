@@ -5,34 +5,15 @@ import core.{CoordinatorActor, ExperimentActor, JobResults, RestMessage}
 import dao.{JobResultsDAL, LdsmDAL}
 import spray.http.MediaTypes._
 import spray.http._
-import spray.json._
 import spray.routing.Route
 
 import eu.hbp.mip.messages.external._
 
+object MiningService {
 
-// this trait defines our service behavior independently from the service actor
-class MiningService(val chronosService: ActorRef,
-                    val resultDatabase: JobResultsDAL,
-                    val federationDatabase: Option[JobResultsDAL],
-                    val ldsmDatabase: LdsmDAL)(implicit system: ActorSystem) extends MiningServiceDoc with PerRequestCreator with DefaultJsonFormats {
-
-  override def context = system
-  val routes: Route = mining ~ experiment ~ listMethods
-
-  import ApiJsonSupport._
-  import CoordinatorActor._
-  import JobDto._
-
-  implicit object EitherErrorSelector extends ErrorSelector[ErrorResponse.type] {
-    def apply(v: ErrorResponse.type): StatusCode = StatusCodes.BadRequest
-  }
-
-  override def listMethods: Route = path("mining" / "list-methods") {
-
-    // TODO Gather this information from all the containers
-    val mock =
-    """
+  // TODO Gather this information from all the containers
+  val methods_mock =
+  """
         {
             "algorithms": [
             {
@@ -335,11 +316,33 @@ class MiningService(val chronosService: ActorRef,
                 ]
             }
         }
-    """
+  """
+}
+
+// this trait defines our service behavior independently from the service actor
+class MiningService(val chronosService: ActorRef,
+                    val resultDatabase: JobResultsDAL,
+                    val federationDatabase: Option[JobResultsDAL],
+                    val ldsmDatabase: LdsmDAL)(implicit system: ActorSystem) extends MiningServiceDoc with PerRequestCreator with DefaultJsonFormats {
+
+  override def context = system
+  val routes: Route = mining ~ experiment ~ listMethods
+
+  import ApiJsonSupport._
+  import CoordinatorActor._
+  import JobDto._
+
+  implicit object EitherErrorSelector extends ErrorSelector[ErrorResponse.type] {
+    def apply(v: ErrorResponse.type): StatusCode = StatusCodes.BadRequest
+  }
+
+  override def listMethods: Route = path("mining" / "list-methods") {
+
+    import spray.json._
 
     get {
       respondWithMediaType(`application/json`) {
-        complete(mock.parseJson.compactPrint)
+        complete(MiningService.methods_mock.parseJson.compactPrint)
       }
     }
   }

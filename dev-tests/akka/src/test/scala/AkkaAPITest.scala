@@ -36,6 +36,22 @@ class AkkaAPITest extends FlatSpec with Matchers {
   implicit val timeout = Timeout(60 seconds)
   val system = ActorSystem("woken-test")
 
+  // Test methods query
+  {
+    val ref = system.actorSelection("akka.tcp://woken@woken:8088/user/entrypoint")
+    val future = ref ? MethodsQuery()
+
+    val result =
+      try {
+        Await.result(future, timeout.duration)
+      } catch {
+        case te: java.util.concurrent.TimeoutException => this.fail("Timeout!")
+        case e: Exception => this.fail()
+      }
+
+    result should matchPattern { case r: Methods => }
+  }
+
   // Test mining query
   {
     val ref = system.actorSelection("akka.tcp://woken@woken:8088/user/entrypoint")

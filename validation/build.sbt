@@ -7,7 +7,7 @@ scalaVersion := "2.11.7"
 
 
 val versions = new {
-  val woken_messages = "d455fa0"
+  val woken_messages = "76f49ed"
   val akka = "2.3.14"
   val spray = "1.3.2"
   val scalaz = "7.1.3"

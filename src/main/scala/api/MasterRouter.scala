@@ -4,8 +4,9 @@ import akka.actor.{Actor, Props, Terminated}
 import akka.routing.{ActorRefRoutee, RoundRobinRoutingLogic, Router}
 import core.{CoordinatorActor, ExperimentActor, LocalCoordinatorActor}
 import FunctionsInOut._
+import spray.json._
 import core.model.JobResult
-import eu.hbp.mip.messages.external.{Algorithm, ExperimentQuery, MiningQuery, QueryResult, QueryError}
+import eu.hbp.mip.messages.external.{Algorithm, MethodsQuery, ExperimentQuery, MiningQuery, Methods, QueryResult, QueryError}
 
 class MasterRouter(api: Api) extends Actor {
 
@@ -34,6 +35,9 @@ class MasterRouter(api: Api) extends Actor {
   }
 
   def receive = {
+    case query: MethodsQuery => {
+      sender ! Methods(MiningService.methods_mock.parseJson.compactPrint)
+    }
     case MiningQuery(variables, covariables, groups, _, Algorithm(c, n, p)) if c == "" || c == "data" =>
     // TODO To be implemented
     case query: MiningQuery =>
