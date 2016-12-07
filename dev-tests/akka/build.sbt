@@ -10,6 +10,7 @@ val versions = new {
   val woken_messages = "a0244b0"
   val akka = "2.3.14"
   val scalaTest = "2.2.5"
+  val config = "1.2.1"
 }
 
 libraryDependencies ++= {
@@ -18,6 +19,7 @@ libraryDependencies ++= {
     "com.typesafe.akka"   %%  "akka-actor"       % versions.akka           % "test",
     "com.typesafe.akka"   %%  "akka-remote"      % versions.akka           % "test",
     "com.typesafe.akka"   %%  "akka-testkit"     % versions.akka           % "test",
+    "com.typesafe"        %   "config"           % versions.config         % "test",
     "org.scalatest"       %%  "scalatest"        % versions.scalaTest      % "test"
   )
 }

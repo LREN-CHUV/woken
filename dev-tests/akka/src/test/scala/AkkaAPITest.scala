@@ -38,7 +38,7 @@ class AkkaAPITest extends FlatSpec with Matchers {
 
   // Test mining query
   {
-    val ref = system.actorSelection("akka.tcp://woken@127.0.0.1:8088/user/entrypoint")
+    val ref = system.actorSelection("akka.tcp://woken@woken:8088/user/entrypoint")
     val future = ref ? MiningQuery(
       List(VariableId("cognitive_task2")),
       List(VariableId("score_math_course1")),
@@ -60,7 +60,7 @@ class AkkaAPITest extends FlatSpec with Matchers {
 
   // Test experience query
   {
-    val ref = system.actorSelection("akka.tcp://woken@127.0.0.1:8088/user/entrypoint")
+    val ref = system.actorSelection("akka.tcp://woken@woken:8088/user/entrypoint")
     val future = ref ? ExperimentQuery(
       List(VariableId("cognitive_task2")),
       List(VariableId("score_test1"), VariableId("college_math")),
