@@ -3,6 +3,7 @@ package api
 import java.util.UUID
 
 import config.Config
+import config.MetaDatabaseConfig
 import core.model.JobResult
 import core.{ExperimentActor, JobResults, RestMessage}
 import spray.http.StatusCodes
@@ -24,13 +25,16 @@ object FunctionsInOut {
     */
   private[this] val toField = (v: VariableId) => v.code.toLowerCase().replaceAll("-", "_").replaceFirst("^(\\d)", "_$1")
 
-  // TODO: filter is never used
-  private[this] val standardParameters = (query: Query) => Map[String, String] (
-    "PARAM_query" -> s"select ${(query.variables ++ query.covariables ++ query.grouping).distinct.map(toField).mkString(",")} from $mainTable where ${(query.variables ++ query.covariables ++ query.grouping).distinct.map(toField).map(_ + " is not null").mkString(" and ")}",
-    "PARAM_variables" -> query.variables.map(toField).mkString(","),
-    "PARAM_covariables" -> query.covariables.map(toField).mkString(","),
-    "PARAM_grouping" -> query.grouping.map(toField).mkString(",")
-  )
+  private[this] val standardParameters = (query: Query) => {
+    val varList = (query.variables ++ query.covariables ++ query.grouping).distinct.map(toField)
+    Map[String, String](
+      "PARAM_query" -> s"select ${varList.mkString(",")} from $mainTable where ${varList.map(_ + " is not null").mkString(" and ")}",
+      "PARAM_variables" -> query.variables.map(toField).mkString(","),
+      "PARAM_covariables" -> query.covariables.map(toField).mkString(","),
+      "PARAM_grouping" -> query.grouping.map(toField).mkString(","),
+      "PARAM_meta" -> MetaDatabaseConfig.getMetaData(varList).compactPrint
+    )
+  }
 
   def algoParameters(algorithm: Algorithm): Map[String, String] = {
     algorithm.parameters.map({case (key, value) => ("PARAM_MODEL_" + key, value)})

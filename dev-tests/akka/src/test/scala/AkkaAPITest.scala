@@ -60,7 +60,7 @@ class AkkaAPITest extends FlatSpec with Matchers {
       List(VariableId("score_math_course1")),
       Seq.empty[VariableId],
       Seq.empty[Filter],
-      Algorithm("knn", "KNN", Map[String, String]())
+      Algorithm("knn", "K-nearest neighbors with k=5", Map[String, String]("k" -> "5"))
     )
 
     val result =
@@ -82,7 +82,7 @@ class AkkaAPITest extends FlatSpec with Matchers {
       List(VariableId("score_test1"), VariableId("college_math")),
       Seq.empty[VariableId],
       Seq.empty[Filter],
-      List(Algorithm("knn", "KNN", Map[String, String]())),
+      List(Algorithm("knn", "K-nearest neighbors with k=5", Map[String, String]("k" -> "5"))),
       List(Validation("kfold", "kfold", Map("k" -> "2")))
     )
 

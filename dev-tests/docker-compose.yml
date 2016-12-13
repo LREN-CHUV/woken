@@ -69,6 +69,16 @@ sciencedb:
   environment:
     POSTGRES_PASSWORD: test
 
+# Expose the database to the host
+metadb:
+  image: postgres:9.4.5
+  ports:
+    - "65433:5432"
+  volumes:
+    - ./sample-datasets-db/meta/sql:/docker-entrypoint-initdb.d/
+  environment:
+    POSTGRES_PASSWORD: test
+
 woken:
   build: woken
   net: host
