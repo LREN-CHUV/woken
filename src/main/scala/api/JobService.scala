@@ -44,11 +44,11 @@ class JobService(val chronosService: ActorRef,
         {
             "algorithms": [
             {
-                "code": "boxplot",
-                "label": "Box plot",
+                "code": "statisticsSummary",
+                "label": "Statistics Summary",
                 "type": ["statistics"],
                 "environment": "R",
-                "description": "Box plot...",
+                "description": "Statistics Summary...",
                 "docker_image": "hbpmip/r-summary-stats:52198fd",
                 "constraints": {
                     "variable": {
