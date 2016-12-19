@@ -6,7 +6,7 @@ builder:
   image: woken-validation-builder
   pre:
     - echo "Building woken-validation builder image"
-    - ./after-update.sh
+    - $WORKSPACE/../after-update.sh
   post:
     - echo "Finished building woken-validation builder image"
     - echo "Building project..."
