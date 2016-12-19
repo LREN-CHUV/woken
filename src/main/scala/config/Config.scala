@@ -57,8 +57,8 @@ object Config {
     val defaultSettingsConf = config.getConfig("defaultSettings")
     lazy val requestConfig = defaultSettingsConf.getConfig("request")
     lazy val mainTable = requestConfig.getString("mainTable")
-    def dockerImage(plot: String) = requestConfig.getConfig("functions").getConfig(plot.toLowerCase()).getString("image")
-    def isPredictive(plot: String) = requestConfig.getConfig("functions").getConfig(plot.toLowerCase()).getBoolean("predictive")
+    def dockerImage(plot: String) = requestConfig.getConfig("functions").getConfig(plot).getString("image")
+    def isPredictive(plot: String) = requestConfig.getConfig("functions").getConfig(plot).getBoolean("predictive")
     val defaultDb = requestConfig.getString("inDb")
   }
 }
