@@ -30,9 +30,9 @@ object FunctionsInOut {
     val varListDbSafe = varList.map(toField)
     Map[String, String](
       "PARAM_query" -> s"select ${varListDbSafe.mkString(",")} from $mainTable where ${varListDbSafe.map(_ + " is not null").mkString(" and ")}",
-      "PARAM_variables" -> query.variables.map(toField).mkString(","),
-      "PARAM_covariables" -> query.covariables.map(toField).mkString(","),
-      "PARAM_grouping" -> query.grouping.map(toField).mkString(","),
+      "PARAM_variables" -> query.variables.mkString(","),
+      "PARAM_covariables" -> query.covariables.mkString(","),
+      "PARAM_grouping" -> query.grouping.mkString(","),
       "PARAM_meta" -> MetaDatabaseConfig.getMetaData(varList).compactPrint
     )
   }
