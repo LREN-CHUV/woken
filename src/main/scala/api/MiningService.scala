@@ -22,7 +22,7 @@ object MiningService {
                 "type": ["statistics"],
                 "environment": "Python",
                 "description": "Histograms...",
-                "docker_image": "hbpmip/python-histograms:1450b8d",
+                "docker_image": "hbpmip/python-histograms:1d599d2",
                 "constraints": {
                     "variable": {
                       "real": true,
