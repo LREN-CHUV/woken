@@ -16,7 +16,7 @@ import core.model.JobResult
 import core.validation.KFoldCrossValidation
 import core.validation.ValidationPoolManager
 import core.validation.Scores
-import dao.{JobResultsDAL, LdsmDAL}
+import dao.{JobResultsDAL}
 import models.{ChronosJob, Container, EnvironmentVariable => EV}
 import spray.http.StatusCodes
 import spray.httpx.marshalling.ToResponseMarshaller

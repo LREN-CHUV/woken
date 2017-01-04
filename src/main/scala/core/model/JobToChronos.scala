@@ -2,6 +2,7 @@ package core.model
 
 import api.JobDto
 import config.Config
+import config.MetaDatabaseConfig
 import models.{ChronosJob, Container, EnvironmentVariable => EV}
 
 object JobToChronos {
