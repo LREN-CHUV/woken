@@ -26,14 +26,14 @@ object FunctionsInOut {
   private[this] val toField = (v: VariableId) => v.code.toLowerCase().replaceAll("-", "_").replaceFirst("^(\\d)", "_$1")
 
   private[this] val standardParameters = (query: Query) => {
-    val varList = (query.variables ++ query.covariables ++ query.grouping).distinct.map(toField)
+    val varList = (query.variables ++ query.covariables ++ query.grouping).distinct
     val varListDbSafe = varList.map(toField)
     Map[String, String](
       "PARAM_query" -> s"select ${varListDbSafe.mkString(",")} from $mainTable where ${varListDbSafe.map(_ + " is not null").mkString(" and ")}",
-      "PARAM_variables" -> query.variables.mkString(","),
-      "PARAM_covariables" -> query.covariables.mkString(","),
-      "PARAM_grouping" -> query.grouping.mkString(","),
-      "PARAM_meta" -> MetaDatabaseConfig.getMetaData(varList).compactPrint
+      "PARAM_variables" -> query.variables.map(v => v.code).mkString(","),
+      "PARAM_covariables" -> query.covariables.map(v => v.code).mkString(","),
+      "PARAM_grouping" -> query.grouping.map(v => v.code).mkString(","),
+      "PARAM_meta" -> MetaDatabaseConfig.getMetaData(varList.map(v => v.code)).compactPrint
     )
   }
 
