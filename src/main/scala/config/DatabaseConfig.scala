@@ -91,7 +91,6 @@ object MetaDatabaseConfig extends DatabaseConfig[MetaDAL] {
 
   lazy val dal = new MetaDAL(jdbcDriver, jdbcUrl, jdbcUser, jdbcPassword, mainTable)
   lazy val groups = dal.getMetaData
-  println(groups)
 
   def getMetaData(variables: Seq[String]): JsObject = {
 
