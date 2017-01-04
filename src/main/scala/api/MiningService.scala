@@ -17,6 +17,21 @@ object MiningService {
         {
             "algorithms": [
             {
+                "code": "histograms",
+                "label": "Histograms",
+                "type": ["statistics"],
+                "environment": "Python",
+                "description": "Histograms...",
+                "docker_image": "hbpmip/python-histograms:1450b8d",
+                "constraints": {
+                    "variable": {
+                      "real": true,
+                      "binominal": false,
+                      "polynominal": false
+                    }
+                }
+            },
+            {
                 "code": "statisticsSummary",
                 "label": "Statistics Summary",
                 "type": ["statistics"],
