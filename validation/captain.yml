@@ -6,12 +6,13 @@ builder:
   image: woken-validation-builder
   pre:
     - echo "Building woken-validation builder image"
-    - ./after-update.sh
+    - $WORKSPACE/../after-update.sh
   post:
     - echo "Finished building woken-validation builder image"
     - echo "Building project..."
-    - docker run --rm -ti -v $WORKSPACE:/build/ -v $HOME/.m2:/home/build/.m2/ -v $HOME/.ivy2:/home/build/.ivy2 woken-validation-builder
-    - cp target/scala-2.11/woken-validation-assembly-githash.jar dev-tests/woken-validation/lib/woken-validation.jar
+    - docker run --rm -ti --network="host" -v $WORKSPACE:/build/ -v $HOME/.m2:/home/build/.m2/ -v $HOME/.ivy2:/home/build/.ivy2 -e "VERSION=$VERSION" woken-validation-builder
+    - cp target/scala-2.11/woken-validation-assembly-$VERSION.jar target/scala-2.11/woken-validation.jar
+    - cp target/scala-2.11/woken-validation-assembly-$VERSION.jar ../dev-tests/woken/lib/validation/woken-validation.jar
     - echo "Finished building project"
   test:
     - tests/test.sh

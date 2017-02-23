@@ -13,6 +13,8 @@ get_script_dir () {
      pwd
 }
 
+export WORKSPACE=$(get_script_dir)
+
 if pgrep -lf sshuttle > /dev/null ; then
   echo "sshuttle detected. Please close this program as it messes with networking and prevents builds inside Docker to work"
   exit 1
@@ -27,4 +29,4 @@ fi
 # Get git hash as version (temporary solution waiting on better captain)
 export VERSION="$(git log --pretty=format:'%h' -n 1)"
 
-WORKSPACE="$(get_script_dir)" USER_HOME="$HOME" $CAPTAIN build
+$CAPTAIN test

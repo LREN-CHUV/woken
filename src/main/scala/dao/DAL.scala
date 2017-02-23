@@ -1,7 +1,7 @@
 package dao
 
-import java.sql.{DriverManager, ResultSet, ResultSetMetaData, Connection}
-import java.time.{ZoneOffset, OffsetDateTime}
+import java.sql.{Connection, DriverManager, ResultSet, ResultSetMetaData}
+import java.time.{OffsetDateTime, ZoneOffset}
 
 import core.model.JobResult
 import doobie.imports._
@@ -64,22 +64,22 @@ class LdsmDAL(jdbcDriver: String, jdbcUrl: String, jdbcUser: String, jdbcPasswor
     * Returns a list of columns for specified ResultSet which describes column properties we are interested in.
     */
   def getColumnMeta(rsMeta: ResultSetMetaData): List[ColumnMeta] =
-    (for {
-      idx <- (1 to rsMeta.getColumnCount)
-      colName = rsMeta.getColumnLabel(idx).toLowerCase
-      colType = rsMeta.getColumnClassName(idx)
-    } yield ColumnMeta(idx, colName, colType)).toList
+  (for {
+    idx <- (1 to rsMeta.getColumnCount)
+    colName = rsMeta.getColumnLabel(idx).toLowerCase
+    colType = rsMeta.getColumnClassName(idx)
+  } yield ColumnMeta(idx, colName, colType)).toList
 
   /**
     * Creates a stream of results on top of a ResultSet.
     */
   def getStreamOfResults(rs: ResultSet)(implicit cols: List[ColumnMeta]): Stream[JsObject] =
-    new Iterator[JsObject] {
-      def hasNext = rs.next
-      def next() = {
-        rowToObj(rs)
-      }
-    }.toStream
+  new Iterator[JsObject] {
+    def hasNext = rs.next
+    def next() = {
+      rowToObj(rs)
+    }
+  }.toStream
 
   /**
     * Given a row from a ResultSet produces a JSON document.
@@ -158,5 +158,21 @@ class LdsmDAL(jdbcDriver: String, jdbcUrl: String, jdbcUser: String, jdbcPasswor
       "action" -> JsArray(JsObject("cell" -> JsString("data")))
     )
   }
+}
 
+class MetaDAL(jdbcDriver: String, jdbcUrl: String, jdbcUser: String, jdbcPassword: String, table: String) extends LdsmDAL(jdbcDriver, jdbcUrl, jdbcUser, jdbcPassword, table) {
+
+  Class.forName(jdbcDriver)
+  val metaConnection: Connection = DriverManager.getConnection(jdbcUrl, jdbcUser, jdbcPassword)
+
+  def getMetaData : JsObject = runQuery(metaConnection, s"SELECT hierarchy FROM meta_variables")._2.head.fields.get("hierarchy") match {
+    case Some(groups: JsString) => {
+      // Eval the string
+      val stringValue = groups.compactPrint
+      StringContext.treatEscapes(stringValue.substring(1, stringValue.length() - 2)).parseJson.asJsObject
+    }
+    case _ => {
+      JsObject.empty
+    }
+  }
 }

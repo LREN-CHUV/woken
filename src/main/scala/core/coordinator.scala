@@ -16,13 +16,16 @@ import core.model.JobResult
 import core.validation.KFoldCrossValidation
 import core.validation.ValidationPoolManager
 import core.validation.Scores
-import dao.{JobResultsDAL, LdsmDAL}
+import dao.{JobResultsDAL}
 import models.{ChronosJob, Container, EnvironmentVariable => EV}
 import spray.http.StatusCodes
 import spray.httpx.marshalling.ToResponseMarshaller
 import spray.json.{JsString, _}
 
 import scala.concurrent.duration._
+
+import eu.hbp.mip.messages.external.{Algorithm, Validation => ApiValidation}
+import eu.hbp.mip.messages.validation._
 
 /**
   * We use the companion object to hold all the messages that the ``CoordinatorActor``
@@ -254,7 +257,7 @@ object ExperimentActor {
                   jobId: String,
                   inputDb: Option[String],
                   algorithms: Seq[Algorithm],
-                  validations: Seq[api.Validation],
+                  validations: Seq[ApiValidation],
                   parameters: Map[String, String]
                 )
 
@@ -323,7 +326,7 @@ class ExperimentActor(val chronosService: ActorRef, val resultDatabase: JobResul
         for (a <- algorithms) {
           val jobId = UUID.randomUUID().toString
           val subjob = AlgorithmActor.Job(jobId, Some(defaultDb), a, validations, job.parameters)
-          val worker = context.actorOf(Props(classOf[AlgorithmActor], chronosService, resultDatabase, federationDatabase, jobResultsFactory))
+          val worker = context.actorOf(Props(classOf[AlgorithmActor], chronosService, resultDatabase, federationDatabase, RequestProtocol))
           worker ! AlgorithmActor.Start(subjob)
         }
 
@@ -360,14 +363,14 @@ object AlgorithmActor {
   case object WaitForWorkers extends State
 
   // FSM Data
-  case class Data(job: Job, replyTo: ActorRef, var model: Option[String], results: collection.mutable.Map[api.Validation, String], validationCount: Int)
+  case class Data(job: Job, replyTo: ActorRef, var model: Option[String], results: collection.mutable.Map[ApiValidation, String], validationCount: Int)
 
   // Incoming messages
   case class Job(
                   jobId: String,
                   inputDb: Option[String],
                   algorithm: Algorithm,
-                  validations: Seq[api.Validation],
+                  validations: Seq[ApiValidation],
                   parameters: Map[String, String]
                 )
   case class Start(job: Job)
@@ -478,15 +481,15 @@ object CrossValidationActor {
                   jobId: String,
                   inputDb: Option[String],
                   algorithm: Algorithm,
-                  validation: api.Validation,
+                  validation: ApiValidation,
                   parameters: Map[String, String]
                 )
   case class Start(job: Job)
 
 
   // Output Messages
-  case class ResultResponse(validation: api.Validation, data: String)
-  case class ErrorResponse(validation: api.Validation,  message: String)
+  case class ResultResponse(validation: ApiValidation, data: String)
+  case class ErrorResponse(validation: ApiValidation,  message: String)
 
   // TODO not sure if useful
   /*implicit val resultFormat = jsonFormat2(ResultResponse.apply)
@@ -569,10 +572,10 @@ class CrossValidationActor(val chronosService: ActorRef, val resultDatabase: Job
       //TODO If validationPool.size == 0, we cannot perform the cross validation we should throw an error!
       val sendTo = context.actorSelection(validationPool.toList(Random.nextInt(validationPool.size)))
       log.info("Send a validation work for fold " + fold + " to pool agent: " + sendTo)
-      sendTo ! ("Work", fold,  model, testData)
+      sendTo ! ValidationQuery(fold, model, testData)
       stay
     }
-    case Event(("Done", fold: String, variableType: String, results: List[String]), Some(data: Data)) => {
+    case Event(ValidationResult(fold, variableType, results), Some(data: Data)) => {
       log.info("Received validation results for fold " + fold + ".")
       // Score the results
       val groundTruth = data.validation.getTestSet(fold)._2.map(x => x.asJsObject.fields.toList.head._2.compactPrint)
@@ -586,7 +589,7 @@ class CrossValidationActor(val chronosService: ActorRef, val resultDatabase: Job
       // If we have validated all the fold we finish!
       if (data.results.size == data.foldsCount) reduceAndStop(data) else stay
     }
-    case Event(("Error", message: String), Some(data: Data)) => {
+    case Event(ValidationError(message), Some(data: Data)) => {
       log.error(message)
       // On testing fold fails, we notify supervisor and we stop
       context.parent ! CrossValidationActor.ErrorResponse(data.job.validation, message)

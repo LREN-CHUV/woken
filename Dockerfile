@@ -9,8 +9,6 @@ COPY docker/runner/woken.sh /opt/woken/
 RUN chmod +x /opt/woken/woken.sh && \
     ln -s /opt/woken/woken.sh /run.sh
 
-ENV WOKEN_VERSION=githash
-
 # org.label-schema.build-date=$BUILD_DATE
 # org.label-schema.vcs-ref=$VCS_REF
 LABEL org.label-schema.schema-version="1.0" \
@@ -21,11 +19,11 @@ LABEL org.label-schema.schema-version="1.0" \
         org.label-schema.vcs-type="git" \
         org.label-schema.vcs-url="https://github.com/LREN-CHUV/woken" \
         org.label-schema.vendor="LREN CHUV" \
-        org.label-schema.version="$WOKEN_VERSION" \
+        org.label-schema.version="githash" \
         org.label-schema.docker.dockerfile="Dockerfile" \
         org.label-schema.memory-hint="2048"
 
-COPY target/scala-2.11/woken-assembly-$WOKEN_VERSION.jar /opt/woken/woken.jar
+COPY target/scala-2.11/woken.jar /opt/woken/woken.jar
 
 EXPOSE 8087
 EXPOSE 8088

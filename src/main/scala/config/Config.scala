@@ -60,5 +60,6 @@ object Config {
     def dockerImage(plot: String) = requestConfig.getConfig("functions").getConfig(plot).getString("image")
     def isPredictive(plot: String) = requestConfig.getConfig("functions").getConfig(plot).getBoolean("predictive")
     val defaultDb = requestConfig.getString("inDb")
+    val defaultMetaDb = requestConfig.getString("metaDb")
   }
 }

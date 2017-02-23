@@ -1,8 +1,8 @@
 package api
 
 import akka.actor.ActorSystem
-import config.{FederationDatabaseConfig, ResultDatabaseConfig, LdsmDatabaseConfig}
-import core.{CoreActors, Core}
+import config.{FederationDatabaseConfig, LdsmDatabaseConfig, ResultDatabaseConfig}
+import core.{Core, CoreActors}
 import spray.routing.HttpService
 
 /**
@@ -15,8 +15,12 @@ trait Api extends HttpService with CoreActors with Core {
 
   protected implicit val system: ActorSystem
 
+  val job_service = new JobService(chronosHttp, ResultDatabaseConfig.dal, FederationDatabaseConfig.config.map(_.dal), LdsmDatabaseConfig.dal)
+  val mining_service = new MiningService(chronosHttp, ResultDatabaseConfig.dal, FederationDatabaseConfig.config.map(_.dal), LdsmDatabaseConfig.dal)
+
   val routes =
     new SwaggerService().routes ~
-    new JobService(chronosHttp, ResultDatabaseConfig.dal, FederationDatabaseConfig.config.map(_.dal), LdsmDatabaseConfig.dal).routes
+    job_service.routes ~
+    mining_service.routes
 
 }

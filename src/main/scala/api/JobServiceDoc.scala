@@ -26,19 +26,4 @@ trait JobServiceDoc extends Directives {
     new ApiResponse(code = 500, message = "Internal server error", response = classOf[String])
   ))
   def initJob: Route
-
-  /**
-    * The data mining methods listing API
-    */
-  def listMethods: Route
-
-  /**
-    * The data mining API
-    */
-  def mining: Route
-
-  /**
-    * The predictive models cross-validation API
-    */
-  def experiment: Route
 }

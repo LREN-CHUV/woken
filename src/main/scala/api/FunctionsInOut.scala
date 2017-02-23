@@ -3,11 +3,14 @@ package api
 import java.util.UUID
 
 import config.Config
+import config.MetaDatabaseConfig
 import core.model.JobResult
 import core.{ExperimentActor, JobResults, RestMessage}
 import spray.http.StatusCodes
 import spray.httpx.marshalling.ToResponseMarshaller
 import spray.json._
+
+import eu.hbp.mip.messages.external._
 
 /**
   * Transformations for input and output values of functions
@@ -16,25 +19,28 @@ object FunctionsInOut {
   import Config.defaultSettings._
 
   /** Convert variable to lowercase as Postgres returns lowercase fields in its result set
-    * ADNI variables have been adjusted to be valid field names using the following conversions:
+    * Variables codes are sanitized to ensure valid database field names using the following conversions:
     * + replace - by _
     * + prepend _ to the variable name if it starts by a number
     */
   private[this] val toField = (v: VariableId) => v.code.toLowerCase().replaceAll("-", "_").replaceFirst("^(\\d)", "_$1")
 
-  // TODO: filter is never used
-  private[this] val standardParameters = (query: Query) => Map[String, String] (
-    "PARAM_query" -> s"select ${(query.variables ++ query.covariables ++ query.grouping).distinct.map(toField).mkString(",")} from $mainTable where ${(query.variables ++ query.covariables ++ query.grouping).distinct.map(toField).map(_ + " is not null").mkString(" and ")}",
-    "PARAM_variables" -> query.variables.map(toField).mkString(","),
-    "PARAM_covariables" -> query.covariables.map(toField).mkString(","),
-    "PARAM_grouping" -> query.grouping.map(toField).mkString(",")
-  )
+  private[this] val standardParameters = (query: Query) => {
+    val varListDbSafe = (query.variables ++ query.covariables ++ query.grouping).distinct.map(toField)
+    Map[String, String](
+      "PARAM_query" -> s"select ${varListDbSafe.mkString(",")} from $mainTable where ${varListDbSafe.map(_ + " is not null").mkString(" and ")}",
+      "PARAM_variables" -> query.variables.map(toField).mkString(","),
+      "PARAM_covariables" -> query.covariables.map(toField).mkString(","),
+      "PARAM_grouping" -> query.grouping.map(toField).mkString(","),
+      "PARAM_meta" -> MetaDatabaseConfig.getMetaData(varListDbSafe).compactPrint
+    )
+  }
 
   def algoParameters(algorithm: Algorithm): Map[String, String] = {
     algorithm.parameters.map({case (key, value) => ("PARAM_MODEL_" + key, value)})
   }
 
-  def query2job(query: SimpleQuery): JobDto = {
+  def query2job(query: MiningQuery): JobDto = {
 
     val jobId = UUID.randomUUID().toString
     val parameters = standardParameters(query) ++ algoParameters(query.algorithm)

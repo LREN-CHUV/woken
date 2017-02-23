@@ -1,8 +1,7 @@
-
-Run the woken application and the result database locally, use Chronos on hbpfedqa1.
+Run the woken application and the result database locally
 
 Usage:
 
-./test-application.sh
+./run.sh
 
-./start-job.sh
+then run some test scripts contained in http or akka folders

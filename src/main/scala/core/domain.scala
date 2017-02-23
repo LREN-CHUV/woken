@@ -13,7 +13,7 @@ trait RestMessage {
 }
 
 object JobResults {
-  type Factory = scala.collection.Seq[JobResult] => RestMessage
+  type Factory = scala.collection.Seq[JobResult] => Any
 
   val defaultFactory: Factory = PutJobResults
 }
