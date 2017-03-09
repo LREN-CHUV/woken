@@ -55,7 +55,7 @@ libraryDependencies ++= {
   )
 }
 
-resolvers += "hbpmip artifactory" at "http://lab01560:9082/artifactory/libs-release/"
+resolvers += "hbpmip artifactory" at "http://hbps1.chuv.ch/artifactory/libs-release/"
 
 scalacOptions ++= Seq(
   "-unchecked",

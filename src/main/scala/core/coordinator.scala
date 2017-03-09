@@ -418,7 +418,7 @@ class AlgorithmActor(val chronosService: ActorRef, val resultDatabase: JobResult
       val worker = context.actorOf(CoordinatorActor.props(chronosService, resultDatabase, None, jobResultsFactory))
       worker ! CoordinatorActor.Start(subjob)
 
-      // Spawn a ValidationActor for every validation
+      // Spawn a CrossValidationActor for every validation
       for (v <- validations) {
         val jobId = UUID.randomUUID().toString
         val subjob = CrossValidationActor.Job(jobId, job.inputDb, algorithm, v, parameters)
