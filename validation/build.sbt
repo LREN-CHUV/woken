@@ -46,7 +46,7 @@ libraryDependencies ++= {
   )
 }
 
-resolvers += "hbpmip artifactory" at "http://lab01560:9082/artifactory/libs-release/"
+resolvers += "hbpmip artifactory" at "http://hbps1.chuv.ch/artifactory/libs-release/"
 resolvers += "opendatagroup maven" at "http://repository.opendatagroup.com/maven"
 
 scalacOptions ++= Seq(
