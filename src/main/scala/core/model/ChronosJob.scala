@@ -5,7 +5,13 @@ import spray.json.{RootJsonFormat, DefaultJsonProtocol}
 case class Container(
   `type`: String,
   image: String,
-  network: Option[String] = None
+  network: Option[String] = None,
+  parameters: List[DockerParameter]
+)
+
+case class DockerParameter(
+  key: String,
+  value: String
 )
 
 case class EnvironmentVariable(
@@ -34,7 +40,8 @@ case class ChronosJob(
 )
 
 object ChronosJob extends DefaultJsonProtocol {
-  implicit val containerFormat = jsonFormat3(Container.apply)
+  implicit val dockerParameterFormat = jsonFormat2(DockerParameter.apply)
+  implicit val containerFormat = jsonFormat4(Container.apply)
   implicit val environmentVariableFormat = jsonFormat2(EnvironmentVariable.apply)
   implicit val uriFormat = jsonFormat1(Uri.apply)
   implicit val chronosJobFormat: RootJsonFormat[ChronosJob] = jsonFormat13(ChronosJob.apply)

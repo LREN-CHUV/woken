@@ -1,100 +1,146 @@
 # Configuration taken from https://github.com/meltwater/docker-mesos
+# https://github.com/containous/traefik/blob/master/examples/compose-marathon.yml
 
-zookeeper:
-  image: mesoscloud/zookeeper:3.4.6-centos-7
-  ports:
-    - "2181:2181"
-    - "2888:2888"
-    - "3888:3888"
-  environment:
-    SERVERS: 'server.1=127.0.0.1'
-    MYID: '1'
+version: '2'
+services:
+  zookeeper1:
+    image: netflixoss/exhibitor:1.5.2
+    hostname: zookeeper1
+    networks:
+      - woken-bridge
 
-mesosmaster:
-  image: mesosphere/mesos-master:0.28.1
-  net: host
-  volumes:
-    - /var/log/mesos/master
-  environment:
-    MESOS_ZK: 'zk://localhost:2181/mesos'
-    MESOS_QUORUM: '1'
-    MESOS_CLUSTER: 'local'
-    MESOS_HOSTNAME: 'localhost'
-    MESOS_LOG_DIR: '/var/log/mesos/master'
+  mesosmaster:
+    image: mesosphere/mesos-master:1.0.1-2.0.93.ubuntu1404
+    hostname: mesosmaster
+    volumes:
+      - ./log/mesos/master:/var/log/mesos/master:rw
+      - ./tmp/mesos/master:/var/tmp/mesos:rw
+    networks:
+      - woken-bridge
+    environment:
+      MESOS_PORT: 5050
+      MESOS_ZK: 'zk://zookeeper1:2181/mesos'
+      MESOS_QUORUM: '1'
+      MESOS_REGISTRY: 'in_memory'
+      MESOS_CLUSTER: 'local'
+      MESOS_HOSTNAME: 'mesosmaster.docker'
+      MESOS_LOG_DIR: '/var/log/mesos/master'
+    depends_on:
+      - zookeeper1
 
-mesosslave:
-  build: mesos-slave
-  net: host
-  privileged: true
-  volumes:
-    - /var/log/mesos/slave
-    - /sys:/sys
-# /cgroup is needed on some older Linux versions
-#    - /cgroup:/cgroup
-# /usr/bin/docker is needed if you're running an older docker version
-#    - /usr/local/bin/docker:/usr/bin/docker:r
-    - /var/run/docker.sock:/var/run/docker.sock:rw
-  environment:
-    MESOS_MASTER: 'zk://localhost:2181/mesos'
-    MESOS_PORT: '5051'
-    MESOS_LOG_DIR: '/var/log/mesos/slave'
-    MESOS_CONTAINERIZERS: 'docker,mesos'
-    MESOS_EXECUTOR_REGISTRATION_TIMEOUT: '5mins'
-    MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD: '90secs'
-    MESOS_DOCKER_STOP_TIMEOUT: '60secs'
-# If your workstation doesn't have a resolvable hostname/FQDN then $MESOS_HOSTNAME needs to be set to its IP-address
-    MESOS_HOSTNAME: 127.0.0.1
+  mesosslave:
+    image: mesosphere/mesos-slave:1.0.1-2.0.93.ubuntu1404
+    hostname: mesosslave
+    privileged: true
+    volumes:
+      - ./log/mesos/slave:/var/log/mesos/slave:rw
+      - ./tmp/mesos/slave:/var/tmp/mesos:rw
+      - /sys:/sys
+      - /cgroup:/cgroup
+      # /usr/bin/docker is needed if you're running an older docker version
+      #- /usr/bin/docker:/usr/bin/docker:r
+      - /var/run/docker.sock:/var/run/docker.sock:rw
+    networks:
+      - woken-bridge
+    environment:
+      MESOS_MASTER: 'zk://zookeeper1:2181/mesos'
+      MESOS_PORT: '5051'
+      MESOS_LOG_DIR: '/var/log/mesos/slave'
+      MESOS_WORK_DIR: '/var/tmp/mesos'
+      MESOS_CONTAINERIZERS: 'docker,mesos'
+      MESOS_EXECUTOR_REGISTRATION_TIMEOUT: '5mins'
+      MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD: '90secs'
+      MESOS_DOCKER_STOP_TIMEOUT: '60secs'
+      # If your workstation doesn't have a resolvable hostname/FQDN then $MESOS_HOSTNAME needs to be set to its IP-address
+      MESOS_HOSTNAME: 'mesosslave.docker'
+      MESOS_SWITCH_USER: 0
+      # see bug resolution for "Failed to determine the hierarchy where the subsystem freezer is attached" at https://github.com/eBayClassifiedsGroup/PanteraS/issues/142
+      MESOS_LAUNCHER: "posix"
+    depends_on:
+     - zookeeper1
+     - mesosmaster
 
-chronos:
-  image: mesosphere/chronos:chronos-2.5.0-0.1.20160223054243.ubuntu1404-mesos-0.27.1-2.0.226.ubuntu1404
-  command: '/usr/bin/chronos run_jar --http_port 4400 --zk_hosts localhost:2181 --master zk://localhost:2181/mesos'
-  net: host
+  chronos:
+    image: mesosphere/chronos:chronos-2.5.0-0.1.20160824153434.ubuntu1404-mesos-1.0.0
+    command: '/usr/bin/chronos run_jar --http_port 4400 --zk_hosts zookeeper1:2181 --master zk://zookeeper1:2181/mesos'
+    hostname: chronos
+    networks:
+      - woken-bridge
+    depends_on:
+     - zookeeper1
+     - mesosslave
 
-# Expose the database to the host, including the Docker container running the algorithms
-analyticsdb:
-  image: postgres:9.4.5
-  net: host
-  volumes:
-    - ./analytics-db/sql:/docker-entrypoint-initdb.d/
-  environment:
-    POSTGRES_PASSWORD: test
+  # Expose the database to the host, including the Docker container running the algorithms
+  analyticsdb:
+    image: postgres:9.4.5
+    ports:
+      - "5432"
+    volumes:
+      - ./analytics-db/sql:/docker-entrypoint-initdb.d/
+    hostname: analyticsdb
+    networks:
+      - woken-bridge
+    environment:
+      POSTGRES_PASSWORD: test
 
-# Expose the database to the host, including the Docker container running the algorithms
-sciencedb:
-  image: postgres:9.4.5
-  ports:
-    - "65432:5432"
-  volumes:
-    - ./sample-datasets-db/sql:/docker-entrypoint-initdb.d/
-  environment:
-    POSTGRES_PASSWORD: test
+  # Expose the database to the host, including the Docker container running the algorithms
+  sciencedb:
+    image: postgres:9.4.5
+    ports:
+      - "5432"
+    volumes:
+      - ./sample-datasets-db/sql:/docker-entrypoint-initdb.d/
+    hostname: sciencedb
+    networks:
+      - woken-bridge
+    environment:
+      POSTGRES_PASSWORD: test
 
-# Expose the database to the host
-metadb:
-  image: postgres:9.4.5
-  ports:
-    - "65433:5432"
-  volumes:
-    - ./sample-datasets-db/meta/sql:/docker-entrypoint-initdb.d/
-  environment:
-    POSTGRES_PASSWORD: test
+  # Expose the database to the host
+  metadb:
+    image: postgres:9.4.5
+    ports:
+      - "5432"
+    volumes:
+      - ./sample-datasets-db/meta/sql:/docker-entrypoint-initdb.d/
+    hostname: metadb
+    networks:
+      - woken-bridge
+    environment:
+      POSTGRES_PASSWORD: test
 
-woken:
-  build: woken
-  net: host
-  volumes:
-    - ./woken/config:/opt/woken/config
-    - ./woken/lib:/opt/woken/lib
-  ports:
-    - "8088:8088"
-  environment:
-    HOST: "${HOST}"
+  woken:
+    build: woken
+    volumes:
+      - ./woken/config:/opt/woken/config
+      - ./woken/lib:/opt/woken/lib
+    ports:
+      - "8087:8087"
+      - "8088:8088"
+    hostname: woken
+    networks:
+      - woken-bridge
+    depends_on:
+      - chronos
+      - analyticsdb
+      - sciencedb
+      - metadb
 
-woken-validation:
-  image: hbpmip/woken-validation:latest
-  net: host
-  volumes:
-    - ./woken/config/validation/application.conf:/opt/woken-validation/config/application.conf
-  ports:
-    - "8082:8082"
+  woken-validation:
+    build: woken-validation
+    volumes:
+      - ./woken-validation/config/application.conf:/opt/woken-validation/config/application.conf
+      - ./woken-validation/lib:/opt/woken-validation/lib
+    ports:
+      - "8082"
+    hostname: woken-validation
+    networks:
+      - woken-bridge
+    depends_on:
+      - woken
+
+networks:
+  woken-bridge:
+    external:
+      name: woken-bridge
 

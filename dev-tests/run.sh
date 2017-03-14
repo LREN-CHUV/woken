@@ -14,7 +14,7 @@ get_script_dir () {
 
 ROOT_DIR="$(get_script_dir)"
 
-used_ports=$(sudo /bin/sh -c "lsof -iTCP -sTCP:LISTEN -P -n | grep -E ':(8087|5432|2181|2888|3888|5050|5051|4400|65432)'" || true)
+used_ports=$(sudo /bin/sh -c "lsof -iTCP -sTCP:LISTEN -P -n | grep -E ':(8087|8088|8082|5432|2181|2888|3888|5050|5051|4400|65432)'" || true)
 
 if [ "$used_ports" != "" ]; then
   echo "Some applications already use the ports required by this set of applications. Please close them."
@@ -28,9 +28,13 @@ if pgrep -lf sshuttle > /dev/null ; then
   exit 1
 fi
 
-echo "Starting the Mesos environment and the woken application..."
-
+# Copy fat jars
+echo "Copying woken and woken-validation jars..."
+#TODO Make sure these jars exist or build them!
 cp $ROOT_DIR/../target/scala-2.11/woken.jar woken/lib/woken.jar
+cp $ROOT_DIR/../validation/target/scala-2.11/woken-validation.jar woken-validation/lib/woken-validation.jar
+
+echo "Starting the Mesos environment and the woken application..."
 
 if groups $USER | grep &>/dev/null '\bdocker\b'; then
   DOCKER_COMPOSE="docker-compose"

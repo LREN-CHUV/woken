@@ -10,6 +10,7 @@ object Config {
     val appConf = config.getConfig("app")
 
     val systemName = appConf.getString("systemName")
+    val dockerBridgeNetwork = appConf.getString("dockerBridgeNetwork")
     val interface = appConf.getString("interface")
     val port = appConf.getInt("port")
     val jobServiceName = appConf.getString("jobServiceName")

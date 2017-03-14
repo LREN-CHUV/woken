@@ -3,7 +3,7 @@ package core.model
 import api.JobDto
 import config.Config
 import config.MetaDatabaseConfig
-import models.{ChronosJob, Container, EnvironmentVariable => EV}
+import models.{ChronosJob, Container, DockerParameter => DP, EnvironmentVariable => EV}
 
 object JobToChronos {
 
@@ -22,7 +22,7 @@ object JobToChronos {
 
   def enrich(job: JobDto): ChronosJob = {
 
-    val container = Container("DOCKER", job.dockerImage)
+    val container = Container("DOCKER", job.dockerImage, Option("BRIDGE"), List(DP("network", app.dockerBridgeNetwork)))
     // On Federation, use the federationDb, otherwise look for the input db in the task or in the configuration of the node
     val inputDb = jobs.federationDb orElse job.inputDb orElse jobs.ldsmDb getOrElse (throw new IllegalArgumentException("federationDb or ldsmDb should be defined in the configuration"))
     val outputDb = jobs.resultDb

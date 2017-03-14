@@ -11,5 +11,4 @@ VOLUME /opt/woken/lib
 
 EXPOSE 8087
 
-CMD echo "Waiting for the databases to start on $HOST:5432 and $HOST:65432 ..." && /usr/local/bin/dockerize -timeout 240s -wait tcp://$HOST:5432 -wait tcp://$HOST:65432 /opt/woken/bin/woken.sh
-
+CMD echo "Waiting for the databases to start on analyticsdb:5432, metadb:5432 and sciencedb:5432 ..." && /usr/local/bin/dockerize -timeout 240s -wait tcp://analyticsdb:5432 -wait tcp://metadb:5432 -wait tcp://sciencedb:5432 /opt/woken/bin/woken.sh

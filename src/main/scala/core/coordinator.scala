@@ -353,7 +353,7 @@ class ExperimentActor(val chronosService: ActorRef, val resultDatabase: JobResul
 }
 
 /**
-  * We use the companion object to hold all the messages that the ``ValidationActor``
+  * We use the companion object to hold all the messages that the ``AlgorithmActor``
   * receives.
   */
 object AlgorithmActor {
