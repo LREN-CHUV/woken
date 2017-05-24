@@ -1,1 +1,6 @@
+.git/
+.idea/
 dev-tests/
+project/project/
+project/target/
+target/

@@ -1,22 +1,3 @@
-# Builder image
-# Creates a portable environemnt to build this project.
-# Do not push this image to Docker hub.
-builder:
-  build: Dockerfile.builder
-  image: woken-build
-  pre:
-    - echo "Building woken builder image"
-    - ./after-update.sh
-  post:
-    - echo $VERSION
-    - echo "Finished building woken builder image"
-    - echo "Building project..."
-    - docker run --rm -ti -u build --network="host" -v $WORKSPACE:/build/ -v $USER_HOME/.m2:/home/build/.m2/ -v $USER_HOME/.ivy2:/home/build/.ivy2 -e "VERSION=$VERSION" woken-build
-    - cp target/scala-2.11/woken-assembly-$VERSION.jar target/scala-2.11/woken.jar
-    - echo "Finished building project"
-  test:
-    - tests/test.sh
-
 woken:
   build: Dockerfile
   image: hbpmip/woken
