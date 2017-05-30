@@ -169,7 +169,7 @@ class MetaDAL(jdbcDriver: String, jdbcUrl: String, jdbcUser: String, jdbcPasswor
     case Some(groups: JsString) => {
       // Eval the string
       val stringValue = groups.compactPrint
-      StringContext.treatEscapes(stringValue.substring(1, stringValue.length() - 2)).parseJson.asJsObject
+      StringContext.treatEscapes(stringValue.substring(1, stringValue.length() - 1)).parseJson.asJsObject
     }
     case _ => {
       JsObject.empty
