@@ -28,10 +28,14 @@ MAINTAINER ludovic.claude54@gmail.com
 
 COPY docker/runner/woken.sh /opt/woken/
 
-RUN chmod +x /opt/woken/woken.sh && \
-    ln -s /opt/woken/woken.sh /run.sh
+RUN adduser -H -D -u 1000 woken \
+    && chmod +x /opt/woken/woken.sh \
+    && ln -s /opt/woken/woken.sh /run.sh \
+    && chown -R woken:woken /opt/woken
 
 COPY --from=build-scala-env /my-project/target/scala-2.11/woken-assembly-dev.jar /opt/woken/woken.jar
+
+USER woken
 
 # org.label-schema.build-date=$BUILD_DATE
 # org.label-schema.vcs-ref=$VCS_REF

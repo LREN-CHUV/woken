@@ -1,7 +1,7 @@
 
 name          := "woken"
 
-version       := sys.env.get("VERSION")getOrElse("dev")
+version       := sys.env.getOrElse("VERSION", "dev")
 
 scalaVersion  := "2.11.8"
 
@@ -10,14 +10,13 @@ val versions = new {
   val akka = "2.3.14"
   val spray = "1.3.2"
   val spark = "2.0.0"
-  val scalaz = "7.1.3"
+  val scalaz = "7.2.7"
   val slf4j = "1.7.13"
   val config = "1.2.1"
-  val postgres = "9.4-1203-jdbc42"
-  val doobie = "0.2.3"
+  val doobie = "0.4.0"
   val snakeyaml = "1.17"
   val scalaTest = "2.2.5"
-  val spec2 = "2.3.11"
+  val spec2 = "3.8.9"
 }
 
 libraryDependencies ++= {
@@ -34,13 +33,13 @@ libraryDependencies ++= {
     //"org.slf4j"         %%  "log4j-over-slf4j"         % versions.slf4j, // For Denodo JDBC driver
     "org.scalaz"          %%  "scalaz-core"              % versions.scalaz,
     "com.typesafe"        %   "config"                   % versions.config,
-    "org.postgresql"      %   "postgresql"               % versions.postgres,
     "org.tpolecat"        %%  "doobie-core"              % versions.doobie,
+    "org.tpolecat"        %%  "doobie-postgres"          % versions.doobie,
     "com.gettyimages"     %%  "spray-swagger"            % "0.5.0" excludeAll ExclusionRule(organization = "io.spray"),
     "org.webjars"         %   "swagger-ui"               % "2.0.12",
     "org.yaml"            %   "snakeyaml"                % versions.snakeyaml,
     "javax.validation"    %   "validation-api"           % "1.1.0.Final",
-    "org.glassfish.hk2"   %   "hk2-locator"              % "2.4.0",
+    "org.glassfish.hk2"   %   "hk2-locator"              % "2.4.0", // Coursier wanted that explicitly
     ("org.apache.spark"   %%  "spark-mllib"              % versions.spark).
       exclude("commons-beanutils", "commons-beanutils-core").
       exclude("commons-collections", "commons-collections").
@@ -51,6 +50,7 @@ libraryDependencies ++= {
   //---------- Test libraries -------------------//
     "org.scalatest"       %%  "scalatest"        % versions.scalaTest % "test",
     "org.specs2"          %%  "specs2-core"      % versions.spec2     % "test",
+    "org.tpolecat"        %%  "doobie-specs2"    % versions.doobie    % "test",
     "com.netaporter"      %%  "pre-canned"       % "0.0.7"            % "test",
     "com.typesafe.akka"   %%  "akka-testkit"     % versions.akka      % "test",
     "io.spray"            %%  "spray-testkit"    % versions.spray     % "test"
