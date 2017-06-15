@@ -26,6 +26,7 @@ import scala.concurrent.duration._
 
 import eu.hbp.mip.messages.external.{Algorithm, Validation => ApiValidation}
 import eu.hbp.mip.messages.validation._
+import eu.hbp.mip.meta.VariableMetaData
 
 /**
   * We use the companion object to hold all the messages that the ``CoordinatorActor``
@@ -474,7 +475,7 @@ object CrossValidationActor {
   case object WaitForWorkers extends State
 
   // FSM Data
-  case class Data(job: Job, replyTo: ActorRef, var validation: KFoldCrossValidation, workers: Map[ActorRef, String], var variableType: String, var average: (List[String], List[String]), var results: collection.mutable.Map[String, Scores], foldsCount: Int)
+  case class Data(job: Job, replyTo: ActorRef, var validation: KFoldCrossValidation, workers: Map[ActorRef, String], var targetMetaData: VariableMetaData, var average: (List[String], List[String]), var results: collection.mutable.Map[String, Scores], foldsCount: Int)
 
   // Incoming messages
   case class Job(
@@ -517,7 +518,7 @@ class CrossValidationActor(val chronosService: ActorRef, val resultDatabase: Job
     // Aggregation of results from all folds
     val jsonValidation = JsObject(
       "type" -> JsString("KFoldCrossValidation"),
-      "average" -> Scores(data.average._1, data.average._2, data.variableType).toJson,
+      "average" -> Scores(data.average._1, data.average._2, data.targetMetaData).toJson,
       "folds" -> new JsObject(data.results.mapValues(s => s.toJson).toMap)
     )
 
@@ -567,23 +568,74 @@ class CrossValidationActor(val chronosService: ActorRef, val resultDatabase: Job
       val fold = data.workers(sender)
       val testData = data.validation.getTestSet(fold)._1.map(d => d.compactPrint)
 
+      // TODO move all this deserialization code
+      // Get target variable's meta data
+      object MyJsonProtocol extends DefaultJsonProtocol {
+        //implicit val variableMetaData = jsonFormat6(VariableMetaData)
+
+        implicit object VariableMetaDataFormat extends RootJsonFormat[VariableMetaData] {
+          // Some fields are optional so we produce a list of options and
+          // then flatten it to only write the fields that were Some(..)
+          def write(item: VariableMetaData) = {
+            JsObject(((item.methodology match {
+              case Some(m) => Some("methodology" -> m.toJson)
+              case _ => None
+            }) :: (item.units match {
+              case Some(u) => Some("units" -> u.toJson)
+              case _ => None
+            }) :: (item.enumerations match {
+              case Some(e) => Some("enumerations" -> e.map({ case (c, l) => (c, l) }).toJson)
+              case _ => None
+            }) :: List(
+              Some("code" -> item.code.toJson),
+              Some("label" -> item.label.toJson),
+              Some("type" -> item.`type`.toJson)
+            )).flatten: _*)
+          }
+
+          // We use the "standard" getFields method to extract the mandatory fields.
+          // For optional fields we extract them directly from the fields map using get,
+          // which already handles the option wrapping for us so all we have to do is map the option
+          def read(json: JsValue) = {
+            val jsObject = json.asJsObject
+
+            jsObject.getFields("code", "label", "type") match {
+              case Seq(code, label, t) ⇒ VariableMetaData(
+                code.convertTo[String],
+                label.convertTo[String],
+                t.convertTo[String],
+                jsObject.fields.get("methodology").map(_.convertTo[String]),
+                jsObject.fields.get("units").map(_.convertTo[String]),
+                jsObject.fields.get("enumerations").map(_.convertTo[JsArray].elements.map(o => o.asJsObject.fields.get("code").get.convertTo[String] -> o.asJsObject.fields.get("label").get.convertTo[String]).toMap)
+              )
+              case other ⇒ deserializationError("Cannot deserialize VariableMetaData: invalid input. Raw input: " + other)
+            }
+          }
+        }
+      }
+      import MyJsonProtocol._
+      val targetMetaData: VariableMetaData = data.job.parameters("PARAM_meta").parseJson.convertTo[Map[String, VariableMetaData]].get(data.job.parameters("PARAM_variables").split(",").head) match {
+        case Some(v: VariableMetaData) => v
+        case None => throw new Exception("Problem with variables' meta data!")
+      }
+
       // Send to a random (simple load balancing) validation node of the pool
       val validationPool = ValidationPoolManager.validationPool
       //TODO If validationPool.size == 0, we cannot perform the cross validation we should throw an error!
       val sendTo = context.actorSelection(validationPool.toList(Random.nextInt(validationPool.size)))
       log.info("Send a validation work for fold " + fold + " to pool agent: " + sendTo)
-      sendTo ! ValidationQuery(fold, model, testData)
+      sendTo ! ValidationQuery(fold, model, testData, targetMetaData)
       stay
     }
-    case Event(ValidationResult(fold, variableType, results), Some(data: Data)) => {
+    case Event(ValidationResult(fold, targetMetaData, results), Some(data: Data)) => {
       log.info("Received validation results for fold " + fold + ".")
       // Score the results
       val groundTruth = data.validation.getTestSet(fold)._2.map(x => x.asJsObject.fields.toList.head._2.compactPrint)
-      data.results(fold) = Scores(results, groundTruth, variableType)
+      data.results(fold) = Scores(results, groundTruth, targetMetaData)
 
       // TODO To be improved with new Spark integration
       // Update the average score
-      data.variableType = variableType
+      data.targetMetaData = targetMetaData
       data.average = (data.average._1 ::: results,  data.average._2 ::: groundTruth)
 
       // If we have validated all the fold we finish!

@@ -8,6 +8,8 @@ import spray.json.{JsNumber, JsObject, JsString, JsValue, JsonFormat, _}
 import spray.json._
 import DefaultJsonProtocol._
 
+import eu.hbp.mip.meta.VariableMetaData
+
 /**
   * Created by Arnaud Jutzeler
   *
@@ -27,20 +29,23 @@ object Scores {
 
   type ConfusionMatrix = scala.collection.mutable.Map[(String, String), Int]
 
+  def enumerateLabel(targetMetaVariable: VariableMetaData): List[String] = {
+    targetMetaVariable.enumerations.get.keys.toList
+  }
+
   /**
     * Output is a list of JSON strings
     *
     * @param output
     * @param groundTruth
-    * @param variableType
-    * @param outputType
+    * @param targetMetaVariable
     * @return
     */
-  def apply(output: List[String], groundTruth: List[String], variableType: String = "real", outputType: String = "simple"): Scores = {
+  def apply(output: List[String], groundTruth: List[String], targetMetaVariable: VariableMetaData): Scores = {
 
-    val score: Scores = (variableType, outputType) match {
-      case ("binominal", _) => new BinaryClassificationScores()
-      case ("polynominal", _) => new ClassificationScores()
+    val score: Scores = targetMetaVariable.`type` match {
+      case "binominal" => new BinaryClassificationScores(enumerateLabel(targetMetaVariable))
+      case "polynominal" => new ClassificationScores(enumerateLabel(targetMetaVariable))
       case _ => new RegressionScores()
     }
 
@@ -92,10 +97,10 @@ case class BinaryClassificationThresholdScores() extends Scores {
   * Wrapper around Spark MLLib's MulticlassMetrics
   *
   */
-case class ClassificationScores() extends Scores {
+case class ClassificationScores(enumeration: List[String]) extends Scores {
 
-  var metrics : MulticlassMetrics = null
-  var labels : List[String] = null
+  var metrics: MulticlassMetrics = null
+  var labelsMap: Map[String, Double] = null
 
   /**
     * @param output
@@ -108,11 +113,9 @@ case class ClassificationScores() extends Scores {
       case (y, f) => (y.parseJson.convertTo[String], f.parseJson.convertTo[String])
     })
 
-    //TODO Use the order defined in the data schema instead
-    labels = data.map(x => x._1).distinct.sorted
-    val labels_map = (labels zip labels.indices).map(x => (x._1, x._2.toDouble)).toMap
+    labelsMap = enumeration.zipWithIndex.map({ case (x, i) => (x, i.toDouble) }).toMap
 
-    val df = spark.createDataFrame(data.map(x => (labels_map.get(x._1), labels_map.get(x._2)))).toDF("output", "label")
+    val df = spark.createDataFrame(data.map(x => {(labelsMap.get(x._1), labelsMap.get(x._2))})).toDF("output", "label")
 
     val predictionAndLabels =
       df.rdd.map {
@@ -126,7 +129,7 @@ case class ClassificationScores() extends Scores {
 
     val matrix = metrics.confusionMatrix
 
-    val n = labels.size
+    val n = labelsMap.size
 
     if(matrix.numCols != n || matrix.numRows != n) {
       return JsObject()
@@ -142,7 +145,7 @@ case class ClassificationScores() extends Scores {
     }
 
     JsObject(
-      "labels" -> labels.toJson,
+      "labels" -> labelsMap.keys.toList.toJson,
       "values" -> array.toJson
     )
   }
@@ -154,7 +157,7 @@ case class ClassificationScores() extends Scores {
   * While waiting for usable BinaryClassificationThresholdScores...
   *
   */
-class BinaryClassificationScores() extends ClassificationScores {
+class BinaryClassificationScores(enumeration: List[String]) extends ClassificationScores(enumeration: List[String]) {
 
   def recall = {
     metrics.confusionMatrix.apply(0, 0) / (metrics.confusionMatrix.apply(0, 0) + metrics.confusionMatrix.apply(0, 1))

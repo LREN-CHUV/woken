@@ -41,4 +41,4 @@ fi
 trap '$DOCKER_COMPOSE rm -f' SIGINT SIGQUIT
 
 export HOST="localhost"
-$DOCKER_COMPOSE up
+$DOCKER_COMPOSE up -d

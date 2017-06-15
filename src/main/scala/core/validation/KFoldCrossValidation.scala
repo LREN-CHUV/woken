@@ -63,7 +63,7 @@ object KFoldCrossValidation {
     // JSON objects with fieldname corresponding to variables names
     val (_, d) = dal.runQuery(dal.ldsmConnection, job.parameters("PARAM_query"))
 
-    // Separate features from labels
+    //  Separate features from labels
     val variables = job.parameters("PARAM_variables").split(",")
     val features = job.parameters("PARAM_covariables").split(",") ++ job.parameters("PARAM_grouping").split(",")
 
