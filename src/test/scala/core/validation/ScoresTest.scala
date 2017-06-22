@@ -11,7 +11,7 @@ class ScoresTest extends FlatSpec with Matchers {
     import org.scalactic.TolerantNumerics
     implicit val doubleEquality = TolerantNumerics.tolerantDoubleEquality(0.001)
 
-    val scores = new BinaryClassificationScores()
+    val scores = new BinaryClassificationScores(List("a", "b"))
 
     val f = List[String](
       "\"a\"",
@@ -88,7 +88,7 @@ class ScoresTest extends FlatSpec with Matchers {
     import org.scalactic.TolerantNumerics
     implicit val doubleEquality = TolerantNumerics.tolerantDoubleEquality(0.001)
 
-    val scores = new ClassificationScores()
+    val scores = new ClassificationScores(List("a", "b", "c"))
 
     val f = List[String](
       "\"a\"",

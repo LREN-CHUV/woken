@@ -1,6 +1,6 @@
 package eu.hbp.mip.validation
 
-import akka.actor.{Actor, ActorLogging, ActorSystem, Address, ExtendedActorSystem, Extension, ExtensionKey, Props}
+import akka.actor.{Actor, ActorLogging, ActorSystem, ExtendedActorSystem, Extension, ExtensionKey, Props}
 import akka.cluster.Cluster
 import com.opendatagroup.hadrian.datatype.{AvroDouble, AvroString}
 import com.opendatagroup.hadrian.jvmcompiler.PFAEngine
@@ -25,27 +25,19 @@ object RemoteAddressExtension extends ExtensionKey[RemoteAddressExtensionImpl]
 class ValidationActor extends Actor with ActorLogging {
 
   def receive = {
-    case ValidationQuery(fold, model, data) ⇒
+    case ValidationQuery(fold, model, data, varInfo) ⇒
       log.info("Received validation work!")
       // Reconstruct model using hadrian and validate over the provided data
       val replyTo = sender()
       try {
 
-        // Run the model on data
         val engine = PFAEngine.fromJson(model).head
-
-        //TODO It is not exact, it can be polynominal or binominal. To be removed from here when we can query the type from somewhere...
-        val variableType: String = engine.outputType match {
-          case v: AvroString => "polynominal"
-          case v: AvroDouble => "real"
-          case _ => "invalid"
-        }
 
         val inputData = engine.jsonInputIterator[AnyRef](data.iterator)
         val outputData : List[String] = inputData.map(x => {engine.jsonOutput(engine.action(x))}).toList
         log.info("Validation work for " + fold + " done!")
 
-        replyTo ! ValidationResult(fold, variableType, outputData)
+        replyTo ! ValidationResult(fold, varInfo, outputData)
       } catch {
         // TODO Too generic!
         case e: Exception => {
