@@ -14,7 +14,7 @@ get_script_dir () {
 
 ROOT_DIR="$(get_script_dir)"
 
-used_ports=$(sudo /bin/sh -c "lsof -iTCP -sTCP:LISTEN -P -n | grep -E ':(8087|8088|8082|5432|2181|2888|3888|5050|5051|4400|65432)'" || true)
+used_ports=$(sudo /bin/sh -c "lsof -iTCP -sTCP:LISTEN -P -n | grep -E ':(8087|8088)'" || true)
 
 if [ "$used_ports" != "" ]; then
   echo "Some applications already use the ports required by this set of applications. Please close them."
@@ -23,16 +23,11 @@ if [ "$used_ports" != "" ]; then
   exit 1
 fi
 
+
 if pgrep -lf sshuttle > /dev/null ; then
   echo "sshuttle detected. Please close this program as it messes with networking and prevents Docker links to work"
   exit 1
 fi
-
-# Copy fat jars
-echo "Copying woken and woken-validation jars..."
-#TODO Make sure these jars exist or build them!
-cp $ROOT_DIR/../target/scala-2.11/woken.jar woken/lib/woken.jar
-cp $ROOT_DIR/../validation/target/scala-2.11/woken-validation.jar woken-validation/lib/woken-validation.jar
 
 echo "Starting the Mesos environment and the woken application..."
 
@@ -44,5 +39,4 @@ fi
 
 trap '$DOCKER_COMPOSE rm -f' SIGINT SIGQUIT
 
-export HOST="localhost"
 $DOCKER_COMPOSE up -d

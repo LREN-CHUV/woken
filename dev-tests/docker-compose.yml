@@ -110,7 +110,7 @@ services:
       POSTGRES_PASSWORD: test
 
   woken:
-    build: woken
+    image: hbpmip/woken:latest
     volumes:
       - ./woken/config:/opt/woken/config
       - ./woken/lib:/opt/woken/lib
@@ -127,7 +127,7 @@ services:
       - metadb
 
   woken-validation:
-    build: woken-validation
+    image: hbpmip/woken-validation:latest
     volumes:
       - ./woken-validation/config/application.conf:/opt/woken-validation/config/application.conf
       - ./woken-validation/lib:/opt/woken-validation/lib

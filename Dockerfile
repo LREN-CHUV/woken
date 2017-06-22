@@ -1,28 +1,18 @@
 # Verified with http://hadolint.lukasmartinelli.ch/
-
 FROM hbpmip/scala-base-build:6d7528a as build-scala-env
 
-COPY project/build.properties project/plugins.sbt /cache/dummy/project/
-WORKDIR /cache/dummy
-
-USER build
-RUN sbt about
-
 USER root
-COPY build.sbt /my-project/
-RUN  mkdir -p /my-project/project/ && chown -R build:build /my-project/
-COPY project/ /my-project/project/
-RUN  chown -R build:build /my-project/
+COPY build.sbt /build/
+RUN  mkdir -p /build/project/
+COPY project/build.properties project/plugins.sbt /build/project/
 
-USER build
-WORKDIR /my-project
 RUN sbt about
 
-COPY src/ /my-project/src/
+COPY src/ /build/src/
 
 RUN sbt assembly
 
-FROM java:openjdk-8u92-jdk-alpine
+FROM openjdk:8u131-jdk-alpine
 
 MAINTAINER ludovic.claude54@gmail.com
 
