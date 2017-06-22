@@ -1,13 +1,13 @@
-package api
+package eu.hbp.mip.woken.api
 
 import akka.actor.{ActorRef, ActorSystem, Props}
-import core.{CoordinatorActor, ExperimentActor, JobResults, RestMessage}
-import dao.{JobResultsDAL, LdsmDAL}
 import spray.http._
 import spray.routing.Route
 import spray.json._
 import MediaTypes._
 
+import eu.hbp.mip.woken.core.{CoordinatorActor, ExperimentActor, JobResults, RestMessage}
+import eu.hbp.mip.woken.dao.{JobResultsDAL, LdsmDAL}
 
 // this trait defines our service behavior independently from the service actor
 class JobService(val chronosService: ActorRef,

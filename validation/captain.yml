@@ -1,22 +1,3 @@
-# Builder image
-# Creates a portable environemnt to build this project.
-# Do not push this image to Docker hub.
-builder:
-  build: Dockerfile.builder
-  image: woken-validation-builder
-  pre:
-    - echo "Building woken-validation builder image"
-    - $WORKSPACE/../after-update.sh
-  post:
-    - echo "Finished building woken-validation builder image"
-    - echo "Building project..."
-    - docker run --rm -ti --network="host" -v $WORKSPACE:/build/ -v $HOME/.m2:/home/build/.m2/ -v $HOME/.ivy2:/home/build/.ivy2 -e "VERSION=$VERSION" woken-validation-builder
-    - cp target/scala-2.11/woken-validation-assembly-$VERSION.jar target/scala-2.11/woken-validation.jar
-    - cp target/scala-2.11/woken-validation-assembly-$VERSION.jar ../dev-tests/woken/lib/validation/woken-validation.jar
-    - echo "Finished building project"
-  test:
-    - tests/test.sh
-
 woken-validation:
   build: Dockerfile
   image: hbpmip/woken-validation
@@ -24,3 +5,5 @@ woken-validation:
     - echo "Building woken-validation image"
   post:
     - echo "Finished building woken-validation image"
+  test:
+      - tests/test.sh

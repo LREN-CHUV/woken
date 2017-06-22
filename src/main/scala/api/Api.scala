@@ -1,9 +1,10 @@
-package api
+package eu.hbp.mip.woken.api
 
 import akka.actor.ActorSystem
-import config.{FederationDatabaseConfig, LdsmDatabaseConfig, ResultDatabaseConfig}
-import core.{Core, CoreActors}
 import spray.routing.HttpService
+
+import eu.hbp.mip.woken.config.{FederationDatabaseConfig, LdsmDatabaseConfig, ResultDatabaseConfig}
+import eu.hbp.mip.woken.core.{Core, CoreActors}
 
 /**
  * The REST API layer. It exposes the REST services, but does not provide any

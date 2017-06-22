@@ -1,7 +1,8 @@
-package config
+package eu.hbp.mip.woken.config
 
 import com.typesafe.config.ConfigFactory
-import cromwell.util.ConfigUtil._
+
+import eu.hbp.mip.woken.cromwell.util.ConfigUtil._
 
 object Config {
   private val config =  ConfigFactory.load()

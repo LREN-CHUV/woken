@@ -1,8 +1,7 @@
-package cromwell.webservice
+package eu.hbp.mip.woken.cromwell.webservice
 
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{OneForOneStrategy, _}
-import cromwell.webservice.PerRequest._
 import spray.http.StatusCodes._
 import spray.http._
 import spray.httpx.marshalling.ToResponseMarshaller
@@ -10,6 +9,8 @@ import spray.routing.RequestContext
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
+
+import eu.hbp.mip.woken.cromwell.webservice.PerRequest._
 
 /**
  * This actor controls the lifecycle of a request. It is responsible for forwarding the initial message

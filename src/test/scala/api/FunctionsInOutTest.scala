@@ -1,9 +1,10 @@
-package api
+package eu.hbp.mip.woken.api
 
 import java.time.OffsetDateTime
 
-import core.model.JobResult
 import org.scalatest.{FlatSpec, Matchers}
+
+import eu.hbp.mip.woken.core.model.JobResult
 
 object FunctionsInOutTest {
 

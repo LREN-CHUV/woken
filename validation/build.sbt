@@ -69,7 +69,7 @@ parallelExecution in Test := false
 
 fork in run := true
 
-mainClass in Runtime := Some("eu.hbp.mip.validation.Main")
+mainClass in Runtime := Some("eu.hbp.mip.woken.validation.Main")
 
 test in assembly := {} // Do not run tests when building the assembly
 

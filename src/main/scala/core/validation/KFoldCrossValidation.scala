@@ -1,8 +1,9 @@
-package core.validation
+package eu.hbp.mip.woken.core.validation
 
-import core.CrossValidationActor
-import dao.LdsmDAL
 import spray.json.{JsValue, _}
+
+import eu.hbp.mip.woken.core.CrossValidationActor
+import eu.hbp.mip.woken.dao.LdsmDAL
 
 trait CrossValidation {
 
@@ -57,7 +58,7 @@ object KFoldCrossValidation {
 
   def apply(job: CrossValidationActor.Job, k: Int) = {
 
-    val conf = config.Config.dbConfig(job.inputDb.get)
+    val conf = eu.hbp.mip.woken.config.Config.dbConfig(job.inputDb.get)
     val dal = new LdsmDAL(conf.jdbcDriver, conf.jdbcUrl, conf.jdbcUser, conf.jdbcPassword, "")
 
     // JSON objects with fieldname corresponding to variables names

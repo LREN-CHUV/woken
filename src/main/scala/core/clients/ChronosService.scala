@@ -1,36 +1,36 @@
-package core.clients
+package eu.hbp.mip.woken.core.clients
+
+import scala.concurrent.Future
+import scala.concurrent.duration._
 
 import akka.actor.{ActorLogging, Actor, Status}
 import akka.io.IO
 import akka.pattern.AskTimeoutException
 import akka.util.Timeout
-import models.ChronosJob
 import spray.can.Http
 import spray.http.{StatusCodes, StatusCode, HttpResponse}
 import spray.httpx.RequestBuilding._
 
-import scala.concurrent.Future
-import scala.concurrent.duration._
+import eu.hbp.mip.woken.models.ChronosJob
 
 object ChronosService {
   // Requests
   case class Schedule(job: ChronosJob)
 
   // Responses
-  val Ok = core.Ok
-  type Error = core.Error
-  val Error = core.Error
+  val Ok = eu.hbp.mip.woken.core.Ok
+  type Error = eu.hbp.mip.woken.core.Error
+  val Error = eu.hbp.mip.woken.core.Error
 }
 
 class ChronosService extends Actor with ActorLogging {
   import ChronosService._
-  import config.Config.jobs._
+  import eu.hbp.mip.woken.config.Config.jobs._
 
   def receive = {
     case Schedule(job) => {
       import akka.pattern.{ask, pipe}
       import spray.httpx.SprayJsonSupport._
-      import ChronosJob._
       implicit val system = context.system
       implicit val executionContext = context.dispatcher
       implicit val timeout: Timeout = Timeout(30.seconds)

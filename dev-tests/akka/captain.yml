@@ -1,13 +1,13 @@
 # Creates a portable environemnt to test akka.
 # Do not push this image to Docker hub.
-akka-test:
-  build: Dockerfile.builder
-  image: akka-test
+woken-akka-test:
+  build: Dockerfile
+  image: woken-akka-test
   pre:
     - echo "Building akka-test image"
   post:
     - echo "Finished building akka-test image"
   test:
     - echo "Testing..."
-    - docker run --rm -ti --add-host woken:$(ip -4 addr show docker0 | grep -Po 'inet \K[\d.]+') -v $WORKSPACE:/build/ -v $HOME/.m2:/home/build/.m2/ -v $HOME/.ivy2:/home/build/.ivy2 --entrypoint /build/test-in-docker.sh -p 8097:8097 akka-test
+    - docker run --rm -ti --add-host woken:$(ip -4 addr show docker0 | grep -Po 'inet \K[\d.]+') -v $WORKSPACE:/build/ -v $HOME/.m2:/home/build/.m2/ -v $HOME/.ivy2:/home/build/.ivy2 --entrypoint /build/test-in-docker.sh -p 8097:8097 woken-akka-test
     - echo "Finish testing"

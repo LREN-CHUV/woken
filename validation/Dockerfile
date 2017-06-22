@@ -1,6 +1,8 @@
 # Verified with http://hadolint.lukasmartinelli.ch/
 
-FROM hbpmip/scala-base-build:6d7528a as build-scala-env
+FROM hbpmip/scala-base-build:e259b84 as build-scala-env
+
+RUN sbt about
 
 COPY project/build.properties project/plugins.sbt /cache/dummy/project/
 WORKDIR /cache/dummy

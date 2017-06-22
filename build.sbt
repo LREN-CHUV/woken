@@ -79,7 +79,7 @@ Revolver.settings : Seq[sbt.Def.Setting[_]]
 
 fork in run := true
 
-mainClass in Runtime := Some("web.Web")
+mainClass in Runtime := Some("eu.hbp.mip.woken.web.Web")
 
 test in assembly := {} // Do not run tests when building the assembly
 

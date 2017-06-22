@@ -3,7 +3,7 @@ name         := "woken-test"
 
 version      := sys.env.get("VERSION")getOrElse("dev")
 
-scalaVersion := "2.11.7"
+scalaVersion := "2.11.8"
 
 
 val versions = new {

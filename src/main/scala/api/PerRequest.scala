@@ -1,4 +1,4 @@
-package api
+package eu.hbp.mip.woken.api
 
 import akka.actor._
 import akka.actor.SupervisorStrategy.Stop
@@ -9,7 +9,7 @@ import akka.actor.OneForOneStrategy
 import scala.concurrent.duration._
 import spray.http.StatusCode
 
-import core._
+import eu.hbp.mip.woken.core._
 
 trait PerRequest extends Actor with ActorLogging {
 
@@ -27,7 +27,7 @@ trait PerRequest extends Actor with ActorLogging {
 
   def receive = {
     case res: RestMessage => complete(OK, res)(res.marshaller.asInstanceOf[ToResponseMarshaller[RestMessage]])
-    case v: core.Validation    => complete(BadRequest, v)
+    case v: eu.hbp.mip.woken.core.Validation => complete(BadRequest, v)
     case v: Error         => complete(BadRequest, v)
     case ReceiveTimeout   => complete(GatewayTimeout, Error("Request timeout"))
     case e: Any           => log.error(s"Unhandled message: $e")

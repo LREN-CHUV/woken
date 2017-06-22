@@ -1,22 +1,23 @@
-package api
+package eu.hbp.mip.woken.api
 
 import java.util.UUID
 
-import config.Config
-import config.MetaDatabaseConfig
-import core.model.JobResult
-import core.{ExperimentActor, JobResults, RestMessage}
 import spray.http.StatusCodes
 import spray.httpx.marshalling.ToResponseMarshaller
 import spray.json._
 
 import eu.hbp.mip.messages.external._
 
+import eu.hbp.mip.woken.config.Config
+import eu.hbp.mip.woken.config.MetaDatabaseConfig
+import eu.hbp.mip.woken.core.model.JobResult
+import eu.hbp.mip.woken.core.{ExperimentActor, JobResults, RestMessage}
+
 /**
   * Transformations for input and output values of functions
   */
 object FunctionsInOut {
-  import Config.defaultSettings._
+  import eu.hbp.mip.woken.config.Config.defaultSettings._
 
   /** Convert variable to lowercase as Postgres returns lowercase fields in its result set
     * Variables codes are sanitized to ensure valid database field names using the following conversions:

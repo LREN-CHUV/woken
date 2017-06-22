@@ -1,12 +1,14 @@
-package api
+package eu.hbp.mip.woken.api
 
 import akka.actor.{Actor, Props, Terminated}
 import akka.routing.{ActorRefRoutee, RoundRobinRoutingLogic, Router}
-import core.{CoordinatorActor, ExperimentActor, LocalCoordinatorActor}
-import FunctionsInOut._
 import spray.json._
-import core.model.JobResult
+
 import eu.hbp.mip.messages.external.{Algorithm, MethodsQuery, ExperimentQuery, MiningQuery, Methods, QueryResult, QueryError}
+
+import eu.hbp.mip.woken.core.{CoordinatorActor, ExperimentActor, LocalCoordinatorActor}
+import eu.hbp.mip.woken.core.model.JobResult
+import FunctionsInOut._
 
 class MasterRouter(api: Api) extends Actor {
 
@@ -14,7 +16,7 @@ class MasterRouter(api: Api) extends Actor {
   def createQueryResult(results: scala.collection.Seq[JobResult]): Any = {
     if (results.length == 1) (QueryResult.apply _).tupled(JobResult.unapply(results.head).get) else QueryError("Cannot make sense of the query output")
   }
-  val factory : core.JobResults.Factory = createQueryResult _
+  val factory : eu.hbp.mip.woken.core.JobResults.Factory = createQueryResult _
 
   var miningRouter = {
     val routees = Vector.fill(5) {

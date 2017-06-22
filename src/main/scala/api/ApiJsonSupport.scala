@@ -1,11 +1,12 @@
-package api
+package eu.hbp.mip.woken.api
 
-import core.Error
-import core.model.JobResult
 import org.yaml.snakeyaml.{Yaml => YamlParser}
 import spray.json._
 
 import eu.hbp.mip.messages.external._
+
+import eu.hbp.mip.woken.core.Error
+import eu.hbp.mip.woken.core.model.JobResult
 
 object ApiJsonSupport extends DefaultJsonProtocol {
 

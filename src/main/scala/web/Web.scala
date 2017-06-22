@@ -1,4 +1,4 @@
-package web
+package eu.hbp.mip.woken.web
 
 /**
  * Provides the web server (spray-can) for the REST api in ``Api``, using the actor system

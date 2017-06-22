@@ -1,4 +1,4 @@
-package eu.hbp.mip.validation
+package eu.hbp.mip.woken.validation
 
 import com.opendatagroup.hadrian.jvmcompiler.PFAEngine
 import org.scalatest._

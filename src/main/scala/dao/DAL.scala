@@ -1,13 +1,14 @@
-package dao
+package eu.hbp.mip.woken.dao
 
 import java.sql.{Connection, DriverManager, ResultSet, ResultSetMetaData}
 import java.time.{OffsetDateTime, ZoneOffset}
 
-import core.model.JobResult
+import scalaz.effect.IO
+
 import doobie.imports._
 import spray.json._
 
-import scalaz.effect.IO
+import eu.hbp.mip.woken.core.model.JobResult
 
 /**
   * Created by ludovic on 25/11/15.

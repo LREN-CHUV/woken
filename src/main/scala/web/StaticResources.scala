@@ -1,4 +1,4 @@
-package web
+package eu.hbp.mip.woken.web
 
 import spray.routing.HttpService
 import spray.http.StatusCodes

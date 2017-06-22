@@ -1,13 +1,14 @@
-package config
+package eu.hbp.mip.woken.config
 
 import java.time.{ZoneId, Instant, OffsetDateTime}
 
-import core.model.JobResult
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+
 import org.specs2.mutable.Specification
 import org.specs2.specification.BeforeAfterEach
 
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
+import eu.hbp.mip.woken.core.model.JobResult
 
 object DatabaseSupportSpec {
 

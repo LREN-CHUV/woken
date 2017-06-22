@@ -1,4 +1,4 @@
-package api
+package eu.hbp.mip.woken.api
 
 import akka.actor.ActorRefFactory
 import com.gettyimages.spray.swagger.SwaggerHttpService

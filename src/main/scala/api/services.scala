@@ -1,4 +1,4 @@
-package api
+package eu.hbp.mip.woken.api
 
 import akka.event.LoggingReceive
 import spray.http.StatusCodes._

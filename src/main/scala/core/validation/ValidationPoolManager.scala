@@ -1,4 +1,4 @@
-package core.validation
+package eu.hbp.mip.woken.core.validation
 
 import akka.actor.{Actor, ActorLogging, ActorPath, RootActorPath}
 import akka.cluster.Cluster

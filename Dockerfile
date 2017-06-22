@@ -1,5 +1,7 @@
 # Verified with http://hadolint.lukasmartinelli.ch/
-FROM hbpmip/scala-base-build:6d7528a as build-scala-env
+FROM hbpmip/scala-base-build:e259b84 as build-scala-env
+
+RUN sbt about
 
 USER root
 COPY build.sbt /build/
@@ -23,7 +25,7 @@ RUN adduser -H -D -u 1000 woken \
     && ln -s /opt/woken/woken.sh /run.sh \
     && chown -R woken:woken /opt/woken
 
-COPY --from=build-scala-env /my-project/target/scala-2.11/woken-assembly-dev.jar /opt/woken/woken.jar
+COPY --from=build-scala-env /build/target/scala-2.11/woken-assembly-dev.jar /opt/woken/woken.jar
 
 USER woken
 

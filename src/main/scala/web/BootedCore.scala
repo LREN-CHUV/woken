@@ -1,16 +1,17 @@
-package web
+package eu.hbp.mip.woken.web
+
+import scala.concurrent.duration._
 
 import akka.actor.{Actor, ActorRefFactory, ActorSystem, ExtendedActorSystem, Extension, ExtensionKey, Props}
 import akka.io.IO
 import akka.util.Timeout
 import akka.cluster.Cluster
-import api.{Api, RoutedHttpService}
-import core.Core
 import spray.can.Http
-import config.Config.app
 
-import scala.concurrent.duration._
-import core.validation.ValidationPoolManager
+import eu.hbp.mip.woken.api.{Api, RoutedHttpService}
+import eu.hbp.mip.woken.core.Core
+import eu.hbp.mip.woken.config.Config.app
+import eu.hbp.mip.woken.core.validation.ValidationPoolManager
 
 class RemoteAddressExtensionImpl(system: ExtendedActorSystem) extends Extension {
   def getAddress() = {
@@ -42,7 +43,7 @@ trait BootedCore extends Core with Api with StaticResources {
   /**
     * Create and start actor that acts as akka entry-point
     */
-  val mainRouter = system.actorOf(Props(classOf[api.MasterRouter], this), name = "entrypoint")
+  val mainRouter = system.actorOf(Props(classOf[eu.hbp.mip.woken.api.MasterRouter], this), name = "entrypoint")
 
   /**
    * Create and start actor responsible to register validation node

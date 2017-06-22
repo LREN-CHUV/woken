@@ -1,7 +1,8 @@
-package core
+package eu.hbp.mip.woken.core
 
 import akka.actor.{ActorRef, Props, ActorSystem}
-import core.clients.ChronosService
+
+import eu.hbp.mip.woken.core.clients.ChronosService
 
 /**
  * Core is type containing the ``system: ActorSystem`` member. This enables us to use it in our

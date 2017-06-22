@@ -1,4 +1,4 @@
-package core
+package eu.hbp.mip.woken.core
 
 import java.time.OffsetDateTime
 import java.util.UUID
@@ -6,18 +6,7 @@ import scala.util.Random
 
 import akka.actor.FSM.Failure
 import akka.actor._
-import api._
 import com.fasterxml.jackson.annotation.JsonValue
-import config.Config.defaultSettings._
-import core.CoordinatorActor.Start
-import core.clients.{ChronosService, JobClientService}
-import core.model.JobToChronos
-import core.model.JobResult
-import core.validation.KFoldCrossValidation
-import core.validation.ValidationPoolManager
-import core.validation.Scores
-import dao.{JobResultsDAL}
-import models.{ChronosJob, Container, EnvironmentVariable => EV}
 import spray.http.StatusCodes
 import spray.httpx.marshalling.ToResponseMarshaller
 import spray.json.{JsString, _}
@@ -27,6 +16,18 @@ import scala.concurrent.duration._
 import eu.hbp.mip.messages.external.{Algorithm, Validation => ApiValidation}
 import eu.hbp.mip.messages.validation._
 import eu.hbp.mip.meta.VariableMetaData
+
+import eu.hbp.mip.woken.api._
+import eu.hbp.mip.woken.config.Config.defaultSettings._
+import eu.hbp.mip.woken.core.CoordinatorActor.Start
+import eu.hbp.mip.woken.core.clients.{ChronosService, JobClientService}
+import eu.hbp.mip.woken.core.model.JobToChronos
+import eu.hbp.mip.woken.core.model.JobResult
+import eu.hbp.mip.woken.core.validation.KFoldCrossValidation
+import eu.hbp.mip.woken.core.validation.ValidationPoolManager
+import eu.hbp.mip.woken.core.validation.Scores
+import eu.hbp.mip.woken.dao.{JobResultsDAL}
+import eu.hbp.mip.woken.models.{ChronosJob, Container, EnvironmentVariable => EV}
 
 /**
   * We use the companion object to hold all the messages that the ``CoordinatorActor``
@@ -50,8 +51,8 @@ object CoordinatorActor {
 
   // Responses
 
-  type Result = core.model.JobResult
-  val Result = core.model.JobResult
+  type Result = eu.hbp.mip.woken.core.model.JobResult
+  val Result = eu.hbp.mip.woken.core.model.JobResult
 
   case class ErrorResponse(message: String) extends RestMessage {
     import spray.httpx.SprayJsonSupport._
@@ -175,7 +176,7 @@ class FederationCoordinatorActor(val chronosService: ActorRef, val resultDatabas
 
   when (WaitForNewJob) {
     case Event(Start(job), data: StateData) => {
-      import config.Config
+      import eu.hbp.mip.woken.config.Config
       val replyTo = sender()
       val nodes = job.nodes.filter(_.isEmpty).getOrElse(Config.jobs.nodes)
 
@@ -270,8 +271,8 @@ object ExperimentActor {
   }
 
   // Output messages: JobResult containing the experiment PFA
-  type Result = core.model.JobResult
-  val Result = core.model.JobResult
+  type Result = eu.hbp.mip.woken.core.model.JobResult
+  val Result = eu.hbp.mip.woken.core.model.JobResult
 
   case class ErrorResponse(message: String) extends RestMessage {
 
@@ -513,7 +514,7 @@ class CrossValidationActor(val chronosService: ActorRef, val resultDatabase: Job
 
   def reduceAndStop(data: CrossValidationActor.Data): State = {
 
-    import core.validation.ScoresProtocol._
+    import eu.hbp.mip.woken.core.validation.ScoresProtocol._
 
     // Aggregation of results from all folds
     val jsonValidation = JsObject(

@@ -1,4 +1,4 @@
-package api
+package eu.hbp.mip.woken.api
 
 import spray.http.StatusCode
 import spray.httpx.SprayJsonSupport

@@ -1,11 +1,12 @@
-package api
+package eu.hbp.mip.woken.api
 
 import javax.ws.rs.Path
 
 import com.wordnik.swagger.annotations.{Api => SwaggerApi, _}
-import core.CoordinatorActor.Result
-import core.CoordinatorActor.{Result => ExperimentResult}
 import spray.routing._
+
+import eu.hbp.mip.woken.core.CoordinatorActor.Result
+import eu.hbp.mip.woken.core.CoordinatorActor.{Result => ExperimentResult}
 
 /**
  * Document the API, try not to pollute the code with annotations

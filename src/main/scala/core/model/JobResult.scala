@@ -1,4 +1,4 @@
-package core.model
+package eu.hbp.mip.woken.core.model
 
 import java.time.{LocalDateTime, ZoneOffset, OffsetDateTime}
 

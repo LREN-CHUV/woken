@@ -1,4 +1,4 @@
-package cromwell.util
+package eu.hbp.mip.woken.cromwell.util
 
 import java.net.{MalformedURLException, URL}
 

@@ -1,4 +1,4 @@
-package core.validation
+package eu.hbp.mip.woken.core.validation
 
 import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics
@@ -357,6 +357,7 @@ object ScoresProtocol extends DefaultJsonProtocol {
         case JsString("BinaryClassificationScores") => value.convertTo[BinaryClassificationScores]
         case JsString("ClassificationScores") => value.convertTo[ClassificationScores]
         case JsString("RegressionScores") => value.convertTo[RegressionScores]
+        case _ => value.convertTo[RegressionScores]
       }
     }
   }

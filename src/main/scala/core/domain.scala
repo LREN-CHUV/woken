@@ -1,10 +1,11 @@
-package core
+package eu.hbp.mip.woken.core
 
 import akka.actor.ReceiveTimeout
-import core.model.JobResult
 import spray.http.StatusCodes
 import spray.httpx.marshalling.ToResponseMarshaller
 import spray.json.{JsString, JsValue, RootJsonFormat, DefaultJsonProtocol}
+
+import eu.hbp.mip.woken.core.model.JobResult
 
 // Messages
 

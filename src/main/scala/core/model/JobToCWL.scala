@@ -1,7 +1,7 @@
-package core.model
+package eu.hbp.mip.woken.core.model
 
-import api.JobDto
-import models.CWLProcess
+import eu.hbp.mip.woken.api.JobDto
+import eu.hbp.mip.woken.models.CWLProcess
 
 object JobToCWL {
 

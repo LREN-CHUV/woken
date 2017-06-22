@@ -1,9 +1,8 @@
-package core.clients
+package eu.hbp.mip.woken.core.clients
 
 import akka.actor.{ActorLogging, AbstractLoggingActor, Actor}
 import akka.io.IO
 import akka.util.Timeout
-import models.ChronosJob
 import spray.can.Http
 import spray.http.{StatusCodes, StatusCode, HttpResponse}
 import spray.httpx.RequestBuilding._
@@ -11,11 +10,13 @@ import spray.httpx.RequestBuilding._
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
+import eu.hbp.mip.woken.models.ChronosJob
+
 object JobClientService {
 
   // Requests
-  type Start = core.CoordinatorActor.Start
-  val Start = core.CoordinatorActor.Start
+  type Start = eu.hbp.mip.woken.core.CoordinatorActor.Start
+  val Start = eu.hbp.mip.woken.core.CoordinatorActor.Start
 
   // Responses
 
@@ -25,13 +26,13 @@ object JobClientService {
 
 class JobClientService(node: String) extends Actor with ActorLogging {
   import JobClientService._
-  import config.Config.jobs._
+  import eu.hbp.mip.woken.config.Config.jobs._
 
   def receive = {
     case Start(job) => {
       import akka.pattern.{ask, pipe}
       import spray.httpx.SprayJsonSupport._
-      import api.JobDto._
+      import eu.hbp.mip.woken.api.JobDto._
       implicit val system = context.system
       implicit val executionContext = context.dispatcher
       implicit val timeout: Timeout = Timeout(180.seconds)

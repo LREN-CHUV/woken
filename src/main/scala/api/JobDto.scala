@@ -1,4 +1,4 @@
-package api
+package eu.hbp.mip.woken.api
 
 import com.wordnik.swagger.annotations.{ApiModel, ApiModelProperty}
 import spray.json.DefaultJsonProtocol

@@ -1,4 +1,4 @@
-package eu.hbp.mip.validation
+package eu.hbp.mip.woken.validation
 
 import akka.actor.{Actor, ActorLogging, ActorSystem, ExtendedActorSystem, Extension, ExtensionKey, Props}
 import akka.cluster.Cluster

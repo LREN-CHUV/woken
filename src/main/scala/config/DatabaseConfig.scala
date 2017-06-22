@@ -1,12 +1,13 @@
-package config
+package eu.hbp.mip.woken.config
 
-import dao._
 import doobie.imports._
 import scalaz.effect.IO
 import com.typesafe.scalalogging.slf4j._
 import org.slf4j.LoggerFactory
 import spray.json.DefaultJsonProtocol._
 import spray.json.deserializationError
+
+import eu.hbp.mip.woken.dao._
 
 trait DatabaseConfig[D <: DAL] {
   def dal: D

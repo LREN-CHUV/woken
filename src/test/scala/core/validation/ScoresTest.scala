@@ -1,4 +1,4 @@
-package core.validation
+package eu.hbp.mip.woken.core.validation
 
 import org.scalatest._
 
@@ -6,9 +6,9 @@ class ScoresTest extends FlatSpec with Matchers {
 
   "BinaryClassificationScores " should "be correct" in {
 
-    import spray.json._
-    import core.validation.ScoresProtocol._
     import org.scalactic.TolerantNumerics
+    import spray.json._
+    import ScoresProtocol._
     implicit val doubleEquality = TolerantNumerics.tolerantDoubleEquality(0.001)
 
     val scores = new BinaryClassificationScores(List("a", "b"))
@@ -44,9 +44,9 @@ class ScoresTest extends FlatSpec with Matchers {
 
   /*"BinaryClassificationThresholdScore " should "be correct" in {
 
+    import org.scalactic.TolerantNumerics
     import spray.json._
     import core.validation.ScoresProtocol._
-    import org.scalactic.TolerantNumerics
     implicit val doubleEquality = TolerantNumerics.tolerantDoubleEquality(0.001)
 
     val scores = new BinaryClassificationThresholdScores()
@@ -83,9 +83,9 @@ class ScoresTest extends FlatSpec with Matchers {
 
   "ClassificationScore " should "be correct" in {
 
-    import spray.json._
-    import core.validation.ScoresProtocol._
     import org.scalactic.TolerantNumerics
+    import spray.json._
+    import ScoresProtocol._
     implicit val doubleEquality = TolerantNumerics.tolerantDoubleEquality(0.001)
 
     val scores = new ClassificationScores(List("a", "b", "c"))
@@ -121,9 +121,9 @@ class ScoresTest extends FlatSpec with Matchers {
 
   "RegressionScores " should "be correct" in {
 
-    import spray.json._
-    import core.validation.ScoresProtocol._
     import org.scalactic.TolerantNumerics
+    import spray.json._
+    import ScoresProtocol._
     implicit val doubleEquality = TolerantNumerics.tolerantDoubleEquality(0.01)
 
     val scores = new RegressionScores()
@@ -144,9 +144,9 @@ class ScoresTest extends FlatSpec with Matchers {
 
   "RegressionScores 2" should "be correct" in {
 
-    import spray.json._
-    import core.validation.ScoresProtocol._
     import org.scalactic.TolerantNumerics
+    import spray.json._
+    import ScoresProtocol._
     implicit val doubleEquality = TolerantNumerics.tolerantDoubleEquality(0.01)
 
     val scores = new RegressionScores()
