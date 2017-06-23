@@ -128,19 +128,17 @@ case class ClassificationScores(enumeration: List[String]) extends Scores {
   def matrixJson(): JsValue = {
 
     val matrix = metrics.confusionMatrix
+    val labels = metrics.labels
 
     val n = labelsMap.size
-
-    if(matrix.numCols != n || matrix.numRows != n) {
-      return JsObject()
-    }
+    val m = labels.length
 
     val array = Array.ofDim[Double](n, n)
 
-    // build a matrix
-    for (i <- 0 until n) {
-      for ( j <- 0 until n) {
-        array(i)(j) = matrix.apply(i, j)
+    // Build the complete matrix
+    for (i <- 0 until m) {
+      for ( j <- 0 until m) {
+        array(labels(i).toInt)(labels(j).toInt) = matrix.apply(i, j)
       }
     }
 
