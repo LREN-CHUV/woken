@@ -1,6 +1,6 @@
 # Verified with http://hadolint.lukasmartinelli.ch/
 
-FROM hbpmip/scala-base-build:e259b84 as build-scala-env
+FROM hbpmip/scala-base-build:dc0eb54 as build-scala-env
 
 RUN sbt about
 
