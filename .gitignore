@@ -8,3 +8,7 @@ src_managed/
 test-output/
 *.iml
 .classpath_nb
+.classpath
+.project
+.settings/
+
