@@ -11,7 +11,7 @@ import spray.json._
 import eu.hbp.mip.woken.core.model.JobResult
 
 /**
-  * Created by ludovic on 25/11/15.
+  * Data Access Layer
   */
 trait DAL {
 }
@@ -22,6 +22,7 @@ object DAL {
       ts => OffsetDateTime.of(ts.toLocalDateTime, ZoneOffset.UTC),
       dt => java.sql.Timestamp.valueOf(dt.toLocalDateTime)
     )
+
 }
 
 trait JobResultsDAL extends DAL {
