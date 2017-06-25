@@ -1,7 +1,7 @@
 package eu.hbp.mip.woken.dao
 
-import java.sql.{Connection, DriverManager, ResultSet, ResultSetMetaData}
-import java.time.{OffsetDateTime, ZoneOffset}
+import java.sql.{ Connection, DriverManager, ResultSet, ResultSetMetaData }
+import java.time.{ OffsetDateTime, ZoneOffset }
 
 import scalaz.effect.IO
 
@@ -11,8 +11,8 @@ import spray.json._
 import eu.hbp.mip.woken.core.model.JobResult
 
 /**
-  * Data Access Layer
-  */
+ * Data Access Layer
+ */
 trait DAL {
 }
 
@@ -20,8 +20,7 @@ object DAL {
   implicit val DateTimeMeta: Meta[OffsetDateTime] =
     Meta[java.sql.Timestamp].nxmap(
       ts => OffsetDateTime.of(ts.toLocalDateTime, ZoneOffset.UTC),
-      dt => java.sql.Timestamp.valueOf(dt.toLocalDateTime)
-    )
+      dt => java.sql.Timestamp.valueOf(dt.toLocalDateTime))
 
 }
 
@@ -63,29 +62,29 @@ class LdsmDAL(jdbcDriver: String, jdbcUrl: String, jdbcUser: String, jdbcPasswor
   }
 
   /**
-    * Returns a list of columns for specified ResultSet which describes column properties we are interested in.
-    */
+   * Returns a list of columns for specified ResultSet which describes column properties we are interested in.
+   */
   def getColumnMeta(rsMeta: ResultSetMetaData): List[ColumnMeta] =
-  (for {
-    idx <- (1 to rsMeta.getColumnCount)
-    colName = rsMeta.getColumnLabel(idx).toLowerCase
-    colType = rsMeta.getColumnClassName(idx)
-  } yield ColumnMeta(idx, colName, colType)).toList
+    (for {
+      idx <- (1 to rsMeta.getColumnCount)
+      colName = rsMeta.getColumnLabel(idx).toLowerCase
+      colType = rsMeta.getColumnClassName(idx)
+    } yield ColumnMeta(idx, colName, colType)).toList
 
   /**
-    * Creates a stream of results on top of a ResultSet.
-    */
+   * Creates a stream of results on top of a ResultSet.
+   */
   def getStreamOfResults(rs: ResultSet)(implicit cols: List[ColumnMeta]): Stream[JsObject] =
-  new Iterator[JsObject] {
-    def hasNext = rs.next
-    def next() = {
-      rowToObj(rs)
-    }
-  }.toStream
+    new Iterator[JsObject] {
+      def hasNext = rs.next
+      def next() = {
+        rowToObj(rs)
+      }
+    }.toStream
 
   /**
-    * Given a row from a ResultSet produces a JSON document.
-    */
+   * Given a row from a ResultSet produces a JSON document.
+   */
   def rowToObj(rs: ResultSet)(implicit cols: List[ColumnMeta]): JsObject = {
     val fields = for {
       ColumnMeta(index, label, datatype) <- cols
@@ -96,12 +95,12 @@ class LdsmDAL(jdbcDriver: String, jdbcUrl: String, jdbcUser: String, jdbcPasswor
   }
 
   /**
-    * Takes a fully qualified Java type as String and returns one of the subtypes of JValue by fetching a value
-    * from result set and converting it to proper type.
-    * It supports only the most common types and everything else that does not match this conversion is converted
-    * to String automatically. If you see that you results should contain more specific type instead of String
-    * add conversion cases to {{{resultsetGetters}}} map.
-    */
+   * Takes a fully qualified Java type as String and returns one of the subtypes of JValue by fetching a value
+   * from result set and converting it to proper type.
+   * It supports only the most common types and everything else that does not match this conversion is converted
+   * to String automatically. If you see that you results should contain more specific type instead of String
+   * add conversion cases to {{{resultsetGetters}}} map.
+   */
   def columnValueGetter(datatype: String, columnIdx: Int, rs: ResultSet): JsValue = {
     val obj = rs.getObject(columnIdx)
     if (obj == null)
@@ -130,18 +129,16 @@ class LdsmDAL(jdbcDriver: String, jdbcUrl: String, jdbcUser: String, jdbcPasswor
     "java.math.BigInteger" -> JsString("number"),
     "java.math.BigDecimal" -> JsString("number"),
     "java.lang.Boolean" -> JsString("boolean"),
-    "java.lang.String" ->  JsString("string")
-  )
+    "java.lang.String" -> JsString("string"))
 
-  def queryData(columns: Seq[String]) = {
+  def queryData(columns: Seq[String]): JsObject = {
     val (meta, data) = runQuery(ldsmConnection, s"select ${columns.mkString(",")} from $table where ${columns.map(_ + " is not null").mkString(" and ")}")
     JsObject(
       "doc" -> JsString(s"Raw data for variables ${meta.map(_.label).mkString(", ")}"),
       "input" -> JsString("null"),
       "output" -> JsObject(
         "type" -> JsString("array"),
-        "items" -> JsObject("type" -> JsString("row"))
-      ),
+        "items" -> JsObject("type" -> JsString("row"))),
       "cells" -> JsObject("data" ->
         JsObject(
           "type" -> JsObject(
@@ -151,14 +148,9 @@ class LdsmDAL(jdbcDriver: String, jdbcUrl: String, jdbcUser: String, jdbcPasswor
               "name" -> JsString("row"),
               "fields" -> JsArray(meta.map(col =>
                 JsObject("name" -> JsString(col.label),
-                  "type" -> resultsetJsTypes(col.datatype))) :_*)
-            )
-          ),
-          "init" -> JsArray(data.toVector)
-        )
-      ),
-      "action" -> JsArray(JsObject("cell" -> JsString("data")))
-    )
+                  "type" -> resultsetJsTypes(col.datatype))): _*))),
+          "init" -> JsArray(data.toVector))),
+      "action" -> JsArray(JsObject("cell" -> JsString("data"))))
   }
 }
 
@@ -167,7 +159,7 @@ class MetaDAL(jdbcDriver: String, jdbcUrl: String, jdbcUser: String, jdbcPasswor
   Class.forName(jdbcDriver)
   val metaConnection: Connection = DriverManager.getConnection(jdbcUrl, jdbcUser, jdbcPassword)
 
-  def getMetaData : JsObject = runQuery(metaConnection, s"SELECT hierarchy FROM meta_variables")._2.head.fields.get("hierarchy") match {
+  def getMetaData: JsObject = runQuery(metaConnection, s"SELECT hierarchy FROM meta_variables")._2.head.fields.get("hierarchy") match {
     case Some(groups: JsString) => {
       // Eval the string
       val stringValue = groups.compactPrint
