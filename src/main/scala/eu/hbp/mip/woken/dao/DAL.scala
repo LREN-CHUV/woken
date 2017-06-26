@@ -56,7 +56,13 @@ class LdsmDAL(jdbcDriver: String, jdbcUrl: String, jdbcUser: String, jdbcPasswor
   case class ColumnMeta(index: Int, label: String, datatype: String)
 
   def runQuery(dbConnection: Connection, query: String): (List[ColumnMeta], Stream[JsObject]) = {
+    // A transaction that sets a seed
+    // TODO The seed must be passed as a query parameters and generated above
+    dbConnection.setAutoCommit(false)
+    dbConnection.prepareStatement("SELECT setseed(0.67)").execute()
     val rs = dbConnection.prepareStatement(query).executeQuery
+    dbConnection.commit()
+    dbConnection.setAutoCommit(true)
     implicit val cols = getColumnMeta(rs.getMetaData)
     (cols, getStreamOfResults(rs))
   }
