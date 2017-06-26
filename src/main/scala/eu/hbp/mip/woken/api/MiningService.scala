@@ -27,6 +27,7 @@ object MiningService {
                 "constraints": {
                     "variable": {
                       "real": true,
+                      "integer": true,
                       "binominal": false,
                       "polynominal": false
                     }
@@ -42,6 +43,7 @@ object MiningService {
                 "constraints": {
                     "variable": {
                       "real": true,
+                      "integer": true,
                       "binominal": false,
                       "polynominal": false
                     }
@@ -58,6 +60,7 @@ object MiningService {
                 "constraints": {
                     "variable": {
                       "real": true,
+                      "integer": true,
                       "binominal": false,
                       "polynominal": false
                     },
@@ -83,6 +86,7 @@ object MiningService {
                 "constraints": {
                     "variable": {
                       "real": true,
+                      "integer": true,
                       "binominal": false,
                       "polynominal": false
                     },
@@ -118,6 +122,7 @@ object MiningService {
                 "constraints": {
                     "variable": {
                       "real": true,
+                      "integer": true,
                       "binominal": true,
                       "polynominal": true
                     },
@@ -171,6 +176,7 @@ object MiningService {
                 "constraints": {
                     "variable": {
                       "real": false,
+                      "integer": false,
                       "binominal": true,
                       "polynominal": true
                     },
@@ -197,6 +203,7 @@ object MiningService {
                 "constraints": {
                     "variable": {
                       "real": true,
+                      "integer": true,
                       "binominal": true,
                       "polynominal": true
                     },
