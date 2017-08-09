@@ -1,6 +1,0 @@
-[submodule "dev-tests/analytics-db"]
-	path = dev-tests/analytics-db
-	url = https://github.com/LREN-CHUV/analytics-db.git
-[submodule "dev-tests/sample-datasets-db"]
-	path = dev-tests/sample-datasets-db
-	url = https://github.com/LREN-CHUV/sample-datasets-db.git
