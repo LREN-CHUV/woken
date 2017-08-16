@@ -16,9 +16,9 @@ class MasterRouter(api: Api) extends Actor {
   def createQueryResult(results: scala.collection.Seq[JobResult]): Any = {
     if (results.length == 1) (QueryResult.apply _).tupled(JobResult.unapply(results.head).get) else QueryError("Cannot make sense of the query output")
   }
-  val factory : eu.hbp.mip.woken.core.JobResults.Factory = createQueryResult _
+  val factory : eu.hbp.mip.woken.core.JobResults.Factory = createQueryResult
 
-  var miningRouter = {
+  var miningRouter: Router = {
     val routees = Vector.fill(5) {
       val r = api.mining_service.newCoordinatorActor(factory)
       context watch r
@@ -27,7 +27,7 @@ class MasterRouter(api: Api) extends Actor {
     Router(RoundRobinRoutingLogic(), routees)
   }
 
-  var experimentRouter = {
+  var experimentRouter: Router = {
     val routees = Vector.fill(5) {
       val r = api.mining_service.newExperimentActor(factory)
       context watch r
@@ -36,7 +36,7 @@ class MasterRouter(api: Api) extends Actor {
     Router(RoundRobinRoutingLogic(), routees)
   }
 
-  def receive = {
+  def receive: PartialFunction[Any, Unit] = {
     case query: MethodsQuery => {
       sender ! Methods(MiningService.methods_mock.parseJson.compactPrint)
     }

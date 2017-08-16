@@ -1,13 +1,11 @@
 package eu.hbp.mip.woken.web
 
 import scala.concurrent.duration._
-
-import akka.actor.{Actor, ActorRefFactory, ActorSystem, ExtendedActorSystem, Extension, ExtensionKey, Props}
+import akka.actor.{Actor, ActorRef, ActorRefFactory, ActorSystem, ExtendedActorSystem, Extension, ExtensionKey, Props}
 import akka.io.IO
 import akka.util.Timeout
 import akka.cluster.Cluster
 import spray.can.Http
-
 import eu.hbp.mip.woken.api.{Api, RoutedHttpService}
 import eu.hbp.mip.woken.core.Core
 import eu.hbp.mip.woken.config.Config.app
@@ -38,17 +36,17 @@ trait BootedCore extends Core with Api with StaticResources {
   /**
    * Create and start our service actor
    */
-  val rootService = system.actorOf(Props(classOf[RoutedHttpService], routes ~ staticResources), app.jobServiceName)
+  val rootService: ActorRef = system.actorOf(Props(classOf[RoutedHttpService], routes ~ staticResources), app.jobServiceName)
 
   /**
     * Create and start actor that acts as akka entry-point
     */
-  val mainRouter = system.actorOf(Props(classOf[eu.hbp.mip.woken.api.MasterRouter], this), name = "entrypoint")
+  val mainRouter: ActorRef = system.actorOf(Props(classOf[eu.hbp.mip.woken.api.MasterRouter], this), name = "entrypoint")
 
   /**
    * Create and start actor responsible to register validation node
    */
-  val validationRegisterActor = system.actorOf(Props[ValidationPoolManager])
+  val validationRegisterActor: ActorRef = system.actorOf(Props[ValidationPoolManager])
 
   implicit val timeout = Timeout(5.seconds)
 

@@ -5,8 +5,9 @@ import spray.http.StatusCodes._
 import spray.http._
 import spray.routing._
 import spray.util.LoggingContext
+
 import util.control.NonFatal
-import akka.actor.{ActorLogging, Actor}
+import akka.actor.{Actor, ActorContext, ActorLogging}
 
 /**
  * Holds potential error response with the HTTP status and optional body
@@ -66,7 +67,7 @@ trait FailureHandling {
  */
 class RoutedHttpService(route: Route) extends Actor with HttpService with ActorLogging with PerRequestCreator {
 
-  implicit def actorRefFactory = context
+  implicit def actorRefFactory: ActorContext = context
 
   implicit val handler = ExceptionHandler {
     case NonFatal(ErrorResponseException(statusCode, entity)) => ctx =>
