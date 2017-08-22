@@ -3,7 +3,7 @@ package eu.hbp.mip.woken.core.model
 import eu.hbp.mip.woken.api.JobDto
 import eu.hbp.mip.woken.config.Config
 import eu.hbp.mip.woken.config.MetaDatabaseConfig
-import eu.hbp.mip.woken.models.{ChronosJob, Container, DockerParameter => DP, EnvironmentVariable => EV}
+import eu.hbp.mip.woken.core.model.{ChronosJob, Container, DockerParameter => DP, EnvironmentVariable => EV}
 
 object JobToChronos {
 

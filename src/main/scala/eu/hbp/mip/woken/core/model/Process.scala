@@ -126,13 +126,13 @@ case class Hint()
 //                            override val hint: List[Hint] = List()
 //                            ) extends models.CWLProcess
 case class Process(
-                            val id: Option[String] = None,
-                            val label: String,
-                            val description: Option[String] = None,
-                            val inputs: List[CommandInputParameter],
-                            val outputs: List[CommandOutputParameter],
+                            id: Option[String] = None,
+                            label: String,
+                            description: Option[String] = None,
+                            inputs: List[CommandInputParameter],
+                            outputs: List[CommandOutputParameter],
                             // TODO override val requirement: List[ProcessRequirement] = List(),
-                            val hint: List[Hint] = List()
+                            hint: List[Hint] = List()
                             )
 
 object Process extends DefaultJsonProtocol {

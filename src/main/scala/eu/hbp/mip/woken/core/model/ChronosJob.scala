@@ -1,4 +1,4 @@
-package eu.hbp.mip.woken.models
+package eu.hbp.mip.woken.core.model
 
 import spray.json.{RootJsonFormat, DefaultJsonProtocol}
 
