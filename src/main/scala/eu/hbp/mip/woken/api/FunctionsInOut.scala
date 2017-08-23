@@ -17,7 +17,7 @@ import eu.hbp.mip.woken.core.{ExperimentActor, JobResults, RestMessage}
   * Transformations for input and output values of functions
   */
 object FunctionsInOut {
-  import eu.hbp.mip.woken.config.WokenConfig.defaultSettings._
+  import WokenConfig.defaultSettings._
 
   /** Convert variable to lowercase as Postgres returns lowercase fields in its result set
     * Variables codes are sanitized to ensure valid database field names using the following conversions:
@@ -64,7 +64,7 @@ object FunctionsInOut {
 case class JsonMessage(json: JsValue) extends RestMessage {
   import spray.httpx.SprayJsonSupport._
   import ApiJsonSupport._
-  val JsonFormat = lift(new RootJsonWriter[JsonMessage] {
+  val JsonFormat: RootJsonFormat[JsonMessage] = lift(new RootJsonWriter[JsonMessage] {
     override def write(obj: JsonMessage): JsValue = JsValueFormat.write(json)
   })
   override def marshaller: ToResponseMarshaller[JsonMessage] = ToResponseMarshaller.fromMarshaller(StatusCodes.OK)(sprayJsonMarshaller(JsonFormat))

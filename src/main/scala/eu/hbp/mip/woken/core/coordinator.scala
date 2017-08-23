@@ -145,6 +145,13 @@ trait CoordinatorActor extends Actor with ActorLogging with LoggingFSM[Coordinat
 
 }
 
+/**
+  *  _________________           _________________                    ____________________
+  * |                 | Start   |                 | Even(Ok, data)   |                    |
+  * | WaitForNewJob   | ------> | WaitForChronos  |----------------> | RequestFinalResult | ==> results
+  * | (Uninitialized) |         | (WaitLocalData) |                  |                    |
+  *  -----------------           -----------------                    --------------------
+  */
 class LocalCoordinatorActor(val chronosService: ActorRef, val resultDatabase: JobResultsDAL,
                             val jobResultsFactory: JobResults.Factory) extends CoordinatorActor {
   import CoordinatorStates._

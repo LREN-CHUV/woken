@@ -1,12 +1,12 @@
 package eu.hbp.mip.woken.api
 
-import akka.actor.{Actor, Props, Terminated}
+import akka.actor.{Actor, Terminated}
 import akka.routing.{ActorRefRoutee, RoundRobinRoutingLogic, Router}
 import spray.json._
 
 import eu.hbp.mip.messages.external.{Algorithm, MethodsQuery, ExperimentQuery, MiningQuery, Methods, QueryResult, QueryError}
 
-import eu.hbp.mip.woken.core.{CoordinatorActor, ExperimentActor, LocalCoordinatorActor}
+import eu.hbp.mip.woken.core.{CoordinatorActor, ExperimentActor}
 import eu.hbp.mip.woken.core.model.JobResult
 import FunctionsInOut._
 

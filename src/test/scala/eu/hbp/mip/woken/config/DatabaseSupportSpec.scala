@@ -1,14 +1,10 @@
 package eu.hbp.mip.woken.config
 
-import java.time.{ZoneId, Instant, OffsetDateTime}
-
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
-
-import org.specs2.mutable.Specification
-import org.specs2.specification.BeforeAfterEach
+import java.time.{Instant, OffsetDateTime, ZoneId}
 
 import eu.hbp.mip.woken.core.model.JobResult
+import org.specs2.mutable.Specification
+import org.specs2.specification.BeforeAfterEach
 
 object DatabaseSupportSpec {
 
@@ -22,11 +18,9 @@ object DatabaseSupportSpec {
 }
 
 trait SpecSupport extends Specification with BeforeAfterEach {
-
-  import ResultDatabaseConfig._
   //import ResultDatabaseConfig.profile.api._
 
-  def createSchema = {
+  def createSchema(): Unit = {
     /*
     val dropAll = dal.jobResults.schema.drop
 
@@ -47,7 +41,7 @@ trait SpecSupport extends Specification with BeforeAfterEach {
   }
 
   override def before: Unit= {
-    createSchema
+    createSchema()
   }
 
   override def after: Unit= { }

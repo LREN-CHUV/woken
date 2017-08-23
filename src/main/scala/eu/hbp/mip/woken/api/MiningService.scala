@@ -1,12 +1,10 @@
 package eu.hbp.mip.woken.api
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, Props}
 import spray.http.MediaTypes._
 import spray.http._
 import spray.routing.Route
-
 import eu.hbp.mip.messages.external._
-
 import eu.hbp.mip.woken.core.{CoordinatorActor, ExperimentActor, JobResults, RestMessage}
 import eu.hbp.mip.woken.dao.{JobResultsDAL, LdsmDAL}
 
@@ -348,7 +346,7 @@ class MiningService(val chronosService: ActorRef,
                     val federationDatabase: Option[JobResultsDAL],
                     val ldsmDatabase: LdsmDAL)(implicit system: ActorSystem) extends MiningServiceDoc with PerRequestCreator with DefaultJsonFormats {
 
-  override def context = system
+  override def context: ActorRefFactory = system
   val routes: Route = mining ~ experiment ~ listMethods
 
   import ApiJsonSupport._
@@ -393,7 +391,7 @@ class MiningService(val chronosService: ActorRef,
 
     post {
       entity(as[ExperimentQuery]) {
-        case query: ExperimentQuery => {
+        query: ExperimentQuery => {
           val job = query2job(query)
           experimentJob(RequestProtocol) {
             ExperimentActor.Start(job)
@@ -403,9 +401,9 @@ class MiningService(val chronosService: ActorRef,
     }
   }
 
-  def newCoordinatorActor(jobResultsFactory: JobResults.Factory = JobResults.defaultFactory) = context.actorOf(CoordinatorActor.props(chronosService, resultDatabase, federationDatabase, jobResultsFactory))
+  def newCoordinatorActor(jobResultsFactory: JobResults.Factory = JobResults.defaultFactory): ActorRef = context.actorOf(CoordinatorActor.props(chronosService, resultDatabase, federationDatabase, jobResultsFactory))
 
-  def newExperimentActor(jobResultsFactory: JobResults.Factory = JobResults.defaultFactory) = context.actorOf(Props(classOf[ExperimentActor], chronosService, resultDatabase, federationDatabase, jobResultsFactory))
+  def newExperimentActor(jobResultsFactory: JobResults.Factory = JobResults.defaultFactory): ActorRef = context.actorOf(Props(classOf[ExperimentActor], chronosService, resultDatabase, federationDatabase, jobResultsFactory))
 
   def chronosJob(jobResultsFactory: JobResults.Factory = JobResults.defaultFactory)(message : RestMessage): Route =
     ctx => perRequest(ctx, newCoordinatorActor(jobResultsFactory), message)
