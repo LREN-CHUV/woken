@@ -38,7 +38,7 @@ trait PerRequest extends Actor with ActorLogging {
     stop(self)
   }
 
-  override val supervisorStrategy =
+  override val supervisorStrategy: SupervisorStrategy =
     OneForOneStrategy() {
       case e => {
         complete(InternalServerError, Error(e.getMessage))
@@ -51,7 +51,7 @@ object PerRequest {
   case class WithActorRef(r: RequestContext, target: ActorRef, message: RestMessage) extends PerRequest
 
   case class WithProps(r: RequestContext, props: Props, message: RestMessage) extends PerRequest {
-    lazy val target = context.actorOf(props)
+    lazy val target: ActorRef = context.actorOf(props)
   }
 }
 
@@ -61,9 +61,9 @@ trait PerRequestCreator {
 
   def context: ActorRefFactory
 
-  def perRequest(r: RequestContext, target: ActorRef, message: RestMessage) =
-    context.actorOf(Props(new WithActorRef(r, target, message)))
+  def perRequest(r: RequestContext, target: ActorRef, message: RestMessage): ActorRef =
+    context.actorOf(Props(WithActorRef(r, target, message)))
 
-  def perRequest(r: RequestContext, props: Props, message: RestMessage) =
-    context.actorOf(Props(new WithProps(r, props, message)))
+  def perRequest(r: RequestContext, props: Props, message: RestMessage): ActorRef =
+    context.actorOf(Props(WithProps(r, props, message)))
 }

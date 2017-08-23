@@ -48,6 +48,8 @@ class MasterRouter(api: Api) extends Actor {
       experimentRouter.route(ExperimentActor.Start(query2job(query)), sender())
     case Terminated(a) =>
 
+        println(s"Actor terminated: $a")
+
         if (miningRouter.routees.contains(ActorRefRoutee(a))) {
           miningRouter = miningRouter.removeRoutee(a)
           val r = api.mining_service.newCoordinatorActor(factory)
