@@ -1,6 +1,6 @@
 package eu.hbp.mip.woken.core.clients
 
-import akka.actor.{ActorLogging, AbstractLoggingActor, Actor}
+import akka.actor.{ActorLogging, Actor}
 import akka.io.IO
 import akka.util.Timeout
 import spray.can.Http
@@ -9,8 +9,6 @@ import spray.httpx.RequestBuilding._
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
-
-import eu.hbp.mip.woken.models.ChronosJob
 
 object JobClientService {
 
@@ -26,7 +24,7 @@ object JobClientService {
 
 class JobClientService(node: String) extends Actor with ActorLogging {
   import JobClientService._
-  import eu.hbp.mip.woken.config.Config.jobs._
+  import eu.hbp.mip.woken.config.WokenConfig.jobs._
 
   def receive = {
     case Start(job) => {

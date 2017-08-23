@@ -28,7 +28,7 @@ case class PutJobResults(results: scala.collection.Seq[JobResult]) extends RestM
 object PutJobResults extends DefaultJsonProtocol with JobResults.Factory {
 
   import JobResult._
-  implicit val seqJobResultFormat = seqFormat[JobResult]
+  implicit val seqJobResultFormat: RootJsonFormat[Seq[JobResult]] = seqFormat[JobResult]
 
   implicit object putJobResultsFormat extends RootJsonFormat[PutJobResults] {
     override def write(r: PutJobResults) = if (r.results.length == 1) jobResultFormat.write(r.results.head) else seqJobResultFormat.write(r.results)

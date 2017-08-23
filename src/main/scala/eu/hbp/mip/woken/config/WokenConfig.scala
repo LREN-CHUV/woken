@@ -3,7 +3,7 @@ package eu.hbp.mip.woken.config
 import com.typesafe.config.{Config, ConfigFactory}
 import eu.hbp.mip.woken.cromwell.util.ConfigUtil._
 
-object Config {
+object WokenConfig {
   private val config =  ConfigFactory.load()
 
   object app {

@@ -28,8 +28,8 @@ class KFoldCrossValidation(data: Stream[JsObject], labels: Stream[JsObject], k: 
     var partition: Map[String, (Int, Int)] = Map()
     if (nb >= k) {
       val t = nb.toFloat / k.toFloat
-      for (i: Int <- 0 to k - 1) {
-        partition += i.toString -> Tuple2(scala.math.round(i * t), (scala.math.round((i + 1) * t)) - scala.math.round(i * t))
+      for (i: Int <- 0 until k) {
+        partition += i.toString -> Tuple2(scala.math.round(i * t), scala.math.round((i + 1) * t) - scala.math.round(i * t))
       }
     }
     partition
@@ -56,9 +56,9 @@ class KFoldCrossValidation(data: Stream[JsObject], labels: Stream[JsObject], k: 
   */
 object KFoldCrossValidation {
 
-  def apply(job: CrossValidationActor.Job, k: Int) = {
+  def apply(job: CrossValidationActor.Job, k: Int): KFoldCrossValidation = {
 
-    val conf = eu.hbp.mip.woken.config.Config.dbConfig(job.inputDb.get)
+    val conf = eu.hbp.mip.woken.config.WokenConfig.dbConfig(job.inputDb.get)
     val dal = new LdsmDAL(conf.jdbcDriver, conf.jdbcUrl, conf.jdbcUser, conf.jdbcPassword, "")
 
     // JSON objects with fieldname corresponding to variables names

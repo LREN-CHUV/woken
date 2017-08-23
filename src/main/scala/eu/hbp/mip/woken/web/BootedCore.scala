@@ -8,7 +8,7 @@ import akka.cluster.Cluster
 import spray.can.Http
 import eu.hbp.mip.woken.api.{Api, RoutedHttpService}
 import eu.hbp.mip.woken.core.Core
-import eu.hbp.mip.woken.config.Config.app
+import eu.hbp.mip.woken.config.WokenConfig.app
 import eu.hbp.mip.woken.core.validation.ValidationPoolManager
 
 class RemoteAddressExtensionImpl(system: ExtendedActorSystem) extends Extension {

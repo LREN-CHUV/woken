@@ -11,7 +11,7 @@ import spray.can.Http
 import spray.http.{StatusCodes, StatusCode, HttpResponse}
 import spray.httpx.RequestBuilding._
 
-import eu.hbp.mip.woken.models.ChronosJob
+import eu.hbp.mip.woken.core.model.ChronosJob
 
 object ChronosService {
   // Requests
@@ -25,7 +25,7 @@ object ChronosService {
 
 class ChronosService extends Actor with ActorLogging {
   import ChronosService._
-  import eu.hbp.mip.woken.config.Config.jobs._
+  import eu.hbp.mip.woken.config.WokenConfig.jobs._
 
   def receive = {
     case Schedule(job) => {

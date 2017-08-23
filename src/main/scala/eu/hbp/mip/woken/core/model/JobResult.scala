@@ -23,5 +23,5 @@ object JobResult extends DefaultJsonProtocol {
     }
   }
 
-  implicit val jobResultFormat = lazyFormat(jsonFormat7(JobResult.apply))
+  implicit val jobResultFormat: JsonFormat[JobResult] = lazyFormat(jsonFormat7(JobResult.apply))
 }

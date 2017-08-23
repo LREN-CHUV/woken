@@ -40,9 +40,9 @@ case class ChronosJob(
 )
 
 object ChronosJob extends DefaultJsonProtocol {
-  implicit val dockerParameterFormat = jsonFormat2(DockerParameter.apply)
-  implicit val containerFormat = jsonFormat4(Container.apply)
-  implicit val environmentVariableFormat = jsonFormat2(EnvironmentVariable.apply)
-  implicit val uriFormat = jsonFormat1(Uri.apply)
+  implicit val dockerParameterFormat: RootJsonFormat[DockerParameter] = jsonFormat2(DockerParameter.apply)
+  implicit val containerFormat: RootJsonFormat[Container] = jsonFormat4(Container.apply)
+  implicit val environmentVariableFormat: RootJsonFormat[EnvironmentVariable] = jsonFormat2(EnvironmentVariable.apply)
+  implicit val uriFormat: RootJsonFormat[Uri] = jsonFormat1(Uri.apply)
   implicit val chronosJobFormat: RootJsonFormat[ChronosJob] = jsonFormat13(ChronosJob.apply)
 }

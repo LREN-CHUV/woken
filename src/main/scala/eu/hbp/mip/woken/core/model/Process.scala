@@ -1,6 +1,6 @@
-package eu.hbp.mip.woken.models
+package eu.hbp.mip.woken.core.model
 
-import spray.json.DefaultJsonProtocol
+import spray.json.{DefaultJsonProtocol, RootJsonFormat}
 
 // http://www.cakesolutions.net/teamblogs/2012/11/30/spray-json-and-adts
 
@@ -136,11 +136,11 @@ case class Process(
                             )
 
 object Process extends DefaultJsonProtocol {
-  implicit val commandInputParameterFormat = jsonFormat0(CommandInputParameter.apply)
-  implicit val commandOutputParameterFormat = jsonFormat0(CommandOutputParameter.apply)
+  implicit val commandInputParameterFormat: RootJsonFormat[CommandInputParameter] = jsonFormat0(CommandInputParameter.apply)
+  implicit val commandOutputParameterFormat: RootJsonFormat[CommandOutputParameter] = jsonFormat0(CommandOutputParameter.apply)
   // implicit val dockerRequirementFormat = jsonFormat7(DockerRequirement.apply)
-  implicit val hintFormat = jsonFormat0(Hint.apply)
-  implicit val processFormat = jsonFormat6(Process.apply)
+  implicit val hintFormat: RootJsonFormat[Hint] = jsonFormat0(Hint.apply)
+  implicit val processFormat: RootJsonFormat[Process] = jsonFormat6(Process.apply)
 
 }
 

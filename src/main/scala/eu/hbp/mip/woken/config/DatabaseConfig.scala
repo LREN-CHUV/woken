@@ -31,7 +31,7 @@ object ResultDatabaseConfig extends DoobieDatabaseConfig[JobResultsDAL] {
       logger.error(s"Cannot connect to $jdbcUrl", e)
   }
 
-  import Config._
+  import WokenConfig._
   val config = dbConfig(jobs.resultDb)
   import config._
   lazy val xa = DriverManagerTransactor[IO](
@@ -47,7 +47,7 @@ object ResultDatabaseConfig extends DoobieDatabaseConfig[JobResultsDAL] {
   */
 //Based on play-slick driver loader
 object FederationDatabaseConfig {
-  import Config._
+  import WokenConfig._
   import ResultDatabaseConfig.testConnection
 
   val config: Option[DatabaseConfig[JobResultsDAL]] = if (!jobs.jobsConf.hasPath("federationDb")) None else
@@ -68,8 +68,8 @@ object FederationDatabaseConfig {
   */
 object LdsmDatabaseConfig extends DatabaseConfig[LdsmDAL] {
 
-  import Config.dbConfig
-  import Config.defaultSettings._
+  import WokenConfig.dbConfig
+  import WokenConfig.defaultSettings._
 
   val config = dbConfig(defaultDb)
   import config._
@@ -83,8 +83,8 @@ object LdsmDatabaseConfig extends DatabaseConfig[LdsmDAL] {
 object MetaDatabaseConfig extends DatabaseConfig[MetaDAL] {
   val logger = Logger(LoggerFactory.getLogger("database"))
 
-  import Config.dbConfig
-  import Config.defaultSettings._
+  import WokenConfig.dbConfig
+  import WokenConfig.defaultSettings._
 
   val config = dbConfig(defaultMetaDb)
   import config._

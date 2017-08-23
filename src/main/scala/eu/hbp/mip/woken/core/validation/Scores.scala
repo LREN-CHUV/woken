@@ -19,7 +19,7 @@ trait Scores {
   // TODO Better integration with spark!
   // Quick fix for spark 2.0.0
   System.setProperty("spark.sql.warehouse.dir", "/tmp ")
-  val spark = SparkSession.builder()
+  val spark: SparkSession = SparkSession.builder()
     .master("local")
     .appName("Woken").getOrCreate()
   def compute(outputs: List[String], labels: List[String]): Unit
@@ -79,8 +79,8 @@ case class BinaryClassificationThresholdScores() extends Scores {
     val data: List[(Map[String, Double], String)] = output.zip(label).map({ case (y, f) => (y.parseJson.convertTo[Map[String, Double]], f.parseJson.convertTo[String]) })
 
     // TODO To be changed once we have the schema
-    labels += (data(0)._1.keys.head -> 0.0)
-    labels += (data(0)._1.keys.last -> 1.0)
+    labels += (data.head._1.keys.head -> 0.0)
+    labels += (data.head._1.keys.last -> 1.0)
 
     // Convert to dataframe
     metrics = labels.keys.map(l => {
