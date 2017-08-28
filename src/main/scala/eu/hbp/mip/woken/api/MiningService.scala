@@ -79,10 +79,17 @@ object MiningService {
                 "code": "anova",
                 "label": "Anova",
                 "type": ["statistics"],
-                "docker_image": "hbpmip/r-linear-regression:52198fd",
-                "environment": "R",
+                "docker_image": "hbpmip/python-anova:b7413ee",
+                "environment": "Python",
                 "description": "ANOVA...",
-                "parameters": [],
+                "parameters": [{
+                    "code": "design",
+                    "label": "design",
+                    "default_value": "factorial",
+                    "type": "enumeration",
+                    "values": ["factorial", "additive"],
+                    "description": "The type of multi-factors design. Choose 'factorial' to enable interactions analysis or 'additive' for a model without no interaction at all."
+                }],
                 "constraints": {
                     "variable": {
                       "real": true,
