@@ -32,3 +32,12 @@ env:
 after_success:
   #- '[[ $TRAVIS_BRANCH == "master" ]] && { sbt publish; };'
   - "sbt coverageReport coveralls"
+notifications:
+  webhooks:
+    urls:
+    - 'https://webhook.atomist.com/travis'
+    on_cancel: always
+    on_error: always
+    on_start: always
+    on_failure: always
+    on_success: always
