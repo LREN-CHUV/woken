@@ -1,0 +1,16 @@
+---
+kind: "operation"
+client: "com.atomist:rug"
+version: "1.0.0-20170816122823"
+editor:
+  name: "AddTravisWebhookEditor"
+  group: "atomist"
+  artifact: "enrollment-rugs"
+  version: "0.3.52"
+  origin:
+    repo: "git@github.com:atomisthq/enrollment-rugs.git"
+    branch: "7a6d5332592a7fa24e9cb5d4080747889e295d1f"
+    sha: "7a6d533"
+  parameters:
+    - "atomistWebhookUrl": "https://webhook.atomist.com/atomist/travis"
+
