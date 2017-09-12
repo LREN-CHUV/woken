@@ -1,15 +1,14 @@
 # Verified with http://hadolint.lukasmartinelli.ch/
-FROM hbpmip/scala-base-build:dc0eb54 as build-scala-env
+FROM hbpmip/scala-base-build:0.13.16-2 as scala-build-env
 
-RUN sbt about
-
-USER root
+# First caching layer: build.sbt and sbt configuration
 COPY build.sbt /build/
 RUN  mkdir -p /build/project/
 COPY project/build.properties project/plugins.sbt /build/project/
 
 RUN sbt about
 
+# Second caching layer: project sources
 COPY src/ /build/src/
 
 RUN sbt assembly
@@ -25,7 +24,7 @@ RUN adduser -H -D -u 1000 woken \
     && ln -s /opt/woken/woken.sh /run.sh \
     && chown -R woken:woken /opt/woken
 
-COPY --from=build-scala-env /build/target/scala-2.11/woken-assembly-dev.jar /opt/woken/woken.jar
+COPY --from=scala-build-env /build/target/scala-2.11/woken-assembly-dev.jar /opt/woken/woken.jar
 
 USER woken
 
