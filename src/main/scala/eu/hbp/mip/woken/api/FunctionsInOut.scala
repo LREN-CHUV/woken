@@ -29,7 +29,7 @@ object FunctionsInOut {
   private[this] val standardParameters = (query: Query) => {
     val varListDbSafe = (query.variables ++ query.covariables ++ query.grouping).distinct.map(toField)
     Map[String, String](
-      "PARAM_query" -> s"select ${varListDbSafe.mkString(",")} from $mainTable where ${varListDbSafe.map(_ + " is not null").mkString(" and ")} ${if (query.filters != "") s"and ${query.filters}" else ""} ORDER BY Random()",
+      "PARAM_query" -> s"select ${varListDbSafe.mkString(",")} from $mainTable where ${varListDbSafe.map(_ + " is not null").mkString(" and ")} ${if (query.filters != "") s"and ${query.filters}" else ""}",
       "PARAM_variables" -> query.variables.map(toField).mkString(","),
       "PARAM_covariables" -> query.covariables.map(toField).mkString(","),
       "PARAM_grouping" -> query.grouping.map(toField).mkString(","),
