@@ -70,7 +70,7 @@ services:
 
   # Expose the database to the host
   db:
-    image: postgres:9.6.3-alpine
+    image: postgres:9.6.5-alpine
     ports:
       - "5432:5432"
     hostname: db
@@ -126,7 +126,7 @@ services:
       - db
 
   sample_db_setup:
-    image: "hbpmip/sample-data-db-setup:0.3.1"
+    image: "hbpmip/sample-data-db-setup:0.3.2"
     container_name: "data-db-setup"
     restart: "no"
     networks:

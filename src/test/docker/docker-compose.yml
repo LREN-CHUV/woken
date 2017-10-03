@@ -72,7 +72,7 @@ services:
 
   # Expose the database to the host
   db:
-    image: postgres:9.6.3-alpine
+    image: postgres:9.6.5-alpine
     ports:
       - "5432:5432"
     hostname: db
