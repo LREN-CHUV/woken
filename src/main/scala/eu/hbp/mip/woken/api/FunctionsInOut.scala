@@ -88,6 +88,11 @@ object RequestProtocol extends DefaultJsonProtocol with JobResults.Factory {
           val json = JsonParser(str)
           JsonMessage(json)
         }
+        case "application/highcharts+json" => {
+          val str = res.data.getOrElse("'No results returned'")
+          val json = JsonParser(str)
+          JsonMessage(json)
+        }
       }
     }
   }
