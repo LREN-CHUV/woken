@@ -77,7 +77,7 @@ object MiningService {
                 "code": "anova",
                 "label": "Anova",
                 "type": ["statistics"],
-                "docker_image": "hbpmip/python-anova:0.1.0",
+                "docker_image": "hbpmip/python-anova:0.2.0",
                 "environment": "Python",
                 "description": "ANOVA...",
                 "parameters": [{
