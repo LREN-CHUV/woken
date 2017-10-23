@@ -7,8 +7,8 @@ scalaVersion  := "2.11.8"
 
 val versions = new {
   val woken_messages = "ee60327"
-  val akka = "2.3.14"
-  val spray = "1.3.2"
+  val akka = "2.3.16"
+  val spray = "1.3.4"
   val spark = "2.0.0"
   val scalaz = "7.2.7"
   val slf4j = "1.7.13"
