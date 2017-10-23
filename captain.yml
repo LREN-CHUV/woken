@@ -1,4 +1,4 @@
-woken:
+target_image:
   build: Dockerfile
   image: hbpmip/woken
   pre:

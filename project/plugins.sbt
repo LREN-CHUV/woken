@@ -2,7 +2,7 @@ scalacOptions ++= Seq( "-unchecked", "-deprecation" )
 
 resolvers += Classpaths.sbtPluginReleases
 
-resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/"
+resolvers += "Typesafe repository" at "https://dl.bintray.com/typesafe/ivy-releases/"
 
 // App Packaging
 addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.3")

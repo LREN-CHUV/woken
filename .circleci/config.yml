@@ -1,0 +1,34 @@
+---
+
+version: 2
+jobs:
+  build:
+    working_directory: ~/src
+    docker:
+      - image: hbpmip/docker-compose-for-ci:17.06-0
+    environment:
+       - CIRCLECI: true
+    steps:
+      - setup_remote_docker:
+          version: 17.06.0-ce
+      - checkout
+      - run:
+          name: "Install requirements"
+          command: |
+            docker --version
+            pre-commit install
+      - run:
+          name: "Validate code quality"
+          command: |
+            pre-commit run --all-files
+      - run:
+          name: "Build the project"
+          command: |
+            PATH=$PATH:/$HOME/.captain/bin/ ./build.sh
+      - run:
+          name: "Test the project"
+          command: |
+            PATH=$PATH:/$HOME/.captain/bin/ ./tests/test.sh
+    notify:
+      webhooks:
+      - url: 'https://webhook.atomist.com/atomist/circle'

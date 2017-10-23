@@ -1,3 +1,3 @@
 #!/bin/sh
 
-git submodule update --init
+pre-commit install

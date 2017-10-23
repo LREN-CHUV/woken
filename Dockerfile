@@ -28,19 +28,19 @@ COPY --from=scala-build-env /build/target/scala-2.11/woken-assembly-dev.jar /opt
 
 USER woken
 
-# org.label-schema.build-date=$BUILD_DATE
-# org.label-schema.vcs-ref=$VCS_REF
-LABEL org.label-schema.schema-version="1.0" \
-        org.label-schema.license="Apache 2.0" \
-        org.label-schema.name="woken" \
-        org.label-schema.description="An orchestration platform for Docker containers running data mining algorithms" \
-        org.label-schema.url="https://github.com/LREN-CHUV/woken" \
-        org.label-schema.vcs-type="git" \
-        org.label-schema.vcs-url="https://github.com/LREN-CHUV/woken" \
-        org.label-schema.vendor="LREN CHUV" \
-        org.label-schema.version="githash" \
-        org.label-schema.docker.dockerfile="Dockerfile" \
-        org.label-schema.memory-hint="2048"
+LABEL org.label-schema.build-date=$BUILD_DATE \
+      org.label-schema.name="hbpmip/woken" \
+      org.label-schema.description="An orchestration platform for Docker containers running data mining algorithms" \
+      org.label-schema.url="https://github.com/LREN-CHUV/woken" \
+      org.label-schema.vcs-type="git" \
+      org.label-schema.vcs-url="https://github.com/LREN-CHUV/woken" \
+      org.label-schema.vcs-ref=$VCS_REF \
+      org.label-schema.version="$VERSION" \
+      org.label-schema.vendor="LREN CHUV" \
+      org.label-schema.license="Apache 2.0" \
+      org.label-schema.docker.dockerfile="Dockerfile" \
+      org.label-schema.memory-hint="2048" \
+      org.label-schema.schema-version="1.0"
 
 EXPOSE 8087
 EXPOSE 8088
