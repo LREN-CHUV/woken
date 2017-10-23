@@ -142,7 +142,7 @@ services:
       - db
 
   woken_db_setup:
-    image: "hbpmip/woken-db-setup:1.0.1"
+    image: "hbpmip/woken-db-setup:1.0.2"
     container_name: "woken-db-setup"
     restart: "no"
     networks:
