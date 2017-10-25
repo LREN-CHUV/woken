@@ -89,7 +89,7 @@ paths:
       summary: Start a job
       description: |
         Launch a new job and distribute its processing over all nodes by default, or execute it only on the
-        nodes selected. 
+        nodes selected.
       parameters:
         - name: job
           in: body
@@ -470,7 +470,7 @@ definitions:
         type: string
         description: Group label
       groups:
-        description: Sub groups - TODO: rename to subgroups
+        description: "Sub groups - TODO: rename to subgroups"
         type: array
         items:
           $ref: '#/definitions/Subgroup'

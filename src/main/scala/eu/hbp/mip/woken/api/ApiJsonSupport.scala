@@ -89,4 +89,3 @@ object ApiJsonSupport extends DefaultJsonProtocol {
     case _ => JsNull
   }
 }
-

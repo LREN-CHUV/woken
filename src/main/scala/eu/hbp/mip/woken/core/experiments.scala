@@ -472,4 +472,3 @@ class CrossValidationActor(val chronosService: ActorRef, val resultDatabase: Job
 
   initialize()
 }
-

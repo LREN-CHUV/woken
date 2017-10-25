@@ -35,4 +35,3 @@ $DOCKER_COMPOSE run features_db_setup
 $DOCKER_COMPOSE run woken_db_setup
 $DOCKER_COMPOSE up -d woken
 echo "Woken up and running..."
-

@@ -97,4 +97,3 @@ object RequestProtocol extends DefaultJsonProtocol with JobResults.Factory {
     }
   }
 }
-

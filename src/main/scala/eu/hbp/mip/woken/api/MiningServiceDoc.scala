@@ -65,4 +65,3 @@ trait MiningServiceDoc extends Directives {
   ))
   def listMethods: Route
 }
-

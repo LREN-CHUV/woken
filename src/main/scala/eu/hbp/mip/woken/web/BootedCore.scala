@@ -59,4 +59,3 @@ trait BootedCore extends Core with Api with StaticResources {
   sys.addShutdownHook(system.shutdown())
 
 }
-

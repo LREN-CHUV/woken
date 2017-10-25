@@ -143,4 +143,3 @@ object Process extends DefaultJsonProtocol {
   implicit val processFormat: RootJsonFormat[Process] = jsonFormat6(Process.apply)
 
 }
-

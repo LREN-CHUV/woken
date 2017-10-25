@@ -46,4 +46,3 @@ trait SpecSupport extends Specification with BeforeAfterEach {
 
   override def after: Unit= { }
 }
-

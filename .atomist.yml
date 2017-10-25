@@ -13,4 +13,3 @@ editor:
     sha: "7a6d533"
   parameters:
     - "atomistWebhookUrl": "https://webhook.atomist.com/atomist/travis"
-
