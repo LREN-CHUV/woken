@@ -1,13 +1,12 @@
 package eu.hbp.mip.woken.dao
 
-import java.sql.{ Connection, DriverManager, ResultSet, ResultSetMetaData }
-import java.time.{ OffsetDateTime, ZoneOffset }
+import java.sql.{Connection, DriverManager, ResultSet, ResultSetMetaData}
+import java.time.{OffsetDateTime, ZoneOffset}
 
 import scalaz.effect.IO
-
 import doobie.imports._
+import eu.hbp.mip.woken.config.WokenConfig
 import spray.json._
-
 import eu.hbp.mip.woken.core.model.JobResult
 
 /**
@@ -162,10 +161,12 @@ class LdsmDAL(jdbcDriver: String, jdbcUrl: String, jdbcUser: String, jdbcPasswor
 
 class MetaDAL(jdbcDriver: String, jdbcUrl: String, jdbcUser: String, jdbcPassword: String, table: String) extends LdsmDAL(jdbcDriver, jdbcUrl, jdbcUser, jdbcPassword, table) {
 
+  import WokenConfig.defaultSettings._
+
   Class.forName(jdbcDriver)
   val metaConnection: Connection = DriverManager.getConnection(jdbcUrl, jdbcUser, jdbcPassword)
 
-  def getMetaData: JsObject = runQuery(metaConnection, s"SELECT hierarchy FROM meta_variables")._2.head.fields.get("hierarchy") match {
+  def getMetaData: JsObject = runQuery(metaConnection, s"SELECT hierarchy FROM meta_variables WHERE target_table='${mainTable.toUpperCase}'")._2.head.fields.get("hierarchy") match {
     case Some(groups: JsString) => {
       // Eval the string
       val stringValue = groups.compactPrint
