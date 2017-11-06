@@ -110,7 +110,7 @@ services:
       - db
 
   meta_db_setup:
-    image: "hbpmip/sample-meta-db-setup:0.2.0"
+    image: "hbpmip/sample-meta-db-setup:0.3.1"
     container_name: "meta-db-setup"
     restart: "no"
     networks:
