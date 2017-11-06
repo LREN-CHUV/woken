@@ -60,7 +60,7 @@ Takes a Json document in the body, returns a Json document.
 
 Json input should be of the form:
 
-```
+```json
   {
     "variables": [],
     "covariables": [],
@@ -84,13 +84,10 @@ Currently, the following algorithms are supported:
 
 ## Docker build
 
-Execute the following commands to distribute Workflow as a Docker container:
+Execute the following commands to distribute Woken as a Docker container:
 
-```
-  ./build.sh
-  cd docker
-  ./build.sh
-  ./push.sh
+```sh
+  ./publish.sh
 ```
 
 ## Installation
