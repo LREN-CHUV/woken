@@ -10,6 +10,8 @@ val versions = new {
   val woken_messages = "ee60327"
   val akka = "2.3.16"
   val spray = "1.3.4"
+  val spray_json = "1.3.4"
+  val spray_routing = "1.3.3"
   val scalaz = "7.1.3"
   val slf4j = "1.7.13"
   val config = "1.2.1"
@@ -24,8 +26,8 @@ libraryDependencies ++= {
   Seq(
     "woken-messages"      %%  "woken-messages"           % versions.woken_messages,
     "io.spray"            %%  "spray-can"                % versions.spray exclude("io.spray", "spray-routing"),
-    "io.spray"            %%  "spray-routing-shapeless2" % versions.spray,
-    "io.spray"            %%  "spray-json"               % versions.spray,
+    "io.spray"            %%  "spray-routing-shapeless2" % versions.spray_routing,
+    "io.spray"            %%  "spray-json"               % versions.spray_json,
     "com.typesafe.akka"   %%  "akka-actor"               % versions.akka,
     "com.typesafe.akka"   %%  "akka-remote"              % versions.akka,
     "com.typesafe.akka"   %%  "akka-cluster"             % versions.akka,
