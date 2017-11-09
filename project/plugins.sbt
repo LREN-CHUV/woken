@@ -2,39 +2,30 @@ scalacOptions ++= Seq( "-unchecked", "-deprecation" )
 
 resolvers += Classpaths.sbtPluginReleases
 
-resolvers += "Typesafe repository" at "https://dl.bintray.com/typesafe/maven-releases/"
+resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/"
 
 // App Packaging
-addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.3")
-
-// Benchmarking
-addSbtPlugin("pl.project13.scala" % "sbt-jmh" % "0.2.17")
-
-addSbtPlugin("io.gatling" % "gatling-sbt" % "2.2.1")
+addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.5")
 
 // Dependency Resolution
-addSbtPlugin("io.get-coursier" % "sbt-coursier" % "1.0.0-RC3")
+addSbtPlugin("io.get-coursier" % "sbt-coursier" % "1.0.0-RC13")
 
-// Faster development
-addSbtPlugin("io.spray" % "sbt-revolver" % "0.8.0")
+addSbtPlugin("org.foundweekends" % "sbt-bintray" % "0.5.1")
 
 // Code Quality
 addSbtPlugin("org.scalastyle" %% "scalastyle-sbt-plugin" % "0.8.0") // scalastyle
 
 addSbtPlugin("com.sksamuel.scapegoat" %% "sbt-scapegoat" % "1.0.4") // scapegoat
 
-addSbtPlugin("com.orrsella" % "sbt-stats" % "1.0.5") // stats
+addSbtPlugin("org.wartremover"   % "sbt-wartremover" % "2.1.1") // Wartremover
 
-addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.8.2") // dependencyGraph
+// Code formatter
+addSbtPlugin("com.lucidchart"    % "sbt-scalafmt"    % "1.14")
 
-addSbtPlugin("com.timushev.sbt" % "sbt-updates" % "0.3.0") // dependencyUpdates
+// Copyright headers
+addSbtPlugin("de.heikoseeberger" % "sbt-header"      % "3.0.2")
 
-addSbtPlugin("com.typesafe.sbt" % "sbt-scalariform" % "1.3.0") // scalariformFormat
+// Versioning
+addSbtPlugin("com.typesafe.sbt"  % "sbt-git"         % "0.9.3")
 
-addSbtPlugin("com.github.xuwei-k" % "sbt-class-diagram" % "0.1.7")
-
-addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.3.5")
-
-addSbtPlugin("com.codacy" % "sbt-codacy-coverage" % "1.3.0")
-
-addSbtPlugin("com.updateimpact" % "updateimpact-sbt-plugin" % "2.1.1")
+libraryDependencies += "org.slf4j" % "slf4j-nop" % "1.7.25" // Needed by sbt-git

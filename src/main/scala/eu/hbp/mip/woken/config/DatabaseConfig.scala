@@ -1,3 +1,19 @@
+/*
+ * Copyright 2017 LREN CHUV
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package eu.hbp.mip.woken.config
 
 import doobie.imports._
@@ -24,18 +40,22 @@ trait DoobieDatabaseConfig[D <: DAL] extends DatabaseConfig[D] {
 object ResultDatabaseConfig extends DoobieDatabaseConfig[JobResultsDAL] {
   val logger = Logger(LoggerFactory.getLogger("database"))
 
-  def testConnection(xa: Transactor[IO], jdbcUrl: String) = try {
-    sql"select 1".query[Int].unique.transact(xa).unsafePerformIO
-  } catch {
-    case e: java.sql.SQLException =>
-      logger.error(s"Cannot connect to $jdbcUrl", e)
-  }
+  def testConnection(xa: Transactor[IO], jdbcUrl: String) =
+    try {
+      sql"select 1".query[Int].unique.transact(xa).unsafePerformIO
+    } catch {
+      case e: java.sql.SQLException =>
+        logger.error(s"Cannot connect to $jdbcUrl", e)
+    }
 
   import WokenConfig._
   val config = dbConfig(jobs.resultDb)
   import config._
   lazy val xa = DriverManagerTransactor[IO](
-    jdbcDriver, jdbcUrl, jdbcUser, jdbcPassword
+    jdbcDriver,
+    jdbcUrl,
+    jdbcUser,
+    jdbcPassword
   )
   testConnection(xa, jdbcUrl)
 
@@ -50,17 +70,22 @@ object FederationDatabaseConfig {
   import WokenConfig._
   import ResultDatabaseConfig.testConnection
 
-  val config: Option[DatabaseConfig[JobResultsDAL]] = if (!jobs.jobsConf.hasPath("federationDb")) None else
-    Some(new DoobieDatabaseConfig[JobResultsDAL] {
-      val config = dbConfig(jobs.jobsConf.getString("federationDb"))
-      import config._
-      lazy val xa = DriverManagerTransactor[IO](
-        jdbcDriver, jdbcUrl, jdbcUser, jdbcPassword
-      )
-      testConnection(xa, jdbcUrl)
+  val config: Option[DatabaseConfig[JobResultsDAL]] =
+    if (!jobs.jobsConf.hasPath("federationDb")) None
+    else
+      Some(new DoobieDatabaseConfig[JobResultsDAL] {
+        val config = dbConfig(jobs.jobsConf.getString("federationDb"))
+        import config._
+        lazy val xa = DriverManagerTransactor[IO](
+          jdbcDriver,
+          jdbcUrl,
+          jdbcUser,
+          jdbcPassword
+        )
+        testConnection(xa, jdbcUrl)
 
-      lazy val dal = new FederationDAL(xa)
-    })
+        lazy val dal = new FederationDAL(xa)
+      })
 }
 
 /**
@@ -88,9 +113,9 @@ object MetaDatabaseConfig extends DatabaseConfig[MetaDAL] {
 
   val config = dbConfig(defaultMetaDb)
   import config._
-  import spray.json.{JsObject, JsArray}
+  import spray.json.{ JsArray, JsObject }
 
-  lazy val dal = new MetaDAL(jdbcDriver, jdbcUrl, jdbcUser, jdbcPassword, mainTable)
+  lazy val dal    = new MetaDAL(jdbcDriver, jdbcUrl, jdbcUser, jdbcPassword, mainTable)
   lazy val groups = dal.getMetaData
 
   def getMetaData(variables: Seq[String]): JsObject = {
@@ -105,12 +130,15 @@ object MetaDatabaseConfig extends DatabaseConfig[MetaDAL] {
       if (groups.fields.contains("variables")) {
         groups.fields.get("variables").get match {
           case a: JsArray =>
-            a.elements.find(v => v.asJsObject.fields.get("code") match {
-              case Some(stringValue) => stringValue.convertTo[String] == variable
-              case None => false
-            }) match {
+            a.elements.find(
+              v =>
+                v.asJsObject.fields.get("code") match {
+                  case Some(stringValue) => stringValue.convertTo[String] == variable
+                  case None              => false
+              }
+            ) match {
               case Some(value) => return Some(value.asJsObject)
-              case None => None
+              case None        => None
             }
           case _ => deserializationError("JsArray expected")
         }
@@ -118,10 +146,12 @@ object MetaDatabaseConfig extends DatabaseConfig[MetaDAL] {
 
       if (groups.fields.contains("groups")) {
         groups.fields.get("groups").get match {
-          case a : JsArray =>
-            return a.elements.toStream.map(g => getVariableMetaData(variable, g.asJsObject)).find(o => !o.isEmpty) match {
+          case a: JsArray =>
+            return a.elements.toStream
+              .map(g => getVariableMetaData(variable, g.asJsObject))
+              .find(o => !o.isEmpty) match {
               case Some(variable: Option[JsObject]) => variable
-              case None => None
+              case None                             => None
             }
           case _ => deserializationError("JsArray expected")
         }
@@ -130,14 +160,19 @@ object MetaDatabaseConfig extends DatabaseConfig[MetaDAL] {
       None
     }
 
-    new JsObject(variables.map(v =>
-      v -> (getVariableMetaData(v, groups) match {
-        case Some(m) => m
-        case None => {
-          logger.error(s"Cannot not find metadata for " + v)
-          JsObject.empty
-        }
-      })
-    ).toMap)
+    new JsObject(
+      variables
+        .map(
+          v =>
+            v -> (getVariableMetaData(v, groups) match {
+              case Some(m) => m
+              case None => {
+                logger.error(s"Cannot not find metadata for " + v)
+                JsObject.empty
+              }
+            })
+        )
+        .toMap
+    )
   }
 }

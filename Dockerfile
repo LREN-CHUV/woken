@@ -4,18 +4,24 @@ FROM hbpmip/scala-base-build:0.13.16-5 as scala-build-env
 # First caching layer: build.sbt and sbt configuration
 COPY build.sbt /build/
 RUN  mkdir -p /build/project/
-COPY project/build.properties project/plugins.sbt /build/project/
+COPY project/build.properties project/plugins.sbt project/.gitignore /build/project/
 
-RUN sbt about
+# Run sbt on an empty project and force it to download most of its dependencies to fill the cache
+RUN sbt compile
 
 # Second caching layer: project sources
 COPY src/ /build/src/
+COPY .git/ /build/.git/
+COPY .circleci/ /build/.circleci/
+COPY .*.cfg .*ignore .*.yaml .*.conf *.md *.sh *.yml *.json Dockerfile LICENSE /build/
+
+RUN /check-sources.sh
 
 RUN sbt assembly
 
 FROM openjdk:8u131-jdk-alpine
 
-MAINTAINER ludovic.claude54@gmail.com
+MAINTAINER Ludovic Claude <ludovic.claude@chuv.ch>
 
 COPY docker/runner/woken.sh /opt/woken/
 

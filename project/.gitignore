@@ -1,3 +1,4 @@
 .sbt*
 *.lock
 project/
+target/

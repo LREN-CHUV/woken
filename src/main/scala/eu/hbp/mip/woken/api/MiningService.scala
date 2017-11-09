@@ -1,18 +1,34 @@
+/*
+ * Copyright 2017 LREN CHUV
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package eu.hbp.mip.woken.api
 
-import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, Props}
+import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem, Props }
 import spray.http.MediaTypes._
 import spray.http._
 import spray.routing.Route
-import eu.hbp.mip.messages.external._
-import eu.hbp.mip.woken.core.{CoordinatorActor, ExperimentActor, JobResults, RestMessage}
-import eu.hbp.mip.woken.dao.{JobResultsDAL, LdsmDAL}
+import eu.hbp.mip.woken.messages.external._
+import eu.hbp.mip.woken.core.{ CoordinatorActor, ExperimentActor, JobResults, RestMessage }
+import eu.hbp.mip.woken.dao.{ JobResultsDAL, LdsmDAL }
 
 object MiningService {
 
   // TODO Gather this information from all the containers
   val methods_mock =
-  """
+    """
         {
             "algorithms": [
             {
@@ -351,10 +367,13 @@ object MiningService {
 class MiningService(val chronosService: ActorRef,
                     val resultDatabase: JobResultsDAL,
                     val federationDatabase: Option[JobResultsDAL],
-                    val ldsmDatabase: LdsmDAL)(implicit system: ActorSystem) extends MiningServiceDoc with PerRequestCreator with DefaultJsonFormats {
+                    val ldsmDatabase: LdsmDAL)(implicit system: ActorSystem)
+    extends MiningServiceDoc
+    with PerRequestCreator
+    with DefaultJsonFormats {
 
   override def context: ActorRefFactory = system
-  val routes: Route = mining ~ experiment ~ listMethods
+  val routes: Route                     = mining ~ experiment ~ listMethods
 
   import ApiJsonSupport._
   import CoordinatorActor._
@@ -380,8 +399,11 @@ class MiningService(val chronosService: ActorRef,
 
     post {
       entity(as[MiningQuery]) {
-        case MiningQuery(variables, covariables, groups, _, Algorithm(c, n, p)) if c == "" || c == "data" => {
-          ctx => ctx.complete(ldsmDatabase.queryData({ variables ++ covariables ++ groups }.distinct.map(_.code)))
+        case MiningQuery(variables, covariables, groups, _, Algorithm(c, n, p))
+            if c == "" || c == "data" => { ctx =>
+          ctx.complete(
+            ldsmDatabase.queryData({ variables ++ covariables ++ groups }.distinct.map(_.code))
+          )
         }
         case query: MiningQuery => {
           val job = query2job(query)
@@ -397,8 +419,8 @@ class MiningService(val chronosService: ActorRef,
     import FunctionsInOut._
 
     post {
-      entity(as[ExperimentQuery]) {
-        query: ExperimentQuery => {
+      entity(as[ExperimentQuery]) { query: ExperimentQuery =>
+        {
           val job = query2job(query)
           experimentJob(RequestProtocol) {
             ExperimentActor.Start(job)
@@ -408,14 +430,32 @@ class MiningService(val chronosService: ActorRef,
     }
   }
 
-  def newCoordinatorActor(jobResultsFactory: JobResults.Factory = JobResults.defaultFactory): ActorRef = context.actorOf(CoordinatorActor.props(chronosService, resultDatabase, federationDatabase, jobResultsFactory))
+  def newCoordinatorActor(
+      jobResultsFactory: JobResults.Factory = JobResults.defaultFactory
+  ): ActorRef =
+    context.actorOf(
+      CoordinatorActor.props(chronosService, resultDatabase, federationDatabase, jobResultsFactory)
+    )
 
-  def newExperimentActor(jobResultsFactory: JobResults.Factory = JobResults.defaultFactory): ActorRef = context.actorOf(Props(classOf[ExperimentActor], chronosService, resultDatabase, federationDatabase, jobResultsFactory))
+  def newExperimentActor(
+      jobResultsFactory: JobResults.Factory = JobResults.defaultFactory
+  ): ActorRef =
+    context.actorOf(
+      Props(classOf[ExperimentActor],
+            chronosService,
+            resultDatabase,
+            federationDatabase,
+            jobResultsFactory)
+    )
 
-  def chronosJob(jobResultsFactory: JobResults.Factory = JobResults.defaultFactory)(message : RestMessage): Route =
+  def chronosJob(
+      jobResultsFactory: JobResults.Factory = JobResults.defaultFactory
+  )(message: RestMessage): Route =
     ctx => perRequest(ctx, newCoordinatorActor(jobResultsFactory), message)
 
-  def experimentJob(jobResultsFactory: JobResults.Factory = JobResults.defaultFactory)(message : RestMessage): Route =
+  def experimentJob(
+      jobResultsFactory: JobResults.Factory = JobResults.defaultFactory
+  )(message: RestMessage): Route =
     ctx => perRequest(ctx, newExperimentActor(jobResultsFactory), message)
 
 }

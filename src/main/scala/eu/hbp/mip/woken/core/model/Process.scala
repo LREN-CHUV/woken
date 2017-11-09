@@ -1,6 +1,22 @@
+/*
+ * Copyright 2017 LREN CHUV
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package eu.hbp.mip.woken.core.model
 
-import spray.json.{DefaultJsonProtocol, RootJsonFormat}
+import spray.json.{ DefaultJsonProtocol, RootJsonFormat }
 
 // http://www.cakesolutions.net/teamblogs/2012/11/30/spray-json-and-adts
 
@@ -11,7 +27,7 @@ trait CWLProcess {
   def inputs: List[InputParameter]
   def outputs: List[OutputParameter]
   def requirement: List[ProcessRequirement] = List()
-  def hint: List[Hint] = List()
+  def hint: List[Hint]                      = List()
 }
 
 sealed trait DataType
@@ -20,18 +36,25 @@ object PrimitiveTypes {
 
   /** no value */
   case object Null extends DataType
+
   /** a binary value */
   case object Boolean extends DataType
+
   /** 32 -bit signed integer */
   case object Int extends DataType
+
   /** 64 -bit signed integer */
   case object Long extends DataType
+
   /** single precision ( 32 -bit) IEEE 754 floating - point number */
   case object Float extends DataType
+
   /** double precision ( 64 -bit) IEEE 754 floating - point number */
   case object Double extends DataType
+
   /** sequence of uninterpreted 8 -bit unsigned bytes */
   case object Bytes extends DataType
+
   /** Unicode character sequence */
   case object String extends DataType
 }
@@ -43,8 +66,8 @@ object ComplexType {
 //  map: An unordered collection of key/value pairs
 }
 
-
 sealed trait Parameter {
+
   /** Specify valid types of data that may be assigned to this parameter */
   def tpe: List[DataType] = List()
 
@@ -63,10 +86,10 @@ sealed trait Parameter {
   def default: Option[Any] = None
 }
 
-trait InputParameter extends Parameter
+trait InputParameter  extends Parameter
 trait OutputParameter extends Parameter
 
-case class CommandInputParameter() extends InputParameter
+case class CommandInputParameter()  extends InputParameter
 case class CommandOutputParameter() extends OutputParameter
 
 sealed trait ProcessRequirement {
@@ -74,24 +97,24 @@ sealed trait ProcessRequirement {
 }
 
 /**
- * @param dockerPull Specify a Docker image to retrieve using docker pull.
- * @param dockerLoad Specify a HTTP URL from which to download a Docker image using docker load.
- * @param dockerFile Supply the contents of a Dockerfile which will be built using docker build.
- * @param dockerImport Provide HTTP URL to download and gunzip a Docker images using docker import.
- * @param dockerImageId The image id that will be used for docker run. May be a human-readable image name or the image
- *                      identifier hash. May be skipped if dockerPull is specified, in which case the dockerPull image
- *                      id must be used.
- * @param dockerOutputDirectory Set the designated output directory to a specific location inside the Docker container.
- */
+  * @param dockerPull Specify a Docker image to retrieve using docker pull.
+  * @param dockerLoad Specify a HTTP URL from which to download a Docker image using docker load.
+  * @param dockerFile Supply the contents of a Dockerfile which will be built using docker build.
+  * @param dockerImport Provide HTTP URL to download and gunzip a Docker images using docker import.
+  * @param dockerImageId The image id that will be used for docker run. May be a human-readable image name or the image
+  *                      identifier hash. May be skipped if dockerPull is specified, in which case the dockerPull image
+  *                      id must be used.
+  * @param dockerOutputDirectory Set the designated output directory to a specific location inside the Docker container.
+  */
 final case class DockerRequirement(
-                                  dockerPull: Option[String] = None, // TODO: should be dockerForcePull: boolean, redundant with dockerImageId
-                                  dockerLoad: Option[String] = None,
-                                  dockerFile: Option[String] = None,
-                                  dockerImport: Option[String] = None,
-                                  dockerImageId: Option[String] = None,
-                                  dockerInputDirectory: Option[String] = None, // TODO: missing from spec
-                                  dockerOutputDirectory: Option[String] = None
-                                    ) extends ProcessRequirement {
+    dockerPull: Option[String] = None, // TODO: should be dockerForcePull: boolean, redundant with dockerImageId
+    dockerLoad: Option[String] = None,
+    dockerFile: Option[String] = None,
+    dockerImport: Option[String] = None,
+    dockerImageId: Option[String] = None,
+    dockerInputDirectory: Option[String] = None, // TODO: missing from spec
+    dockerOutputDirectory: Option[String] = None
+) extends ProcessRequirement {
   def clazz = "DockerRequirement"
 }
 
@@ -126,20 +149,24 @@ case class Hint()
 //                            override val hint: List[Hint] = List()
 //                            ) extends models.CWLProcess
 case class Process(
-                            id: Option[String] = None,
-                            label: String,
-                            description: Option[String] = None,
-                            inputs: List[CommandInputParameter],
-                            outputs: List[CommandOutputParameter],
-                            // TODO override val requirement: List[ProcessRequirement] = List(),
-                            hint: List[Hint] = List()
-                            )
+    id: Option[String] = None,
+    label: String,
+    description: Option[String] = None,
+    inputs: List[CommandInputParameter],
+    outputs: List[CommandOutputParameter],
+    // TODO override val requirement: List[ProcessRequirement] = List(),
+    hint: List[Hint] = List()
+)
 
 object Process extends DefaultJsonProtocol {
-  implicit val commandInputParameterFormat: RootJsonFormat[CommandInputParameter] = jsonFormat0(CommandInputParameter.apply)
-  implicit val commandOutputParameterFormat: RootJsonFormat[CommandOutputParameter] = jsonFormat0(CommandOutputParameter.apply)
+  implicit val commandInputParameterFormat: RootJsonFormat[CommandInputParameter] = jsonFormat0(
+    CommandInputParameter.apply
+  )
+  implicit val commandOutputParameterFormat: RootJsonFormat[CommandOutputParameter] = jsonFormat0(
+    CommandOutputParameter.apply
+  )
   // implicit val dockerRequirementFormat = jsonFormat7(DockerRequirement.apply)
-  implicit val hintFormat: RootJsonFormat[Hint] = jsonFormat0(Hint.apply)
+  implicit val hintFormat: RootJsonFormat[Hint]       = jsonFormat0(Hint.apply)
   implicit val processFormat: RootJsonFormat[Process] = jsonFormat6(Process.apply)
 
 }
