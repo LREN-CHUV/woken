@@ -61,7 +61,7 @@ class ChronosService extends Actor with ActorLogging {
         .map {
           case HttpResponse(statusCode: StatusCode, entity, _, _) =>
             statusCode match {
-              case ok: StatusCodes.Success => Ok
+              case _: StatusCodes.Success => Ok
               case _ => {
                 log.warning(
                   s"Post to Chronos on $chronosServerUrl returned error $statusCode: ${entity.asString}"

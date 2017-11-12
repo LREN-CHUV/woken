@@ -546,12 +546,8 @@ class CrossValidationActor(val chronosService: ActorRef,
                       _.convertTo[JsArray].elements
                         .map(
                           o =>
-                            o.asJsObject.fields
-                              .get("code")
-                              .get
-                              .convertTo[String] -> o.asJsObject.fields
-                              .get("label")
-                              .get
+                            o.asJsObject.fields("code")
+                              .convertTo[String] -> o.asJsObject.fields("label")
                               .convertTo[String]
                         )
                         .toMap
