@@ -46,7 +46,7 @@ trait Api extends HttpService with CoreActors with Core {
                                          LdsmDatabaseConfig.dal)
 
   val routes: Route = new SwaggerService().routes ~
-  job_service.routes ~
-  mining_service.routes
+    job_service.routes ~
+    mining_service.routes
 
 }

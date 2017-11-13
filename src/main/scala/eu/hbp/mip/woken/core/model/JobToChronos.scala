@@ -49,9 +49,9 @@ object JobToChronos {
     val environmentVariables: List[EV] = List(EV("JOB_ID", job.jobId),
                                               EV("NODE", jobs.node),
                                               EV("DOCKER_IMAGE", job.dockerImage)) ++
-    job.parameters.toList.map(kv => EV(kv._1, kv._2)) ++
-    dbEnvironment(inputDb, "IN_") ++
-    dbEnvironment(outputDb, "OUT_")
+      job.parameters.toList.map(kv => EV(kv._1, kv._2)) ++
+      dbEnvironment(inputDb, "IN_") ++
+      dbEnvironment(outputDb, "OUT_")
 
     ChronosJob(
       schedule = "R1//PT24H",

@@ -55,7 +55,7 @@ class ChronosService extends Actor with ActorLogging {
       log.warning(spray.json.PrettyPrinter.apply(chronosJobFormat.write(job)))
       val originalSender = sender()
       val chronosResponse: Future[_] =
-      IO(Http) ? Post(chronosServerUrl + "/scheduler/iso8601", job)
+        IO(Http) ? Post(chronosServerUrl + "/scheduler/iso8601", job)
 
       chronosResponse
         .map {

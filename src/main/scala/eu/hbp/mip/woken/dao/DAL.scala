@@ -174,23 +174,23 @@ class LdsmDAL(jdbcDriver: String,
                            "items" -> JsObject("type" -> JsString("row"))),
       "cells" -> JsObject(
         "data" ->
-        JsObject(
-          "type" -> JsObject(
-            "type" -> JsString("array"),
-            "items" -> JsObject(
-              "type" -> JsString("record"),
-              "name" -> JsString("row"),
-              "fields" -> JsArray(
-                meta.map(
-                  col =>
-                    JsObject("name" -> JsString(col.label),
-                             "type" -> resultsetJsTypes(col.datatype))
-                ): _*
+          JsObject(
+            "type" -> JsObject(
+              "type" -> JsString("array"),
+              "items" -> JsObject(
+                "type" -> JsString("record"),
+                "name" -> JsString("row"),
+                "fields" -> JsArray(
+                  meta.map(
+                    col =>
+                      JsObject("name" -> JsString(col.label),
+                               "type" -> resultsetJsTypes(col.datatype))
+                  ): _*
+                )
               )
-            )
-          ),
-          "init" -> JsArray(data.toVector)
-        )
+            ),
+            "init" -> JsArray(data.toVector)
+          )
       ),
       "action" -> JsArray(JsObject("cell" -> JsString("data")))
     )
