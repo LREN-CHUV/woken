@@ -35,7 +35,7 @@ import eu.hbp.mip.woken.meta.VariableMetaData
 import eu.hbp.mip.woken.api._
 import eu.hbp.mip.woken.config.WokenConfig.defaultSettings.{ defaultDb, dockerImage, isPredictive }
 import eu.hbp.mip.woken.core.model.JobResult
-import eu.hbp.mip.woken.core.validation.{ KFoldCrossValidation, Scores, ValidationPoolManager }
+import eu.hbp.mip.woken.core.validation.ValidationPoolManager
 import eu.hbp.mip.woken.dao.JobResultsDAL
 import spray.http.StatusCodes
 import spray.httpx.marshalling.ToResponseMarshaller
@@ -346,13 +346,6 @@ class AlgorithmActor(val chronosService: ActorRef,
   initialize()
 }
 
-// TODO This code will be common to all Akka service in containers -> put it as a small common lib!
-class RemotePathExtensionImpl(system: ExtendedActorSystem) extends Extension {
-  def getPath(actor: Actor): String =
-    actor.self.path.toStringWithAddress(system.provider.getDefaultAddress)
-}
-object RemotePathExtension extends ExtensionKey[RemotePathExtensionImpl]
-
 /**
   * We use the companion object to hold all the messages that the ``ValidationActor``
   * receives.
@@ -390,14 +383,14 @@ object CrossValidationStates {
   case object WaitForWorkers extends State
 
   // FSM Data
-  case class Data(job: Job,
-                  replyTo: ActorRef,
-                  var validation: KFoldCrossValidation,
-                  workers: Map[ActorRef, String],
-                  var targetMetaData: VariableMetaData,
-                  var average: (List[String], List[String]),
-                  var results: collection.mutable.Map[String, Scores],
-                  foldsCount: Int)
+  case class CrossValidationData(job: Job,
+                                 replyTo: ActorRef,
+                                 var validation: KFoldCrossValidation,
+                                 workers: Map[ActorRef, String],
+                                 var targetMetaData: VariableMetaData,
+                                 var average: (List[String], List[String]),
+                                 var results: collection.mutable.Map[String, Scores],
+                                 foldsCount: Int)
 }
 
 /**
@@ -415,14 +408,14 @@ class CrossValidationActor(val chronosService: ActorRef,
                            val jobResultsFactory: JobResults.Factory)
     extends Actor
     with ActorLogging
-    with LoggingFSM[CrossValidationStates.State, Option[CrossValidationStates.Data]] {
+    with LoggingFSM[CrossValidationStates.State, Option[CrossValidationStates.CrossValidationData]] {
 
   import CrossValidationActor._
   import CrossValidationStates._
 
   def adjust[A, B](m: Map[A, B], k: A)(f: B => B): Map[A, B] = m.updated(k, f(m(k)))
 
-  def reduceAndStop(data: Data): State = {
+  def reduceAndStop(data: CrossValidationData): State = {
 
     import eu.hbp.mip.woken.core.validation.ScoresProtocol._
 
@@ -480,7 +473,7 @@ class CrossValidationActor(val chronosService: ActorRef,
         }
       })
       goto(WaitForWorkers) using Some(
-        Data(job,
+        CrossValidationData(job,
              replyTo,
              xvalidation,
              workers.toMap,
@@ -493,7 +486,7 @@ class CrossValidationActor(val chronosService: ActorRef,
   }
 
   when(WaitForWorkers) {
-    case Event(JsonMessage(pfa: JsValue), Some(data: Data)) => {
+    case Event(JsonMessage(pfa: JsValue), Some(data: CrossValidationData)) => {
       // Validate the results
       log.info("Received result from local method.")
       val model    = pfa.toString()
@@ -580,7 +573,7 @@ class CrossValidationActor(val chronosService: ActorRef,
       sendTo ! ValidationQuery(fold, model, testData, targetMetaData)
       stay
     }
-    case Event(ValidationResult(fold, targetMetaData, results), Some(data: Data)) => {
+    case Event(ValidationResult(fold, targetMetaData, results), Some(data: CrossValidationData)) => {
       log.info("Received validation results for fold " + fold + ".")
       // Score the results
       val groundTruth = data.validation
@@ -597,13 +590,13 @@ class CrossValidationActor(val chronosService: ActorRef,
       // If we have validated all the fold we finish!
       if (data.results.size == data.foldsCount) reduceAndStop(data) else stay
     }
-    case Event(ValidationError(message), Some(data: Data)) => {
+    case Event(ValidationError(message), Some(data: CrossValidationData)) => {
       log.error(message)
       // On testing fold fails, we notify supervisor and we stop
       context.parent ! CrossValidationActor.ErrorResponse(data.job.validation, message)
       stop
     }
-    case Event(Error(message), Some(data: Data)) => {
+    case Event(Error(message), Some(data: CrossValidationData)) => {
       log.error(message)
       // On training fold fails, we notify supervisor and we stop
       context.parent ! CrossValidationActor.ErrorResponse(data.job.validation, message)
