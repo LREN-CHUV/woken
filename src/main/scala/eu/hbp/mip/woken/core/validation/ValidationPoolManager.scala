@@ -43,7 +43,7 @@ class ValidationPoolManager extends Actor with ActorLogging {
 
   override def postStop(): Unit = cluster.unsubscribe(self)
 
-  def receive = {
+  def receive: PartialFunction[Any, Unit] = {
     case MemberUp(member) =>
       if (member.hasRole("validation")) {
         log.info("New validation node in pool: " + member)
