@@ -137,13 +137,13 @@ class ExperimentActor(val chronosService: ActorRef,
 
     data.replyTo ! jobResultsFactory(
       Seq(
-        JobResult(data.job.jobId,
-                  "",
-                  OffsetDateTime.now(),
-                  Some(output.compactPrint),
-                  None,
-                  "pfa_json",
-                  "")
+        JobResult(jobId = data.job.jobId,
+                  node = "",
+                  timestamp = OffsetDateTime.now(),
+                  shape = "pfa_json",
+                  function = "",
+                  data = Some(output.compactPrint),
+                  error = None)
       )
     )
     stop

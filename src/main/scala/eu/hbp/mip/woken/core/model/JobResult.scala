@@ -23,10 +23,10 @@ import spray.json._
 case class JobResult(jobId: String,
                      node: String,
                      timestamp: OffsetDateTime,
-                     data: Option[String] = None,
-                     error: Option[String] = None,
                      shape: String,
-                     function: String) {}
+                     function: String,
+                     data: Option[String] = None,
+                     error: Option[String] = None)
 
 object JobResult extends DefaultJsonProtocol {
 
