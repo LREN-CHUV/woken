@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LREN CHUV
+ * Copyright 2017 Human Brain Project MIP by LREN CHUV
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.

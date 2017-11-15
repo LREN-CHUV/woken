@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 LREN CHUV
+ * Copyright 2017 Human Brain Project MIP by LREN CHUV
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,28 +19,23 @@ package eu.hbp.mip.woken.core
 import java.time.OffsetDateTime
 import java.util.UUID
 
-import akka.actor.{
-  Actor,
-  ActorLogging,
-  ActorRef,
-  ExtendedActorSystem,
-  Extension,
-  ExtensionKey,
-  LoggingFSM,
-  Props
-}
-import eu.hbp.mip.woken.messages.external.{ Algorithm, Validation => ApiValidation }
-import eu.hbp.mip.woken.messages.validation.{ ValidationError, ValidationQuery, ValidationResult }
-import eu.hbp.mip.woken.meta.VariableMetaData
+import akka.actor.{ Actor, ActorLogging, ActorRef, ActorSelection, LoggingFSM, Props }
+import akka.pattern.ask
+import akka.util.Timeout
 import eu.hbp.mip.woken.api._
 import eu.hbp.mip.woken.config.WokenConfig.defaultSettings.{ defaultDb, dockerImage, isPredictive }
 import eu.hbp.mip.woken.core.model.JobResult
-import eu.hbp.mip.woken.core.validation.ValidationPoolManager
+import eu.hbp.mip.woken.core.validation.{ KFoldCrossValidation, ValidationPoolManager }
 import eu.hbp.mip.woken.dao.JobResultsDAL
+import eu.hbp.mip.woken.messages.external.{ Algorithm, Validation => ApiValidation }
+import eu.hbp.mip.woken.messages.validation._
+import eu.hbp.mip.woken.meta.VariableMetaData
 import spray.http.StatusCodes
 import spray.httpx.marshalling.ToResponseMarshaller
 import spray.json.{ JsString, _ }
+import cats.data.NonEmptyList
 
+import scala.concurrent.duration.Duration
 import scala.util.Random
 
 /**
@@ -59,8 +54,8 @@ object ExperimentActor {
   )
 
   case class Start(job: Job) extends RestMessage {
-    import spray.httpx.SprayJsonSupport._
     import ApiJsonSupport._
+    import spray.httpx.SprayJsonSupport._
     implicit val jobFormat: RootJsonFormat[Job] = jsonFormat5(Job.apply)
     override def marshaller: ToResponseMarshaller[Start] =
       ToResponseMarshaller.fromMarshaller(StatusCodes.OK)(jsonFormat1(Start))
@@ -72,8 +67,8 @@ object ExperimentActor {
 
   case class ErrorResponse(message: String) extends RestMessage {
 
-    import spray.httpx.SprayJsonSupport._
     import DefaultJsonProtocol._
+    import spray.httpx.SprayJsonSupport._
 
     override def marshaller: ToResponseMarshaller[ErrorResponse] =
       ToResponseMarshaller.fromMarshaller(StatusCodes.InternalServerError)(
@@ -389,13 +384,11 @@ object CrossValidationStates {
                                  workers: Map[ActorRef, String],
                                  var targetMetaData: VariableMetaData,
                                  var average: (List[String], List[String]),
-                                 var results: collection.mutable.Map[String, Scores],
+                                 var results: collection.mutable.Map[String, ScoringResult],
                                  foldsCount: Int)
 }
 
 /**
-  *
-  * TODO Better Integration with Spark!
   *
   * @param chronosService
   * @param resultDatabase
@@ -417,18 +410,37 @@ class CrossValidationActor(val chronosService: ActorRef,
 
   def reduceAndStop(data: CrossValidationData): State = {
 
-    import eu.hbp.mip.woken.core.validation.ScoresProtocol._
+    import cats.syntax.list._
+    import scala.concurrent.duration._
+    import language.postfixOps
 
-    // Aggregation of results from all folds
-    val jsonValidation = JsObject(
-      "type"    -> JsString("KFoldCrossValidation"),
-      "average" -> Scores(data.average._1, data.average._2, data.targetMetaData).toJson,
-      "folds"   -> new JsObject(data.results.mapValues(s => s.toJson).toMap)
-    )
+    (data.average._1.toNel, data.average._2.toNel) match {
+      case (Some(r), Some(gt)) =>
+        implicit val timeout = Timeout(5 minutes)
+        val sendTo           = nextValidationActor
+        val scores           = nextValidationActor ? ScoringQuery(r, gt, data.targetMetaData)
 
-    data.replyTo ! CrossValidationActor.ResultResponse(data.job.validation,
-                                                       jsonValidation.compactPrint)
+        // Aggregation of results from all folds
+        val jsonValidation = JsObject(
+          "type"    -> JsString("KFoldCrossValidation"),
+          "average" -> scores.asInstanceOf[ScoringResult].scores,
+          "folds"   -> new JsObject(data.results.mapValues(s => s.scores).toMap)
+        )
+
+        data.replyTo ! CrossValidationActor.ResultResponse(data.job.validation,
+                                                           jsonValidation.compactPrint)
+      case _ =>
+        val message = s"Final reduce for cross-validation uses empty datasets"
+        log.error(message)
+        context.parent ! CrossValidationActor.ErrorResponse(data.job.validation, message)
+    }
     stop
+  }
+
+  def nextValidationActor: ActorSelection = {
+    val validationPool = ValidationPoolManager.validationPool
+    //TODO If validationPool.size == 0, we cannot perform the cross validation we should throw an error!
+    context.actorSelection(validationPool.toList(Random.nextInt(validationPool.size)))
   }
 
   startWith(WaitForNewJob, None)
@@ -474,13 +486,13 @@ class CrossValidationActor(val chronosService: ActorRef,
       })
       goto(WaitForWorkers) using Some(
         CrossValidationData(job,
-             replyTo,
-             xvalidation,
-             workers.toMap,
-             null,
-             (Nil, Nil),
-             collection.mutable.Map(),
-             k)
+                            replyTo,
+                            xvalidation,
+                            workers.toMap,
+                            null,
+                            (Nil, Nil),
+                            collection.mutable.Map(),
+                            k)
       )
     }
   }
@@ -539,8 +551,10 @@ class CrossValidationActor(val chronosService: ActorRef,
                       _.convertTo[JsArray].elements
                         .map(
                           o =>
-                            o.asJsObject.fields("code")
-                              .convertTo[String] -> o.asJsObject.fields("label")
+                            o.asJsObject
+                              .fields("code")
+                              .convertTo[String] -> o.asJsObject
+                              .fields("label")
                               .convertTo[String]
                         )
                         .toMap
@@ -564,11 +578,7 @@ class CrossValidationActor(val chronosService: ActorRef,
         case None                      => throw new Exception("Problem with variables' meta data!")
       }
 
-      // Send to a random (simple load balancing) validation node of the pool
-      val validationPool = ValidationPoolManager.validationPool
-      //TODO If validationPool.size == 0, we cannot perform the cross validation we should throw an error!
-      val sendTo =
-        context.actorSelection(validationPool.toList(Random.nextInt(validationPool.size)))
+      val sendTo = nextValidationActor
       log.info("Send a validation work for fold " + fold + " to pool agent: " + sendTo)
       sendTo ! ValidationQuery(fold, model, testData, targetMetaData)
       stay
@@ -580,15 +590,44 @@ class CrossValidationActor(val chronosService: ActorRef,
         .getTestSet(fold)
         ._2
         .map(x => x.asJsObject.fields.toList.head._2.compactPrint)
-      data.results(fold) = Scores(results, groundTruth, targetMetaData)
 
-      // TODO To be improved with new Spark integration
-      // Update the average score
-      data.targetMetaData = targetMetaData
-      data.average = (data.average._1 ::: results, data.average._2 ::: groundTruth)
+      import cats.syntax.list._
+      import cats.syntax.list._
+      import scala.concurrent.duration._
+      import language.postfixOps
 
-      // If we have validated all the fold we finish!
-      if (data.results.size == data.foldsCount) reduceAndStop(data) else stay
+      (results.toNel, groundTruth.toNel) match {
+        case (Some(r), Some(gt)) =>
+          implicit val timeout = Timeout(5 minutes)
+          val sendTo           = nextValidationActor
+          val scores           = nextValidationActor ? ScoringQuery(r, gt, targetMetaData)
+          data.results(fold) = scores.asInstanceOf[ScoringResult]
+
+          // TODO To be improved with new Spark integration
+          // Update the average score
+          data.targetMetaData = targetMetaData
+          data.average = (data.average._1 ::: results, data.average._2 ::: groundTruth)
+
+          // If we have validated all the fold we finish!
+          if (data.results.size == data.foldsCount) reduceAndStop(data) else stay
+
+        case (Some(r), None) =>
+          val message = s"No results on fold $fold"
+          log.error(message)
+          context.parent ! CrossValidationActor.ErrorResponse(data.job.validation, message)
+          stop
+        case (None, Some(gt)) =>
+          val message = s"Empty test set on fold $fold"
+          log.error(message)
+          context.parent ! CrossValidationActor.ErrorResponse(data.job.validation, message)
+          stop
+        case (None, None) =>
+          val message = s"No data selected during fold $fold"
+          log.error(message)
+          context.parent ! CrossValidationActor.ErrorResponse(data.job.validation, message)
+          stop
+      }
+
     }
     case Event(ValidationError(message), Some(data: CrossValidationData)) => {
       log.error(message)

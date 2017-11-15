@@ -126,7 +126,7 @@ services:
       - db
 
   sample_db_setup:
-    image: "hbpmip/sample-data-db-setup:0.3.2"
+    image: "hbpmip/sample-data-db-setup:0.4.0"
     container_name: "data-db-setup"
     restart: "no"
     networks:

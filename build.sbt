@@ -18,6 +18,7 @@ lazy val `woken` =
           library.sprayJson,
           library.sprayRouting,
           library.slf4j,
+          library.catsCore,
           library.scalaz,
           library.config,
           library.doobieCore,
@@ -48,12 +49,13 @@ lazy val library =
       val sprayJson     = "1.3.4"
       val sprayRouting  = "1.3.3"
       val slf4j         = "1.7.13"
+      val cats           = "1.0.0-RC1"
       val scalaz        = "7.2.7"
       val config        = "1.2.1"
       val doobie        = "0.4.0"
       val snakeyaml     = "1.17"
       val hadrian       = "0.8.5"
-      val wokenMessages = "2.0.1"
+      val wokenMessages = "2.0.8"
       val spraySwagger  = "0.5.0"
       val swaggerUI     = "2.0.12"
     }
@@ -67,6 +69,7 @@ lazy val library =
     val sprayRouting: ModuleID = "io.spray"          %% "spray-routing-shapeless2" % Version.sprayRouting
     val sprayJson: ModuleID    = "io.spray"          %% "spray-json"   % Version.sprayJson
     val slf4j: ModuleID        = "org.slf4j"          % "slf4j-api"    % Version.slf4j
+    val catsCore: ModuleID    = "org.typelevel"     %% "cats-core"    % Version.cats
     val scalaz: ModuleID       = "org.scalaz"        %% "scalaz-core"  % Version.scalaz
     val config: ModuleID       = "com.typesafe"       % "config"       % Version.config
     val doobieCore: ModuleID   = "org.tpolecat"      %% "doobie-core"  % Version.doobie
@@ -90,10 +93,17 @@ lazy val settings = commonSettings ++ gitSettings ++ scalafmtSettings
 lazy val commonSettings =
   Seq(
     scalaVersion := "2.11.8",
-    organization := "eu.humanbrainproject.mip",
-    organizationName := "LREN CHUV",
-    startYear := Some(2017),
-    licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0")),
+    organization in ThisBuild := "eu.humanbrainproject.mip",
+    organizationName in ThisBuild := "Human Brain Project MIP by LREN CHUV",
+    homepage in ThisBuild := Some(url(s"https://github.com/HBPMedical/${name.value}/#readme")),
+    licenses in ThisBuild := Seq("Apache-2.0" ->
+      url(s"https://github.com/sbt/${name.value}/blob/${version.value}/LICENSE")),
+    startYear in ThisBuild := Some(2017),
+    description in ThisBuild := "Woken - a FaaS for machine learning",
+    developers in ThisBuild := List(
+      Developer("ludovicc", "Ludovic Claude", "@ludovicc", url("https://github.com/ludovicc"))
+    ),
+    scmInfo in ThisBuild := Some(ScmInfo(url(s"https://github.com/HBPMedical/${name.value}"), s"git@github.com:HBPMedical/${name.value}.git")),
     scalacOptions ++= Seq(
       "-unchecked",
       "-deprecation",
