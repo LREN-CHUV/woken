@@ -30,7 +30,7 @@ class JobService(val chronosService: ActorRef,
                  val resultDatabase: JobResultsDAL,
                  val federationDatabase: Option[JobResultsDAL],
                  val ldsmDatabase: LdsmDAL)(implicit system: ActorSystem)
-    extends JobServiceDoc
+    extends JobServiceApi
     with PerRequestCreator
     with DefaultJsonFormats {
 

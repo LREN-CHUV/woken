@@ -368,7 +368,7 @@ class MiningService(val chronosService: ActorRef,
                     val resultDatabase: JobResultsDAL,
                     val federationDatabase: Option[JobResultsDAL],
                     val ldsmDatabase: LdsmDAL)(implicit system: ActorSystem)
-    extends MiningServiceDoc
+    extends MiningServiceApi
     with PerRequestCreator
     with DefaultJsonFormats {
 

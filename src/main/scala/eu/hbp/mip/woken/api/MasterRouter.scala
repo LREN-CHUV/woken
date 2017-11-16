@@ -61,16 +61,19 @@ class MasterRouter(api: Api) extends Actor {
   }
 
   def receive: PartialFunction[Any, Unit] = {
-    case query: MethodsQuery => {
+    case query: MethodsQuery =>
       sender ! Methods(MiningService.methods_mock.parseJson.compactPrint)
-    }
+
     case MiningQuery(variables, covariables, groups, _, Algorithm(c, n, p))
         if c == "" || c == "data" =>
     // TODO To be implemented
+
     case query: MiningQuery =>
       miningRouter.route(CoordinatorActor.Start(query2job(query)), sender())
+
     case query: ExperimentQuery =>
       experimentRouter.route(ExperimentActor.Start(query2job(query)), sender())
+
     case Terminated(a) =>
       println(s"Actor terminated: $a")
 
@@ -85,6 +88,7 @@ class MasterRouter(api: Api) extends Actor {
         context watch r
         experimentRouter = experimentRouter.addRoutee(r)
       }
+
     case _ => // ignore
   }
 }

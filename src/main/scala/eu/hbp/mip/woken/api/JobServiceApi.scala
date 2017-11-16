@@ -28,7 +28,7 @@ import eu.hbp.mip.woken.core.CoordinatorActor.Result
             description = "Operations for jobs.",
             consumes = "application/json",
             produces = "application/json")
-trait JobServiceDoc extends Directives {
+trait JobServiceApi extends Directives {
 
   @ApiOperation(
     value = "Init a job",

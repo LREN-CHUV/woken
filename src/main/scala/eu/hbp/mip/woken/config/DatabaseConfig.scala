@@ -128,7 +128,7 @@ object MetaDatabaseConfig extends DatabaseConfig[MetaDAL] {
     def getVariableMetaData(variable: String, groups: JsObject): Option[JsObject] = {
 
       if (groups.fields.contains("variables")) {
-        groups.fields.get("variables").get match {
+        groups.fields("variables") match {
           case a: JsArray =>
             a.elements.find(
               v =>
@@ -145,11 +145,11 @@ object MetaDatabaseConfig extends DatabaseConfig[MetaDAL] {
       }
 
       if (groups.fields.contains("groups")) {
-        groups.fields.get("groups").get match {
+        groups.fields("groups") match {
           case a: JsArray =>
             return a.elements.toStream
               .map(g => getVariableMetaData(variable, g.asJsObject))
-              .find(o => !o.isEmpty) match {
+              .find(o => o.isDefined) match {
               case Some(variable: Option[JsObject]) => variable
               case None                             => None
             }
@@ -166,10 +166,9 @@ object MetaDatabaseConfig extends DatabaseConfig[MetaDAL] {
           v =>
             v -> (getVariableMetaData(v, groups) match {
               case Some(m) => m
-              case None => {
+              case None =>
                 logger.error(s"Cannot not find metadata for " + v)
                 JsObject.empty
-              }
             })
         )
         .toMap

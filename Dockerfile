@@ -19,7 +19,7 @@ RUN /check-sources.sh
 
 RUN sbt assembly
 
-FROM openjdk:8u131-jdk-alpine
+FROM hbpmip/java-base:8u131-2
 
 MAINTAINER Ludovic Claude <ludovic.claude@chuv.ch>
 

@@ -21,7 +21,6 @@ import spray.httpx.SprayJsonSupport
 import spray.httpx.marshalling.{ Marshaller, MetaMarshallers, ToResponseMarshaller }
 import spray.json._
 
-import scala.concurrent.Future
 import scala.reflect.ClassTag
 
 /**

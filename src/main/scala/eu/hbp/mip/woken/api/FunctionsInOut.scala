@@ -102,20 +102,19 @@ object RequestProtocol extends DefaultJsonProtocol with JobResults.Factory {
     results match {
       case res :: Nil =>
         res.shape match {
-          case "pfa_yaml" => {
+          case "pfa_yaml" =>
             val json = yaml2Json(Yaml(res.data.getOrElse("'No results returned'")))
             JsonMessage(json)
-          }
-          case "pfa_json" => {
+
+          case "pfa_json" =>
             val str  = res.data.getOrElse("'No results returned'")
             val json = JsonParser(str)
             JsonMessage(json)
-          }
-          case "application/highcharts+json" => {
+
+          case "application/highcharts+json" =>
             val str  = res.data.getOrElse("'No results returned'")
             val json = JsonParser(str)
             JsonMessage(json)
-          }
         }
     }
   }
