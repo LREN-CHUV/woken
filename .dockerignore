@@ -1,5 +1,6 @@
 .idea/
-dev-tests/
+dev-tests/log/
+dev-tests/tmp/
+dev-tests/woken/lib/
 project/project/
-project/target/
 target/
