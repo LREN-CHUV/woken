@@ -16,14 +16,14 @@
 
 package eu.hbp.mip.woken.core.clients
 
-import scala.concurrent.{ExecutionContextExecutor, Future}
+import scala.concurrent.{ ExecutionContextExecutor, Future }
 import scala.concurrent.duration._
-import akka.actor.{Actor, ActorLogging, ActorSystem, Status}
+import akka.actor.{ Actor, ActorLogging, ActorSystem, Status }
 import akka.io.IO
 import akka.pattern.AskTimeoutException
 import akka.util.Timeout
 import spray.can.Http
-import spray.http.{HttpResponse, StatusCode, StatusCodes}
+import spray.http.{ HttpResponse, StatusCode, StatusCodes }
 import spray.httpx.RequestBuilding._
 import eu.hbp.mip.woken.core.model.ChronosJob
 
@@ -45,9 +45,9 @@ class ChronosService extends Actor with ActorLogging {
     case Schedule(job) =>
       import akka.pattern.{ ask, pipe }
       import spray.httpx.SprayJsonSupport._
-      implicit val system: ActorSystem = context.system
+      implicit val system: ActorSystem                        = context.system
       implicit val executionContext: ExecutionContextExecutor = context.dispatcher
-      implicit val timeout: Timeout = Timeout(30.seconds)
+      implicit val timeout: Timeout                           = Timeout(30.seconds)
 
       import ChronosJob._
       log.warning(spray.json.PrettyPrinter.apply(chronosJobFormat.write(job)))
@@ -84,7 +84,5 @@ class ChronosService extends Actor with ActorLogging {
         } pipeTo originalSender
 
     case _ =>
-
-
   }
 }

@@ -26,6 +26,10 @@ FROM hbpmip/java-base:8u131-2
 
 MAINTAINER Ludovic Claude <ludovic.claude@chuv.ch>
 
+ARG BUILD_DATE
+ARG VCS_REF
+ARG VERSION
+
 COPY docker/runner/woken.sh /opt/woken/
 
 RUN adduser -H -D -u 1000 woken \
@@ -33,7 +37,7 @@ RUN adduser -H -D -u 1000 woken \
     && ln -s /opt/woken/woken.sh /run.sh \
     && chown -R woken:woken /opt/woken
 
-COPY --from=scala-build-env /build/target/scala-2.11/woken-assembly-dev.jar /opt/woken/woken.jar
+COPY --from=scala-build-env /build/target/scala-2.11/woken-assembly-$VERSION.jar /opt/woken/woken.jar
 
 USER woken
 
