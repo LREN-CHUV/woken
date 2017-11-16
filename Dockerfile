@@ -20,7 +20,7 @@ COPY .*.cfg .*ignore .*.yaml .*.conf .gitattributes *.md *.sh *.yml *.json *.txt
 
 RUN /check-sources.sh
 
-RUN sbt assembly
+RUN sbt test assembly
 
 FROM hbpmip/java-base:8u131-2
 
