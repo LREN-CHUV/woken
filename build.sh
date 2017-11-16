@@ -19,10 +19,13 @@ get_script_dir () {
 cd "$(get_script_dir)"
 
 if [[ $NO_SUDO || -n "$CIRCLECI" ]]; then
+  DOCKER="docker"
   CAPTAIN="captain"
 elif groups $USER | grep &>/dev/null '\bdocker\b'; then
+  DOCKER="docker"
   CAPTAIN="captain"
 else
+  DOCKER="sudo docker"
   CAPTAIN="sudo captain"
 fi
 
@@ -31,3 +34,5 @@ BUILD_DATE=$(date -Iseconds) \
   VERSION=$(git describe --tags --dirty) \
   WORKSPACE=$(pwd) \
   $CAPTAIN build
+
+$

@@ -1,5 +1,6 @@
 
-ludovic@LAB02186 ~/P/m/w/dev-tests> ./query-data.sh
+~/P/m/w/dev-tests> ./query-data.sh
+
 POST /mining HTTP/1.1
 Accept: application/json
 Accept-Encoding: gzip, deflate

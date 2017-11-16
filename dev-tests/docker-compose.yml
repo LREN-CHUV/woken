@@ -6,6 +6,8 @@ services:
   zookeeper:
     image: netflixoss/exhibitor:1.5.2
     hostname: zookeeper
+    networks:
+      - woken-bridge
 
   mesos_master:
     image: mesosphere/mesos-master:1.3.0
@@ -85,7 +87,8 @@ services:
     networks:
       - woken-bridge
     environment:
-      - TARGETS=db:5432
+      TARGETS: "db:5432"
+      TIMEOUT: 60
 
   create_dbs:
     image: "hbpmip/create-databases:1.0.0"
@@ -106,6 +109,9 @@ services:
       DB3: woken
       USER3: woken
       PASSWORD3: wokenpwd
+      DB4: portal
+      USER4: portal
+      PASSWORD4: portalpwd
     depends_on:
       - db
 
@@ -116,7 +122,6 @@ services:
     networks:
       - woken-bridge
     environment:
-      FLYWAY_DBMS: postgresql
       FLYWAY_HOST: db
       FLYWAY_PORT: 5432
       FLYWAY_DATABASE_NAME: meta
@@ -132,7 +137,6 @@ services:
     networks:
       - woken-bridge
     environment:
-      FLYWAY_DBMS: postgresql
       FLYWAY_HOST: db
       FLYWAY_PORT: 5432
       FLYWAY_DATABASE_NAME: features
@@ -148,7 +152,6 @@ services:
     networks:
       - woken-bridge
     environment:
-      FLYWAY_DBMS: postgresql
       FLYWAY_HOST: db
       FLYWAY_PORT: 5432
       FLYWAY_DATABASE_NAME: woken
@@ -158,10 +161,9 @@ services:
       - db
 
   woken:
-    image: hbpmip/woken:latest
+    image: hbpmip/woken
     volumes:
       - ./woken/config:/opt/woken/config
-      - ./woken/lib:/opt/woken/lib
     ports:
       - "8087:8087"
       - "8088:8088"
@@ -172,18 +174,88 @@ services:
       - chronos
       - db
 
-  woken-validation:
-    image: hbpmip/woken-validation:latest
+  woken_validation:
+    image: hbpmip/woken-validation
     volumes:
       - ./woken-validation/config/application.conf:/opt/woken-validation/config/application.conf
-      - ./woken-validation/lib:/opt/woken-validation/lib
     ports:
-      - "8082"
+      - "8082:8082"
     hostname: woken-validation
     networks:
       - woken-bridge
     depends_on:
       - woken
+
+  wait_woken:
+    image: "waisbrot/wait"
+    restart: "no"
+    networks:
+      - woken-bridge
+    environment:
+      TARGETS: "woken:8087"
+      TIMEOUT: 60
+
+  portal_backend:
+    image: "hbpmip/portal-backend:2.4.1"
+    container_name: "backend-test"
+    restart: "no"
+    ports:
+      - "65440:8080"
+    networks:
+      - woken-bridge
+    environment:
+      PORTAL_DB_URL: jdbc:postgresql://db:5432/portal
+      PORTAL_DB_SERVER: db:5432
+      PORTAL_DB_USER: portal
+      PORTAL_DB_PASSWORD: portalpwd
+      META_DB_URL: jdbc:postgresql://db:5432/meta
+      META_DB_SERVER: db:5432
+      META_DB_USER: meta
+      META_DB_PASSWORD: metapwd
+      FEATURES_DB_URL: jdbc:postgresql://db:5432/features
+      FEATURES_DB_SERVER: db:5432
+      FEATURES_DB_USER: features
+      FEATURES_DB_PASSWORD: featurespwd
+      FEATURES_DB_MAIN_TABLE: sample_data
+      WOKEN_HOST: woken
+      WOKEN_PORT: 8088
+      WOKEN_AKKA_PATH: "/user/entrypoint"
+      CONTEXT_PATH: /services
+      AUTHENTICATION: 0
+      FRONTEND_LOGIN_URL: http://frontend/services/login/hbp
+      FRONTEND_AFTER_LOGIN_URL: http://frontend/home
+      FRONTEND_AFTER_LOGOUT_URL: http://frontend/services/login/hbp
+      WOKEN_HOST: woken
+      WOKEN_PORT: 8088
+      WOKEN_AKKA_PATH: "/user/entrypoint"
+    depends_on:
+      - db
+      - woken
+
+  wait_portal_backend:
+    image: "waisbrot/wait"
+    restart: "no"
+    networks:
+      - woken-bridge
+    environment:
+      - TARGETS=portal_backend:8080
+    depends_on:
+      - portal_backend
+
+  frontend:
+    image: hbpmip/portal-frontend:2.3.2
+    depends_on:
+      - portal_backend
+    ports:
+      - "80:80"
+    environment:
+      WORKER_PROCESSES: 1
+      ERROR_LOG_LEVEL: warn
+      PORTAL_VIRTUAL_HOST: frontend
+      PORTAL_BACKEND_SERVER: backend:8080
+      PORTAL_BACKEND_CONTEXT: services
+    networks:
+      - woken-bridge
 
 networks:
   woken-bridge:
