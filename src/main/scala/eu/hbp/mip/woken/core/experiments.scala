@@ -19,22 +19,23 @@ package eu.hbp.mip.woken.core
 import java.time.OffsetDateTime
 import java.util.UUID
 
-import akka.actor.{ Actor, ActorLogging, ActorRef, ActorSelection, LoggingFSM, Props }
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSelection, LoggingFSM, Props}
 import akka.pattern.ask
+import akka.util
 import akka.util.Timeout
 import eu.hbp.mip.woken.api._
-import eu.hbp.mip.woken.config.WokenConfig.defaultSettings.{ defaultDb, dockerImage, isPredictive }
+import eu.hbp.mip.woken.config.WokenConfig.defaultSettings.{defaultDb, dockerImage, isPredictive}
 import eu.hbp.mip.woken.core.model.JobResult
-import eu.hbp.mip.woken.core.validation.{ KFoldCrossValidation, ValidationPoolManager }
+import eu.hbp.mip.woken.core.validation.{KFoldCrossValidation, ValidationPoolManager}
 import eu.hbp.mip.woken.dao.JobResultsDAL
-import eu.hbp.mip.woken.messages.external.{ Algorithm, Validation => ApiValidation }
+import eu.hbp.mip.woken.messages.external.{Algorithm, Validation => ApiValidation}
 import eu.hbp.mip.woken.messages.validation._
 import eu.hbp.mip.woken.meta.VariableMetaData
 import spray.http.StatusCodes
 import spray.httpx.marshalling.ToResponseMarshaller
-import spray.json.{ JsString, _ }
+import spray.json.{JsString, _}
 
-import scala.concurrent.Await
+import scala.concurrent.{Await, Future}
 import scala.util.Random
 
 /**
@@ -415,21 +416,22 @@ class CrossValidationActor(val chronosService: ActorRef,
 
     (data.average._1.toNel, data.average._2.toNel) match {
       case (Some(r), Some(gt)) =>
-        implicit val timeout = Timeout(5 minutes)
+        implicit val timeout: util.Timeout = Timeout(5 minutes)
 
-        val sendTo = nextValidationActor
-        val future = nextValidationActor ? ScoringQuery(r, gt, data.targetMetaData)
-        val scores = Await.result(future, timeout.duration).asInstanceOf[ScoringResult]
+        val futureO: Option[Future[_]] = nextValidationActor.map (_ ? ScoringQuery(r, gt, data.targetMetaData))
+        futureO.fold(data.replyTo ! CrossValidationActor.ErrorResponse(data.job.validation, "Validation system not connected") ) { future =>
+          val scores = Await.result(future, timeout.duration).asInstanceOf[ScoringResult]
 
-        // Aggregation of results from all folds
-        val jsonValidation = JsObject(
-          "type"    -> JsString("KFoldCrossValidation"),
-          "average" -> scores.scores,
-          "folds"   -> new JsObject(data.results.mapValues(s => s.scores).toMap)
-        )
+          // Aggregation of results from all folds
+          val jsonValidation = JsObject(
+            "type" -> JsString("KFoldCrossValidation"),
+            "average" -> scores.scores,
+            "folds" -> new JsObject(data.results.mapValues(s => s.scores).toMap)
+          )
 
-        data.replyTo ! CrossValidationActor.ResultResponse(data.job.validation,
-                                                           jsonValidation.compactPrint)
+          data.replyTo ! CrossValidationActor.ResultResponse(data.job.validation,
+            jsonValidation.compactPrint)
+        }
       case _ =>
         val message = s"Final reduce for cross-validation uses empty datasets"
         log.error(message)
@@ -438,10 +440,12 @@ class CrossValidationActor(val chronosService: ActorRef,
     stop
   }
 
-  def nextValidationActor: ActorSelection = {
+  def nextValidationActor: Option[ActorSelection] = {
     val validationPool = ValidationPoolManager.validationPool
-    //TODO If validationPool.size == 0, we cannot perform the cross validation we should throw an error!
-    context.actorSelection(validationPool.toList(Random.nextInt(validationPool.size)))
+    if (validationPool.isEmpty) None
+    else Some(
+        context.actorSelection(validationPool.toList(Random.nextInt(validationPool.size)))
+      )
   }
 
   startWith(WaitForNewJob, None)
@@ -598,20 +602,25 @@ class CrossValidationActor(val chronosService: ActorRef,
 
       (results.toNel, groundTruth.toNel) match {
         case (Some(r), Some(gt)) =>
-          implicit val timeout = Timeout(5 minutes)
-          val sendTo           = nextValidationActor
-          val future           = nextValidationActor ? ScoringQuery(r, gt, data.targetMetaData)
-          val scores           = Await.result(future, timeout.duration).asInstanceOf[ScoringResult]
+          implicit val timeout: util.Timeout = Timeout(5 minutes)
+          val futureO  : Option[Future[_]]                       = nextValidationActor.map(_ ? ScoringQuery(r, gt, data.targetMetaData))
 
-          data.results(fold) = scores
+          futureO.fold{
+            data.replyTo ! CrossValidationActor.ErrorResponse(data.job.validation, "Validation system not connected")
+            stop
+          } { future =>
+            val scores                         = Await.result(future, timeout.duration).asInstanceOf[ScoringResult]
 
-          // TODO To be improved with new Spark integration
-          // Update the average score
-          data.targetMetaData = targetMetaData
-          data.average = (data.average._1 ::: results, data.average._2 ::: groundTruth)
+            data.results(fold) = scores
 
-          // If we have validated all the fold we finish!
-          if (data.results.size == data.foldsCount) reduceAndStop(data) else stay
+            // TODO To be improved with new Spark integration
+            // Update the average score
+            data.targetMetaData = targetMetaData
+            data.average = (data.average._1 ::: results, data.average._2 ::: groundTruth)
+
+            // If we have validated all the fold we finish!
+            if (data.results.size == data.foldsCount) reduceAndStop(data) else stay
+          }
 
         case (Some(r), None) =>
           val message = s"No results on fold $fold"
