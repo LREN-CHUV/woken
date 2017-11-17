@@ -33,9 +33,8 @@ import eu.hbp.mip.woken.meta.VariableMetaData
 import spray.http.StatusCodes
 import spray.httpx.marshalling.ToResponseMarshaller
 import spray.json.{ JsString, _ }
-import cats.data.NonEmptyList
 
-import scala.concurrent.duration.Duration
+import scala.concurrent.Await
 import scala.util.Random
 
 /**
@@ -417,13 +416,15 @@ class CrossValidationActor(val chronosService: ActorRef,
     (data.average._1.toNel, data.average._2.toNel) match {
       case (Some(r), Some(gt)) =>
         implicit val timeout = Timeout(5 minutes)
-        val sendTo           = nextValidationActor
-        val scores           = nextValidationActor ? ScoringQuery(r, gt, data.targetMetaData)
+
+        val sendTo = nextValidationActor
+        val future = nextValidationActor ? ScoringQuery(r, gt, data.targetMetaData)
+        val scores = Await.result(future, timeout.duration).asInstanceOf[ScoringResult]
 
         // Aggregation of results from all folds
         val jsonValidation = JsObject(
           "type"    -> JsString("KFoldCrossValidation"),
-          "average" -> scores.asInstanceOf[ScoringResult].scores,
+          "average" -> scores.scores,
           "folds"   -> new JsObject(data.results.mapValues(s => s.scores).toMap)
         )
 
@@ -592,7 +593,6 @@ class CrossValidationActor(val chronosService: ActorRef,
         .map(x => x.asJsObject.fields.toList.head._2.compactPrint)
 
       import cats.syntax.list._
-      import cats.syntax.list._
       import scala.concurrent.duration._
       import language.postfixOps
 
@@ -600,8 +600,10 @@ class CrossValidationActor(val chronosService: ActorRef,
         case (Some(r), Some(gt)) =>
           implicit val timeout = Timeout(5 minutes)
           val sendTo           = nextValidationActor
-          val scores           = nextValidationActor ? ScoringQuery(r, gt, targetMetaData)
-          data.results(fold) = scores.asInstanceOf[ScoringResult]
+          val future           = nextValidationActor ? ScoringQuery(r, gt, data.targetMetaData)
+          val scores           = Await.result(future, timeout.duration).asInstanceOf[ScoringResult]
+
+          data.results(fold) = scores
 
           // TODO To be improved with new Spark integration
           // Update the average score
