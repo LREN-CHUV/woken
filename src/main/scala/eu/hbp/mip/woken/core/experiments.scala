@@ -19,23 +19,23 @@ package eu.hbp.mip.woken.core
 import java.time.OffsetDateTime
 import java.util.UUID
 
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSelection, LoggingFSM, Props}
+import akka.actor.{ Actor, ActorLogging, ActorRef, ActorSelection, LoggingFSM, Props }
 import akka.pattern.ask
 import akka.util
 import akka.util.Timeout
 import eu.hbp.mip.woken.api._
-import eu.hbp.mip.woken.config.WokenConfig.defaultSettings.{defaultDb, dockerImage, isPredictive}
+import eu.hbp.mip.woken.config.WokenConfig.defaultSettings.{ defaultDb, dockerImage, isPredictive }
 import eu.hbp.mip.woken.core.model.JobResult
-import eu.hbp.mip.woken.core.validation.{KFoldCrossValidation, ValidationPoolManager}
+import eu.hbp.mip.woken.core.validation.{ KFoldCrossValidation, ValidationPoolManager }
 import eu.hbp.mip.woken.dao.JobResultsDAL
-import eu.hbp.mip.woken.messages.external.{Algorithm, Validation => ApiValidation}
+import eu.hbp.mip.woken.messages.external.{ Algorithm, Validation => ApiValidation }
 import eu.hbp.mip.woken.messages.validation._
 import eu.hbp.mip.woken.meta.VariableMetaData
 import spray.http.StatusCodes
 import spray.httpx.marshalling.ToResponseMarshaller
-import spray.json.{JsString, _}
+import spray.json.{ JsString, _ }
 
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{ Await, Future }
 import scala.util.Random
 
 /**
@@ -418,19 +418,23 @@ class CrossValidationActor(val chronosService: ActorRef,
       case (Some(r), Some(gt)) =>
         implicit val timeout: util.Timeout = Timeout(5 minutes)
 
-        val futureO: Option[Future[_]] = nextValidationActor.map (_ ? ScoringQuery(r, gt, data.targetMetaData))
-        futureO.fold(data.replyTo ! CrossValidationActor.ErrorResponse(data.job.validation, "Validation system not connected") ) { future =>
+        val futureO: Option[Future[_]] =
+          nextValidationActor.map(_ ? ScoringQuery(r, gt, data.targetMetaData))
+        futureO.fold(
+          data.replyTo ! CrossValidationActor.ErrorResponse(data.job.validation,
+                                                            "Validation system not connected")
+        ) { future =>
           val scores = Await.result(future, timeout.duration).asInstanceOf[ScoringResult]
 
           // Aggregation of results from all folds
           val jsonValidation = JsObject(
-            "type" -> JsString("KFoldCrossValidation"),
+            "type"    -> JsString("KFoldCrossValidation"),
             "average" -> scores.scores,
-            "folds" -> new JsObject(data.results.mapValues(s => s.scores).toMap)
+            "folds"   -> new JsObject(data.results.mapValues(s => s.scores).toMap)
           )
 
           data.replyTo ! CrossValidationActor.ResultResponse(data.job.validation,
-            jsonValidation.compactPrint)
+                                                             jsonValidation.compactPrint)
         }
       case _ =>
         val message = s"Final reduce for cross-validation uses empty datasets"
@@ -443,7 +447,8 @@ class CrossValidationActor(val chronosService: ActorRef,
   def nextValidationActor: Option[ActorSelection] = {
     val validationPool = ValidationPoolManager.validationPool
     if (validationPool.isEmpty) None
-    else Some(
+    else
+      Some(
         context.actorSelection(validationPool.toList(Random.nextInt(validationPool.size)))
       )
   }
@@ -585,8 +590,14 @@ class CrossValidationActor(val chronosService: ActorRef,
 
       val sendTo = nextValidationActor
       log.info("Send a validation work for fold " + fold + " to pool agent: " + sendTo)
-      sendTo ! ValidationQuery(fold, model, testData, targetMetaData)
-      stay
+      sendTo.fold {
+        context.parent ! CrossValidationActor.ErrorResponse(data.job.validation,
+                                                            "Validation system not available")
+        stop
+      } { validationActor =>
+        validationActor ! ValidationQuery(fold, model, testData, targetMetaData)
+        stay
+      }
     }
     case Event(ValidationResult(fold, targetMetaData, results), Some(data: CrossValidationData)) => {
       log.info("Received validation results for fold " + fold + ".")
@@ -603,13 +614,15 @@ class CrossValidationActor(val chronosService: ActorRef,
       (results.toNel, groundTruth.toNel) match {
         case (Some(r), Some(gt)) =>
           implicit val timeout: util.Timeout = Timeout(5 minutes)
-          val futureO  : Option[Future[_]]                       = nextValidationActor.map(_ ? ScoringQuery(r, gt, data.targetMetaData))
+          val futureO: Option[Future[_]] =
+            nextValidationActor.map(_ ? ScoringQuery(r, gt, data.targetMetaData))
 
-          futureO.fold{
-            data.replyTo ! CrossValidationActor.ErrorResponse(data.job.validation, "Validation system not connected")
+          futureO.fold {
+            data.replyTo ! CrossValidationActor.ErrorResponse(data.job.validation,
+                                                              "Validation system not connected")
             stop
           } { future =>
-            val scores                         = Await.result(future, timeout.duration).asInstanceOf[ScoringResult]
+            val scores = Await.result(future, timeout.duration).asInstanceOf[ScoringResult]
 
             data.results(fold) = scores
 
