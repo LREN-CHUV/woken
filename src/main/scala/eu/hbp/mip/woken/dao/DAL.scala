@@ -47,7 +47,7 @@ class NodeDAL(xa: Transactor[IO]) extends JobResultsDAL {
   import DAL._
 
   def queryJobResults(jobId: String): ConnectionIO[List[JobResult]] =
-    sql"select job_id, node, timestamp, data, error, shape, function from job_result where job_id = $jobId"
+    sql"select job_id, node, timestamp, shape, function, data, error from job_result where job_id = $jobId"
       .query[JobResult]
       .list
 
@@ -59,7 +59,7 @@ class FederationDAL(xa: Transactor[IO]) extends JobResultsDAL {
   import DAL._
 
   def queryJobResults(jobId: String): ConnectionIO[List[JobResult]] =
-    sql"select job_id, node, timestamp, data, error, shape, function from job_result_nodes where job_id = $jobId"
+    sql"select job_id, node, timestamp, shape, function, data, error from job_result_nodes where job_id = $jobId"
       .query[JobResult]
       .list
 
