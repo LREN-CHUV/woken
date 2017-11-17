@@ -14,12 +14,17 @@ lazy val `woken` =
           library.akkaActor,
           library.akkaRemote,
           library.akkaCluster,
+          library.akkaSlf4j,
+          library.akkaTracingCore,
+          library.akkaTracingSpray,
           library.sprayCan,
           library.sprayJson,
           library.sprayRouting,
           library.slf4j,
+          library.log4j,
+          library.disruptor,
           library.catsCore,
-          library.scalaz,
+          //library.scalaz,
           library.config,
           library.doobieCore,
           library.doobiePostgres,
@@ -46,6 +51,7 @@ lazy val library =
       val scalaCheck    = "1.13.5"
       val scalaTest     = "3.0.3"
       val akka          = "2.3.16"
+      val akkaTracing   = "0.5.2" // use 0.6.1 with akka-http
       val spray         = "1.3.4"
       val sprayJson     = "1.3.4"
       val sprayRouting  = "1.3.3"
@@ -67,7 +73,10 @@ lazy val library =
     val akkaActor: ModuleID    = "com.typesafe.akka" %% "akka-actor"   % Version.akka
     val akkaRemote: ModuleID   = "com.typesafe.akka" %% "akka-remote"  % Version.akka
     val akkaCluster: ModuleID  = "com.typesafe.akka" %% "akka-cluster" % Version.akka
+    val akkaSlf4j: ModuleID    = "com.typesafe.akka" %% "akka-slf4j"   % Version.akka
     val akkaTestkit: ModuleID  = "com.typesafe.akka" %% "akka-testkit" % Version.akka
+    val akkaTracingCore: ModuleID  = "com.github.levkhomich" %% "akka-tracing-core" % Version.akkaTracing
+    val akkaTracingSpray: ModuleID  = "com.github.levkhomich" %% "akka-tracing-spray" % Version.akkaTracing excludeAll ExclusionRule(organization = "io.spray")
     val sprayCan: ModuleID     = "io.spray"          %% "spray-can"    % Version.spray exclude("io.spray", "spray-routing")
     val sprayRouting: ModuleID = "io.spray"          %% "spray-routing-shapeless2" % Version.sprayRouting
     val sprayJson: ModuleID    = "io.spray"          %% "spray-json"   % Version.sprayJson

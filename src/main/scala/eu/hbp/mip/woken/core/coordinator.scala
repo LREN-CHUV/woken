@@ -18,6 +18,7 @@ package eu.hbp.mip.woken.core
 
 import akka.actor.FSM.Failure
 import akka.actor._
+import com.github.levkhomich.akka.tracing.ActorTracing
 import spray.http.StatusCodes
 import spray.httpx.marshalling.ToResponseMarshaller
 
@@ -130,6 +131,7 @@ object CoordinatorStates {
 trait CoordinatorActor
     extends Actor
     with ActorLogging
+    with ActorTracing
     with LoggingFSM[CoordinatorStates.State, CoordinatorStates.StateData] {
   import CoordinatorStates._
 

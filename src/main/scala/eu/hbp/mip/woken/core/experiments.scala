@@ -23,6 +23,7 @@ import akka.actor.{ Actor, ActorLogging, ActorRef, ActorSelection, LoggingFSM, P
 import akka.pattern.ask
 import akka.util
 import akka.util.Timeout
+import com.github.levkhomich.akka.tracing.ActorTracing
 import eu.hbp.mip.woken.api._
 import eu.hbp.mip.woken.config.WokenConfig.defaultSettings.{ defaultDb, dockerImage, isPredictive }
 import eu.hbp.mip.woken.core.model.JobResult
@@ -114,6 +115,7 @@ class ExperimentActor(val chronosService: ActorRef,
                       val jobResultsFactory: JobResults.Factory)
     extends Actor
     with ActorLogging
+    with ActorTracing
     with LoggingFSM[ExperimentStates.State, Option[ExperimentStates.Data]] {
 
   import ExperimentActor._

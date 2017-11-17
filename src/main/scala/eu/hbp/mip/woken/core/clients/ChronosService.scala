@@ -22,6 +22,7 @@ import akka.actor.{ Actor, ActorLogging, ActorSystem, Status }
 import akka.io.IO
 import akka.pattern.AskTimeoutException
 import akka.util.Timeout
+import com.github.levkhomich.akka.tracing.ActorTracing
 import spray.can.Http
 import spray.http.{ HttpResponse, StatusCode, StatusCodes }
 import spray.httpx.RequestBuilding._
@@ -37,7 +38,7 @@ object ChronosService {
   val Error = eu.hbp.mip.woken.core.Error
 }
 
-class ChronosService extends Actor with ActorLogging {
+class ChronosService extends Actor with ActorLogging with ActorTracing {
   import ChronosService._
   import eu.hbp.mip.woken.config.WokenConfig.jobs._
 

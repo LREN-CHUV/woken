@@ -19,6 +19,7 @@ package eu.hbp.mip.woken.core.clients
 import akka.actor.{ Actor, ActorLogging }
 import akka.io.IO
 import akka.util.Timeout
+import com.github.levkhomich.akka.tracing.ActorTracing
 import spray.can.Http
 import spray.http.{ HttpResponse, StatusCode, StatusCodes }
 import spray.httpx.RequestBuilding._
@@ -38,7 +39,7 @@ object JobClientService {
   case class JobError(node: String, message: String)
 }
 
-class JobClientService(node: String) extends Actor with ActorLogging {
+class JobClientService(node: String) extends Actor with ActorLogging with ActorTracing {
   import JobClientService._
   import eu.hbp.mip.woken.config.WokenConfig.jobs._
 

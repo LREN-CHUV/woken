@@ -19,7 +19,6 @@ package eu.hbp.mip.woken.api
 import akka.actor.{ Actor, Terminated }
 import akka.routing.{ ActorRefRoutee, RoundRobinRoutingLogic, Router }
 import spray.json._
-
 import eu.hbp.mip.woken.messages.external.{
   Algorithm,
   ExperimentQuery,
@@ -29,12 +28,12 @@ import eu.hbp.mip.woken.messages.external.{
   QueryError,
   QueryResult
 }
-
 import eu.hbp.mip.woken.core.{ CoordinatorActor, ExperimentActor }
 import eu.hbp.mip.woken.core.model.JobResult
 import FunctionsInOut._
+import com.github.levkhomich.akka.tracing.ActorTracing
 
-class MasterRouter(api: Api) extends Actor {
+class MasterRouter(api: Api) extends Actor with ActorTracing {
 
   // For the moment we only support one JobResult
   def createQueryResult(results: scala.collection.Seq[JobResult]): Any =
