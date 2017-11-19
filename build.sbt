@@ -37,6 +37,8 @@ lazy val `woken` =
           library.scalaTest    % Test,
           library.akkaTestkit  % Test
         ),
+        includeFilter in (Compile, unmanagedResources) := "*.xml" || "*.conf" || "*.html",
+        includeFilter in (Test, unmanagedResources) := "*.json",
         assemblyJarName in assembly := "woken-all.jar"
       )
     )
@@ -96,7 +98,7 @@ lazy val library =
   }
 
 resolvers += "opendatagroup maven" at "http://repository.opendatagroup.com/maven"
-resolvers += Resolver.bintrayRepo("hbpmedical", "maven")
+resolvers += "HBPMedical Bintray Repo" at "http://dl.bintray.com/hbpmedical/maven/"
 
 // *****************************************************************************
 // Settings
