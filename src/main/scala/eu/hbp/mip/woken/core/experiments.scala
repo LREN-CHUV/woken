@@ -31,7 +31,7 @@ import eu.hbp.mip.woken.core.validation.{ KFoldCrossValidation, ValidationPoolMa
 import eu.hbp.mip.woken.dao.JobResultsDAL
 import eu.hbp.mip.woken.messages.external.{ Algorithm, Validation => ApiValidation }
 import eu.hbp.mip.woken.messages.validation._
-import eu.hbp.mip.woken.meta.VariableMetaData
+import eu.hbp.mip.woken.meta.{VariableMetaData, MetaDataProtocol}
 import spray.http.StatusCodes
 import spray.httpx.marshalling.ToResponseMarshaller
 import spray.json.{ JsString, _ }
@@ -379,15 +379,36 @@ object CrossValidationStates {
 
   case object WaitForWorkers extends State
 
+  case object Reduce extends State
+
+  type Fold = String
+
   // FSM Data
-  case class CrossValidationData(job: Job,
+  trait StateData {
+    def job: JobDto
+  }
+
+  case object Uninitialized extends StateData {
+    def job = throw new IllegalAccessException()
+  }
+
+  case class WaitForWorkersState(job: Job,
                                  replyTo: ActorRef,
-                                 var validation: KFoldCrossValidation,
-                                 workers: Map[ActorRef, String],
-                                 var targetMetaData: VariableMetaData,
-                                 var average: (List[String], List[String]),
-                                 var results: collection.mutable.Map[String, ScoringResult],
+                                 validation: KFoldCrossValidation,
+                                 workers: Map[ActorRef, Fold],
+                                 targetMetaData: VariableMetaData,
+                                 average: (List[String], List[String]),
+                                 results: Map[String, ScoringResult],
                                  foldsCount: Int)
+      extends StateData
+
+  case class ReduceData(job: Job,
+                        replyTo: ActorRef,
+                        targetMetaData: VariableMetaData,
+                        average: (List[String], List[String]),
+                        results: Map[String, ScoringResult])
+      extends StateData
+
 }
 
 /**
@@ -403,14 +424,15 @@ class CrossValidationActor(val chronosService: ActorRef,
                            val jobResultsFactory: JobResults.Factory)
     extends Actor
     with ActorLogging
-    with LoggingFSM[CrossValidationStates.State, Option[CrossValidationStates.CrossValidationData]] {
+    with LoggingFSM[CrossValidationStates.State, CrossValidationStates.StateData] {
 
   import CrossValidationActor._
   import CrossValidationStates._
 
   def adjust[A, B](m: Map[A, B], k: A)(f: B => B): Map[A, B] = m.updated(k, f(m(k)))
 
-  def reduceAndStop(data: CrossValidationData): State = {
+  // TODO - LC: use ReduceState
+  def reduceAndStop(data: ReduceData): State = {
 
     import cats.syntax.list._
     import scala.concurrent.duration._
@@ -419,6 +441,8 @@ class CrossValidationActor(val chronosService: ActorRef,
     (data.average._1.toNel, data.average._2.toNel) match {
       case (Some(r), Some(gt)) =>
         implicit val timeout: util.Timeout = Timeout(5 minutes)
+
+        // TODO: targetMetaData is null!!
 
         val futureO: Option[Future[_]] =
           nextValidationActor.map(_ ? ScoringQuery(r, gt, data.targetMetaData))
@@ -432,7 +456,7 @@ class CrossValidationActor(val chronosService: ActorRef,
           val jsonValidation = JsObject(
             "type"    -> JsString("KFoldCrossValidation"),
             "average" -> scores.scores,
-            "folds"   -> new JsObject(data.results.mapValues(s => s.scores).toMap)
+            "folds"   -> new JsObject(data.results.mapValues(s => s.scores))
           )
 
           data.replyTo ! CrossValidationActor.ResultResponse(data.job.validation,
@@ -455,25 +479,24 @@ class CrossValidationActor(val chronosService: ActorRef,
       )
   }
 
-  startWith(WaitForNewJob, None)
+  startWith(WaitForNewJob, Uninitialized)
 
   when(WaitForNewJob) {
-    case Event(Start(job), _) => {
-      val replyTo = sender()
-
+    case Event(Start(job), _) =>
+      val replyTo    = sender()
       val algorithm  = job.algorithm
       val validation = job.validation
 
-      log.warning(s"List of folds: ${validation.parameters("k")}")
+      log.info(s"List of folds: ${validation.parameters("k")}")
 
       val k = validation.parameters("k").toInt
 
       // TODO For now only kfold cross-validation
-      val xvalidation                                       = KFoldCrossValidation(job, k)
-      val workers: collection.mutable.Map[ActorRef, String] = collection.mutable.Map()
+      val xvalidation = KFoldCrossValidation(job, k)
+      //val workers: collection.mutable.Map[ActorRef, String] = collection.mutable.Map()
 
       // For every fold
-      xvalidation.partition.foreach({
+      val workers = xvalidation.partition.map {
         case (fold, (s, n)) => {
           // Spawn a LocalCoordinatorActor for that one particular fold
           val jobId = UUID.randomUUID().toString
@@ -481,114 +504,51 @@ class CrossValidationActor(val chronosService: ActorRef,
           val parameters = adjust(job.parameters, "PARAM_query")(
             (x: String) => x + " EXCEPT ALL (" + x + s" OFFSET $s LIMIT $n)"
           )
-          val subjob = JobDto(jobId,
-                              dockerImage(algorithm.code),
-                              None,
-                              None,
-                              Some(defaultDb),
-                              parameters,
-                              None)
+          val subJob = JobDto(jobId = jobId,
+                              dockerImage = dockerImage(algorithm.code),
+                              federationDockerImage = None,
+                              jobName = None,
+                              inputDb = Some(defaultDb),
+                              parameters = parameters,
+                              nodes = None)
           val worker = context.actorOf(
             CoordinatorActor
               .props(chronosService, resultDatabase, federationDatabase, jobResultsFactory)
           )
-          workers(worker) = fold
-          worker ! CoordinatorActor.Start(subjob)
+          //workers(worker) = fold
+          worker ! CoordinatorActor.Start(subJob)
+
+          (worker, fold)
         }
-      })
-      goto(WaitForWorkers) using Some(
-        CrossValidationData(job,
-                            replyTo,
-                            xvalidation,
-                            workers.toMap,
-                            null,
-                            (Nil, Nil),
-                            collection.mutable.Map(),
-                            k)
-      )
-    }
+      }
+
+      import MetaDataProtocol._
+      val targetMetaData: VariableMetaData = job
+        .parameters("PARAM_meta")
+        .parseJson
+        .convertTo[Map[String, VariableMetaData]]
+        .get(job.parameters("PARAM_variables").split(",").head) match {
+        case Some(v: VariableMetaData) => v
+        case None                      => throw new Exception("Problem with variables' meta data!")
+      }
+
+      goto(WaitForWorkers) using WaitForWorkersState(job,
+                                                     replyTo,
+                                                     xvalidation,
+                                                     workers,
+                                                     targetMetaData,
+                                                     (Nil, Nil),
+                                                     Map(),
+                                                     k)
   }
 
   when(WaitForWorkers) {
-    case Event(JsonMessage(pfa: JsValue), Some(data: CrossValidationData)) => {
+    case Event(JsonMessage(pfa: JsValue), data: WaitForWorkersState) =>
       // Validate the results
       log.info("Received result from local method.")
       val model    = pfa.toString()
       val fold     = data.workers(sender)
       val testData = data.validation.getTestSet(fold)._1.map(d => d.compactPrint)
-
-      // TODO move all this deserialization code
-      // Get target variable's meta data
-      object MyJsonProtocol extends DefaultJsonProtocol {
-        //implicit val variableMetaData = jsonFormat6(VariableMetaData)
-
-        implicit object VariableMetaDataFormat extends RootJsonFormat[VariableMetaData] {
-          // Some fields are optional so we produce a list of options and
-          // then flatten it to only write the fields that were Some(..)
-          def write(item: VariableMetaData): JsObject =
-            JsObject(
-              ((item.methodology match {
-                case Some(m) => Some("methodology" -> m.toJson)
-                case _       => None
-              }) :: (item.units match {
-                case Some(u) => Some("units" -> u.toJson)
-                case _       => None
-              }) :: (item.enumerations match {
-                case Some(e) => Some("enumerations" -> e.map({ case (c, l) => (c, l) }).toJson)
-                case _       => None
-              }) :: List(
-                Some("code"  -> item.code.toJson),
-                Some("label" -> item.label.toJson),
-                Some("type"  -> item.`type`.toJson)
-              )).flatten: _*
-            )
-
-          // We use the "standard" getFields method to extract the mandatory fields.
-          // For optional fields we extract them directly from the fields map using get,
-          // which already handles the option wrapping for us so all we have to do is map the option
-          def read(json: JsValue): VariableMetaData = {
-            val jsObject = json.asJsObject
-
-            jsObject.getFields("code", "label", "type") match {
-              case Seq(code, label, t) ⇒
-                VariableMetaData(
-                  code.convertTo[String],
-                  label.convertTo[String],
-                  t.convertTo[String],
-                  jsObject.fields.get("methodology").map(_.convertTo[String]),
-                  jsObject.fields.get("units").map(_.convertTo[String]),
-                  jsObject.fields
-                    .get("enumerations")
-                    .map(
-                      _.convertTo[JsArray].elements
-                        .map(
-                          o =>
-                            o.asJsObject
-                              .fields("code")
-                              .convertTo[String] -> o.asJsObject
-                              .fields("label")
-                              .convertTo[String]
-                        )
-                        .toMap
-                    )
-                )
-              case other ⇒
-                deserializationError(
-                  "Cannot deserialize VariableMetaData: invalid input. Raw input: " + other
-                )
-            }
-          }
-        }
-      }
-      import MyJsonProtocol._
-      val targetMetaData: VariableMetaData = data.job
-        .parameters("PARAM_meta")
-        .parseJson
-        .convertTo[Map[String, VariableMetaData]]
-        .get(data.job.parameters("PARAM_variables").split(",").head) match {
-        case Some(v: VariableMetaData) => v
-        case None                      => throw new Exception("Problem with variables' meta data!")
-      }
 
       val sendTo = nextValidationActor
       log.info("Send a validation work for fold " + fold + " to pool agent: " + sendTo)
@@ -597,11 +557,11 @@ class CrossValidationActor(val chronosService: ActorRef,
                                                             "Validation system not available")
         stop
       } { validationActor =>
-        validationActor ! ValidationQuery(fold, model, testData, targetMetaData)
+        validationActor ! ValidationQuery(fold, model, testData, data.targetMetaData)
         stay
       }
-    }
-    case Event(ValidationResult(fold, targetMetaData, results), Some(data: CrossValidationData)) => {
+
+    case Event(ValidationResult(fold, targetMetaData, results), data: WaitForWorkersState) =>
       log.info("Received validation results for fold " + fold + ".")
       // Score the results
       val groundTruth = data.validation
@@ -630,9 +590,9 @@ class CrossValidationActor(val chronosService: ActorRef,
 
             // TODO To be improved with new Spark integration
             // Update the average score
-            data.targetMetaData = targetMetaData
-            data.average = (data.average._1 ::: results, data.average._2 ::: groundTruth)
+            val updatedAverage = (data.average._1 ::: results, data.average._2 ::: groundTruth)
 
+            // TODO - LC: use updatedAverage in the next step
             // If we have validated all the fold we finish!
             if (data.results.size == data.foldsCount) reduceAndStop(data) else stay
           }
@@ -654,19 +614,17 @@ class CrossValidationActor(val chronosService: ActorRef,
           stop
       }
 
-    }
-    case Event(ValidationError(message), Some(data: CrossValidationData)) => {
+    case Event(ValidationError(message), data: WaitForWorkersState) =>
       log.error(message)
       // On testing fold fails, we notify supervisor and we stop
       context.parent ! CrossValidationActor.ErrorResponse(data.job.validation, message)
       stop
-    }
-    case Event(Error(message), Some(data: CrossValidationData)) => {
+
+    case Event(Error(message), data: WaitForWorkersState) =>
       log.error(message)
       // On training fold fails, we notify supervisor and we stop
       context.parent ! CrossValidationActor.ErrorResponse(data.job.validation, message)
       stop
-    }
   }
 
   initialize()

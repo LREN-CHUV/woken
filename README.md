@@ -1,8 +1,8 @@
-[![Build Status](https://travis-ci.org/LREN-CHUV/woken.svg?branch=master)](https://travis-ci.org/LREN-CHUV/woken)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/3a1e546e9f124b44a829f2d0ea488a96)](https://www.codacy.com/app/hbp-mip/woken?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=LREN-CHUV/woken&amp;utm_campaign=Badge_Grade) [![Codacy Badge](https://api.codacy.com/project/badge/Coverage/3a1e546e9f124b44a829f2d0ea488a96)](https://www.codacy.com/app/hbp-mip/woken?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=LREN-CHUV/woken&amp;utm_campaign=Badge_Coverage) [![Dependencies](https://app.updateimpact.com/badge/776816605463187456/woken.svg?config=compile)](https://app.updateimpact.com/latest/776816605463187456/woken)
+[![CHUV](https://img.shields.io/badge/CHUV-LREN-AF4C64.svg)](https://www.unil.ch/lren/en/home.html) [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](https://github.com/LREN-CHUV/woken/blob/master/LICENSE) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/3a1e546e9f124b44a829f2d0ea488a96)](https://www.codacy.com/app/hbp-mip/woken?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=LREN-CHUV/woken&amp;utm_campaign=Badge_Grade) [![Codacy Badge](https://api.codacy.com/project/badge/Coverage/3a1e546e9f124b44a829f2d0ea488a96)](https://www.codacy.com/app/hbp-mip/woken?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=LREN-CHUV/woken&amp;utm_campaign=Badge_Coverage) [![Dependencies](https://app.updateimpact.com/badge/776816605463187456/woken.svg?config=compile)](https://app.updateimpact.com/latest/776816605463187456/woken) [![Build Status](https://travis-ci.org/LREN-CHUV/woken.svg?branch=master)](https://travis-ci.org/LREN-CHUV/woken) [![CircleCI](https://circleci.com/gh/HBPMedical/woken.svg?style=svg)](https://circleci.com/gh/HBPMedical/woken)
 <!-- TODO
 [![codecov.io](https://codecov.io/github/LREN-CHUV/woken/coverage.svg?branch=master)](https://codecov.io/github/LREN-CHUV/woken?branch=master)
 -->
+
 
 # woken: Workflow for Analytics
 
