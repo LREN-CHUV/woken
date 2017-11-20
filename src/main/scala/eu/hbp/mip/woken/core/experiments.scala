@@ -555,14 +555,17 @@ class CrossValidationActor(val chronosService: ActorRef,
 
             // TODO - LC: use updatedAverage in the next step
             // If we have validated all the fold we finish!
-            if (data.results.size == data.foldCount)
+            if (updatedResults.size == data.foldCount) {
+              log.info("Received the scores for each folds, moving on to final reduce step")
               goto(Reduce) using ReduceData(job = data.job,
-                                            replyTo = data.replyTo,
-                                            targetMetaData = data.targetMetaData,
-                                            average = updatedAverage,
-                                            results = updatedResults)
-            else
+                replyTo = data.replyTo,
+                targetMetaData = data.targetMetaData,
+                average = updatedAverage,
+                results = updatedResults)
+            } else {
+              log.info(s"Waiting for more scoring results as we have received ${updatedResults.size} scores and there are ${data.foldCount} folds")
               stay using data.copy(average = updatedAverage, results = updatedResults)
+            }
           }
 
         case (Some(_), None) =>

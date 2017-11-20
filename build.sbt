@@ -21,7 +21,7 @@ lazy val `woken` =
           library.sprayJson,
           library.sprayRouting,
           library.slf4j,
-          library.log4j,
+          library.log4jSlf4j,
           library.disruptor,
           library.catsCore,
           //library.scalaz,
@@ -83,7 +83,7 @@ lazy val library =
     val sprayRouting: ModuleID = "io.spray"          %% "spray-routing-shapeless2" % Version.sprayRouting
     val sprayJson: ModuleID    = "io.spray"          %% "spray-json"   % Version.sprayJson
     val slf4j: ModuleID        = "org.slf4j"          % "slf4j-api"    % Version.slf4j
-    val log4j: ModuleID        = "org.apache.logging.log4j" % "log4j-slf4j-impl" % Version.log4j
+    val log4jSlf4j: ModuleID   = "org.apache.logging.log4j" % "log4j-slf4j-impl" % Version.log4j
     val disruptor: ModuleID    = "com.lmax"           % "disruptor"    % Version.disruptor
     val catsCore: ModuleID     = "org.typelevel"     %% "cats-core"    % Version.cats
     val scalaz: ModuleID       = "org.scalaz"        %% "scalaz-core"  % Version.scalaz
