@@ -69,7 +69,7 @@ echo "The Algorithm Factory is now running on your system"
 
 echo "Testing deployment..."
 
-/bin/bash ./test.sh
+./http/query-experiment.sh
 
 $DOCKER_COMPOSE up -d portal_backend
 

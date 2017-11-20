@@ -31,7 +31,7 @@ import eu.hbp.mip.woken.core.validation.{ KFoldCrossValidation, ValidationPoolMa
 import eu.hbp.mip.woken.dao.JobResultsDAL
 import eu.hbp.mip.woken.messages.external.{ Algorithm, Validation => ApiValidation }
 import eu.hbp.mip.woken.messages.validation._
-import eu.hbp.mip.woken.meta.{VariableMetaData, MetaDataProtocol}
+import eu.hbp.mip.woken.meta.{ MetaDataProtocol, VariableMetaData }
 import spray.http.StatusCodes
 import spray.httpx.marshalling.ToResponseMarshaller
 import spray.json.{ JsString, _ }
@@ -358,6 +358,7 @@ object CrossValidationActor {
       parameters: Map[String, String]
   )
   case class Start(job: Job)
+  case object Done
 
   // Output Messages
   case class ResultResponse(validation: ApiValidation, data: String)
@@ -385,7 +386,7 @@ object CrossValidationStates {
 
   // FSM Data
   trait StateData {
-    def job: JobDto
+    def job: Job
   }
 
   case object Uninitialized extends StateData {
@@ -396,10 +397,10 @@ object CrossValidationStates {
                                  replyTo: ActorRef,
                                  validation: KFoldCrossValidation,
                                  workers: Map[ActorRef, Fold],
+                                 foldCount: Int,
                                  targetMetaData: VariableMetaData,
                                  average: (List[String], List[String]),
-                                 results: Map[String, ScoringResult],
-                                 foldsCount: Int)
+                                 results: Map[String, ScoringResult])
       extends StateData
 
   case class ReduceData(job: Job,
@@ -431,45 +432,6 @@ class CrossValidationActor(val chronosService: ActorRef,
 
   def adjust[A, B](m: Map[A, B], k: A)(f: B => B): Map[A, B] = m.updated(k, f(m(k)))
 
-  // TODO - LC: use ReduceState
-  def reduceAndStop(data: ReduceData): State = {
-
-    import cats.syntax.list._
-    import scala.concurrent.duration._
-    import language.postfixOps
-
-    (data.average._1.toNel, data.average._2.toNel) match {
-      case (Some(r), Some(gt)) =>
-        implicit val timeout: util.Timeout = Timeout(5 minutes)
-
-        // TODO: targetMetaData is null!!
-
-        val futureO: Option[Future[_]] =
-          nextValidationActor.map(_ ? ScoringQuery(r, gt, data.targetMetaData))
-        futureO.fold(
-          data.replyTo ! CrossValidationActor.ErrorResponse(data.job.validation,
-                                                            "Validation system not connected")
-        ) { future =>
-          val scores = Await.result(future, timeout.duration).asInstanceOf[ScoringResult]
-
-          // Aggregation of results from all folds
-          val jsonValidation = JsObject(
-            "type"    -> JsString("KFoldCrossValidation"),
-            "average" -> scores.scores,
-            "folds"   -> new JsObject(data.results.mapValues(s => s.scores))
-          )
-
-          data.replyTo ! CrossValidationActor.ResultResponse(data.job.validation,
-                                                             jsonValidation.compactPrint)
-        }
-      case _ =>
-        val message = s"Final reduce for cross-validation uses empty datasets"
-        log.error(message)
-        context.parent ! CrossValidationActor.ErrorResponse(data.job.validation, message)
-    }
-    stop
-  }
-
   def nextValidationActor: Option[ActorSelection] = {
     val validationPool = ValidationPoolManager.validationPool
     if (validationPool.isEmpty) None
@@ -489,15 +451,16 @@ class CrossValidationActor(val chronosService: ActorRef,
 
       log.info(s"List of folds: ${validation.parameters("k")}")
 
-      val k = validation.parameters("k").toInt
+      val foldCount = validation.parameters("k").toInt
 
       // TODO For now only kfold cross-validation
-      val xvalidation = KFoldCrossValidation(job, k)
-      //val workers: collection.mutable.Map[ActorRef, String] = collection.mutable.Map()
+      val crossValidation = KFoldCrossValidation(job, foldCount)
+
+      assert(crossValidation.partition.size == foldCount)
 
       // For every fold
-      val workers = xvalidation.partition.map {
-        case (fold, (s, n)) => {
+      val workers = crossValidation.partition.map {
+        case (fold, (s, n)) =>
           // Spawn a LocalCoordinatorActor for that one particular fold
           val jobId = UUID.randomUUID().toString
           // TODO To be removed in WP3
@@ -519,7 +482,6 @@ class CrossValidationActor(val chronosService: ActorRef,
           worker ! CoordinatorActor.Start(subJob)
 
           (worker, fold)
-        }
       }
 
       import MetaDataProtocol._
@@ -532,14 +494,14 @@ class CrossValidationActor(val chronosService: ActorRef,
         case None                      => throw new Exception("Problem with variables' meta data!")
       }
 
-      goto(WaitForWorkers) using WaitForWorkersState(job,
-                                                     replyTo,
-                                                     xvalidation,
-                                                     workers,
-                                                     targetMetaData,
-                                                     (Nil, Nil),
-                                                     Map(),
-                                                     k)
+      goto(WaitForWorkers) using WaitForWorkersState(job = job,
+                                                     replyTo = replyTo,
+                                                     validation = crossValidation,
+                                                     workers = workers,
+                                                     targetMetaData = targetMetaData,
+                                                     average = (Nil, Nil),
+                                                     results = Map(),
+                                                     foldCount = foldCount)
   }
 
   when(WaitForWorkers) {
@@ -586,23 +548,29 @@ class CrossValidationActor(val chronosService: ActorRef,
           } { future =>
             val scores = Await.result(future, timeout.duration).asInstanceOf[ScoringResult]
 
-            data.results(fold) = scores
-
             // TODO To be improved with new Spark integration
             // Update the average score
             val updatedAverage = (data.average._1 ::: results, data.average._2 ::: groundTruth)
+            val updatedResults = data.results + (fold -> scores)
 
             // TODO - LC: use updatedAverage in the next step
             // If we have validated all the fold we finish!
-            if (data.results.size == data.foldsCount) reduceAndStop(data) else stay
+            if (data.results.size == data.foldCount)
+              goto(Reduce) using ReduceData(job = data.job,
+                                            replyTo = data.replyTo,
+                                            targetMetaData = data.targetMetaData,
+                                            average = updatedAverage,
+                                            results = updatedResults)
+            else
+              stay using data.copy(average = updatedAverage, results = updatedResults)
           }
 
-        case (Some(r), None) =>
+        case (Some(_), None) =>
           val message = s"No results on fold $fold"
           log.error(message)
           context.parent ! CrossValidationActor.ErrorResponse(data.job.validation, message)
           stop
-        case (None, Some(gt)) =>
+        case (None, Some(_)) =>
           val message = s"Empty test set on fold $fold"
           log.error(message)
           context.parent ! CrossValidationActor.ErrorResponse(data.job.validation, message)
@@ -625,6 +593,49 @@ class CrossValidationActor(val chronosService: ActorRef,
       // On training fold fails, we notify supervisor and we stop
       context.parent ! CrossValidationActor.ErrorResponse(data.job.validation, message)
       stop
+  }
+
+  when(Reduce) {
+    case Event(Done, data: ReduceData) =>
+      import cats.syntax.list._
+      import scala.concurrent.duration._
+      import language.postfixOps
+
+      (data.average._1.toNel, data.average._2.toNel) match {
+        case (Some(r), Some(gt)) =>
+          implicit val timeout: util.Timeout = Timeout(5 minutes)
+
+          // TODO: targetMetaData is null!!
+
+          val futureO: Option[Future[_]] =
+            nextValidationActor.map(_ ? ScoringQuery(r, gt, data.targetMetaData))
+          futureO.fold(
+            data.replyTo ! CrossValidationActor.ErrorResponse(data.job.validation,
+                                                              "Validation system not connected")
+          ) { future =>
+            val scores = Await.result(future, timeout.duration).asInstanceOf[ScoringResult]
+
+            // Aggregation of results from all folds
+            val jsonValidation = JsObject(
+              "type"    -> JsString("KFoldCrossValidation"),
+              "average" -> scores.scores,
+              "folds"   -> new JsObject(data.results.mapValues(s => s.scores))
+            )
+
+            data.replyTo ! CrossValidationActor.ResultResponse(data.job.validation,
+                                                               jsonValidation.compactPrint)
+          }
+        case _ =>
+          val message = s"Final reduce for cross-validation uses empty datasets"
+          log.error(message)
+          context.parent ! CrossValidationActor.ErrorResponse(data.job.validation, message)
+      }
+      stop
+  }
+
+  onTransition {
+    case _ -> Reduce =>
+      self ! Done
   }
 
   initialize()

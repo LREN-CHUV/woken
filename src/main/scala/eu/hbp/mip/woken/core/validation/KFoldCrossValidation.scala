@@ -30,21 +30,22 @@ trait CrossValidation {
   * TODO In WP3 should be an Actor
   *
   * @param data
-  * @param k
+  * @param foldCount
   */
-class KFoldCrossValidation(data: Stream[JsObject], labels: Stream[JsObject], k: Int)
+class KFoldCrossValidation(data: Stream[JsObject], labels: Stream[JsObject], foldCount: Int)
     extends CrossValidation {
 
   /**
     *
     * @return
     */
+  // TODO: return None if data size < fold count
   override def partition: Map[String, (Int, Int)] = {
     val nb                                 = data.size
     var partition: Map[String, (Int, Int)] = Map()
-    if (nb >= k) {
-      val t = nb.toFloat / k.toFloat
-      for (i: Int <- 0 until k) {
+    if (nb >= foldCount) {
+      val t = nb.toFloat / foldCount.toFloat
+      for (i: Int <- 0 until foldCount) {
         partition += i.toString -> Tuple2(scala.math.round(i * t),
                                           scala.math.round((i + 1) * t) - scala.math.round(i * t))
       }
@@ -72,7 +73,7 @@ class KFoldCrossValidation(data: Stream[JsObject], labels: Stream[JsObject], k: 
   */
 object KFoldCrossValidation {
 
-  def apply(job: CrossValidationActor.Job, k: Int): KFoldCrossValidation = {
+  def apply(job: CrossValidationActor.Job, foldCount: Int): KFoldCrossValidation = {
 
     val conf = eu.hbp.mip.woken.config.WokenConfig.dbConfig(job.inputDb.get)
     val dal  = new LdsmDAL(conf.jdbcDriver, conf.jdbcUrl, conf.jdbcUser, conf.jdbcPassword, "")
@@ -94,6 +95,6 @@ object KFoldCrossValidation {
       )
       .unzip
 
-    new KFoldCrossValidation(data, labels, k)
+    new KFoldCrossValidation(data, labels, foldCount)
   }
 }
