@@ -516,6 +516,7 @@ class CrossValidationActor(val chronosService: ActorRef,
           (worker, fold)
       }
 
+      // TODO: this parsing should have been done earlier
       import MetaDataProtocol._
       val targetMetaData: VariableMetaData = job
         .parameters("PARAM_meta")
@@ -545,7 +546,7 @@ class CrossValidationActor(val chronosService: ActorRef,
       val testData = data.validation.getTestSet(fold)._1.map(d => d.compactPrint)
 
       val sendTo = nextValidationActor
-      log.info("Send a validation work for fold " + fold + " to pool agent: " + sendTo)
+      log.info(s"Send a validation work for fold $fold to pool agent: $sendTo")
       sendTo.fold {
         context.parent ! CrossValidationActor.ErrorResponse(data.job.validation,
                                                             "Validation system not available")
@@ -556,7 +557,7 @@ class CrossValidationActor(val chronosService: ActorRef,
       }
 
     case Event(ValidationResult(fold, targetMetaData, results), data: WaitForWorkersState) =>
-      log.info("Received validation results for fold " + fold + ".")
+      log.info(s"Received validation results for fold $fold.")
       // Score the results
       val groundTruth = data.validation
         .getTestSet(fold)
@@ -570,6 +571,8 @@ class CrossValidationActor(val chronosService: ActorRef,
       (results.toNel, groundTruth.toNel) match {
         case (Some(r), Some(gt)) =>
           implicit val timeout: util.Timeout = Timeout(5 minutes)
+          // TODO: replace ask pattern by 1) sending a ScoringQuery and handling ScoringResult in this state and
+          // 2) start a timer to handle timeouts. A bit tricky as we need to keep track of several ScoringQueries at once
           val futureO: Option[Future[_]] =
             nextValidationActor.map(_ ? ScoringQuery(r, gt, data.targetMetaData))
 
@@ -580,7 +583,7 @@ class CrossValidationActor(val chronosService: ActorRef,
           } { future =>
             val scores = Await.result(future, timeout.duration).asInstanceOf[ScoringResult]
 
-            // TODO To be improved with new Spark integration
+            // TODO To be improved with new Spark integration - LC: what was that about?
             // Update the average score
             val updatedAverage = (data.average._1 ::: results, data.average._2 ::: groundTruth)
             val updatedResults = data.results + (fold -> scores)
@@ -642,8 +645,8 @@ class CrossValidationActor(val chronosService: ActorRef,
         case (Some(r), Some(gt)) =>
           implicit val timeout: util.Timeout = Timeout(5 minutes)
 
-          // TODO: targetMetaData is null!!
-
+          // TODO: replace ask pattern by 1) sending a ScoringQuery and handling ScoringResult in this state and
+          // 2) start a timer to handle timeouts
           val futureO: Option[Future[_]] =
             nextValidationActor.map(_ ? ScoringQuery(r, gt, data.targetMetaData))
           futureO.fold(
