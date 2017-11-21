@@ -252,7 +252,7 @@ services:
       WORKER_PROCESSES: 1
       ERROR_LOG_LEVEL: warn
       PORTAL_VIRTUAL_HOST: frontend
-      PORTAL_BACKEND_SERVER: backend:8080
+      PORTAL_BACKEND_SERVER: portal_backend:8080
       PORTAL_BACKEND_CONTEXT: services
     networks:
       - woken-bridge
