@@ -24,7 +24,7 @@ import akka.pattern.ask
 import akka.util
 import akka.util.Timeout
 import com.github.levkhomich.akka.tracing.ActorTracing
-import eu.hbp.mip.woken.api._
+import eu.hbp.mip.woken.api.{ RequestProtocol, _ }
 import eu.hbp.mip.woken.config.WokenConfig.defaultSettings.{ defaultDb, dockerImage, isPredictive }
 import eu.hbp.mip.woken.core.model.JobResult
 import eu.hbp.mip.woken.core.validation.{ KFoldCrossValidation, ValidationPoolManager }
@@ -62,6 +62,8 @@ object ExperimentActor {
       ToResponseMarshaller.fromMarshaller(StatusCodes.OK)(jsonFormat1(Start))
   }
 
+  case object Done
+
   // Output messages: JobResult containing the experiment PFA
   type Result = eu.hbp.mip.woken.core.model.JobResult
   val Result = eu.hbp.mip.woken.core.model.JobResult
@@ -88,17 +90,23 @@ object ExperimentStates {
   import ExperimentActor.Job
 
   // FSM States
+
   sealed trait State
   case object WaitForNewJob  extends State
   case object WaitForWorkers extends State
+  case object Reduce         extends State
 
   // FSM Data
-  case class Data(
+
+  // TODO: results should be Map[Algorithm, \/[String,String]] to keep notion of error responses
+  case class ExperimentData(
       job: Job,
       replyTo: ActorRef,
-      results: collection.mutable.Map[Algorithm, String],
+      results: Map[Algorithm, String],
       algorithms: Seq[Algorithm]
-  )
+  ) {
+    def isComplete: Boolean = results.size == algorithms.length
+  }
 
 }
 
@@ -116,85 +124,91 @@ class ExperimentActor(val chronosService: ActorRef,
     extends Actor
     with ActorLogging
     with ActorTracing
-    with LoggingFSM[ExperimentStates.State, Option[ExperimentStates.Data]] {
+    with LoggingFSM[ExperimentStates.State, Option[ExperimentStates.ExperimentData]] {
 
   import ExperimentActor._
   import ExperimentStates._
 
-  def reduceAndStop(data: Data): State = {
-
-    //TODO WP3 Save the results in results DB
-
-    // Concatenate results while respecting received algorithms order
-    val output = JsArray(
-      data.algorithms
-        .map(
-          a =>
-            JsObject("code" -> JsString(a.code),
-                     "name" -> JsString(a.name),
-                     "data" -> JsonParser(data.results(a)))
-        )
-        .toVector
-    )
-
-    data.replyTo ! jobResultsFactory(
-      Seq(
-        JobResult(jobId = data.job.jobId,
-                  node = "",
-                  timestamp = OffsetDateTime.now(),
-                  shape = "pfa_json",
-                  function = "",
-                  data = Some(output.compactPrint),
-                  error = None)
-      )
-    )
-    stop
-  }
-
   startWith(WaitForNewJob, None)
 
   when(WaitForNewJob) {
-    case Event(Start(job), _) => {
+    case Event(Start(job), _) if job.algorithms.nonEmpty =>
       val replyTo = sender()
 
       val algorithms  = job.algorithms
       val validations = job.validations
 
-      log.warning(s"List of algorithms: ${algorithms.mkString(",")}")
+      log.info(s"List of algorithms: ${algorithms.mkString(",")}")
 
-      if (algorithms.nonEmpty) {
-
-        // Spawn an AlgorithmActor for every algorithm
-        for (a <- algorithms) {
-          val jobId  = UUID.randomUUID().toString
-          val subjob = AlgorithmActor.Job(jobId, Some(defaultDb), a, validations, job.parameters)
-          val worker = context.actorOf(
-            Props(classOf[AlgorithmActor],
-                  chronosService,
-                  resultDatabase,
-                  federationDatabase,
-                  RequestProtocol)
-          )
-          worker ! AlgorithmActor.Start(subjob)
-        }
-
-        goto(WaitForWorkers) using Some(Data(job, replyTo, collection.mutable.Map(), algorithms))
-      } else {
-        stay
+      // Spawn an AlgorithmActor for every algorithm
+      for (a <- algorithms) {
+        val jobId  = UUID.randomUUID().toString
+        val subjob = AlgorithmActor.Job(jobId, Some(defaultDb), a, validations, job.parameters)
+        val worker = context.actorOf(
+          AlgorithmActor
+            .props(chronosService, resultDatabase, federationDatabase, RequestProtocol)
+        )
+        worker ! AlgorithmActor.Start(subjob)
       }
-    }
+
+      goto(WaitForWorkers) using Some(ExperimentData(job, replyTo, Map.empty, algorithms))
   }
 
   when(WaitForWorkers) {
-    case Event(AlgorithmActor.ResultResponse(algorithm, results), Some(data: Data)) => {
-      data.results(algorithm) = results
-      if (data.results.size == data.algorithms.length) reduceAndStop(data) else stay
-    }
-    case Event(AlgorithmActor.ErrorResponse(algorithm, message), Some(data: Data)) => {
-      log.error(message)
-      data.results(algorithm) = message
-      if (data.results.size == data.algorithms.length) reduceAndStop(data) else stay
-    }
+    case Event(AlgorithmActor.ResultResponse(algorithm, algorithmResults), Some(experimentData)) =>
+      val updatedResults        = experimentData.results + (algorithm -> algorithmResults)
+      val updatedExperimentData = Some(experimentData.copy(results = updatedResults))
+      if (experimentData.isComplete)
+        goto(Reduce) using updatedExperimentData
+      else
+        stay using updatedExperimentData
+
+    case Event(AlgorithmActor.ErrorResponse(algorithm, errorMessage), Some(experimentData)) =>
+      log.error(errorMessage)
+      val updatedResults        = experimentData.results + (algorithm -> errorMessage)
+      val updatedExperimentData = Some(experimentData.copy(results = updatedResults))
+      if (experimentData.isComplete)
+        goto(Reduce) using updatedExperimentData
+      else
+        stay using updatedExperimentData
+  }
+
+  when(Reduce) {
+    case Event(Done, Some(experimentData)) =>
+      //TODO WP3 Save the results in results DB
+
+      // Concatenate results while respecting received algorithms order
+      val output = JsArray(
+        experimentData.algorithms
+          .map(
+            a =>
+              JsObject("code" -> JsString(a.code),
+                       "name" -> JsString(a.name),
+                       "data" -> JsonParser(experimentData.results(a)))
+          )
+          .toVector
+      )
+
+      experimentData.replyTo ! jobResultsFactory(
+        Seq(
+          JobResult(
+            jobId = experimentData.job.jobId,
+            node = "",
+            timestamp = OffsetDateTime.now(),
+            shape = "pfa_json",
+            function = "",
+            // TODO: early serialisation to Json, keep Json type?
+            data = Some(output.compactPrint),
+            error = None
+          )
+        )
+      )
+      stop
+  }
+
+  onTransition {
+    case _ -> Reduce =>
+      self ! Done
   }
 
   initialize()
@@ -215,13 +229,20 @@ object AlgorithmActor {
       parameters: Map[String, String]
   )
   case class Start(job: Job)
+  case object Done
 
   case class ResultResponse(algorithm: Algorithm, data: String)
   case class ErrorResponse(algorithm: Algorithm, message: String)
 
-  // TODO not sure if useful
-  /*implicit val resultFormat = jsonFormat2(ResultResponse.apply)
-  implicit val errorResponseFormat = jsonFormat2(ErrorResponse.apply)*/
+  def props(chronosService: ActorRef,
+            resultDatabase: JobResultsDAL,
+            federationDatabase: Option[JobResultsDAL],
+            jobResultsFactory: JobResults.Factory): Props =
+    Props(classOf[AlgorithmActor],
+          chronosService,
+          resultDatabase,
+          federationDatabase,
+          jobResultsFactory)
 }
 
 /** FSM States and internal data */
@@ -232,14 +253,17 @@ object AlgorithmStates {
   sealed trait State
   case object WaitForNewJob  extends State
   case object WaitForWorkers extends State
+  case object Reduce         extends State
 
   // FSM Data
-  case class Data(job: Job,
-                  replyTo: ActorRef,
-                  var model: Option[String],
-                  results: collection.mutable.Map[ApiValidation, String],
-                  validationCount: Int)
+  case class AlgorithmData(job: Job,
+                           replyTo: ActorRef,
+                           model: Option[String],
+                           results: Map[ApiValidation, String],
+                           validationCount: Int) {
 
+    def isComplete: Boolean = (results.size == validationCount) && model.isDefined
+  }
 }
 
 class AlgorithmActor(val chronosService: ActorRef,
@@ -248,36 +272,15 @@ class AlgorithmActor(val chronosService: ActorRef,
                      val jobResultsFactory: JobResults.Factory)
     extends Actor
     with ActorLogging
-    with LoggingFSM[AlgorithmStates.State, Option[AlgorithmStates.Data]] {
+    with LoggingFSM[AlgorithmStates.State, Option[AlgorithmStates.AlgorithmData]] {
 
   import AlgorithmActor._
   import AlgorithmStates._
 
-  def reduceAndStop(data: AlgorithmStates.Data): State = {
-
-    val validations = JsArray(
-      data.results
-        .map({
-          case (key, value) =>
-            JsObject("code" -> JsString(key.code),
-                     "name" -> JsString(key.name),
-                     "data" -> JsonParser(value))
-        })
-        .toVector
-    )
-
-    // TODO Do better by merging JsObject (not yet supported by Spray...)
-    val pfa = data.model.get
-      .replaceFirst("\"cells\":\\{", "\"cells\":{\"validations\":" + validations.compactPrint + ",")
-
-    data.replyTo ! AlgorithmActor.ResultResponse(data.job.algorithm, pfa)
-    stop
-  }
-
   startWith(WaitForNewJob, None)
 
   when(WaitForNewJob) {
-    case Event(AlgorithmActor.Start(job), _) => {
+    case Event(AlgorithmActor.Start(job), _) =>
       val replyTo = sender()
 
       val algorithm   = job.algorithm
@@ -311,33 +314,62 @@ class AlgorithmActor(val chronosService: ActorRef,
       }
 
       goto(WaitForWorkers) using Some(
-        Data(job, replyTo, None, collection.mutable.Map(), validations.size)
+        AlgorithmData(job, replyTo, None, Map(), validations.size)
       )
-    }
   }
 
   when(WaitForWorkers) {
-    case Event(JsonMessage(pfa: JsValue), Some(data: Data)) => {
-      data.model = Some(pfa.compactPrint)
-      if (data.results.size == data.validationCount) reduceAndStop(data) else stay
-    }
-    case Event(CoordinatorActor.ErrorResponse(message), Some(data: Data)) => {
+    case Event(JsonMessage(pfa: JsValue), Some(data: AlgorithmData)) =>
+      val updatedData = data.copy(model = Some(pfa.compactPrint))
+      if (updatedData.isComplete)
+        goto(Reduce) using Some(updatedData)
+      else
+        stay using Some(updatedData)
+
+    case Event(CoordinatorActor.ErrorResponse(message), Some(data: AlgorithmData)) =>
       log.error(message)
       // We cannot trained the model we notify supervisor and we stop
       context.parent ! ErrorResponse(data.job.algorithm, message)
       stop
-    }
-    case Event(CrossValidationActor.ResultResponse(validation, results), Some(data: Data)) => {
-      data.results(validation) = results
-      if ((data.results.size == data.validationCount) && data.model.isDefined) reduceAndStop(data)
-      else stay
-    }
-    case Event(CrossValidationActor.ErrorResponse(validation, message), Some(data: Data)) => {
+
+    case Event(CrossValidationActor.ResultResponse(validation, results),
+               Some(data: AlgorithmData)) =>
+      val updatedData = data.copy(results = data.results + (validation -> results))
+      if (updatedData.isComplete)
+        goto(Reduce) using Some(updatedData)
+      else
+        stay using Some(updatedData)
+
+    case Event(CrossValidationActor.ErrorResponse(validation, message),
+               Some(data: AlgorithmData)) =>
       log.error(message)
-      data.results(validation) = message
-      if ((data.results.size == data.validationCount) && data.model.isDefined) reduceAndStop(data)
-      else stay
-    }
+      val updatedData = data.copy(results = data.results + (validation -> message))
+      if (updatedData.isComplete)
+        goto(Reduce) using Some(updatedData)
+      else
+        stay using Some(updatedData)
+  }
+
+  when(Reduce) {
+    case Event(Done, Some(data: AlgorithmData)) =>
+      val validations = JsArray(
+        data.results
+          .map({
+            case (key, value) =>
+              JsObject("code" -> JsString(key.code),
+                       "name" -> JsString(key.name),
+                       "data" -> JsonParser(value))
+          })
+          .toVector
+      )
+
+      // TODO Do better by merging JsObject (not yet supported by Spray...)
+      val pfa = data.model.get
+        .replaceFirst("\"cells\":\\{",
+                      "\"cells\":{\"validations\":" + validations.compactPrint + ",")
+
+      data.replyTo ! AlgorithmActor.ResultResponse(data.job.algorithm, pfa)
+      stop
   }
 
   initialize()
@@ -558,12 +590,14 @@ class CrossValidationActor(val chronosService: ActorRef,
             if (updatedResults.size == data.foldCount) {
               log.info("Received the scores for each folds, moving on to final reduce step")
               goto(Reduce) using ReduceData(job = data.job,
-                replyTo = data.replyTo,
-                targetMetaData = data.targetMetaData,
-                average = updatedAverage,
-                results = updatedResults)
+                                            replyTo = data.replyTo,
+                                            targetMetaData = data.targetMetaData,
+                                            average = updatedAverage,
+                                            results = updatedResults)
             } else {
-              log.info(s"Waiting for more scoring results as we have received ${updatedResults.size} scores and there are ${data.foldCount} folds")
+              log.info(
+                s"Waiting for more scoring results as we have received ${updatedResults.size} scores and there are ${data.foldCount} folds"
+              )
               stay using data.copy(average = updatedAverage, results = updatedResults)
             }
           }
