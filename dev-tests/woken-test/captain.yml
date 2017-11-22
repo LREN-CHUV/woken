@@ -1,0 +1,13 @@
+# Creates a portable environment to test Woken Akka API.
+# Do not push this image to Docker hub.
+woken-akka-test:
+  build: Dockerfile
+  image: woken-akka-test
+  pre:
+    - echo "Building woken-akka-test image"
+  post:
+    - echo "Finished building woken-akka-test image"
+  test:
+    - echo "Testing..."
+    - docker run --rm -ti --add-host woken:$(ip -4 addr show docker0 | grep -Po 'inet \K[\d.]+') -v $WORKSPACE:/build/ --entrypoint /test.sh -p 8097:8097 woken-akka-test
+    - echo "Finished testing"
