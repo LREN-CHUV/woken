@@ -46,6 +46,7 @@ fi
 
 echo "Deploy a Postgres instance and wait for it to be ready..."
 $DOCKER_COMPOSE up -d db
+$DOCKER_COMPOSE build woken_test
 $DOCKER_COMPOSE run wait_dbs
 
 echo "Create databases..."
@@ -67,9 +68,18 @@ $DOCKER_COMPOSE run wait_woken
 
 echo "The Algorithm Factory is now running on your system"
 
-echo "Testing deployment..."
+echo
+echo "Testing HTTP web services..."
 
 ./http/query-experiment.sh
+
+echo
+echo "Testing Akka API..."
+
+$DOCKER_COMPOSE run woken_test
+
+echo
+echo "Now that's up to you to play with the user interface..."
 
 $DOCKER_COMPOSE up -d portal_backend
 

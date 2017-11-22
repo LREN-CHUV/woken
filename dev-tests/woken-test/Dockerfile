@@ -10,3 +10,7 @@ COPY src/test/ /build/src/test/
 COPY project/ /build/project/
 
 RUN sbt compile test:compile
+
+COPY application.conf /build/
+
+ENTRYPOINT ["/test.sh"]

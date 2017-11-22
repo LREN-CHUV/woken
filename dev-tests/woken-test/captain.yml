@@ -9,5 +9,5 @@ woken-akka-test:
     - echo "Finished building woken-akka-test image"
   test:
     - echo "Testing..."
-    - docker run --rm -ti --add-host woken:$(ip -4 addr show docker0 | grep -Po 'inet \K[\d.]+') -v $WORKSPACE:/build/ --entrypoint /test.sh -p 8097:8097 woken-akka-test
+    - docker run --rm -ti --add-host woken:$(ip -4 addr show docker0 | grep -Po 'inet \K[\d.]+') -p 8097:8097 woken-akka-test
     - echo "Finished testing"

@@ -195,6 +195,15 @@ services:
       TARGETS: "woken:8087"
       TIMEOUT: 60
 
+  woken_test:
+    build:
+      context: ./woken-test
+      dockerfile: Dockerfile
+    networks:
+      - woken-bridge
+    depends_on:
+      - woken
+
   portal_backend:
     image: "hbpmip/portal-backend:2.4.1"
     container_name: "backend-test"
