@@ -31,7 +31,7 @@ import eu.hbp.mip.woken.core.CoordinatorActor.{ Result => ExperimentResult }
             description = "Operations for data mining.",
             consumes = "application/json",
             produces = "application/json")
-trait MiningServiceApi extends HttpService with Directives {
+trait MiningServiceApi extends Directives {
 
   @ApiOperation(
     value = "Run a data mining job",
