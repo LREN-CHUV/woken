@@ -175,7 +175,7 @@ services:
       - db
 
   woken_validation:
-    image: hbpmip/woken-validation
+    image: hbpmip/woken-validation:2.0.2
     volumes:
       - ./woken-validation/config/application.conf:/opt/woken-validation/config/application.conf
     ports:
