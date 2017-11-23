@@ -402,15 +402,15 @@ class MiningService(val chronosService: ActorRef,
         case MiningQuery(variables, covariables, groups, _, Algorithm(c, n, p))
             if c == "" || c == "data" =>
           ctx =>
-          ctx.complete(
-            ldsmDatabase.queryData({ variables ++ covariables ++ groups }.distinct.map(_.code))
-          )
+            ctx.complete(
+              ldsmDatabase.queryData({ variables ++ covariables ++ groups }.distinct.map(_.code))
+            )
 
         case query: MiningQuery =>
           val job = query2job(query)
           miningJob(RequestProtocol) {
             Start(job)
-        }
+          }
       }
     }
   }

@@ -143,12 +143,13 @@ class ExperimentActor(val chronosService: ActorRef,
       // Spawn an AlgorithmActor for every algorithm
       for (a <- algorithms) {
         val jobId  = UUID.randomUUID().toString
-        val subjob = AlgorithmActor.Job(jobId, Some(defaultDb), a, validations, job.parameters)
+        val subJob = AlgorithmActor.Job(jobId, Some(defaultDb), a, validations, job.parameters)
         val worker = context.actorOf(
           AlgorithmActor
-            .props(chronosService, resultDatabase, federationDatabase, RequestProtocol)
+            .props(chronosService, resultDatabase, federationDatabase, RequestProtocol),
+          AlgorithmActor.actorName(subJob)
         )
-        worker ! AlgorithmActor.Start(subjob)
+        worker ! AlgorithmActor.Start(subJob)
       }
 
       goto(WaitForWorkers) using Some(ExperimentData(job, replyTo, Map.empty, algorithms))
@@ -243,6 +244,15 @@ object AlgorithmActor {
           resultDatabase,
           federationDatabase,
           jobResultsFactory)
+
+  def actorName(job: Job): String =
+    if (job.parameters.isEmpty)
+      s"AlgorithmActor_job_${job.jobId}_algo_${job.algorithm.code}"
+    else
+      s"AlgorithmActor_job_${job.jobId}_algo_${job.algorithm.code}_${job.parameters.toList
+        .map { case (k, v) => s"${k}_$v" }
+        .mkString("_")}"
+
 }
 
 /** FSM States and internal data */
@@ -288,29 +298,32 @@ class AlgorithmActor(val chronosService: ActorRef,
 
       val parameters = job.parameters ++ FunctionsInOut.algoParameters(algorithm)
 
-      log.warning(s"List of validations: ${validations.size}")
+      log.info(s"List of validations: ${validations.size}")
 
       // Spawn a LocalCoordinatorActor
-      val jobId = UUID.randomUUID().toString
-      val subjob =
-        JobDto(jobId, dockerImage(algorithm.code), None, None, Some(defaultDb), parameters, None)
-      val worker = context.actorOf(
-        CoordinatorActor.props(chronosService, resultDatabase, None, jobResultsFactory)
-      )
-      worker ! CoordinatorActor.Start(subjob)
+      {
+        val jobId = UUID.randomUUID().toString
+        val subJob =
+          JobDto(jobId, dockerImage(algorithm.code), None, None, Some(defaultDb), parameters, None)
+        val worker = context.actorOf(
+          CoordinatorActor.props(chronosService, resultDatabase, None, jobResultsFactory),
+          CoordinatorActor.actorName(subJob)
+        )
+        worker ! CoordinatorActor.Start(subJob)
+      }
 
       // Spawn a CrossValidationActor for every validation
       for (v <- validations) {
         val jobId  = UUID.randomUUID().toString
-        val subjob = CrossValidationActor.Job(jobId, job.inputDb, algorithm, v, parameters)
+        val subJob = CrossValidationActor.Job(jobId, job.inputDb, algorithm, v, parameters)
         val validationWorker = context.actorOf(
-          Props(classOf[CrossValidationActor],
-                chronosService,
-                resultDatabase,
-                federationDatabase,
-                jobResultsFactory)
+          CrossValidationActor.props(chronosService,
+                                     resultDatabase,
+                                     federationDatabase,
+                                     jobResultsFactory),
+          CrossValidationActor.actorName(subJob)
         )
-        validationWorker ! CrossValidationActor.Start(subjob)
+        validationWorker ! CrossValidationActor.Start(subJob)
       }
 
       goto(WaitForWorkers) using Some(
@@ -396,9 +409,24 @@ object CrossValidationActor {
   case class ResultResponse(validation: ApiValidation, data: String)
   case class ErrorResponse(validation: ApiValidation, message: String)
 
-  // TODO not sure if useful
-  /*implicit val resultFormat = jsonFormat2(ResultResponse.apply)
-  implicit val errorResponseFormat = jsonFormat2(ErrorResponse.apply)*/
+  def props(chronosService: ActorRef,
+            resultDatabase: JobResultsDAL,
+            federationDatabase: Option[JobResultsDAL],
+            jobResultsFactory: JobResults.Factory): Props =
+    Props(classOf[CrossValidationActor],
+          chronosService,
+          resultDatabase,
+          federationDatabase,
+          jobResultsFactory)
+
+  def actorName(job: Job): String =
+    if (job.parameters.isEmpty)
+      s"CrossValidationActor_job_${job.jobId}_algo_${job.algorithm.code}"
+    else
+      s"CrossValidationActor_job_${job.jobId}_algo_${job.algorithm.code}_${job.parameters.toList
+        .map { case (k, v) => s"${k}_$v" }
+        .mkString("_")}"
+
 }
 
 /** FSM States and internal data */

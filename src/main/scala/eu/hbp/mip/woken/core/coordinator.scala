@@ -73,18 +73,19 @@ object CoordinatorActor {
             resultDatabase: JobResultsDAL,
             federationDatabase: Option[JobResultsDAL],
             jobResultsFactory: JobResults.Factory): Props =
-    federationDatabase
-      .map(
-        fd =>
-          Props(classOf[FederationCoordinatorActor],
-                chronosService,
-                resultDatabase,
-                fd,
-                jobResultsFactory)
-      )
-      .getOrElse(
-        Props(classOf[LocalCoordinatorActor], chronosService, resultDatabase, jobResultsFactory)
-      )
+    federationDatabase.fold(
+      Props(classOf[LocalCoordinatorActor], chronosService, resultDatabase, jobResultsFactory)
+    ) { fd =>
+      Props(classOf[FederationCoordinatorActor],
+            chronosService,
+            resultDatabase,
+            fd,
+            jobResultsFactory)
+
+    }
+
+  def actorName(job: JobDto): String =
+    s"LocalCoordinatorActor_job_${job.jobId}_${job.jobNameResolved}"
 
 }
 
