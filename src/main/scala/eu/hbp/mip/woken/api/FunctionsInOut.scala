@@ -21,13 +21,12 @@ import java.util.UUID
 import spray.http.StatusCodes
 import spray.httpx.marshalling.ToResponseMarshaller
 import spray.json._
-
 import eu.hbp.mip.woken.messages.external._
-
 import eu.hbp.mip.woken.config.WokenConfig
 import eu.hbp.mip.woken.config.MetaDatabaseConfig
 import eu.hbp.mip.woken.core.model.JobResult
 import eu.hbp.mip.woken.core.{ ExperimentActor, JobResults, RestMessage }
+import org.slf4j.LoggerFactory
 
 /**
   * Transformations for input and output values of functions
@@ -94,10 +93,12 @@ case class JsonMessage(json: JsValue) extends RestMessage {
 
 object RequestProtocol extends DefaultJsonProtocol with JobResults.Factory {
 
-  import ApiJsonSupport._
+  private[this] val log = LoggerFactory.getLogger(this.getClass.getName)
 
   def apply(results: scala.collection.Seq[JobResult]): RestMessage = {
-    print(results)
+    import ApiJsonSupport._
+
+    log.debug(s"Received job results:  $results")
 
     results match {
       case res :: Nil =>

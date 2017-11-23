@@ -372,9 +372,9 @@ class MiningService(val chronosService: ActorRef,
     with PerRequestCreator
     with DefaultJsonFormats {
 
-  override def context: ActorRefFactory = system
-  override def actorRefFactory          = context
-  val routes: Route                     = mining ~ experiment ~ listMethods
+  override def context: ActorRefFactory         = system
+  override def actorRefFactory: ActorRefFactory = context
+  val routes: Route                             = mining ~ experiment ~ listMethods
 
   import ApiJsonSupport._
   import CoordinatorActor._
@@ -400,18 +400,19 @@ class MiningService(val chronosService: ActorRef,
 
     post {
       entity(as[MiningQuery]) {
+
         case MiningQuery(variables, covariables, groups, _, Algorithm(c, n, p))
-            if c == "" || c == "data" => { ctx =>
-          ctx.complete(
-            ldsmDatabase.queryData({ variables ++ covariables ++ groups }.distinct.map(_.code))
-          )
-        }
-        case query: MiningQuery => {
+            if c == "" || c == "data" =>
+          ctx =>
+            ctx.complete(
+              ldsmDatabase.queryData({ variables ++ covariables ++ groups }.distinct.map(_.code))
+            )
+
+        case query: MiningQuery =>
           val job = query2job(query)
-          chronosJob(RequestProtocol) {
+          miningJob(RequestProtocol) {
             Start(job)
           }
-        }
       }
     }
   }
@@ -449,7 +450,7 @@ class MiningService(val chronosService: ActorRef,
             jobResultsFactory)
     )
 
-  def chronosJob(
+  def miningJob(
       jobResultsFactory: JobResults.Factory = JobResults.defaultFactory
   )(message: RestMessage): Route =
     ctx => perRequest(ctx, newCoordinatorActor(jobResultsFactory), message)

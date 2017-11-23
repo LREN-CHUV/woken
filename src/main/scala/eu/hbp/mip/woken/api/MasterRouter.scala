@@ -16,7 +16,7 @@
 
 package eu.hbp.mip.woken.api
 
-import akka.actor.{ Actor, Terminated }
+import akka.actor.{ Actor, ActorLogging, Terminated }
 import akka.routing.{ ActorRefRoutee, RoundRobinRoutingLogic, Router }
 import spray.json._
 import eu.hbp.mip.woken.messages.external.{
@@ -33,7 +33,7 @@ import eu.hbp.mip.woken.core.model.JobResult
 import FunctionsInOut._
 import com.github.levkhomich.akka.tracing.ActorTracing
 
-class MasterRouter(api: Api) extends Actor with ActorTracing {
+class MasterRouter(api: Api) extends Actor with ActorTracing with ActorLogging {
 
   // For the moment we only support one JobResult
   def createQueryResult(results: scala.collection.Seq[JobResult]): Any =
@@ -74,7 +74,7 @@ class MasterRouter(api: Api) extends Actor with ActorTracing {
       experimentRouter.route(ExperimentActor.Start(query2job(query)), sender())
 
     case Terminated(a) =>
-      println(s"Actor terminated: $a")
+      log.info(s"Actor terminated: $a")
 
       if (miningRouter.routees.contains(ActorRefRoutee(a))) {
         miningRouter = miningRouter.removeRoutee(a)
