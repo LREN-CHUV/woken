@@ -25,7 +25,6 @@ lazy val `woken-test` =
           library.scalaTest    % Test,
           library.akkaTestkit  % Test
         ),
-        includeFilter in (Compile, unmanagedResources) := "*.xml" || "*.conf" || "*.html",
         includeFilter in (Test, unmanagedResources) := "*.json",
         fork in Test := false,
         parallelExecution in Test := false
