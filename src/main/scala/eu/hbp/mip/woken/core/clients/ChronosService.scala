@@ -27,6 +27,7 @@ import spray.can.Http
 import spray.http.{ HttpResponse, StatusCode, StatusCodes }
 import spray.httpx.RequestBuilding._
 import eu.hbp.mip.woken.core.model.ChronosJob
+import spray.json.PrettyPrinter
 
 object ChronosService {
   // Requests
@@ -46,18 +47,21 @@ class ChronosService extends Actor with ActorLogging with ActorTracing {
     case Schedule(job) =>
       import akka.pattern.{ ask, pipe }
       import spray.httpx.SprayJsonSupport._
+      import ChronosJob._
+
       implicit val system: ActorSystem                        = context.system
       implicit val executionContext: ExecutionContextExecutor = context.dispatcher
       implicit val timeout: Timeout                           = Timeout(30.seconds)
 
-      import ChronosJob._
-      log.warning(spray.json.PrettyPrinter.apply(chronosJobFormat.write(job)))
+      log.info(s"Send job to Chronos: ${PrettyPrinter(chronosJobFormat.write(job))}")
+
       val originalSender = sender()
       val chronosResponse: Future[_] =
         IO(Http) ? Post(chronosServerUrl + "/scheduler/iso8601", job)
 
       chronosResponse
         .map {
+
           case HttpResponse(statusCode: StatusCode, entity, _, _) =>
             statusCode match {
               case _: StatusCodes.Success => Ok
@@ -75,9 +79,11 @@ class ChronosService extends Actor with ActorLogging with ActorTracing {
             Error(f.cause.getMessage)
         }
         .recover {
+
           case _: AskTimeoutException =>
             log.warning(s"Post to Chronos on $chronosServerUrl timed out after $timeout")
             Error("Connection timeout")
+
           case e: Throwable =>
             log.warning(s"Post to Chronos on $chronosServerUrl returned an error $e")
             Error(e.getMessage)

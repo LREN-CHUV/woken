@@ -16,7 +16,7 @@
 
 package eu.hbp.mip.woken.core.clients
 
-import akka.actor.{ Actor, ActorLogging }
+import akka.actor.{ Actor, ActorLogging, ActorSystem }
 import akka.io.IO
 import akka.util.Timeout
 import com.github.levkhomich.akka.tracing.ActorTracing
@@ -24,7 +24,7 @@ import spray.can.Http
 import spray.http.{ HttpResponse, StatusCode, StatusCodes }
 import spray.httpx.RequestBuilding._
 
-import scala.concurrent.Future
+import scala.concurrent.{ ExecutionContextExecutor, Future }
 import scala.concurrent.duration._
 
 object JobClientService {
@@ -48,9 +48,10 @@ class JobClientService(node: String) extends Actor with ActorLogging with ActorT
       import akka.pattern.{ ask, pipe }
       import spray.httpx.SprayJsonSupport._
       import eu.hbp.mip.woken.api.JobDto._
-      implicit val system           = context.system
-      implicit val executionContext = context.dispatcher
-      implicit val timeout: Timeout = Timeout(180.seconds)
+
+      implicit val system: ActorSystem                        = context.system
+      implicit val executionContext: ExecutionContextExecutor = context.dispatcher
+      implicit val timeout: Timeout                           = Timeout(180.seconds)
 
       log.warning(s"Send PUT request to ${nodeConfig(node).jobsUrl}/job")
       log.warning(jobDtoFormat.write(job).prettyPrint)
