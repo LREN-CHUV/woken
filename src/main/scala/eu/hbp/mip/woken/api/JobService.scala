@@ -34,8 +34,10 @@ class JobService(val chronosService: ActorRef,
     with PerRequestCreator
     with DefaultJsonFormats {
 
-  override def context = system
-  val routes: Route    = initJob
+  override def context         = system
+  override def actorRefFactory = context
+
+  val routes: Route = initJob
 
   import JobDto._
   import CoordinatorActor._

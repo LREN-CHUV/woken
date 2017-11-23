@@ -373,6 +373,7 @@ class MiningService(val chronosService: ActorRef,
     with DefaultJsonFormats {
 
   override def context: ActorRefFactory = system
+  override def actorRefFactory          = context
   val routes: Route                     = mining ~ experiment ~ listMethods
 
   import ApiJsonSupport._
