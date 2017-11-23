@@ -4,7 +4,7 @@
 -->
 
 
-# woken: Workflow for Analytics
+# Woken: Workflow for Analytics
 
 An orchestration platform for Docker containers running data mining algorithms.
 
@@ -18,24 +18,48 @@ Follow these steps to get started:
 
 1. Git-clone this repository.
 
-        $ git clone https://github.com/LREN-CHUV/woken.git
+```sh
+  git clone https://github.com/LREN-CHUV/woken.git
+```
 
 2. Change directory into your clone:
 
-        $ cd woken
+```sh
+  cd woken
+```
 
 3. Build the application
 
-        > ./build.sh
+You need the following software installed:
+
+* [Docker](https://www.docker.com/) 17.06 or better with docker-compose
+* [Captain](https://github.com/harbur/captain) 1.1.0 or better
+
+```sh
+  ./build.sh
+```
 
 4. Run the application
 
-        > cd dev-tests
-        > ./run.sh
+You need the following software installed:
 
-5. Browse to [http://localhost:8087](http://localhost:8087/) or run one of the query* script located in folder 'dev-tests'.
+* [Httppie](https://github.com/jakubroztocil/httpie)
 
-dev-tests/run.sh uses docker-compose to start a full environment with Mesos, Zookeeper and Chronos, all of those are required for the proper execution of woker.
+```sh
+  cd dev-tests
+  ./run.sh
+```
+
+dev-tests/run.sh uses docker-compose to start a full environment with Mesos, Zookeeper and Chronos, all of those are required for the proper execution of Woken.
+
+5. Create a DNS alias in /etc/hosts
+
+```
+  127.0.0.1       localhost frontend
+
+```
+
+6. Browse to [http://frontend:8087](http://frontend:8087/) or run one of the query* script located in folder 'dev-tests'.
 
 ## Available Docker containers
 
@@ -82,7 +106,18 @@ Currently, the following algorithms are supported:
 * linearRegression: performs a linear regression
 * summaryStatistics: performs a summary statistics than can be used to draw box plots.
 
-## Docker build
+### Experiment query
+
+Performs an experiment comprised of several data mining tasks and an optional cross-validation step used to compute the fitness of each algorithm and select the best result.
+
+TODO: document API
+
+## Release
+
+You need the following software installed:
+
+* [Bumpversion](https://github.com/peritus/bumpversion)
+* [Precommit](http://pre-commit.com/)
 
 Execute the following commands to distribute Woken as a Docker container:
 
@@ -94,12 +129,14 @@ Execute the following commands to distribute Woken as a Docker container:
 
 For production, woken requires Mesos and Chronos. To install them, you can use either:
 
-* [mip-microservices-infrastructure](https://github.com/LREN-CHUV/mip-microservices-infrastructure), a collection of Ansible scripts for deployment of a full Mesos stack on Ubuntu servers.
+* [mip-microservices-infrastructure](https://github.com/LREN-CHUV/mip-microservices-infrastructure), a collection of Ansible scripts deploying a full Mesos stack on Ubuntu servers.
 * [mantl.io](https://github.com/CiscoCloud/mantl), a microservice infrstructure by Cisco, based on Mesos.
+* [Mesosphere DCOS](https://dcos.io/) DC/OS (the datacenter operating system) is an open-source, distributed operating system based on the Apache Mesos distributed systems kernel.
 
 # What's in a name?
 
 Woken :
+
 * the Woken river in China - we were looking for rivers in China
 * passive form of awake - it launches Docker containers and computations
 * workflow - the previous name, not too different
