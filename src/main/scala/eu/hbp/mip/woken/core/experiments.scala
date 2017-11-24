@@ -106,16 +106,31 @@ object ExperimentStates {
 
   // FSM Data
 
+  sealed trait ExperimentData
+
+  case object Uninitialized extends ExperimentData
+
   // TODO: results should be Map[Algorithm, \/[String,String]] to keep notion of error responses
-  case class ExperimentData(
+  case class PartialExperimentData(
       job: Job,
       replyTo: ActorRef,
       results: Map[Algorithm, String],
       algorithms: Seq[Algorithm]
-  ) {
+  ) extends ExperimentData {
     def isComplete: Boolean = results.size == algorithms.length
   }
 
+  case class CompletedExperimentData(
+    job: Job,
+    replyTo: ActorRef,
+    results: Map[Algorithm, String],
+    algorithms: Seq[Algorithm]
+  ) extends ExperimentData
+
+  object CompletedExperimentData {
+    def apply(from: PartialExperimentData): CompletedExperimentData =
+      CompletedExperimentData(job = from.job, replyTo = from.replyTo, results = from.results, algorithms = from.algorithms)
+  }
 }
 
 /**
@@ -131,14 +146,14 @@ class ExperimentActor(val chronosService: ActorRef,
     extends Actor
     with ActorLogging
     with ActorTracing
-    with LoggingFSM[ExperimentStates.State, Option[ExperimentStates.ExperimentData]] {
+    with LoggingFSM[ExperimentStates.State, ExperimentStates.ExperimentData] {
 
   import ExperimentActor._
   import ExperimentStates._
 
   log.info("Experiment started")
 
-  startWith(WaitForNewJob, None)
+  startWith(WaitForNewJob, Uninitialized)
 
   when(WaitForNewJob) {
     case Event(Start(job), _) if job.algorithms.nonEmpty =>
@@ -162,31 +177,38 @@ class ExperimentActor(val chronosService: ActorRef,
         worker ! AlgorithmActor.Start(subJob)
       }
 
-      goto(WaitForWorkers) using Some(ExperimentData(job, replyTo, Map.empty, algorithms))
+      goto(WaitForWorkers) using PartialExperimentData(job, replyTo, Map.empty, algorithms)
   }
 
   when(WaitForWorkers) {
-    case Event(AlgorithmActor.ResultResponse(algorithm, algorithmResults), Some(experimentData)) =>
+    case Event(AlgorithmActor.ResultResponse(algorithm, algorithmResults), experimentData: PartialExperimentData) =>
       log.info(s"Received algorithm result $algorithmResults")
       val updatedResults        = experimentData.results + (algorithm -> algorithmResults)
-      val updatedExperimentData = Some(experimentData.copy(results = updatedResults))
-      if (experimentData.isComplete)
-        goto(Reduce) using updatedExperimentData
-      else
+      val updatedExperimentData = experimentData.copy(results = updatedResults)
+      if (experimentData.isComplete) {
+        log.info("All results received")
+        goto(Reduce) using CompletedExperimentData(updatedExperimentData)
+      } else {
+        log.info(s"Received ${experimentData.results.size} results out of ${experimentData.algorithms.size}")
         stay using updatedExperimentData
+      }
 
-    case Event(AlgorithmActor.ErrorResponse(algorithm, errorMessage), Some(experimentData)) =>
+    case Event(AlgorithmActor.ErrorResponse(algorithm, errorMessage), experimentData: PartialExperimentData) =>
       log.error(s"Algorithm ${algorithm.code} returned with error $errorMessage")
       val updatedResults        = experimentData.results + (algorithm -> errorMessage)
-      val updatedExperimentData = Some(experimentData.copy(results = updatedResults))
-      if (experimentData.isComplete)
-        goto(Reduce) using updatedExperimentData
-      else
+      val updatedExperimentData = experimentData.copy(results = updatedResults)
+      if (experimentData.isComplete) {
+        log.info("All results received")
+        goto(Reduce) using CompletedExperimentData(updatedExperimentData)
+      }
+      else {
+        log.info(s"Received ${experimentData.results.size} results out of ${experimentData.algorithms.size}")
         stay using updatedExperimentData
+      }
   }
 
   when(Reduce) {
-    case Event(Done, Some(experimentData)) =>
+    case Event(Done, experimentData: CompletedExperimentData) =>
       log.info("Experiment - build final response")
 
       //TODO WP3 Save the results in results DB
