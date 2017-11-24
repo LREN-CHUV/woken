@@ -395,6 +395,11 @@ class AlgorithmActor(val chronosService: ActorRef,
       stop
   }
 
+  onTransition {
+    case _ -> Reduce =>
+      self ! Done
+  }
+
   initialize()
 }
 
