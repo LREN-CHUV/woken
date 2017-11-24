@@ -181,29 +181,30 @@ class ExperimentActor(val chronosService: ActorRef,
   }
 
   when(WaitForWorkers) {
-    case Event(AlgorithmActor.ResultResponse(algorithm, algorithmResults), experimentData: PartialExperimentData) =>
+    case Event(AlgorithmActor.ResultResponse(algorithm, algorithmResults), previousExperimentData: PartialExperimentData) =>
       log.info(s"Received algorithm result $algorithmResults")
-      val updatedResults        = experimentData.results + (algorithm -> algorithmResults)
-      val updatedExperimentData = experimentData.copy(results = updatedResults)
+
+      val results        = previousExperimentData.results + (algorithm -> algorithmResults)
+      val experimentData = previousExperimentData.copy(results = results)
       if (experimentData.isComplete) {
         log.info("All results received")
-        goto(Reduce) using CompletedExperimentData(updatedExperimentData)
+        goto(Reduce) using CompletedExperimentData(experimentData)
       } else {
         log.info(s"Received ${experimentData.results.size} results out of ${experimentData.algorithms.size}")
-        stay using updatedExperimentData
+        stay using experimentData
       }
 
-    case Event(AlgorithmActor.ErrorResponse(algorithm, errorMessage), experimentData: PartialExperimentData) =>
+    case Event(AlgorithmActor.ErrorResponse(algorithm, errorMessage), previousExperimentData: PartialExperimentData) =>
       log.error(s"Algorithm ${algorithm.code} returned with error $errorMessage")
-      val updatedResults        = experimentData.results + (algorithm -> errorMessage)
-      val updatedExperimentData = experimentData.copy(results = updatedResults)
+      val results        = previousExperimentData.results + (algorithm -> errorMessage)
+      val experimentData = previousExperimentData.copy(results = results)
       if (experimentData.isComplete) {
         log.info("All results received")
-        goto(Reduce) using CompletedExperimentData(updatedExperimentData)
+        goto(Reduce) using CompletedExperimentData(experimentData)
       }
       else {
         log.info(s"Received ${experimentData.results.size} results out of ${experimentData.algorithms.size}")
-        stay using updatedExperimentData
+        stay using experimentData
       }
   }
 
@@ -296,13 +297,28 @@ object AlgorithmStates {
   case object Reduce         extends State
 
   // FSM Data
-  case class AlgorithmData(job: Job,
+  sealed trait AlgorithmData
+
+  case object Uninitialized extends AlgorithmData
+
+  case class PartialAlgorithmData(job: Job,
                            replyTo: ActorRef,
                            model: Option[String],
                            results: Map[ApiValidation, String],
-                           validationCount: Int) {
+                           validationCount: Int) extends AlgorithmData {
 
     def isComplete: Boolean = (results.size == validationCount) && model.isDefined
+  }
+
+  case class CompleteAlgorithmData(job: Job,
+                                                                    replyTo: ActorRef,
+                                                                    model: String,
+                                                                    results: Map[ApiValidation, String],
+                                                                    validationCount: Int) extends AlgorithmData
+
+  object CompleteAlgorithmData {
+    def apply(from: PartialAlgorithmData): CompleteAlgorithmData = new CompleteAlgorithmData(job = from.job, replyTo = from.replyTo, model = from.model.get,
+      results=from.results , validationCount=from.validationCount)
   }
 }
 
@@ -311,12 +327,12 @@ class AlgorithmActor(val chronosService: ActorRef,
                      val jobResultsFactory: JobResults.Factory)
     extends Actor
     with ActorLogging
-    with LoggingFSM[AlgorithmStates.State, Option[AlgorithmStates.AlgorithmData]] {
+    with LoggingFSM[AlgorithmStates.State, AlgorithmStates.AlgorithmData] {
 
   import AlgorithmActor._
   import AlgorithmStates._
 
-  startWith(WaitForNewJob, None)
+  startWith(WaitForNewJob, Uninitialized)
 
   when(WaitForNewJob) {
     case Event(AlgorithmActor.Start(job), _) =>
@@ -354,50 +370,66 @@ class AlgorithmActor(val chronosService: ActorRef,
         validationWorker ! CrossValidationActor.Start(subJob)
       }
 
-      goto(WaitForWorkers) using Some(
-        AlgorithmData(job, replyTo, None, Map(), validations.size)
-      )
+      goto(WaitForWorkers) using PartialAlgorithmData(job, replyTo, None, Map(), validations.size)
   }
 
   when(WaitForWorkers) {
-    case Event(JsonMessage(pfa: JsValue), Some(data: AlgorithmData)) =>
+    case Event(JsonMessage(pfa: JsValue), previousData: PartialAlgorithmData) =>
       // TODO - LC: why receiving one model is enough to stop this actor? If there are several validations, there should be as many models?
       // TODO: not clear where this JsonMessage comes from. Need types...
-      val updatedData = data.copy(model = Some(pfa.compactPrint))
-      log.info(s"Received PFA result, complete? ${updatedData.isComplete}")
-      if (updatedData.isComplete)
-        goto(Reduce) using Some(updatedData)
-      else
-        stay using Some(updatedData)
+      val data = previousData.copy(model = Some(pfa.compactPrint))
+      if (data.isComplete) {
+        log.info("Received PFA result, algorithm processing complete")
+        goto(Reduce) using CompleteAlgorithmData(data)
+      } else {
+        log.info(s"Received PFA result")
+        if (data.model.isEmpty)
+          log.info("Still waiting for PFA model")
+        if (data.results.size < data.validationCount)
+          log.info(s"Received ${data.results.size} out of ${data.validationCount}")
+        stay using data
+      }
 
-    case Event(CoordinatorActor.ErrorResponse(message), Some(data: AlgorithmData)) =>
-      log.error(s"Execution of algorithm ${data.job.algorithm.code} failed with message: $message")
+    case Event(CoordinatorActor.ErrorResponse(message), previousData: PartialAlgorithmData) =>
+      log.error(s"Execution of algorithm ${previousData.job.algorithm.code} failed with message: $message")
       // We cannot trained the model we notify supervisor and we stop
-      context.parent ! ErrorResponse(data.job.algorithm, message)
+      context.parent ! ErrorResponse(previousData.job.algorithm, message)
       log.info("Stopping...")
       stop
 
     case Event(CrossValidationActor.ResultResponse(validation, results),
-               Some(data: AlgorithmData)) =>
-      log.info("Received validation result")
-      val updatedData = data.copy(results = data.results + (validation -> results))
-      if (updatedData.isComplete)
-        goto(Reduce) using Some(updatedData)
-      else
-        stay using Some(updatedData)
+               previousData: PartialAlgorithmData) =>
+      val data = previousData.copy(results = previousData.results + (validation -> results))
+      if (data.isComplete) {
+        log.info("Received validation result, algorithm processing complete")
+        goto(Reduce) using CompleteAlgorithmData(data)
+      } else {
+        log.info("Received validation result")
+        if (data.model.isEmpty)
+          log.info("Still waiting for PFA model")
+        if (data.results.size < data.validationCount)
+          log.info(s"Received ${data.results.size} out of ${data.validationCount}")
+        stay using data
+      }
 
     case Event(CrossValidationActor.ErrorResponse(validation, message),
-               Some(data: AlgorithmData)) =>
-      log.error(s"Validation of algorithm ${data.job.algorithm.code} returned with error : $message")
-      val updatedData = data.copy(results = data.results + (validation -> message))
-      if (updatedData.isComplete)
-        goto(Reduce) using Some(updatedData)
-      else
-        stay using Some(updatedData)
+        previousData: PartialAlgorithmData) =>
+      log.error(s"Validation of algorithm ${previousData.job.algorithm.code} returned with error : $message")
+      val data = previousData.copy(results = previousData.results + (validation -> message))
+      if (data.isComplete) {
+        log.info("Received validation error, algorithm processing complete")
+        goto(Reduce) using CompleteAlgorithmData(data)
+      } else {
+        if (data.model.isEmpty)
+          log.info("Still waiting for PFA model")
+        if (data.results.size < data.validationCount)
+          log.info(s"Received ${data.results.size} out of ${data.validationCount}")
+        stay using data
+      }
   }
 
   when(Reduce) {
-    case Event(Done, Some(data: AlgorithmData)) =>
+    case Event(Done, data: CompleteAlgorithmData) =>
       val validations = JsArray(
         data.results
           .map({
@@ -410,7 +442,7 @@ class AlgorithmActor(val chronosService: ActorRef,
       )
 
       // TODO Do better by merging JsObject (not yet supported by Spray...)
-      val pfa = data.model.get
+      val pfa = data.model
         .replaceFirst("\"cells\":\\{",
                       "\"cells\":{\"validations\":" + validations.compactPrint + ",")
 
