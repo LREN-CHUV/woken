@@ -241,6 +241,7 @@ object AlgorithmActor {
       inputDb: Option[String],
       algorithm: Algorithm,
       validations: Seq[ApiValidation],
+                // TODO: contains low level details (environment variables)
       parameters: Map[String, String]
   )
   case class Start(job: Job)
@@ -258,12 +259,7 @@ object AlgorithmActor {
           jobResultsFactory)
 
   def actorName(job: Job): String =
-    if (job.parameters.isEmpty)
       s"AlgorithmActor_job_${job.jobId}_algo_${job.algorithm.code}"
-    else
-      s"AlgorithmActor_job_${job.jobId}_algo_${job.algorithm.code}_${job.parameters.toList
-        .map { case (k, v) => s"${k}_$v" }
-        .mkString("_")}"
 
 }
 
@@ -414,6 +410,7 @@ object CrossValidationActor {
       inputDb: Option[String],
       algorithm: Algorithm,
       validation: ApiValidation,
+                // TODO: contains low level environment variables
       parameters: Map[String, String]
   )
   case class Start(job: Job)
@@ -432,12 +429,7 @@ object CrossValidationActor {
           jobResultsFactory)
 
   def actorName(job: Job): String =
-    if (job.parameters.isEmpty)
       s"CrossValidationActor_job_${job.jobId}_algo_${job.algorithm.code}"
-    else
-      s"CrossValidationActor_job_${job.jobId}_algo_${job.algorithm.code}_${job.parameters.toList
-        .map { case (k, v) => s"${k}_$v" }
-        .mkString("_")}"
 
 }
 
