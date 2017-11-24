@@ -40,8 +40,7 @@ import scala.concurrent.{ Await, Future }
 import scala.util.Random
 
 /**
-  * We use the companion object to hold all the messages that the ``ExperimentCoordinatorActor``
-  * receives.
+  * We use the companion object to hold all the messages that the ``ExperimentActor`` receives.
   */
 object ExperimentActor {
 

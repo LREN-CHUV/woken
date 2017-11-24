@@ -16,7 +16,7 @@
 
 package eu.hbp.mip.woken.core
 
-import akka.actor.FSM.Failure
+import akka.actor.FSM.{Failure, Normal}
 import akka.actor._
 import com.github.levkhomich.akka.tracing.ActorTracing
 import spray.http.StatusCodes
@@ -25,10 +25,10 @@ import spray.httpx.marshalling.ToResponseMarshaller
 import scala.concurrent.duration._
 import eu.hbp.mip.woken.api._
 import eu.hbp.mip.woken.core.CoordinatorActor.Start
-import eu.hbp.mip.woken.core.clients.{ ChronosService, JobClientService }
-import eu.hbp.mip.woken.core.model.{ ChronosJob, JobResult, JobToChronos }
+import eu.hbp.mip.woken.core.clients.{ChronosService, JobClientService}
+import eu.hbp.mip.woken.core.model.{ChronosJob, JobResult, JobToChronos}
 import eu.hbp.mip.woken.dao.JobResultsDAL
-import spray.json.{ JsonFormat, RootJsonFormat }
+import spray.json.{JsonFormat, RootJsonFormat}
 
 /**
   * We use the companion object to hold all the messages that the ``CoordinatorActor``
@@ -92,17 +92,21 @@ object CoordinatorActor {
 /** FSM States and internal data */
 object CoordinatorStates {
 
+  // FSM States
+
   sealed trait State
 
   case object WaitForNewJob extends State
 
-  case object WaitForChronos extends State
+  case object PostJobToChronos extends State
 
   case object WaitForNodes extends State
 
   case object RequestFinalResult extends State
 
   case object RequestIntermediateResults extends State
+
+  // FSM Data
 
   trait StateData {
     def job: JobDto
@@ -112,13 +116,12 @@ object CoordinatorStates {
     def job = throw new IllegalAccessException()
   }
 
-  case class WaitingForNodesData(job: JobDto,
-                                 replyTo: ActorRef,
-                                 remainingNodes: Set[String] = Set(),
-                                 totalNodeCount: Int)
-      extends StateData
+  case class PartialNodesData(job: JobDto,
+                              replyTo: ActorRef,
+                              remainingNodes: Set[String] = Set(),
+                              totalNodeCount: Int) extends StateData
 
-  case class WaitLocalData(job: JobDto, replyTo: ActorRef) extends StateData
+  case class PartialLocalData(job: JobDto, replyTo: ActorRef) extends StateData
 
 }
 
@@ -137,6 +140,7 @@ trait CoordinatorActor
   import CoordinatorStates._
 
   val repeatDuration: FiniteDuration = 200.milliseconds
+  val startTime: Long = System.currentTimeMillis
 
   def chronosService: ActorRef
   def resultDatabase: JobResultsDAL
@@ -144,28 +148,33 @@ trait CoordinatorActor
 
   startWith(WaitForNewJob, Uninitialized)
 
-  when(WaitForChronos) {
+  when(PostJobToChronos) {
 
-    case Event(Ok, data: WaitLocalData) => goto(RequestFinalResult) using data
+    case Event(Ok, data: PartialLocalData) =>
+      log.info(s"Job ${data.job.jobId} posted to Chronos")
+      goto(RequestFinalResult) using data
 
-    case Event(e: Error, data: WaitLocalData) =>
-      val msg: String = e.message
+    case Event(e: Error, data: PartialLocalData) =>
+      val msg = s"Cannot complete job ${data.job.jobId} using ${data.job.dockerImage}, received error: ${e.message}"
+      log.error(msg)
       data.replyTo ! Error(msg)
       stop(Failure(msg))
 
-    case Event(_: Timeout @unchecked, data: WaitLocalData) =>
-      val msg: String = "Timeout while connecting to Chronos"
+    case Event(_: Timeout @unchecked, data: PartialLocalData) =>
+      val msg = s"Cannot complete job ${data.job.jobId} using ${data.job.dockerImage}, timeout while connecting to Chronos"
+      log.error(msg)
       data.replyTo ! Error(msg)
       stop(Failure(msg))
   }
 
   when(RequestFinalResult, stateTimeout = repeatDuration) {
 
-    case Event(StateTimeout, data: WaitLocalData) =>
+    case Event(StateTimeout, data: PartialLocalData) =>
       val results = resultDatabase.findJobResults(data.job.jobId)
       if (results.nonEmpty) {
+        log.info(s"Received results for job ${data.job.jobId}")
         data.replyTo ! jobResultsFactory(results)
-        stop()
+        stop(Normal)
       } else {
         stay() forMax repeatDuration
       }
@@ -179,7 +188,7 @@ trait CoordinatorActor
 
   def transitions: TransitionHandler = {
 
-    case _ -> WaitForChronos =>
+    case _ -> PostJobToChronos =>
       import ChronosService._
       val chronosJob: ChronosJob = JobToChronos.enrich(nextStateData.job)
       chronosService ! Schedule(chronosJob)
@@ -191,11 +200,11 @@ trait CoordinatorActor
 }
 
 /**
-  *  _________________           _________________                    ____________________
-  * |                 | Start   |                 | Even(Ok, data)   |                    |
-  * | WaitForNewJob   | ------> | WaitForChronos  |----------------> | RequestFinalResult | ==> results
-  * | (Uninitialized) |         | (WaitLocalData) |                  |                    |
-  *  -----------------           -----------------                    --------------------
+  *  _________________           ____________________                    ____________________
+  * |                 | Start   |                    | Even(Ok, data)   |                    |
+  * | WaitForNewJob   | ------> | PostJobToChronos   |----------------> | RequestFinalResult | ==> results
+  * | (Uninitialized) |         | (PartialLocalData) |                  |                    |
+  *  -----------------           --------------------                    --------------------
   */
 class LocalCoordinatorActor(val chronosService: ActorRef,
                             val resultDatabase: JobResultsDAL,
@@ -207,7 +216,9 @@ class LocalCoordinatorActor(val chronosService: ActorRef,
 
   when(WaitForNewJob) {
     case Event(Start(job), Uninitialized) =>
-      goto(WaitForChronos) using WaitLocalData(job, sender())
+      val replyTo = sender()
+      log.info(s"Wait for Chronos to fulfill job ${job.jobId}, will reply to $replyTo")
+      goto(PostJobToChronos) using PartialLocalData(job, replyTo)
   }
 
   when(WaitForNodes) {
@@ -245,23 +256,23 @@ class FederationCoordinatorActor(val chronosService: ActorRef,
           val workerNode = context.actorOf(Props(classOf[JobClientService], node))
           workerNode ! Start(job.copy(nodes = None))
         }
-        goto(WaitForNodes) using WaitingForNodesData(job, replyTo, nodes, nodes.size)
+        goto(WaitForNodes) using PartialNodesData(job, replyTo, nodes, nodes.size)
       } else {
-        goto(WaitForChronos) using WaitLocalData(job, replyTo)
+        goto(PostJobToChronos) using PartialLocalData(job, replyTo)
       }
   }
 
   // TODO: implement a reconciliation algorithm: http://mesos.apache.org/documentation/latest/reconciliation/
   when(WaitForNodes) {
 
-    case Event(WorkerJobComplete(node), data: WaitingForNodesData) =>
+    case Event(WorkerJobComplete(node), data: PartialNodesData) =>
       if (data.remainingNodes == Set(node)) {
         goto(RequestIntermediateResults) using data.copy(remainingNodes = Set())
       } else {
         goto(WaitForNodes) using data.copy(remainingNodes = data.remainingNodes - node)
       }
 
-    case Event(WorkerJobError(node, message), data: WaitingForNodesData) =>
+    case Event(WorkerJobError(node, message), data: PartialNodesData) =>
       log.error(message)
       if (data.remainingNodes == Set(node)) {
         goto(RequestIntermediateResults) using data.copy(remainingNodes = Set())
@@ -272,7 +283,7 @@ class FederationCoordinatorActor(val chronosService: ActorRef,
 
   when(RequestIntermediateResults, stateTimeout = repeatDuration) {
 
-    case Event(StateTimeout, data: WaitingForNodesData) =>
+    case Event(StateTimeout, data: PartialNodesData) =>
       val results = federationDatabase.findJobResults(data.job.jobId)
       if (results.size == data.totalNodeCount) {
         data.job.federationDockerImage.fold {
@@ -282,7 +293,7 @@ class FederationCoordinatorActor(val chronosService: ActorRef,
           val parameters = Map(
             "PARAM_query" -> s"select data from job_result_nodes where job_id='${data.job.jobId}'"
           )
-          goto(WaitForChronos) using WaitLocalData(
+          goto(PostJobToChronos) using PartialLocalData(
             data.job.copy(dockerImage = federationDockerImage, parameters = parameters),
             data.replyTo
           )
