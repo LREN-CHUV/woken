@@ -593,6 +593,7 @@ class CrossValidationActor(val chronosService: ActorRef,
         .getTestSet(fold)
         ._2
         .map(x => x.asJsObject.fields.toList.head._2.compactPrint)
+      log.info(s"Ground truth: $groundTruth")
 
       import cats.syntax.list._
       import scala.concurrent.duration._
@@ -607,10 +608,12 @@ class CrossValidationActor(val chronosService: ActorRef,
             nextValidationActor.map(_ ? ScoringQuery(r, gt, data.targetMetaData))
 
           futureO.fold {
+            log.error("Validation system not connected")
             data.replyTo ! CrossValidationActor.ErrorResponse(data.job.validation,
                                                               "Validation system not connected")
             stop
           } { future =>
+            log.info("Waiting for scoring results...")
             val scores = Await.result(future, timeout.duration).asInstanceOf[ScoringResult]
 
             // TODO To be improved with new Spark integration - LC: what was that about?
