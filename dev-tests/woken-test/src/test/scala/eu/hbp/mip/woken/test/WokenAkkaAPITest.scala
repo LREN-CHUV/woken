@@ -66,8 +66,9 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
     result.success.value.data should not be empty
 
     val json = result.success.value.data.get.parseJson
+    val expected = loadJson("/knn_data_mining.json")
 
-    assertResult(loadJson("/knn_data_mining.json"))(json)
+    assertResult(approximate(expected))(approximate(json))
   }
 
   // Test experiment query
@@ -84,9 +85,10 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
 
     data should not be empty
 
-    val json = data.get.parseJson
+    val json =  data.get.parseJson
+    val expected = loadJson("/knn_experiment.json")
 
-    assertResult(loadJson("/knn_experiment.json"))(json)
+    assertResult(approximate(expected))(approximate(json))
   }
 
   // Test resiliency
@@ -146,5 +148,24 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
   private def loadJson(path: String): JsValue = {
     val source = Source.fromURL(getClass.getResource(path))
     source.mkString.parseJson
+  }
+
+  private def approximate(json: JsValue): String = {
+    val sb = new java.lang.StringBuilder()
+    new ApproximatePrinter().print(json, sb)
+    sb.toString
+  }
+
+  class ApproximatePrinter extends SortedPrinter {
+    override protected def printLeaf(j: JsValue, sb: java.lang.StringBuilder): Unit =
+      j match {
+        case JsNull      => sb.append("null")
+        case JsTrue      => sb.append("true")
+        case JsFalse     => sb.append("false")
+        case JsNumber(x) => sb.append(f"$x%1.5f")
+        case JsString(x) => printString(x, sb)
+        case _           => throw new IllegalStateException
+      }
+
   }
 }
