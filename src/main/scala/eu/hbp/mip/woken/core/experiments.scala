@@ -48,6 +48,7 @@ object ExperimentActor {
   // Incoming messages
   case class Job(
       jobId: String,
+                // TODO: does not seem to be used
       inputDb: Option[String],
       algorithms: Seq[Algorithm],
       validations: Seq[ApiValidation],
@@ -78,6 +79,14 @@ object ExperimentActor {
         jsonFormat1(ErrorResponse)
       )
   }
+
+  def props(chronosService: ActorRef,
+            resultDatabase: JobResultsDAL,
+            jobResultsFactory: JobResults.Factory): Props =
+    Props(classOf[ExperimentActor],
+      chronosService,
+      resultDatabase,
+      jobResultsFactory)
 
   import JobResult._
 
@@ -119,7 +128,6 @@ object ExperimentStates {
   */
 class ExperimentActor(val chronosService: ActorRef,
                       val resultDatabase: JobResultsDAL,
-                      val federationDatabase: Option[JobResultsDAL],
                       val jobResultsFactory: JobResults.Factory)
     extends Actor
     with ActorLogging
@@ -129,15 +137,18 @@ class ExperimentActor(val chronosService: ActorRef,
   import ExperimentActor._
   import ExperimentStates._
 
+  log.info("Experiment started")
+
   startWith(WaitForNewJob, None)
 
   when(WaitForNewJob) {
     case Event(Start(job), _) if job.algorithms.nonEmpty =>
-      val replyTo = sender()
 
+      val replyTo = sender()
       val algorithms  = job.algorithms
       val validations = job.validations
 
+      log.info("Start new experiment job")
       log.info(s"List of algorithms: ${algorithms.mkString(",")}")
 
       // Spawn an AlgorithmActor for every algorithm
@@ -146,7 +157,7 @@ class ExperimentActor(val chronosService: ActorRef,
         val subJob = AlgorithmActor.Job(jobId, Some(defaultDb), a, validations, job.parameters)
         val worker = context.actorOf(
           AlgorithmActor
-            .props(chronosService, resultDatabase, federationDatabase, RequestProtocol),
+            .props(chronosService, resultDatabase, RequestProtocol),
           AlgorithmActor.actorName(subJob)
         )
         worker ! AlgorithmActor.Start(subJob)
@@ -157,6 +168,7 @@ class ExperimentActor(val chronosService: ActorRef,
 
   when(WaitForWorkers) {
     case Event(AlgorithmActor.ResultResponse(algorithm, algorithmResults), Some(experimentData)) =>
+      log.info(s"Received algorithm result $algorithmResults")
       val updatedResults        = experimentData.results + (algorithm -> algorithmResults)
       val updatedExperimentData = Some(experimentData.copy(results = updatedResults))
       if (experimentData.isComplete)
@@ -165,7 +177,7 @@ class ExperimentActor(val chronosService: ActorRef,
         stay using updatedExperimentData
 
     case Event(AlgorithmActor.ErrorResponse(algorithm, errorMessage), Some(experimentData)) =>
-      log.error(errorMessage)
+      log.error(s"Algorithm ${algorithm.code} returned with error $errorMessage")
       val updatedResults        = experimentData.results + (algorithm -> errorMessage)
       val updatedExperimentData = Some(experimentData.copy(results = updatedResults))
       if (experimentData.isComplete)
@@ -176,6 +188,8 @@ class ExperimentActor(val chronosService: ActorRef,
 
   when(Reduce) {
     case Event(Done, Some(experimentData)) =>
+      log.info("Experiment - build final response")
+
       //TODO WP3 Save the results in results DB
 
       // Concatenate results while respecting received algorithms order
@@ -237,12 +251,10 @@ object AlgorithmActor {
 
   def props(chronosService: ActorRef,
             resultDatabase: JobResultsDAL,
-            federationDatabase: Option[JobResultsDAL],
             jobResultsFactory: JobResults.Factory): Props =
     Props(classOf[AlgorithmActor],
           chronosService,
           resultDatabase,
-          federationDatabase,
           jobResultsFactory)
 
   def actorName(job: Job): String =
@@ -278,7 +290,6 @@ object AlgorithmStates {
 
 class AlgorithmActor(val chronosService: ActorRef,
                      val resultDatabase: JobResultsDAL,
-                     val federationDatabase: Option[JobResultsDAL],
                      val jobResultsFactory: JobResults.Factory)
     extends Actor
     with ActorLogging
@@ -291,13 +302,13 @@ class AlgorithmActor(val chronosService: ActorRef,
 
   when(WaitForNewJob) {
     case Event(AlgorithmActor.Start(job), _) =>
-      val replyTo = sender()
 
+      val replyTo = sender()
       val algorithm   = job.algorithm
       val validations = if (isPredictive(algorithm.code)) job.validations else List()
-
       val parameters = job.parameters ++ FunctionsInOut.algoParameters(algorithm)
 
+      log.info(s"Start job for algorithm ${algorithm.code}")
       log.info(s"List of validations: ${validations.size}")
 
       // Spawn a LocalCoordinatorActor
@@ -319,7 +330,6 @@ class AlgorithmActor(val chronosService: ActorRef,
         val validationWorker = context.actorOf(
           CrossValidationActor.props(chronosService,
                                      resultDatabase,
-                                     federationDatabase,
                                      jobResultsFactory),
           CrossValidationActor.actorName(subJob)
         )
@@ -333,20 +343,24 @@ class AlgorithmActor(val chronosService: ActorRef,
 
   when(WaitForWorkers) {
     case Event(JsonMessage(pfa: JsValue), Some(data: AlgorithmData)) =>
+      // TODO - LC: why receiving one model is enough to stop this actor? If there are several validations, there should be as many models?
+      // TODO: not clear where this JsonMessage comes from. Need types...
       val updatedData = data.copy(model = Some(pfa.compactPrint))
+      log.info(s"Received PFA result, complete? ${updatedData.isComplete}")
       if (updatedData.isComplete)
         goto(Reduce) using Some(updatedData)
       else
         stay using Some(updatedData)
 
     case Event(CoordinatorActor.ErrorResponse(message), Some(data: AlgorithmData)) =>
-      log.error(message)
+      log.error(s"Execution of algorithm ${data.job.algorithm.code} failed with message: $message")
       // We cannot trained the model we notify supervisor and we stop
       context.parent ! ErrorResponse(data.job.algorithm, message)
       stop
 
     case Event(CrossValidationActor.ResultResponse(validation, results),
                Some(data: AlgorithmData)) =>
+      log.info("Received validation result")
       val updatedData = data.copy(results = data.results + (validation -> results))
       if (updatedData.isComplete)
         goto(Reduce) using Some(updatedData)
@@ -355,7 +369,7 @@ class AlgorithmActor(val chronosService: ActorRef,
 
     case Event(CrossValidationActor.ErrorResponse(validation, message),
                Some(data: AlgorithmData)) =>
-      log.error(message)
+      log.error(s"Validation of algorithm ${data.job.algorithm.code} returned with error : $message")
       val updatedData = data.copy(results = data.results + (validation -> message))
       if (updatedData.isComplete)
         goto(Reduce) using Some(updatedData)
@@ -411,12 +425,10 @@ object CrossValidationActor {
 
   def props(chronosService: ActorRef,
             resultDatabase: JobResultsDAL,
-            federationDatabase: Option[JobResultsDAL],
             jobResultsFactory: JobResults.Factory): Props =
     Props(classOf[CrossValidationActor],
           chronosService,
           resultDatabase,
-          federationDatabase,
           jobResultsFactory)
 
   def actorName(job: Job): String =
@@ -476,12 +488,10 @@ object CrossValidationStates {
   *
   * @param chronosService
   * @param resultDatabase
-  * @param federationDatabase
   * @param jobResultsFactory
   */
 class CrossValidationActor(val chronosService: ActorRef,
                            val resultDatabase: JobResultsDAL,
-                           val federationDatabase: Option[JobResultsDAL],
                            val jobResultsFactory: JobResults.Factory)
     extends Actor
     with ActorLogging
@@ -536,7 +546,7 @@ class CrossValidationActor(val chronosService: ActorRef,
                               nodes = None)
           val worker = context.actorOf(
             CoordinatorActor
-              .props(chronosService, resultDatabase, federationDatabase, jobResultsFactory)
+              .props(chronosService, resultDatabase, None, jobResultsFactory)
           )
           //workers(worker) = fold
           worker ! CoordinatorActor.Start(subJob)

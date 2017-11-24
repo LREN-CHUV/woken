@@ -441,11 +441,7 @@ class MiningService(val chronosService: ActorRef,
       jobResultsFactory: JobResults.Factory = JobResults.defaultFactory
   ): ActorRef =
     context.actorOf(
-      Props(classOf[ExperimentActor],
-            chronosService,
-            resultDatabase,
-            federationDatabase,
-            jobResultsFactory)
+      ExperimentActor.props(chronosService, resultDatabase, jobResultsFactory)
     )
 
   def miningJob(
