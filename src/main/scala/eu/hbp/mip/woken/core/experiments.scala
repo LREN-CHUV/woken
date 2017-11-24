@@ -239,6 +239,7 @@ class ExperimentActor(val chronosService: ActorRef,
           )
         )
       )
+      log.info("Stopping...")
       stop
   }
 
@@ -373,6 +374,7 @@ class AlgorithmActor(val chronosService: ActorRef,
       log.error(s"Execution of algorithm ${data.job.algorithm.code} failed with message: $message")
       // We cannot trained the model we notify supervisor and we stop
       context.parent ! ErrorResponse(data.job.algorithm, message)
+      log.info("Stopping...")
       stop
 
     case Event(CrossValidationActor.ResultResponse(validation, results),
@@ -413,6 +415,7 @@ class AlgorithmActor(val chronosService: ActorRef,
                       "\"cells\":{\"validations\":" + validations.compactPrint + ",")
 
       data.replyTo ! AlgorithmActor.ResultResponse(data.job.algorithm, pfa)
+      log.info("Stopping...")
       stop
   }
 
@@ -606,6 +609,7 @@ class CrossValidationActor(val chronosService: ActorRef,
       sendTo.fold {
         context.parent ! CrossValidationActor.ErrorResponse(data.job.validation,
                                                             "Validation system not available")
+        log.info("Stopping...")
         stop
       } { validationActor =>
         validationActor ! ValidationQuery(fold, model, testData, data.targetMetaData)
@@ -668,16 +672,19 @@ class CrossValidationActor(val chronosService: ActorRef,
           val message = s"No results on fold $fold"
           log.error(message)
           context.parent ! CrossValidationActor.ErrorResponse(data.job.validation, message)
+          log.info("Stopping...")
           stop
         case (None, Some(_)) =>
           val message = s"Empty test set on fold $fold"
           log.error(message)
           context.parent ! CrossValidationActor.ErrorResponse(data.job.validation, message)
+          log.info("Stopping...")
           stop
-        case (None, None) =>
+        case _ =>
           val message = s"No data selected during fold $fold"
           log.error(message)
           context.parent ! CrossValidationActor.ErrorResponse(data.job.validation, message)
+          log.info("Stopping...")
           stop
       }
 
@@ -685,12 +692,14 @@ class CrossValidationActor(val chronosService: ActorRef,
       log.error(message)
       // On testing fold fails, we notify supervisor and we stop
       context.parent ! CrossValidationActor.ErrorResponse(data.job.validation, message)
+      log.info("Stopping...")
       stop
 
     case Event(Error(message), data: WaitForWorkersState) =>
       log.error(message)
       // On training fold fails, we notify supervisor and we stop
       context.parent ! CrossValidationActor.ErrorResponse(data.job.validation, message)
+      log.info("Stopping...")
       stop
   }
 
@@ -729,6 +738,7 @@ class CrossValidationActor(val chronosService: ActorRef,
           log.error(message)
           context.parent ! CrossValidationActor.ErrorResponse(data.job.validation, message)
       }
+      log.info("Stopping...")
       stop
   }
 

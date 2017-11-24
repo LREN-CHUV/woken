@@ -174,6 +174,7 @@ trait CoordinatorActor
       if (results.nonEmpty) {
         log.info(s"Received results for job ${data.job.jobId}")
         data.replyTo ! jobResultsFactory(results)
+        log.info("Stopping...")
         stop(Normal)
       } else {
         stay() forMax repeatDuration
