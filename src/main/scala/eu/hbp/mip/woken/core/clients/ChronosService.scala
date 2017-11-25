@@ -90,6 +90,6 @@ class ChronosService extends Actor with ActorLogging with ActorTracing {
 
         } pipeTo originalSender
 
-    case _ =>
+    case e => log.error(s"Unhandled message: $e")
   }
 }

@@ -38,9 +38,16 @@ object JobToChronos {
   def enrich(job: JobDto): ChronosJob = {
 
     val container = app.dockerBridgeNetwork.fold(
-      Container("DOCKER", job.dockerImage, None, List())
-    )(bridge => Container("DOCKER", job.dockerImage, Some("BRIDGE"), List(DP("network", bridge))))
+      Container(`type` = "DOCKER", image = job.dockerImage)
+    )(
+      bridge =>
+        Container(`type` = "DOCKER",
+                  image = job.dockerImage,
+                  network = Some("BRIDGE"),
+                  parameters = List(DP("network", bridge)))
+    )
     // On Federation, use the federationDb, otherwise look for the input db in the task or in the configuration of the node
+    // TODO: something!
     val inputDb = jobs.federationDb orElse job.inputDb orElse jobs.ldsmDb getOrElse (throw new IllegalArgumentException(
       "federationDb or ldsmDb should be defined in the configuration"
     ))
@@ -54,18 +61,16 @@ object JobToChronos {
       dbEnvironment(outputDb, "OUT_")
 
     ChronosJob(
-      schedule = "R1//PT24H",
-      epsilon = "PT5M",
       name = job.jobNameResolved,
       command = "compute",
       shell = false,
-      runAsUser = "root",
-      container = container,
-      cpus = "0.5",
-      mem = "512",
-      uris = List(),
-      async = false,
-      owner = jobs.owner,
+      schedule = "R1//PT24H",
+      epsilon = Some("PT5M"),
+      runAsUser = Some("root"),
+      container = Some(container),
+      cpus = Some(0.5),
+      mem = Some(512),
+      owner = Some(jobs.owner),
       environmentVariables = environmentVariables
     )
   }

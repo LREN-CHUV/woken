@@ -16,7 +16,7 @@
 
 package eu.hbp.mip.woken.core
 
-import akka.actor.FSM.{Failure, Normal}
+import akka.actor.FSM.{ Failure, Normal }
 import akka.actor._
 import com.github.levkhomich.akka.tracing.ActorTracing
 import spray.http.StatusCodes
@@ -25,10 +25,10 @@ import spray.httpx.marshalling.ToResponseMarshaller
 import scala.concurrent.duration._
 import eu.hbp.mip.woken.api._
 import eu.hbp.mip.woken.core.CoordinatorActor.Start
-import eu.hbp.mip.woken.core.clients.{ChronosService, JobClientService}
-import eu.hbp.mip.woken.core.model.{ChronosJob, JobResult, JobToChronos}
+import eu.hbp.mip.woken.core.clients.{ ChronosService, JobClientService }
+import eu.hbp.mip.woken.core.model.{ ChronosJob, JobResult, JobToChronos }
 import eu.hbp.mip.woken.dao.JobResultsDAL
-import spray.json.{JsonFormat, RootJsonFormat}
+import spray.json.{ JsonFormat, RootJsonFormat }
 
 /**
   * We use the companion object to hold all the messages that the ``CoordinatorActor``
@@ -119,7 +119,8 @@ object CoordinatorStates {
   case class PartialNodesData(job: JobDto,
                               replyTo: ActorRef,
                               remainingNodes: Set[String] = Set(),
-                              totalNodeCount: Int) extends StateData
+                              totalNodeCount: Int)
+      extends StateData
 
   case class PartialLocalData(job: JobDto, replyTo: ActorRef) extends StateData
 
@@ -140,7 +141,7 @@ trait CoordinatorActor
   import CoordinatorStates._
 
   val repeatDuration: FiniteDuration = 200.milliseconds
-  val startTime: Long = System.currentTimeMillis
+  val startTime: Long                = System.currentTimeMillis
 
   def chronosService: ActorRef
   def resultDatabase: JobResultsDAL
@@ -155,13 +156,15 @@ trait CoordinatorActor
       goto(RequestFinalResult) using data
 
     case Event(e: Error, data: PartialLocalData) =>
-      val msg = s"Cannot complete job ${data.job.jobId} using ${data.job.dockerImage}, received error: ${e.message}"
+      val msg =
+        s"Cannot complete job ${data.job.jobId} using ${data.job.dockerImage}, received error: ${e.message}"
       log.error(msg)
       data.replyTo ! Error(msg)
       stop(Failure(msg))
 
     case Event(_: Timeout @unchecked, data: PartialLocalData) =>
-      val msg = s"Cannot complete job ${data.job.jobId} using ${data.job.dockerImage}, timeout while connecting to Chronos"
+      val msg =
+        s"Cannot complete job ${data.job.jobId} using ${data.job.dockerImage}, timeout while connecting to Chronos"
       log.error(msg)
       data.replyTo ! Error(msg)
       stop(Failure(msg))

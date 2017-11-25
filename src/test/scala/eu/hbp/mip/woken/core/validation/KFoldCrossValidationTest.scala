@@ -21,7 +21,7 @@ import org.scalatest._
 
 class KFoldCrossValidationTest extends FlatSpec with Matchers {
 
-  "An experiment JSON object " should "be readable" in {
+  "An experiment JSON object" should "be readable" in {
 
     import eu.hbp.mip.woken.api.ApiJsonSupport._
     import spray.json._
@@ -48,7 +48,7 @@ class KFoldCrossValidationTest extends FlatSpec with Matchers {
     println(validation)
   }
 
-  "A validation JSON object " should "be readable" in {
+  "A validation JSON object" should "be readable" in {
 
     import eu.hbp.mip.woken.api.ApiJsonSupport._
     import spray.json._

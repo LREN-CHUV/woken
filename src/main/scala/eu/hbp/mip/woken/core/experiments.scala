@@ -47,7 +47,7 @@ object ExperimentActor {
   // Incoming messages
   case class Job(
       jobId: String,
-                // TODO: does not seem to be used
+      // TODO: does not seem to be used
       inputDb: Option[String],
       algorithms: Seq[Algorithm],
       validations: Seq[ApiValidation],
@@ -82,10 +82,7 @@ object ExperimentActor {
   def props(chronosService: ActorRef,
             resultDatabase: JobResultsDAL,
             jobResultsFactory: JobResults.Factory): Props =
-    Props(classOf[ExperimentActor],
-      chronosService,
-      resultDatabase,
-      jobResultsFactory)
+    Props(classOf[ExperimentActor], chronosService, resultDatabase, jobResultsFactory)
 
   import JobResult._
 
@@ -121,15 +118,18 @@ object ExperimentStates {
   }
 
   case class CompletedExperimentData(
-    job: Job,
-    replyTo: ActorRef,
-    results: Map[Algorithm, String],
-    algorithms: Seq[Algorithm]
+      job: Job,
+      replyTo: ActorRef,
+      results: Map[Algorithm, String],
+      algorithms: Seq[Algorithm]
   ) extends ExperimentData
 
   object CompletedExperimentData {
     def apply(from: PartialExperimentData): CompletedExperimentData =
-      CompletedExperimentData(job = from.job, replyTo = from.replyTo, results = from.results, algorithms = from.algorithms)
+      CompletedExperimentData(job = from.job,
+                              replyTo = from.replyTo,
+                              results = from.results,
+                              algorithms = from.algorithms)
   }
 }
 
@@ -157,8 +157,7 @@ class ExperimentActor(val chronosService: ActorRef,
 
   when(WaitForNewJob) {
     case Event(Start(job), _) if job.algorithms.nonEmpty =>
-
-      val replyTo = sender()
+      val replyTo     = sender()
       val algorithms  = job.algorithms
       val validations = job.validations
 
@@ -181,7 +180,8 @@ class ExperimentActor(val chronosService: ActorRef,
   }
 
   when(WaitForWorkers) {
-    case Event(AlgorithmActor.ResultResponse(algorithm, algorithmResults), previousExperimentData: PartialExperimentData) =>
+    case Event(AlgorithmActor.ResultResponse(algorithm, algorithmResults),
+               previousExperimentData: PartialExperimentData) =>
       log.info(s"Received algorithm result $algorithmResults")
 
       val results        = previousExperimentData.results + (algorithm -> algorithmResults)
@@ -190,20 +190,24 @@ class ExperimentActor(val chronosService: ActorRef,
         log.info("All results received")
         goto(Reduce) using CompletedExperimentData(experimentData)
       } else {
-        log.info(s"Received ${experimentData.results.size} results out of ${experimentData.algorithms.size}")
+        log.info(
+          s"Received ${experimentData.results.size} results out of ${experimentData.algorithms.size}"
+        )
         stay using experimentData
       }
 
-    case Event(AlgorithmActor.ErrorResponse(algorithm, errorMessage), previousExperimentData: PartialExperimentData) =>
+    case Event(AlgorithmActor.ErrorResponse(algorithm, errorMessage),
+               previousExperimentData: PartialExperimentData) =>
       log.error(s"Algorithm ${algorithm.code} returned with error $errorMessage")
       val results        = previousExperimentData.results + (algorithm -> errorMessage)
       val experimentData = previousExperimentData.copy(results = results)
       if (experimentData.isComplete) {
         log.info("All results received")
         goto(Reduce) using CompletedExperimentData(experimentData)
-      }
-      else {
-        log.info(s"Received ${experimentData.results.size} results out of ${experimentData.algorithms.size}")
+      } else {
+        log.info(
+          s"Received ${experimentData.results.size} results out of ${experimentData.algorithms.size}"
+        )
         stay using experimentData
       }
   }
@@ -264,7 +268,7 @@ object AlgorithmActor {
       inputDb: Option[String],
       algorithm: Algorithm,
       validations: Seq[ApiValidation],
-                // TODO: contains low level details (environment variables)
+      // TODO: contains low level details (environment variables)
       parameters: Map[String, String]
   )
   case class Start(job: Job)
@@ -276,13 +280,10 @@ object AlgorithmActor {
   def props(chronosService: ActorRef,
             resultDatabase: JobResultsDAL,
             jobResultsFactory: JobResults.Factory): Props =
-    Props(classOf[AlgorithmActor],
-          chronosService,
-          resultDatabase,
-          jobResultsFactory)
+    Props(classOf[AlgorithmActor], chronosService, resultDatabase, jobResultsFactory)
 
   def actorName(job: Job): String =
-      s"AlgorithmActor_job_${job.jobId}_algo_${job.algorithm.code}"
+    s"AlgorithmActor_job_${job.jobId}_algo_${job.algorithm.code}"
 
 }
 
@@ -302,23 +303,29 @@ object AlgorithmStates {
   case object Uninitialized extends AlgorithmData
 
   case class PartialAlgorithmData(job: Job,
-                           replyTo: ActorRef,
-                           model: Option[String],
-                           results: Map[ApiValidation, String],
-                           validationCount: Int) extends AlgorithmData {
+                                  replyTo: ActorRef,
+                                  model: Option[String],
+                                  results: Map[ApiValidation, String],
+                                  validationCount: Int)
+      extends AlgorithmData {
 
     def isComplete: Boolean = (results.size == validationCount) && model.isDefined
   }
 
   case class CompleteAlgorithmData(job: Job,
-                                                                    replyTo: ActorRef,
-                                                                    model: String,
-                                                                    results: Map[ApiValidation, String],
-                                                                    validationCount: Int) extends AlgorithmData
+                                   replyTo: ActorRef,
+                                   model: String,
+                                   results: Map[ApiValidation, String],
+                                   validationCount: Int)
+      extends AlgorithmData
 
   object CompleteAlgorithmData {
-    def apply(from: PartialAlgorithmData): CompleteAlgorithmData = new CompleteAlgorithmData(job = from.job, replyTo = from.replyTo, model = from.model.get,
-      results=from.results , validationCount=from.validationCount)
+    def apply(from: PartialAlgorithmData): CompleteAlgorithmData =
+      new CompleteAlgorithmData(job = from.job,
+                                replyTo = from.replyTo,
+                                model = from.model.get,
+                                results = from.results,
+                                validationCount = from.validationCount)
   }
 }
 
@@ -336,11 +343,10 @@ class AlgorithmActor(val chronosService: ActorRef,
 
   when(WaitForNewJob) {
     case Event(AlgorithmActor.Start(job), _) =>
-
-      val replyTo = sender()
+      val replyTo     = sender()
       val algorithm   = job.algorithm
       val validations = if (isPredictive(algorithm.code)) job.validations else List()
-      val parameters = job.parameters ++ FunctionsInOut.algoParameters(algorithm)
+      val parameters  = job.parameters ++ FunctionsInOut.algoParameters(algorithm)
 
       log.info(s"Start job for algorithm ${algorithm.code}")
       log.info(s"List of validations: ${validations.size}")
@@ -362,9 +368,7 @@ class AlgorithmActor(val chronosService: ActorRef,
         val jobId  = UUID.randomUUID().toString
         val subJob = CrossValidationActor.Job(jobId, job.inputDb, algorithm, v, parameters)
         val validationWorker = context.actorOf(
-          CrossValidationActor.props(chronosService,
-                                     resultDatabase,
-                                     jobResultsFactory),
+          CrossValidationActor.props(chronosService, resultDatabase, jobResultsFactory),
           CrossValidationActor.actorName(subJob)
         )
         validationWorker ! CrossValidationActor.Start(subJob)
@@ -391,7 +395,9 @@ class AlgorithmActor(val chronosService: ActorRef,
       }
 
     case Event(CoordinatorActor.ErrorResponse(message), previousData: PartialAlgorithmData) =>
-      log.error(s"Execution of algorithm ${previousData.job.algorithm.code} failed with message: $message")
+      log.error(
+        s"Execution of algorithm ${previousData.job.algorithm.code} failed with message: $message"
+      )
       // We cannot trained the model we notify supervisor and we stop
       context.parent ! ErrorResponse(previousData.job.algorithm, message)
       log.info("Stopping...")
@@ -413,8 +419,10 @@ class AlgorithmActor(val chronosService: ActorRef,
       }
 
     case Event(CrossValidationActor.ErrorResponse(validation, message),
-        previousData: PartialAlgorithmData) =>
-      log.error(s"Validation of algorithm ${previousData.job.algorithm.code} returned with error : $message")
+               previousData: PartialAlgorithmData) =>
+      log.error(
+        s"Validation of algorithm ${previousData.job.algorithm.code} returned with error : $message"
+      )
       val data = previousData.copy(results = previousData.results + (validation -> message))
       if (data.isComplete) {
         log.info("Received validation error, algorithm processing complete")
@@ -471,7 +479,7 @@ object CrossValidationActor {
       inputDb: Option[String],
       algorithm: Algorithm,
       validation: ApiValidation,
-                // TODO: contains low level environment variables
+      // TODO: contains low level environment variables
       parameters: Map[String, String]
   )
   case class Start(job: Job)
@@ -484,13 +492,10 @@ object CrossValidationActor {
   def props(chronosService: ActorRef,
             resultDatabase: JobResultsDAL,
             jobResultsFactory: JobResults.Factory): Props =
-    Props(classOf[CrossValidationActor],
-          chronosService,
-          resultDatabase,
-          jobResultsFactory)
+    Props(classOf[CrossValidationActor], chronosService, resultDatabase, jobResultsFactory)
 
   def actorName(job: Job): String =
-      s"CrossValidationActor_job_${job.jobId}_algo_${job.algorithm.code}"
+    s"CrossValidationActor_job_${job.jobId}_algo_${job.algorithm.code}"
 
 }
 
