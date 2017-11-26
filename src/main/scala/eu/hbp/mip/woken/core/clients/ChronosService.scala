@@ -20,7 +20,7 @@ import scala.concurrent.{ ExecutionContextExecutor, Future }
 import scala.concurrent.duration._
 import akka.actor.{ Actor, ActorLogging, ActorSystem, Status }
 import akka.io.IO
-import akka.pattern.{ ask, pipe, AskTimeoutException }
+import akka.pattern.{ AskTimeoutException, ask, pipe }
 import akka.util.Timeout
 import com.github.levkhomich.akka.tracing.ActorTracing
 import spray.can.Http
@@ -57,7 +57,7 @@ class ChronosService extends Actor with ActorLogging with ActorTracing {
       log.info(s"Send job to Chronos: ${PrettyPrinter(chronosJobFormat.write(job))}")
 
       val originalSender = sender()
-      val postUrl = chronosServerUrl + "/v1/scheduler/iso8601"
+      val postUrl        = chronosServerUrl + "/v1/scheduler/iso8601"
       val chronosResponse: Future[_] =
         IO(Http) ? Post(postUrl, job)
 
@@ -93,15 +93,14 @@ class ChronosService extends Actor with ActorLogging with ActorTracing {
         } pipeTo originalSender
 
     case Check(job) =>
-
       implicit val system: ActorSystem                        = context.system
       implicit val executionContext: ExecutionContextExecutor = context.dispatcher
       implicit val timeout: Timeout                           = Timeout(30.seconds)
 
       val originalSender = sender()
-      val postUrl = s"$chronosServerUrl/v1/scheduler/jobs/search?name=${job.name}"
+      val postUrl        = s"$chronosServerUrl/v1/scheduler/jobs/search?name=${job.name}"
       val chronosResponse: Future[_] =
-        IO(Http) ? Post(postUrl, None)
+        IO(Http) ? Post(postUrl)
 
       chronosResponse
         .map {
