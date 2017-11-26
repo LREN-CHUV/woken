@@ -70,8 +70,8 @@ services:
     networks:
       - woken-bridge
     environment:
-      PORT0=4400
-      PORT1=4401
+      PORT0: 4400
+      PORT1: 4401
     depends_on:
       - zookeeper
       - mesos_slave
