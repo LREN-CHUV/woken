@@ -14,10 +14,8 @@
  * limitations under the License.
  */
 
-package eu.hbp.mip.woken.core.clients
+package eu.hbp.mip.woken.backends.chronos
 
-import scala.concurrent.{ ExecutionContextExecutor, Future }
-import scala.concurrent.duration._
 import akka.actor.{ Actor, ActorLogging, ActorSystem, Status }
 import akka.io.IO
 import akka.pattern.{ AskTimeoutException, ask, pipe }
@@ -26,8 +24,10 @@ import com.github.levkhomich.akka.tracing.ActorTracing
 import spray.can.Http
 import spray.http.{ HttpResponse, StatusCode, StatusCodes }
 import spray.httpx.RequestBuilding._
-import eu.hbp.mip.woken.core.model.ChronosJob
 import spray.json.PrettyPrinter
+
+import scala.concurrent.duration._
+import scala.concurrent.{ ExecutionContextExecutor, Future }
 
 object ChronosService {
   // Requests
@@ -47,8 +47,8 @@ class ChronosService extends Actor with ActorLogging with ActorTracing {
   def receive: PartialFunction[Any, Unit] = {
 
     case Schedule(job) =>
-      import spray.httpx.SprayJsonSupport._
       import ChronosJob._
+      import spray.httpx.SprayJsonSupport._
 
       implicit val system: ActorSystem                        = context.system
       implicit val executionContext: ExecutionContextExecutor = context.dispatcher

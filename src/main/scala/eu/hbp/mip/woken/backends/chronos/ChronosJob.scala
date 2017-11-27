@@ -14,26 +14,93 @@
  * limitations under the License.
  */
 
-package eu.hbp.mip.woken.core.model
+package eu.hbp.mip.woken.backends.chronos
 
-import spray.json.{ DefaultJsonProtocol, RootJsonFormat }
+import spray.json.{
+  DefaultJsonProtocol,
+  DeserializationException,
+  JsString,
+  JsValue,
+  RootJsonFormat
+}
+
+// Adapted from https://github.com/mesos/chronos/blob/v3.0.2/src/main/scala/org/apache/mesos/chronos/scheduler/jobs/Containers.scala
+// and https://github.com/mesos/chronos/blob/v3.0.2/src/main/scala/org/apache/mesos/chronos/scheduler/jobs/Jobs.scala
+
+object VolumeMode extends Enumeration {
+  type VolumeMode = Value
+
+  // read-write and read-only.
+  val RW, RO = Value
+}
+
+object NetworkMode extends Enumeration {
+  type NetworkMode = Value
+
+  // Bridged, Host and USER
+  val BRIDGE, HOST, USER = Value
+}
+
+object ContainerType extends Enumeration {
+  type ContainerType = Value
+
+  // Docker, Mesos
+  val DOCKER, MESOS = Value
+}
+
+object ProtocolType extends Enumeration {
+  type ProtocolType = Value
+
+  val IPv4, IPv6 = Value
+}
+
+import eu.hbp.mip.woken.backends.chronos.VolumeMode.VolumeMode
+import eu.hbp.mip.woken.backends.chronos.NetworkMode.NetworkMode
+import eu.hbp.mip.woken.backends.chronos.ContainerType.ContainerType
+import eu.hbp.mip.woken.backends.chronos.ProtocolType.ProtocolType
+
+/**
+  * Represents an environment variable definition for the job
+  */
+case class Label(
+    key: String,
+    value: String
+)
+
+case class ExternalVolume(
+    name: String,
+    provider: String,
+    options: Seq[Parameter]
+)
 
 case class Volume(
     containerPath: String,
-    hostPath: String,
-    mode: String
+    hostPath: Option[String],
+    mode: Option[VolumeMode],
+    external: Option[ExternalVolume]
 )
+
+case class PortMapping(hostPort: Int, containerPort: Int, protocol: Option[String])
+
+case class Network(name: String,
+                   protocol: Option[ProtocolType] = None,
+                   labels: Seq[Label] = Nil,
+                   portMappings: Seq[PortMapping] = Nil)
 
 case class Container(
-    `type`: String,
+    `type`: ContainerType,
     image: String,
     forcePullImage: Boolean = false,
-    parameters: List[DockerParameter] = Nil,
+    parameters: List[Parameter] = Nil,
     volumes: List[Volume] = Nil,
-    network: Option[String] = None
+    network: NetworkMode = NetworkMode.HOST,
+    networkInfos: List[Network] = Nil
 )
 
-case class DockerParameter(
+/**
+  * Represents an environment variable definition for the job
+  */
+case class Parameter(
     key: String,
     value: String
 )
@@ -76,7 +143,7 @@ case class ChronosJob(
     highPriority: Boolean = false,
     executor: Option[String] = None,
     executorFlags: Option[String] = None,
-    runAsUser: Option[String],
+    runAsUser: Option[String] = None,
     container: Option[Container],
     cpus: Option[Double] = None,
     disk: Option[Double] = None,
@@ -104,11 +171,38 @@ case class ChronosJob(
   * Serialize ChronosJob in the Json format required by Chronos
   */
 object ChronosJob extends DefaultJsonProtocol {
-  implicit val dockerParameterFormat: RootJsonFormat[DockerParameter] = jsonFormat2(
-    DockerParameter.apply
+
+  class EnumJsonConverter[T <: scala.Enumeration](enu: T) extends RootJsonFormat[T#Value] {
+    override def write(obj: T#Value): JsValue = JsString(obj.toString)
+
+    override def read(json: JsValue): T#Value =
+      json match {
+        case JsString(txt) => enu.withName(txt)
+        case somethingElse =>
+          throw DeserializationException(
+            s"Expected a value from enum $enu instead of $somethingElse"
+          )
+      }
+  }
+
+  implicit val volumeModeFormat: EnumJsonConverter[VolumeMode.type] =
+    new EnumJsonConverter[VolumeMode.type](VolumeMode)
+  implicit val NetworkModeFormat: EnumJsonConverter[NetworkMode.type] =
+    new EnumJsonConverter[NetworkMode.type](NetworkMode)
+  implicit val ContainerTypeFormat: EnumJsonConverter[ContainerType.type] =
+    new EnumJsonConverter[ContainerType.type](ContainerType)
+  implicit val ProtocolTypeFormat: EnumJsonConverter[ProtocolType.type] =
+    new EnumJsonConverter[ProtocolType.type](ProtocolType)
+
+  implicit val labelFormat: RootJsonFormat[Label]         = jsonFormat2(Label.apply)
+  implicit val parameterFormat: RootJsonFormat[Parameter] = jsonFormat2(Parameter.apply)
+  implicit val externalVolumeFormat: RootJsonFormat[ExternalVolume] = jsonFormat3(
+    ExternalVolume.apply
   )
-  implicit val volumeFormat: RootJsonFormat[Volume]       = jsonFormat3(Volume.apply)
-  implicit val containerFormat: RootJsonFormat[Container] = jsonFormat6(Container.apply)
+  implicit val volumeFormat: RootJsonFormat[Volume]           = jsonFormat4(Volume.apply)
+  implicit val portMappingFormat: RootJsonFormat[PortMapping] = jsonFormat3(PortMapping.apply)
+  implicit val networkFormat: RootJsonFormat[Network]         = jsonFormat4(Network.apply)
+  implicit val containerFormat: RootJsonFormat[Container]     = jsonFormat7(Container.apply)
   implicit val environmentVariableFormat: RootJsonFormat[EnvironmentVariable] = jsonFormat2(
     EnvironmentVariable.apply
   )

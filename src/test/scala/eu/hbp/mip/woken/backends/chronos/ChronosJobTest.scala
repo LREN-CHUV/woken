@@ -14,19 +14,19 @@
  * limitations under the License.
  */
 
-package eu.hbp.mip.woken.core.model
+package eu.hbp.mip.woken.backends.chronos
 
+import eu.hbp.mip.woken.backends.chronos.{ EnvironmentVariable => EV, Parameter => P }
 import org.scalatest._
-import eu.hbp.mip.woken.core.model.{ EnvironmentVariable => EV }
 
 class ChronosJobTest extends FlatSpec with Matchers {
 
   "A Chronos job" should "be serializable and compatible with Chronos REST API" in {
 
-    val container = Container(`type` = "DOCKER",
+    val container = Container(`type` = ContainerType.DOCKER,
                               image = "hbpmip/somealgo",
-                              network = Some("BRIDGE"),
-                              parameters = List(DockerParameter("network", "bridge1")))
+                              network = NetworkMode.BRIDGE,
+                              parameters = List(P("network", "bridge1")))
 
     val environmentVariables: List[EV] =
       List(EV("JOB_ID", "12345"), EV("NODE", "local"), EV("DOCKER_IMAGE", "hbpmip/somealgo"))
@@ -57,6 +57,7 @@ class ChronosJobTest extends FlatSpec with Matchers {
         |    "forcePullImage": false,
         |    "image": "hbpmip/somealgo",
         |    "network": "BRIDGE",
+        |    "networkInfos":[],
         |    "parameters": [{
         |      "key": "network",
         |      "value": "bridge1"

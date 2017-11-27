@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-package eu.hbp.mip.woken.core.model
+package eu.hbp.mip.woken.backends.chronos
 
 import eu.hbp.mip.woken.api.JobDto
 import eu.hbp.mip.woken.config.WokenConfig
-import eu.hbp.mip.woken.core.model.{ DockerParameter => DP, EnvironmentVariable => EV }
+import eu.hbp.mip.woken.backends.chronos.{ Parameter => P, EnvironmentVariable => EV }
 
 object JobToChronos {
 
   import WokenConfig._
 
-  def dbEnvironment(dbAlias: String, prefix: String = ""): List[EV] = {
+  def dbEnvironment(dbAlias: String, prefix: String = ""): List[EnvironmentVariable] = {
     val conf = dbConfig(dbAlias)
     List(
       EV(prefix + "JDBC_DRIVER", conf.jdbcDriver),
@@ -38,13 +38,13 @@ object JobToChronos {
   def enrich(job: JobDto): ChronosJob = {
 
     val container = app.dockerBridgeNetwork.fold(
-      Container(`type` = "DOCKER", image = job.dockerImage)
+      Container(`type` = ContainerType.DOCKER, image = job.dockerImage)
     )(
       bridge =>
-        Container(`type` = "DOCKER",
+        Container(`type` = ContainerType.DOCKER,
                   image = job.dockerImage,
-                  network = Some("BRIDGE"),
-                  parameters = List(DP("network", bridge)))
+                  network = NetworkMode.BRIDGE,
+                  networkInfos = List(Network(name = bridge)))
     )
     // On Federation, use the federationDb, otherwise look for the input db in the task or in the configuration of the node
     // TODO: something!
@@ -53,20 +53,22 @@ object JobToChronos {
     ))
     val outputDb = jobs.resultDb
 
-    val environmentVariables: List[EV] = List(EV("JOB_ID", job.jobId),
-                                              EV("NODE", jobs.node),
-                                              EV("DOCKER_IMAGE", job.dockerImage)) ++
+    val environmentVariables: List[EnvironmentVariable] = List(
+      EV("JOB_ID", job.jobId),
+      EV("NODE", jobs.node),
+      EV("DOCKER_IMAGE", job.dockerImage)
+    ) ++
       job.parameters.toList.map(kv => EV(kv._1, kv._2)) ++
       dbEnvironment(inputDb, "IN_") ++
       dbEnvironment(outputDb, "OUT_")
 
+    // TODO: add config parameter for CPU and mem, mem should come from Docker image metadata or json descriptor
     ChronosJob(
       name = job.jobNameResolved,
       command = "compute",
       shell = false,
-      schedule = "R1//PT24H",
+      schedule = "R1//PT1M",
       epsilon = Some("PT5M"),
-      runAsUser = Some("root"),
       container = Some(container),
       cpus = Some(0.5),
       mem = Some(512),

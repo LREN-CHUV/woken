@@ -25,8 +25,10 @@ import spray.httpx.marshalling.ToResponseMarshaller
 import scala.concurrent.duration._
 import eu.hbp.mip.woken.api._
 import eu.hbp.mip.woken.core.CoordinatorActor.Start
-import eu.hbp.mip.woken.core.clients.{ ChronosService, JobClientService }
-import eu.hbp.mip.woken.core.model.{ ChronosJob, JobResult, JobToChronos }
+import eu.hbp.mip.woken.backends.JobClientService
+import eu.hbp.mip.woken.backends.chronos.ChronosService
+import eu.hbp.mip.woken.backends.chronos.{ ChronosJob, JobToChronos }
+import eu.hbp.mip.woken.core.model.JobResult
 import eu.hbp.mip.woken.dao.JobResultsDAL
 import spray.json.{ JsonFormat, RootJsonFormat }
 

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package eu.hbp.mip.woken.core.clients
+package eu.hbp.mip.woken.backends
 
 import akka.actor.{ Actor, ActorLogging, ActorSystem }
 import akka.io.IO
