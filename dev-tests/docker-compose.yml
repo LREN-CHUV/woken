@@ -166,6 +166,39 @@ services:
     depends_on:
       - db
 
+  # The zipkin process services the UI, and also exposes a POST endpoint that
+  # instrumentation can send trace data to. Scribe is enabled by default.
+  zipkin:
+    image: openzipkin/zipkin:2.3.1
+    container_name: zipkin
+    # Environment settings are defined here https://github.com/openzipkin/zipkin/tree/1.19.0/zipkin-server#environment-variables
+    environment:
+      - STORAGE_TYPE=mem
+      # Uncomment to disable scribe
+      # - SCRIBE_ENABLED=false
+      # Uncomment to enable self-tracing
+      # - SELF_TRACING_ENABLED=true
+      # Uncomment to enable debug logging
+      # - JAVA_OPTS=-Dlogging.level.zipkin=DEBUG
+    ports:
+      # Port used for the Zipkin UI and HTTP Api
+      - 9411:9411
+    networks:
+      - woken-bridge
+
+  zipkin-ui:
+    image: openzipkin/zipkin-ui:2.3.1
+    container_name: zipkin-ui
+    environment:
+      # Change this if connecting to a different zipkin server
+      - ZIPKIN_BASE_URL=http://zipkin:9411
+    ports:
+      - 80:80
+    networks:
+      - woken-bridge
+    depends_on:
+      - zipkin
+
   woken:
     image: hbpmip/woken
     volumes:
@@ -179,6 +212,7 @@ services:
     depends_on:
       - chronos
       - db
+      - zipkin
 
   woken_validation:
     image: hbpmip/woken-validation:2.0.2
@@ -191,6 +225,7 @@ services:
       - woken-bridge
     depends_on:
       - woken
+      - zipkin
 
   wait_woken:
     image: "waisbrot/wait"

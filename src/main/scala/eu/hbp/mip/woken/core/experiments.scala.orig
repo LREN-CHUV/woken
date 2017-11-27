@@ -183,6 +183,7 @@ class ExperimentActor(val chronosService: ActorRef,
     case Event(AlgorithmActor.ResultResponse(algorithm, algorithmResults),
                previousExperimentData: PartialExperimentData) =>
       log.info(s"Received algorithm result $algorithmResults")
+
       val results        = previousExperimentData.results + (algorithm -> algorithmResults)
       val experimentData = previousExperimentData.copy(results = results)
       if (experimentData.isComplete) {
@@ -380,6 +381,7 @@ class AlgorithmActor(val chronosService: ActorRef,
     case Event(JsonMessage(pfa: JsValue), previousData: PartialAlgorithmData) =>
       // TODO - LC: why receiving one model is enough to stop this actor? If there are several validations, there should be as many models?
       // TODO: not clear where this JsonMessage comes from. Need types...
+<<<<<<< 3d9813ee18e353c1503d92a5db40a1f47fab5f93
       val data = previousData.copy(model = Some(pfa.compactPrint))
       if (data.isComplete) {
         log.info("Received PFA result, algorithm processing complete")
@@ -397,12 +399,29 @@ class AlgorithmActor(val chronosService: ActorRef,
       log.error(
         s"Execution of algorithm ${previousData.job.algorithm.code} failed with message: $message"
       )
+=======
+      val updatedData = data.copy(model = Some(pfa.compactPrint))
+      log.info(s"Received PFA result, complete? ${updatedData.isComplete}")
+      if (updatedData.isComplete)
+        goto(Reduce) using Some(updatedData)
+      else {
+        if (updatedData.model.isEmpty)
+          log.info("Waiting for missing model...")
+        if (updatedData.results.size < updatedData.validationCount)
+          log.info(s"Got ${updatedData.results.size} out of ${updatedData.validationCount}")
+        stay using Some(updatedData)
+      }
+
+    case Event(CoordinatorActor.ErrorResponse(message), Some(data: AlgorithmData)) =>
+      log.error(s"Execution of algorithm ${data.job.algorithm.code} failed with message: $message")
+>>>>>>> Setup Zipkin
       // We cannot trained the model we notify supervisor and we stop
       context.parent ! ErrorResponse(previousData.job.algorithm, message)
       log.info("Stopping...")
       stop
 
     case Event(CrossValidationActor.ResultResponse(validation, results),
+<<<<<<< 3d9813ee18e353c1503d92a5db40a1f47fab5f93
                previousData: PartialAlgorithmData) =>
       val data = previousData.copy(results = previousData.results + (validation -> results))
       if (data.isComplete) {
@@ -411,7 +430,7 @@ class AlgorithmActor(val chronosService: ActorRef,
       } else {
         log.info("Received validation result")
         if (data.model.isEmpty)
-          log.info("Waiting for missing PFA model...")
+          log.info("Still waiting for PFA model")
         if (data.results.size < data.validationCount)
           log.info(s"Received ${data.results.size} out of ${data.validationCount}")
         stay using data
@@ -428,10 +447,37 @@ class AlgorithmActor(val chronosService: ActorRef,
         goto(Reduce) using CompleteAlgorithmData(data)
       } else {
         if (data.model.isEmpty)
-          log.info("Waiting for missing PFA model...")
+          log.info("Still waiting for PFA model")
         if (data.results.size < data.validationCount)
           log.info(s"Received ${data.results.size} out of ${data.validationCount}")
         stay using data
+=======
+               Some(data: AlgorithmData)) =>
+      val updatedData = data.copy(results = data.results + (validation -> results))
+      log.info("Received validation result, complete? ${updatedData.isComplete}")
+      if (updatedData.isComplete)
+        goto(Reduce) using Some(updatedData)
+      else {
+        if (updatedData.model.isEmpty)
+          log.info("Waiting for missing model...")
+        if (updatedData.results.size < updatedData.validationCount)
+          log.info(s"Got ${updatedData.results.size} out of ${updatedData.validationCount}")
+        stay using Some(updatedData)
+      }
+
+    case Event(CrossValidationActor.ErrorResponse(validation, message),
+               Some(data: AlgorithmData)) =>
+      log.error(s"Validation of algorithm ${data.job.algorithm.code} returned with error : $message")
+      val updatedData = data.copy(results = data.results + (validation -> message))
+      if (updatedData.isComplete)
+        goto(Reduce) using Some(updatedData)
+      else {
+        if (updatedData.model.isEmpty)
+          log.info("Waiting for missing model...")
+        if (updatedData.results.size < updatedData.validationCount)
+          log.info(s"Got ${updatedData.results.size} out of ${updatedData.validationCount}")
+        stay using Some(updatedData)
+>>>>>>> Setup Zipkin
       }
   }
 

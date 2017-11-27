@@ -62,7 +62,7 @@ echo "Migrate features database..."
 $DOCKER_COMPOSE run sample_db_setup
 
 echo "Run containers..."
-$DOCKER_COMPOSE up -d zookeeper mesos_master mesos_slave chronos woken woken_validation
+$DOCKER_COMPOSE up -d zookeeper mesos_master mesos_slave chronos zipkin zipkin-ui woken woken_validation
 
 $DOCKER_COMPOSE run wait_woken
 
