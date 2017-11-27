@@ -1,13 +1,16 @@
 # Configuration taken from https://github.com/meltwater/docker-mesos
 # https://github.com/containous/traefik/blob/master/examples/compose-marathon.yml
 
-version: '2'
+version: '3'
+
 services:
   zookeeper:
     image: netflixoss/exhibitor:1.5.2
     hostname: zookeeper
-    networks:
-      - woken-bridge
+    ports:
+      - '2181:2181'
+      - '2888:2888'
+      - '3888:3888'
 
   mesos_master:
     image: mesosphere/mesos-master:1.3.0
@@ -15,8 +18,6 @@ services:
     volumes:
       - ./log/mesos/master:/var/log/mesos/master:rw
       - ./tmp/mesos/master:/var/tmp/mesos:rw
-    networks:
-      - woken-bridge
     environment:
       MESOS_PORT: 5050
       MESOS_ZK: 'zk://zookeeper:2181/mesos'
@@ -25,6 +26,7 @@ services:
       MESOS_CLUSTER: 'local'
       MESOS_HOSTNAME: 'mesosmaster.docker'
       MESOS_LOG_DIR: '/var/log/mesos/master'
+      MESOS_WORK_DIR: '/var/lib/mesos'
     depends_on:
       - zookeeper
 
@@ -40,8 +42,6 @@ services:
       # /usr/bin/docker is needed if you're running an older docker version
       #- /usr/bin/docker:/usr/bin/docker:r
       - /var/run/docker.sock:/var/run/docker.sock:rw
-    networks:
-      - woken-bridge
     environment:
       MESOS_MASTER: 'zk://zookeeper:2181/mesos'
       MESOS_PORT: '5051'
@@ -62,13 +62,11 @@ services:
 
   chronos:
     image: mesosphere/chronos:v3.0.2
-    command: '/usr/bin/chronos run_jar --http_port 4400 --zk_hosts zookeeper:2181 --master zk://zookeeper:2181/mesos'
+    command: '--zk_hosts zookeeper:2181 --master zk://zookeeper:2181/mesos'
     hostname: chronos
     ports:
       - "4400:4400"
       - "4401:4401"
-    networks:
-      - woken-bridge
     environment:
       PORT0: 4400
       PORT1: 4401
@@ -82,16 +80,12 @@ services:
     ports:
       - "5432:5432"
     hostname: db
-    networks:
-      - woken-bridge
     environment:
       POSTGRES_PASSWORD: test
 
   wait_dbs:
     image: "waisbrot/wait"
     restart: "no"
-    networks:
-      - woken-bridge
     environment:
       TARGETS: "db:5432"
       TIMEOUT: 60
@@ -99,8 +93,6 @@ services:
   create_dbs:
     image: "hbpmip/create-databases:1.0.0"
     restart: "no"
-    networks:
-      - woken-bridge
     environment:
       DB_HOST: db
       DB_PORT: 5432
@@ -125,8 +117,6 @@ services:
     image: "hbpmip/sample-meta-db-setup:0.3.1"
     container_name: "meta-db-setup"
     restart: "no"
-    networks:
-      - woken-bridge
     environment:
       FLYWAY_HOST: db
       FLYWAY_PORT: 5432
@@ -140,8 +130,6 @@ services:
     image: "hbpmip/sample-data-db-setup:0.4.0"
     container_name: "data-db-setup"
     restart: "no"
-    networks:
-      - woken-bridge
     environment:
       FLYWAY_HOST: db
       FLYWAY_PORT: 5432
@@ -155,8 +143,6 @@ services:
     image: "hbpmip/woken-db-setup:1.0.2"
     container_name: "woken-db-setup"
     restart: "no"
-    networks:
-      - woken-bridge
     environment:
       FLYWAY_HOST: db
       FLYWAY_PORT: 5432
@@ -183,8 +169,6 @@ services:
     ports:
       # Port used for the Zipkin UI and HTTP Api
       - 9411:9411
-    networks:
-      - woken-bridge
 
   zipkin-ui:
     image: openzipkin/zipkin-ui:2.3.1
@@ -194,8 +178,6 @@ services:
       - ZIPKIN_BASE_URL=http://zipkin:9411
     ports:
       - 80:80
-    networks:
-      - woken-bridge
     depends_on:
       - zipkin
 
@@ -207,8 +189,6 @@ services:
       - "8087:8087"
       - "8088:8088"
     hostname: woken
-    networks:
-      - woken-bridge
     depends_on:
       - chronos
       - db
@@ -221,8 +201,6 @@ services:
     ports:
       - "8082:8082"
     hostname: woken-validation
-    networks:
-      - woken-bridge
     depends_on:
       - woken
       - zipkin
@@ -230,8 +208,6 @@ services:
   wait_woken:
     image: "waisbrot/wait"
     restart: "no"
-    networks:
-      - woken-bridge
     environment:
       TARGETS: "woken:8087"
       TIMEOUT: 60
@@ -240,8 +216,6 @@ services:
     build:
       context: ./woken-test
       dockerfile: Dockerfile
-    networks:
-      - woken-bridge
     depends_on:
       - woken
 
@@ -251,8 +225,6 @@ services:
     restart: "no"
     ports:
       - "65440:8080"
-    networks:
-      - woken-bridge
     environment:
       PORTAL_DB_URL: jdbc:postgresql://db:5432/portal
       PORTAL_DB_SERVER: db:5432
@@ -285,8 +257,6 @@ services:
   wait_portal_backend:
     image: "waisbrot/wait"
     restart: "no"
-    networks:
-      - woken-bridge
     environment:
       - TARGETS=portal_backend:8080
     depends_on:
@@ -304,10 +274,10 @@ services:
       PORTAL_VIRTUAL_HOST: frontend
       PORTAL_BACKEND_SERVER: portal_backend:8080
       PORTAL_BACKEND_CONTEXT: services
-    networks:
-      - woken-bridge
 
 networks:
-  woken-bridge:
-    external:
-      name: woken-bridge
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.0.0/16

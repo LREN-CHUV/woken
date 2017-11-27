@@ -35,15 +35,6 @@ echo "Remove old running containers (if any)..."
 $DOCKER_COMPOSE kill
 $DOCKER_COMPOSE rm -f
 
-network_bridge_name="woken-bridge"
-
-if [ $($DOCKER network ls | grep -c $network_bridge_name) -lt 1 ]; then
-  echo "Create $network_bridge_name network..."
-  $DOCKER network create $network_bridge_name
-else
-  echo "Found $network_bridge_name network !"
-fi
-
 echo "Deploy a Postgres instance and wait for it to be ready..."
 $DOCKER_COMPOSE up -d db
 $DOCKER_COMPOSE build woken_test
