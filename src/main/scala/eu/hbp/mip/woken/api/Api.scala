@@ -18,11 +18,7 @@ package eu.hbp.mip.woken.api
 
 import akka.actor.ActorSystem
 import spray.routing.{ HttpService, Route }
-import eu.hbp.mip.woken.config.{
-  FederationDatabaseConfig,
-  LdsmDatabaseConfig,
-  ResultDatabaseConfig
-}
+import eu.hbp.mip.woken.config.{ LdsmDatabaseConfig, ResultDatabaseConfig }
 import eu.hbp.mip.woken.core.{ Core, CoreActors }
 
 /**
@@ -35,18 +31,10 @@ trait Api extends HttpService with CoreActors with Core {
 
   protected implicit val system: ActorSystem
 
-  val job_service = new JobService(chronosHttp,
-                                   ResultDatabaseConfig.dal,
-                                   FederationDatabaseConfig.config.map(_.dal),
-                                   LdsmDatabaseConfig.dal)
-
-  val mining_service = new MiningService(chronosHttp,
-                                         ResultDatabaseConfig.dal,
-                                         FederationDatabaseConfig.config.map(_.dal),
-                                         LdsmDatabaseConfig.dal)
+  val mining_service =
+    new MiningService(chronosHttp, ResultDatabaseConfig.dal, LdsmDatabaseConfig.dal)
 
   val routes: Route = new SwaggerService().routes ~
-    job_service.routes ~
     mining_service.routes
 
 }

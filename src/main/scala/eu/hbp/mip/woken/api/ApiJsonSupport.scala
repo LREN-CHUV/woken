@@ -37,14 +37,13 @@ object ApiJsonSupport extends DefaultJsonProtocol {
         "parameters" -> JsArray(
           a.parameters
             .map(
-              x =>
-                JsObject("code" -> JsString(x._1.toString()), "value" -> JsString(x._2.toString()))
+              x => JsObject("code" -> JsString(x._1.toString), "value" -> JsString(x._2.toString))
             )
             .toVector
         )
       )
 
-    def read(value: JsValue) = {
+    def read(value: JsValue): Algorithm = {
       val parameters = value.asJsObject
         .fields("parameters")
         .asInstanceOf[JsArray]
@@ -71,14 +70,13 @@ object ApiJsonSupport extends DefaultJsonProtocol {
         "parameters" -> JsArray(
           v.parameters
             .map(
-              x =>
-                JsObject("code" -> JsString(x._1.toString()), "value" -> JsString(x._2.toString()))
+              x => JsObject("code" -> JsString(x._1.toString), "value" -> JsString(x._2.toString))
             )
             .toVector
         )
       )
 
-    def read(value: JsValue) = {
+    def read(value: JsValue): Validation = {
       val parameters = value.asJsObject
         .fields("parameters")
         .asInstanceOf[JsArray]
@@ -100,7 +98,7 @@ object ApiJsonSupport extends DefaultJsonProtocol {
   def jsonEnum[T <: Enumeration](enu: T) = new JsonFormat[T#Value] {
     def write(obj: T#Value) = JsString(obj.toString)
 
-    def read(json: JsValue) = json match {
+    def read(json: JsValue): enu.Value = json match {
       case JsString(txt) => enu.withName(txt)
       case something =>
         throw DeserializationException(s"Expected a value from enum $enu instead of $something")

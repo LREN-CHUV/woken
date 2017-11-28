@@ -18,6 +18,7 @@ package eu.hbp.mip.woken.api
 
 import java.util.UUID
 
+import eu.hbp.mip.woken.backends.DockerJob
 import spray.http.StatusCodes
 import spray.httpx.marshalling.ToResponseMarshaller
 import spray.json._
@@ -59,12 +60,12 @@ object FunctionsInOut {
   def algoParameters(algorithm: Algorithm): Map[String, String] =
     algorithm.parameters.map({ case (key, value) => ("PARAM_MODEL_" + key, value) })
 
-  def query2job(query: MiningQuery): JobDto = {
+  def query2job(query: MiningQuery): DockerJob = {
 
     val jobId      = UUID.randomUUID().toString
     val parameters = standardParameters(query) ++ algoParameters(query.algorithm)
 
-    JobDto(jobId, dockerImage(query.algorithm.code), None, None, Some(defaultDb), parameters, None)
+    DockerJob(jobId, dockerImage(query.algorithm.code), None, Some(defaultDb), parameters, None)
   }
 
   def query2job(query: ExperimentQuery): ExperimentActor.Job = {

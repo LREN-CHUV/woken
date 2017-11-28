@@ -16,15 +16,15 @@
 
 package eu.hbp.mip.woken.backends.chronos
 
-import eu.hbp.mip.woken.api.JobDto
+import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.config.WokenConfig
-import eu.hbp.mip.woken.backends.chronos.{ Parameter => P, EnvironmentVariable => EV }
+import eu.hbp.mip.woken.backends.chronos.{ EnvironmentVariable => EV }
 
 object JobToChronos {
 
   import WokenConfig._
 
-  def dbEnvironment(dbAlias: String, prefix: String = ""): List[EnvironmentVariable] = {
+  private[this] def dbEnvironment(dbAlias: String, prefix: String = ""): List[EnvironmentVariable] = {
     val conf = dbConfig(dbAlias)
     List(
       EV(prefix + "JDBC_DRIVER", conf.jdbcDriver),
@@ -35,7 +35,7 @@ object JobToChronos {
     )
   }
 
-  def enrich(job: JobDto): ChronosJob = {
+  def enrich(job: DockerJob): ChronosJob = {
 
     val container = app.dockerBridgeNetwork.fold(
       Container(`type` = ContainerType.DOCKER, image = job.dockerImage)

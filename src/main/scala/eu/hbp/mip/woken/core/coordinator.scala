@@ -19,13 +19,13 @@ package eu.hbp.mip.woken.core
 import akka.actor.FSM.{ Failure, Normal }
 import akka.actor._
 import com.github.levkhomich.akka.tracing.ActorTracing
+import eu.hbp.mip.woken.api.ApiJsonSupport
 import spray.http.StatusCodes
 import spray.httpx.marshalling.ToResponseMarshaller
 
 import scala.concurrent.duration._
-import eu.hbp.mip.woken.api._
 import eu.hbp.mip.woken.core.CoordinatorActor.Start
-import eu.hbp.mip.woken.backends.JobClientService
+import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.backends.chronos.ChronosService
 import eu.hbp.mip.woken.backends.chronos.{ ChronosJob, JobToChronos }
 import eu.hbp.mip.woken.core.model.JobResult
@@ -39,16 +39,13 @@ import spray.json.{ JsonFormat, RootJsonFormat }
 object CoordinatorActor {
 
   // Incoming messages
-  case class Start(job: JobDto) extends RestMessage {
+  case class Start(job: DockerJob) extends RestMessage {
+    import ApiJsonSupport._
     import spray.httpx.SprayJsonSupport._
-    import spray.json.DefaultJsonProtocol._
+    implicit val jobFormat: RootJsonFormat[DockerJob] = jsonFormat6(DockerJob.apply)
     override def marshaller: ToResponseMarshaller[Start] =
       ToResponseMarshaller.fromMarshaller(StatusCodes.OK)(jsonFormat1(Start))
   }
-
-  type WorkerJobComplete = JobClientService.JobComplete
-  val WorkerJobComplete = JobClientService.JobComplete
-  val WorkerJobError    = JobClientService.JobError
 
   // Internal messages
   private[CoordinatorActor] object CheckDb
@@ -73,20 +70,10 @@ object CoordinatorActor {
 
   def props(chronosService: ActorRef,
             resultDatabase: JobResultsDAL,
-            federationDatabase: Option[JobResultsDAL],
             jobResultsFactory: JobResults.Factory): Props =
-    federationDatabase.fold(
-      Props(classOf[LocalCoordinatorActor], chronosService, resultDatabase, jobResultsFactory)
-    ) { fd =>
-      Props(classOf[FederationCoordinatorActor],
-            chronosService,
-            resultDatabase,
-            fd,
-            jobResultsFactory)
+    Props(classOf[LocalCoordinatorActor], chronosService, resultDatabase, jobResultsFactory)
 
-    }
-
-  def actorName(job: JobDto): String =
+  def actorName(job: DockerJob): String =
     s"LocalCoordinatorActor_job_${job.jobId}_${job.jobNameResolved}"
 
 }
@@ -111,20 +98,20 @@ object CoordinatorStates {
   // FSM Data
 
   trait StateData {
-    def job: JobDto
+    def job: DockerJob
   }
 
   case object Uninitialized extends StateData {
     def job = throw new IllegalAccessException()
   }
 
-  case class PartialNodesData(job: JobDto,
+  case class PartialNodesData(job: DockerJob,
                               replyTo: ActorRef,
                               remainingNodes: Set[String] = Set(),
                               totalNodeCount: Int)
       extends StateData
 
-  case class PartialLocalData(job: JobDto, replyTo: ActorRef) extends StateData
+  case class PartialLocalData(job: DockerJob, replyTo: ActorRef) extends StateData
 
 }
 
@@ -239,6 +226,7 @@ class LocalCoordinatorActor(val chronosService: ActorRef,
 
 }
 
+/*
 class FederationCoordinatorActor(val chronosService: ActorRef,
                                  val resultDatabase: JobResultsDAL,
                                  val federationDatabase: JobResultsDAL,
@@ -312,3 +300,5 @@ class FederationCoordinatorActor(val chronosService: ActorRef,
   initialize()
 
 }
+
+ */

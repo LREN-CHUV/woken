@@ -25,6 +25,7 @@ import akka.util
 import akka.util.Timeout
 import com.github.levkhomich.akka.tracing.ActorTracing
 import eu.hbp.mip.woken.api.{ RequestProtocol, _ }
+import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.config.WokenConfig.defaultSettings.{ defaultDb, dockerImage, isPredictive }
 import eu.hbp.mip.woken.core.model.JobResult
 import eu.hbp.mip.woken.core.validation.{ KFoldCrossValidation, ValidationPoolManager }
@@ -354,9 +355,9 @@ class AlgorithmActor(val chronosService: ActorRef,
       {
         val jobId = UUID.randomUUID().toString
         val subJob =
-          JobDto(jobId, dockerImage(algorithm.code), None, None, Some(defaultDb), parameters, None)
+          DockerJob(jobId, dockerImage(algorithm.code), None, Some(defaultDb), parameters, None)
         val worker = context.actorOf(
-          CoordinatorActor.props(chronosService, resultDatabase, None, jobResultsFactory),
+          CoordinatorActor.props(chronosService, resultDatabase, jobResultsFactory),
           CoordinatorActor.actorName(subJob)
         )
         worker ! CoordinatorActor.Start(subJob)
@@ -594,16 +595,15 @@ class CrossValidationActor(val chronosService: ActorRef,
           val parameters = adjust(job.parameters, "PARAM_query")(
             (x: String) => x + " EXCEPT ALL (" + x + s" OFFSET $s LIMIT $n)"
           )
-          val subJob = JobDto(jobId = jobId,
-                              dockerImage = dockerImage(algorithm.code),
-                              federationDockerImage = None,
-                              jobName = None,
-                              inputDb = Some(defaultDb),
-                              parameters = parameters,
-                              nodes = None)
+          val subJob = DockerJob(jobId = jobId,
+                                 dockerImage = dockerImage(algorithm.code),
+                                 jobName = None,
+                                 inputDb = Some(defaultDb),
+                                 parameters = parameters,
+                                 nodes = None)
           val worker = context.actorOf(
             CoordinatorActor
-              .props(chronosService, resultDatabase, None, jobResultsFactory)
+              .props(chronosService, resultDatabase, jobResultsFactory)
           )
           //workers(worker) = fold
           worker ! CoordinatorActor.Start(subJob)

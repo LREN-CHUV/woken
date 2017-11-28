@@ -366,7 +366,6 @@ object MiningService {
 // this trait defines our service behavior independently from the service actor
 class MiningService(val chronosService: ActorRef,
                     val resultDatabase: JobResultsDAL,
-                    val federationDatabase: Option[JobResultsDAL],
                     val ldsmDatabase: LdsmDAL)(implicit system: ActorSystem)
     extends MiningServiceApi
     with PerRequestCreator
@@ -377,7 +376,6 @@ class MiningService(val chronosService: ActorRef,
 
   import ApiJsonSupport._
   import CoordinatorActor._
-  import JobDto._
 
   implicit object EitherErrorSelector extends ErrorSelector[ErrorResponse.type] {
     def apply(v: ErrorResponse.type): StatusCode = StatusCodes.BadRequest
@@ -434,7 +432,7 @@ class MiningService(val chronosService: ActorRef,
       jobResultsFactory: JobResults.Factory = JobResults.defaultFactory
   ): ActorRef =
     context.actorOf(
-      CoordinatorActor.props(chronosService, resultDatabase, federationDatabase, jobResultsFactory)
+      CoordinatorActor.props(chronosService, resultDatabase, jobResultsFactory)
     )
 
   def newExperimentActor(

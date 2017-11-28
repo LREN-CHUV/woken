@@ -25,7 +25,7 @@ import scala.reflect.runtime.universe._
 class SwaggerService(implicit override val actorRefFactory: ActorRefFactory)
     extends SwaggerHttpService {
 
-  override def apiTypes   = Seq(typeOf[JobServiceApi], typeOf[MiningServiceApi])
+  override def apiTypes   = Seq(typeOf[MiningServiceApi])
   override def apiVersion = "0.2"
   override def baseUrl    = "/" // let swagger-ui determine the host and port
   override def docsPath   = "api-docs"

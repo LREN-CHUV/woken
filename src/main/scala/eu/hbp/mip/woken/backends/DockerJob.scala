@@ -1,0 +1,43 @@
+/*
+ * Copyright 2017 Human Brain Project MIP by LREN CHUV
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package eu.hbp.mip.woken.backends
+
+/**
+  * Definition of a computation using an algorithm packaged as a Docker container.
+  *
+  * @param jobId Id of the job. Must be unique
+  * @param dockerImage Name of the Docker image to use. Include the version to ensure reproducibility
+  * @param jobName Name of the job in Chronos. Must be unique. Default value is constructed from jobId and dockerImage
+  * @param inputDb Name of the input database
+  * @param parameters Additional parameters
+  * @param nodes Selected nodes
+  */
+case class DockerJob(
+    jobId: String,
+    dockerImage: String,
+    jobName: Option[String],
+    inputDb: Option[String],
+    parameters: Map[String, String],
+    nodes: Option[Set[String]]
+) {
+
+  def jobNameResolved: String =
+    jobName
+      .getOrElse(dockerImage.replaceAll("^.*?/", "").takeWhile(_ != ':') + "_" + jobId)
+      .replaceAll("[/.-]", "_")
+
+}
