@@ -41,10 +41,12 @@ object JobToChronos {
       Container(`type` = ContainerType.DOCKER, image = job.dockerImage)
     )(
       bridge =>
+        // LATER: adding --network=<bridge> is still required, despite having the information in networkInfos
+        // networkInfos = List(Network(name = bridge)),
         Container(`type` = ContainerType.DOCKER,
                   image = job.dockerImage,
                   network = NetworkMode.BRIDGE,
-                  networkInfos = List(Network(name = bridge)))
+                  parameters = List(Parameter("network", bridge)))
     )
     // On Federation, use the federationDb, otherwise look for the input db in the task or in the configuration of the node
     // TODO: something!
