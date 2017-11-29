@@ -35,22 +35,22 @@ import org.slf4j.LoggerFactory
 object FunctionsInOut {
   import WokenConfig.defaultSettings._
 
-  implicit class QueryEnhanced(query: Query) {
+  implicit class QueryEnhanced(val query: Query) extends AnyVal {
 
     /** Convert variable to lowercase as Postgres returns lowercase fields in its result set
       * Variables codes are sanitized to ensure valid database field names using the following conversions:
       * + replace - by _
       * + prepend _ to the variable name if it starts by a number
       */
-    private[this] val toField = (v: VariableId) =>
+    private[this] def toField(v: VariableId) =
       v.code.toLowerCase().replaceAll("-", "_").replaceFirst("^(\\d)", "_$1")
 
     def dbAllVars: List[String] =
-      (query.variables ++ query.covariables ++ query.grouping).distinct.map(toField).toList
+      (query.variables ++ query.covariables ++ query.grouping).distinct.map(toField)
 
-    def dbVariables: List[String]   = query.variables.map(toField).toList
-    def dbCovariables: List[String] = query.covariables.map(toField).toList
-    def dbGrouping: List[String]    = query.grouping.map(toField).toList
+    def dbVariables: List[String]   = query.variables.map(toField)
+    def dbCovariables: List[String] = query.covariables.map(toField)
+    def dbGrouping: List[String]    = query.grouping.map(toField)
 
   }
 

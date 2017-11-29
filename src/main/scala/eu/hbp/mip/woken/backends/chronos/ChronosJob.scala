@@ -70,7 +70,7 @@ case class Label(
 case class ExternalVolume(
     name: String,
     provider: String,
-    options: Seq[Parameter]
+    options: List[Parameter]
 )
 
 case class Volume(
@@ -84,8 +84,8 @@ case class PortMapping(hostPort: Int, containerPort: Int, protocol: Option[Strin
 
 case class Network(name: String,
                    protocol: Option[ProtocolType] = None,
-                   labels: Seq[Label] = Nil,
-                   portMappings: Seq[PortMapping] = Nil)
+                   labels: List[Label] = Nil,
+                   portMappings: List[PortMapping] = Nil)
 
 case class Container(
     `type`: ContainerType,
@@ -136,7 +136,7 @@ case class ChronosJob(
     name: String,
     description: Option[String] = None,
     command: String,
-    arguments: Seq[String] = Nil,
+    arguments: List[String] = Nil,
     shell: Boolean = true,
     schedule: String,
     epsilon: Option[String] = None,
@@ -163,8 +163,8 @@ case class ChronosJob(
     // softError: Boolean = false,
     // errorsSinceLastSuccess: Option[Long] = None,
     // taskInfoData: Option[String] = None,
-    // fetch: Seq[Fetch] = List()
-    // constraints: Seq[Constraint] = List()
+    // fetch: List[Fetch] = List()
+    // constraints: List[Constraint] = List()
 )
 
 /**

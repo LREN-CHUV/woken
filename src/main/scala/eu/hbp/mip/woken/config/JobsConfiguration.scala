@@ -36,8 +36,6 @@ object JobsConfiguration {
       c.getConfig(s)
     }
 
-    print(jobsConfig)
-
     val node             = jobsConfig.validateString("node")
     val owner            = jobsConfig.validateString("owner")
     val chronosServerUrl = jobsConfig.validateString("chronosServerUrl")

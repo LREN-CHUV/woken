@@ -16,7 +16,7 @@
 
 package eu.hbp.mip.woken.config
 
-import com.typesafe.config.{ Config, ConfigFactory }
+import com.typesafe.config.Config
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil._
 import cats.data.Validated._
 import cats.implicits._
@@ -43,8 +43,5 @@ object JdbcConfiguration {
 
   def factory(config: Config): String => Validation[JdbcConfiguration] =
     dbAlias => read(config, List("db", dbAlias))
-
-  def main(args: Array[String]): Unit =
-    print(factory(ConfigFactory.load())("ldsm"))
 
 }
