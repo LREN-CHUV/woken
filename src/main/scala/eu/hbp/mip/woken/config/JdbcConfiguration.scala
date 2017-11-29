@@ -43,4 +43,7 @@ object JdbcConfiguration {
     (jdbcDriver, jdbcJarPath, jdbcUrl, jdbcUser, jdbcPassword) mapN JdbcConfiguration.apply
   }
 
+  def factory(config: Config): String => Validation[JdbcConfiguration] =
+    dbAlias => read(config, List("db", dbAlias))
+
 }

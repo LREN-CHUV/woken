@@ -31,8 +31,9 @@ import akka.io.IO
 import akka.util.Timeout
 import akka.cluster.Cluster
 import spray.can.Http
-import eu.hbp.mip.woken.api.{ Api, RoutedHttpService }
-import eu.hbp.mip.woken.core.Core
+import eu.hbp.mip.woken.api.{ Api, MasterRouter, RoutedHttpService }
+import eu.hbp.mip.woken.config.ResultDatabaseConfig
+import eu.hbp.mip.woken.core.{ Core, CoreActors }
 import eu.hbp.mip.woken.config.WokenConfig.app
 import eu.hbp.mip.woken.core.validation.ValidationPoolManager
 
@@ -46,7 +47,7 @@ object RemoteAddressExtension extends ExtensionKey[RemoteAddressExtensionImpl]
   * This trait implements ``Core`` by starting the required ``ActorSystem`` and registering the
   * termination handler to stop the system when the JVM exits.
   */
-trait BootedCore extends Core with Api with StaticResources {
+trait BootedCore extends Core with CoreActors with Api with StaticResources {
 
   /**
     * Construct the ActorSystem we will use in our application
@@ -67,7 +68,8 @@ trait BootedCore extends Core with Api with StaticResources {
     * Create and start actor that acts as akka entry-point
     */
   val mainRouter: ActorRef =
-    system.actorOf(Props(classOf[eu.hbp.mip.woken.api.MasterRouter], this), name = "entrypoint")
+    system.actorOf(MasterRouter.props(this, chronosHttp, ResultDatabaseConfig.dal),
+                   name = "entrypoint")
 
   /**
     * Create and start actor responsible to register validation node

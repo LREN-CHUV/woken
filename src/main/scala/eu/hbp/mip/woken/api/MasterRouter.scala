@@ -16,34 +16,49 @@
 
 package eu.hbp.mip.woken.api
 
-import akka.actor.{ Actor, ActorLogging, Terminated }
+import akka.actor.{ Actor, ActorLogging, ActorRef, Props, Terminated }
 import akka.routing.{ ActorRefRoutee, RoundRobinRoutingLogic, Router }
 import spray.json._
-import eu.hbp.mip.woken.messages.external.{
-  Algorithm,
-  ExperimentQuery,
-  Methods,
-  MethodsQuery,
-  MiningQuery,
-  QueryError,
-  QueryResult
-}
-import eu.hbp.mip.woken.core.{ CoordinatorActor, ExperimentActor }
+import eu.hbp.mip.woken.messages.external._
+import eu.hbp.mip.woken.core.{ CoordinatorActor, CoordinatorConfig, CoreActors, ExperimentActor }
 import eu.hbp.mip.woken.core.model.JobResult
 import FunctionsInOut._
 import com.github.levkhomich.akka.tracing.ActorTracing
+import com.typesafe.config.ConfigFactory
+import eu.hbp.mip.woken.config.{ JdbcConfiguration, JobsConfiguration, WokenConfig }
+import eu.hbp.mip.woken.dao.JobResultsDAL
 
-class MasterRouter(api: Api) extends Actor with ActorTracing with ActorLogging {
+object MasterRouter {
+
+  def props(api: Api, chronosService: ActorRef, resultDatabase: JobResultsDAL): Props =
+    Props(classOf[MasterRouter], api, chronosService, resultDatabase)
+
+}
+
+class MasterRouter(val api: Api, val chronosService: ActorRef, val resultDatabase: JobResultsDAL)
+    extends Actor
+    with ActorTracing
+    with ActorLogging {
 
   // For the moment we only support one JobResult
   def createQueryResult(results: scala.collection.Seq[JobResult]): Any =
     if (results.length == 1) (QueryResult.apply _).tupled(JobResult.unapply(results.head).get)
     else QueryError("Cannot make sense of the query output")
-  val factory: eu.hbp.mip.woken.core.JobResults.Factory = createQueryResult
+
+  private val config = ConfigFactory.load()
+  private val jobsConf = JobsConfiguration
+    .read(config)
+    .getOrElse(throw new IllegalStateException("Invalid configuration"))
+  private val coordinatorConfig = CoordinatorConfig(chronosService,
+                                                    resultDatabase,
+                                                    createQueryResult,
+                                                    WokenConfig.app.dockerBridgeNetwork,
+                                                    jobsConf,
+                                                    JdbcConfiguration.factory(config))
 
   var miningRouter: Router = {
     val routees = Vector.fill(5) {
-      val r = api.mining_service.newCoordinatorActor(factory)
+      val r = api.mining_service.newCoordinatorActor(coordinatorConfig)
       context watch r
       ActorRefRoutee(r)
     }
@@ -52,7 +67,7 @@ class MasterRouter(api: Api) extends Actor with ActorTracing with ActorLogging {
 
   var experimentRouter: Router = {
     val routees = Vector.fill(5) {
-      val r = api.mining_service.newExperimentActor(factory)
+      val r = api.mining_service.newExperimentActor(coordinatorConfig)
       context watch r
       ActorRefRoutee(r)
     }
@@ -78,12 +93,12 @@ class MasterRouter(api: Api) extends Actor with ActorTracing with ActorLogging {
 
       if (miningRouter.routees.contains(ActorRefRoutee(a))) {
         miningRouter = miningRouter.removeRoutee(a)
-        val r = api.mining_service.newCoordinatorActor(factory)
+        val r = api.mining_service.newCoordinatorActor(coordinatorConfig)
         context watch r
         miningRouter = miningRouter.addRoutee(r)
       } else {
         experimentRouter = experimentRouter.removeRoutee(a)
-        val r = api.mining_service.newExperimentActor(factory)
+        val r = api.mining_service.newExperimentActor(coordinatorConfig)
         context watch r
         experimentRouter = experimentRouter.addRoutee(r)
       }

@@ -16,12 +16,14 @@
 
 package eu.hbp.mip.woken.api
 
-import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem, Props }
+import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem }
+import com.typesafe.config.ConfigFactory
+import eu.hbp.mip.woken.config.{ JdbcConfiguration, JobsConfiguration, WokenConfig }
 import spray.http.MediaTypes._
 import spray.http._
 import spray.routing.Route
 import eu.hbp.mip.woken.messages.external._
-import eu.hbp.mip.woken.core.{ CoordinatorActor, ExperimentActor, JobResults, RestMessage }
+import eu.hbp.mip.woken.core._
 import eu.hbp.mip.woken.dao.{ JobResultsDAL, LdsmDAL }
 
 object MiningService {
@@ -372,7 +374,8 @@ class MiningService(val chronosService: ActorRef,
     with DefaultJsonFormats {
 
   override def context: ActorRefFactory = system
-  val routes: Route                     = mining ~ experiment ~ listMethods
+
+  val routes: Route = mining ~ experiment ~ listMethods
 
   import ApiJsonSupport._
   import CoordinatorActor._
@@ -380,6 +383,18 @@ class MiningService(val chronosService: ActorRef,
   implicit object EitherErrorSelector extends ErrorSelector[ErrorResponse.type] {
     def apply(v: ErrorResponse.type): StatusCode = StatusCodes.BadRequest
   }
+
+  // TODO: improve passing configuration around
+  private val config = ConfigFactory.load()
+  private val jobsConf = JobsConfiguration
+    .read(config)
+    .getOrElse(throw new IllegalStateException("Invalid configuration"))
+  private val coordinatorConfig = CoordinatorConfig(chronosService,
+                                                    resultDatabase,
+                                                    RequestProtocol,
+                                                    WokenConfig.app.dockerBridgeNetwork,
+                                                    jobsConf,
+                                                    JdbcConfiguration.factory(config))
 
   override def listMethods: Route = path("mining" / "list-methods") {
 
@@ -406,7 +421,7 @@ class MiningService(val chronosService: ActorRef,
 
         case query: MiningQuery =>
           val job = query2job(query)
-          miningJob(RequestProtocol) {
+          miningJob(coordinatorConfig) {
             Start(job)
           }
       }
@@ -420,7 +435,7 @@ class MiningService(val chronosService: ActorRef,
       entity(as[ExperimentQuery]) { query: ExperimentQuery =>
         {
           val job = query2job(query)
-          experimentJob(RequestProtocol) {
+          experimentJob(coordinatorConfig) {
             ExperimentActor.Start(job)
           }
         }
@@ -428,28 +443,16 @@ class MiningService(val chronosService: ActorRef,
     }
   }
 
-  def newCoordinatorActor(
-      jobResultsFactory: JobResults.Factory = JobResults.defaultFactory
-  ): ActorRef =
-    context.actorOf(
-      CoordinatorActor.props(chronosService, resultDatabase, jobResultsFactory)
-    )
+  def newCoordinatorActor(coordinatorConfig: CoordinatorConfig): ActorRef =
+    context.actorOf(CoordinatorActor.props(coordinatorConfig))
 
-  def newExperimentActor(
-      jobResultsFactory: JobResults.Factory = JobResults.defaultFactory
-  ): ActorRef =
-    context.actorOf(
-      ExperimentActor.props(chronosService, resultDatabase, jobResultsFactory)
-    )
+  def newExperimentActor(coordinatorConfig: CoordinatorConfig): ActorRef =
+    context.actorOf(ExperimentActor.props(coordinatorConfig))
 
-  def miningJob(
-      jobResultsFactory: JobResults.Factory = JobResults.defaultFactory
-  )(message: RestMessage): Route =
-    ctx => perRequest(ctx, newCoordinatorActor(jobResultsFactory), message)
+  def miningJob(coordinatorConfig: CoordinatorConfig)(message: RestMessage): Route =
+    ctx => perRequest(ctx, newCoordinatorActor(coordinatorConfig), message)
 
-  def experimentJob(
-      jobResultsFactory: JobResults.Factory = JobResults.defaultFactory
-  )(message: RestMessage): Route =
-    ctx => perRequest(ctx, newExperimentActor(jobResultsFactory), message)
+  def experimentJob(coordinatorConfig: CoordinatorConfig)(message: RestMessage): Route =
+    ctx => perRequest(ctx, newExperimentActor(coordinatorConfig), message)
 
 }

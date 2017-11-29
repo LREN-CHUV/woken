@@ -21,6 +21,7 @@ import akka.cluster.Cluster
 import akka.cluster.ClusterEvent._
 
 object ValidationPoolManager {
+  // TODO: remove mutable pool
   val validationPool = scala.collection.mutable.Set[ActorPath]()
 }
 
