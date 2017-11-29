@@ -49,7 +49,7 @@ trait PerRequest extends Actor {
   setReceiveTimeout(timeout)
   target ! message
 
-  def receive = {
+  def receive: PartialFunction[Any, Unit] = {
     // The [Any] type parameter appears to be required for version of Scala > 2.11.2,
     // the @ unchecked is required to muzzle erasure warnings.
     case message: RequestComplete[Any] @unchecked => complete(message.response)(message.marshaller)
@@ -72,8 +72,9 @@ trait PerRequest extends Actor {
     * @tparam T the type of the response
     * @return
     */
-  private def complete[T](response: T,
-                          headers: HttpHeader*)(implicit marshaller: ToResponseMarshaller[T]) = {
+  private def complete[T](response: T, headers: HttpHeader*)(
+      implicit marshaller: ToResponseMarshaller[T]
+  ): Unit = {
     val additionalHeaders = None
     r.withHttpResponseHeadersMapped(h => h ++ headers ++ additionalHeaders).complete(response)
     stop(self)
@@ -81,11 +82,10 @@ trait PerRequest extends Actor {
 
   override val supervisorStrategy: SupervisorStrategy =
     OneForOneStrategy() {
-      case e => {
+      case e =>
         system.log.error(e, "error processing request: " + r.request.uri)
         r.complete((InternalServerError, e.getMessage))
         Stop
-      }
     }
 }
 
@@ -141,8 +141,8 @@ trait PerRequestCreator {
                  props: Props,
                  message: AnyRef,
                  timeout: Duration = 1 minutes,
-                 name: String = PerRequestCreator.endpointActorName) =
-    actorRefFactory.actorOf(Props(new WithProps(r, props, message, timeout, name)), name)
+                 name: String = PerRequestCreator.endpointActorName): ActorRef =
+    actorRefFactory.actorOf(Props(WithProps(r, props, message, timeout, name)), name)
 }
 
 object PerRequestCreator {
@@ -150,7 +150,7 @@ object PerRequestCreator {
     This is yucky. For lack of a better idea on how to name the individual endpoint actors I've shamelessly stolen
     what Agora is doing. I believe the Monsanto library will clean this up but we're not using it yet
    */
-  def endpointActorName =
+  def endpointActorName: String =
     "Endpoint-" + java.lang.Thread.currentThread.getStackTrace()(1).getMethodName + System
       .nanoTime()
 }

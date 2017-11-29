@@ -80,10 +80,8 @@ object ExperimentActor {
       )
   }
 
-  def props(chronosService: ActorRef,
-            resultDatabase: JobResultsDAL,
-            jobResultsFactory: JobResults.Factory): Props =
-    Props(classOf[ExperimentActor], chronosService, resultDatabase, jobResultsFactory)
+  def props(coordinatorConfig: CoordinatorConfig): Props =
+    Props(classOf[ExperimentActor], coordinatorConfig)
 
   import JobResult._
 
@@ -141,9 +139,7 @@ object ExperimentStates {
   * the results before responding
   *
   */
-class ExperimentActor(val chronosService: ActorRef,
-                      val resultDatabase: JobResultsDAL,
-                      val jobResultsFactory: JobResults.Factory)
+class ExperimentActor(val coordinatorConfig: CoordinatorConfig)
     extends Actor
     with ActorLogging
     with ActorTracing
@@ -170,8 +166,7 @@ class ExperimentActor(val chronosService: ActorRef,
         val jobId  = UUID.randomUUID().toString
         val subJob = AlgorithmActor.Job(jobId, Some(defaultDb), a, validations, job.parameters)
         val worker = context.actorOf(
-          AlgorithmActor
-            .props(chronosService, resultDatabase, RequestProtocol),
+          AlgorithmActor.props(coordinatorConfig),
           AlgorithmActor.actorName(subJob)
         )
         worker ! AlgorithmActor.Start(subJob)
@@ -230,7 +225,7 @@ class ExperimentActor(val chronosService: ActorRef,
           .toVector
       )
 
-      experimentData.replyTo ! jobResultsFactory(
+      experimentData.replyTo ! coordinatorConfig.jobResultsFactory(
         Seq(
           JobResult(
             jobId = experimentData.job.jobId,
@@ -277,10 +272,8 @@ object AlgorithmActor {
   case class ResultResponse(algorithm: Algorithm, data: String)
   case class ErrorResponse(algorithm: Algorithm, message: String)
 
-  def props(chronosService: ActorRef,
-            resultDatabase: JobResultsDAL,
-            jobResultsFactory: JobResults.Factory): Props =
-    Props(classOf[AlgorithmActor], chronosService, resultDatabase, jobResultsFactory)
+  def props(coordinatorConfig: CoordinatorConfig): Props =
+    Props(classOf[AlgorithmActor], coordinatorConfig)
 
   def actorName(job: Job): String =
     s"AlgorithmActor_job_${job.jobId}_algo_${job.algorithm.code}"
@@ -329,9 +322,7 @@ object AlgorithmStates {
   }
 }
 
-class AlgorithmActor(val chronosService: ActorRef,
-                     val resultDatabase: JobResultsDAL,
-                     val jobResultsFactory: JobResults.Factory)
+class AlgorithmActor(val coordinatorConfig: CoordinatorConfig)
     extends Actor
     with ActorLogging
     with LoggingFSM[AlgorithmStates.State, AlgorithmStates.AlgorithmData] {
@@ -357,7 +348,7 @@ class AlgorithmActor(val chronosService: ActorRef,
         val subJob =
           DockerJob(jobId, dockerImage(algorithm.code), None, Some(defaultDb), parameters, None)
         val worker = context.actorOf(
-          CoordinatorActor.props(chronosService, resultDatabase, jobResultsFactory),
+          CoordinatorActor.props(coordinatorConfig),
           CoordinatorActor.actorName(subJob)
         )
         worker ! CoordinatorActor.Start(subJob)
@@ -368,7 +359,7 @@ class AlgorithmActor(val chronosService: ActorRef,
         val jobId  = UUID.randomUUID().toString
         val subJob = CrossValidationActor.Job(jobId, job.inputDb, algorithm, v, parameters)
         val validationWorker = context.actorOf(
-          CrossValidationActor.props(chronosService, resultDatabase, jobResultsFactory),
+          CrossValidationActor.props(coordinatorConfig),
           CrossValidationActor.actorName(subJob)
         )
         validationWorker ! CrossValidationActor.Start(subJob)
@@ -489,10 +480,8 @@ object CrossValidationActor {
   case class ResultResponse(validation: ApiValidation, data: String)
   case class ErrorResponse(validation: ApiValidation, message: String)
 
-  def props(chronosService: ActorRef,
-            resultDatabase: JobResultsDAL,
-            jobResultsFactory: JobResults.Factory): Props =
-    Props(classOf[CrossValidationActor], chronosService, resultDatabase, jobResultsFactory)
+  def props(coordinatorConfig: CoordinatorConfig): Props =
+    Props(classOf[CrossValidationActor], coordinatorConfig)
 
   def actorName(job: Job): String =
     s"CrossValidationActor_job_${job.jobId}_algo_${job.algorithm.code}"
@@ -542,15 +531,7 @@ object CrossValidationStates {
 
 }
 
-/**
-  *
-  * @param chronosService
-  * @param resultDatabase
-  * @param jobResultsFactory
-  */
-class CrossValidationActor(val chronosService: ActorRef,
-                           val resultDatabase: JobResultsDAL,
-                           val jobResultsFactory: JobResults.Factory)
+class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
     extends Actor
     with ActorLogging
     with LoggingFSM[CrossValidationStates.State, CrossValidationStates.StateData] {
@@ -602,8 +583,7 @@ class CrossValidationActor(val chronosService: ActorRef,
                                  parameters = parameters,
                                  nodes = None)
           val worker = context.actorOf(
-            CoordinatorActor
-              .props(chronosService, resultDatabase, jobResultsFactory)
+            CoordinatorActor.props(coordinatorConfig)
           )
           //workers(worker) = fold
           worker ! CoordinatorActor.Start(subJob)

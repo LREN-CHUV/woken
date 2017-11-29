@@ -48,7 +48,7 @@ object PutJobResults extends DefaultJsonProtocol with JobResults.Factory {
   implicit val seqJobResultFormat: RootJsonFormat[Seq[JobResult]] = seqFormat[JobResult]
 
   implicit object putJobResultsFormat extends RootJsonFormat[PutJobResults] {
-    override def write(r: PutJobResults) =
+    override def write(r: PutJobResults): JsValue =
       if (r.results.length == 1) jobResultFormat.write(r.results.head)
       else seqJobResultFormat.write(r.results)
     override def read(json: JsValue): PutJobResults =
@@ -62,8 +62,6 @@ object Ok
 
 case class Error(message: String)
 
-case class Validation(message: String)
-
 // Exceptions
 
 case object ChronosNotReachableException extends Exception("Cannot connect to Chronos")
@@ -72,8 +70,6 @@ object DefaultMarshallers extends DefaultJsonProtocol {
 
   import spray.httpx.SprayJsonSupport._
 
-  implicit val ValidationMarshaller: ToResponseMarshaller[Validation] =
-    ToResponseMarshaller.fromMarshaller(StatusCodes.BadRequest)(jsonFormat1(Validation))
   implicit val ErrorMarshaller: ToResponseMarshaller[Error] =
     ToResponseMarshaller.fromMarshaller(StatusCodes.BadRequest)(jsonFormat1(Error))
 

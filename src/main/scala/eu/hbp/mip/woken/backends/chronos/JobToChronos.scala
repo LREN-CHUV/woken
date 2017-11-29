@@ -17,15 +17,18 @@
 package eu.hbp.mip.woken.backends.chronos
 
 import eu.hbp.mip.woken.backends.DockerJob
-import eu.hbp.mip.woken.config.WokenConfig
+import eu.hbp.mip.woken.config.{ JdbcConfiguration, JobsConfiguration }
 import eu.hbp.mip.woken.backends.chronos.{ EnvironmentVariable => EV }
+import eu.hbp.mip.woken.config.WokenConfig.DbConfig
+import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
+import cats.implicits._
 
 object JobToChronos {
 
-  import WokenConfig._
+  type DbBConfigF = String => DbConfig
 
-  private[this] def dbEnvironment(dbAlias: String, prefix: String = ""): List[EnvironmentVariable] = {
-    val conf = dbConfig(dbAlias)
+  private[this] def dbEnvironment(conf: JdbcConfiguration,
+                                  prefix: String = ""): List[EnvironmentVariable] =
     List(
       EV(prefix + "JDBC_DRIVER", conf.jdbcDriver),
       EV(prefix + "JDBC_JAR_PATH", conf.jdbcJarPath),
@@ -33,11 +36,13 @@ object JobToChronos {
       EV(prefix + "JDBC_USER", conf.jdbcUser),
       EV(prefix + "JDBC_PASSWORD", conf.jdbcPassword)
     )
-  }
 
-  def enrich(job: DockerJob): ChronosJob = {
+  def apply(job: DockerJob,
+            dockerBridgeNetwork: Option[String],
+            jobsConf: JobsConfiguration,
+            jdbcConfF: String => Validation[JdbcConfiguration]): Validation[ChronosJob] = {
 
-    val container = app.dockerBridgeNetwork.fold(
+    val container = dockerBridgeNetwork.fold(
       Container(`type` = ContainerType.DOCKER, image = job.dockerImage)
     )(
       bridge =>
@@ -48,34 +53,36 @@ object JobToChronos {
                   network = NetworkMode.BRIDGE,
                   parameters = List(Parameter("network", bridge)))
     )
-    // On Federation, use the federationDb, otherwise look for the input db in the task or in the configuration of the node
-    // TODO: something!
-    val inputDb = jobs.federationDb orElse job.inputDb orElse jobs.ldsmDb getOrElse (throw new IllegalArgumentException(
-      "federationDb or ldsmDb should be defined in the configuration"
-    ))
-    val outputDb = jobs.resultDb
 
-    val environmentVariables: List[EnvironmentVariable] = List(
-      EV("JOB_ID", job.jobId),
-      EV("NODE", jobs.node),
-      EV("DOCKER_IMAGE", job.dockerImage)
-    ) ++
-      job.parameters.toList.map(kv => EV(kv._1, kv._2)) ++
-      dbEnvironment(inputDb, "IN_") ++
-      dbEnvironment(outputDb, "OUT_")
+    def buildChronosJob(inputDb: JdbcConfiguration, outputDb: JdbcConfiguration): ChronosJob = {
+      val environmentVariables: List[EV] = List(
+        EV("JOB_ID", job.jobId),
+        EV("NODE", jobsConf.node),
+        EV("DOCKER_IMAGE", job.dockerImage)
+      ) ++
+        job.parameters.toList.map(kv => EV(kv._1, kv._2)) ++
+        dbEnvironment(inputDb, "IN_") ++
+        dbEnvironment(outputDb, "OUT_")
 
-    // TODO: add config parameter for CPU and mem, mem should come from Docker image metadata or json descriptor
-    ChronosJob(
-      name = job.jobNameResolved,
-      command = "compute",
-      shell = false,
-      schedule = "R1//PT1M",
-      epsilon = Some("PT5M"),
-      container = Some(container),
-      cpus = Some(0.5),
-      mem = Some(512),
-      owner = Some(jobs.owner),
-      environmentVariables = environmentVariables
-    )
+      // TODO: add config parameter for CPU and mem, mem should come from Docker image metadata or json descriptor
+      ChronosJob(
+        name = job.jobNameResolved,
+        command = "compute",
+        shell = false,
+        schedule = "R1//PT1M",
+        epsilon = Some("PT5M"),
+        container = Some(container),
+        cpus = Some(0.5),
+        mem = Some(512),
+        owner = Some(jobsConf.owner),
+        environmentVariables = environmentVariables
+      )
+    }
+
+    val inputDb  = jdbcConfF(job.inputDb getOrElse jobsConf.featuresDb)
+    val outputDb = jdbcConfF(jobsConf.resultDb)
+
+    (inputDb, outputDb) mapN buildChronosJob
+
   }
 }

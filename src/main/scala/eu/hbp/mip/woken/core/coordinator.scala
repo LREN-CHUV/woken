@@ -28,9 +28,18 @@ import eu.hbp.mip.woken.core.CoordinatorActor.Start
 import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.backends.chronos.ChronosService
 import eu.hbp.mip.woken.backends.chronos.{ ChronosJob, JobToChronos }
+import eu.hbp.mip.woken.config.{ JdbcConfiguration, JobsConfiguration }
 import eu.hbp.mip.woken.core.model.JobResult
+import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import eu.hbp.mip.woken.dao.JobResultsDAL
 import spray.json.{ JsonFormat, RootJsonFormat }
+
+case class CoordinatorConfig(chronosService: ActorRef,
+                             resultDatabase: JobResultsDAL,
+                             jobResultsFactory: JobResults.Factory,
+                             dockerBridgeNetwork: Option[String],
+                             jobsConf: JobsConfiguration,
+                             jdbcConfF: String => Validation[JdbcConfiguration])
 
 /**
   * We use the companion object to hold all the messages that the ``CoordinatorActor``
@@ -68,10 +77,16 @@ object CoordinatorActor {
   implicit val resultFormat: JsonFormat[Result]                   = JobResult.jobResultFormat
   implicit val errorResponseFormat: RootJsonFormat[ErrorResponse] = jsonFormat1(ErrorResponse.apply)
 
-  def props(chronosService: ActorRef,
-            resultDatabase: JobResultsDAL,
-            jobResultsFactory: JobResults.Factory): Props =
-    Props(classOf[LocalCoordinatorActor], chronosService, resultDatabase, jobResultsFactory)
+  def props(coordinatorConfig: CoordinatorConfig): Props =
+    Props(
+      classOf[CoordinatorActor],
+      coordinatorConfig.chronosService,
+      coordinatorConfig.resultDatabase,
+      coordinatorConfig.jobResultsFactory,
+      coordinatorConfig.dockerBridgeNetwork,
+      coordinatorConfig.jobsConf,
+      coordinatorConfig.jdbcConfF
+    )
 
   def actorName(job: DockerJob): String =
     s"LocalCoordinatorActor_job_${job.jobId}_${job.jobNameResolved}"
@@ -89,20 +104,18 @@ object CoordinatorStates {
 
   case object PostJobToChronos extends State
 
-  case object WaitForNodes extends State
-
   case object RequestFinalResult extends State
-
-  case object RequestIntermediateResults extends State
 
   // FSM Data
 
   trait StateData {
     def job: DockerJob
+    def replyTo: ActorRef
   }
 
   case object Uninitialized extends StateData {
-    def job = throw new IllegalAccessException()
+    def job     = throw new IllegalAccessException()
+    def replyTo = throw new IllegalAccessException()
   }
 
   case class PartialNodesData(job: DockerJob,
@@ -121,22 +134,40 @@ object CoordinatorStates {
   * This actor will have the responsibility of making two requests and then aggregating them together:
   *  - One request to Chronos to start the job
   *  - Then a separate request in the database for the results, repeated until enough results are present
+  *
+  *  _________________           ____________________                    ____________________
+  * |                 | Start   |                    | Even(Ok, data)   |                    |
+  * | WaitForNewJob   | ------> | PostJobToChronos   |----------------> | RequestFinalResult | ==> results
+  * | (Uninitialized) |         | (PartialLocalData) |                  |                    |
+  *  -----------------           --------------------                    --------------------
+  *
   */
-trait CoordinatorActor
-    extends Actor
+class CoordinatorActor(
+    val chronosService: ActorRef,
+    val resultDatabase: JobResultsDAL,
+    val jobResultsFactory: JobResults.Factory,
+    dockerBridgeNetwork: Option[String],
+    jobsConf: JobsConfiguration,
+    jdbcConfF: String => Validation[JdbcConfiguration]
+) extends Actor
     with ActorLogging
     with ActorTracing
     with LoggingFSM[CoordinatorStates.State, CoordinatorStates.StateData] {
+
   import CoordinatorStates._
 
   val repeatDuration: FiniteDuration = 200.milliseconds
   val startTime: Long                = System.currentTimeMillis
 
-  def chronosService: ActorRef
-  def resultDatabase: JobResultsDAL
-  def jobResultsFactory: JobResults.Factory
-
   startWith(WaitForNewJob, Uninitialized)
+  log.info("Local coordinator actor started...")
+
+  when(WaitForNewJob) {
+    case Event(Start(job), Uninitialized) =>
+      val replyTo = sender()
+      log.info(s"Wait for Chronos to fulfill job ${job.jobId}, will reply to $replyTo")
+      goto(PostJobToChronos) using PartialLocalData(job, replyTo)
+  }
 
   when(PostJobToChronos) {
 
@@ -183,47 +214,19 @@ trait CoordinatorActor
 
     case _ -> PostJobToChronos =>
       import ChronosService._
-      val chronosJob: ChronosJob = JobToChronos.enrich(nextStateData.job)
-      chronosService ! Schedule(chronosJob)
+      val chronosJob: Validation[ChronosJob] =
+        JobToChronos(nextStateData.job, dockerBridgeNetwork, jobsConf, jdbcConfF)
+      chronosJob.fold[Unit]({ err =>
+        nextStateData.replyTo ! Error(err.toList.mkString)
+      }, { job =>
+        chronosService ! Schedule(job)
+      })
 
   }
 
   onTransition(transitions)
 
-}
-
-/**
-  *  _________________           ____________________                    ____________________
-  * |                 | Start   |                    | Even(Ok, data)   |                    |
-  * | WaitForNewJob   | ------> | PostJobToChronos   |----------------> | RequestFinalResult | ==> results
-  * | (Uninitialized) |         | (PartialLocalData) |                  |                    |
-  *  -----------------           --------------------                    --------------------
-  */
-class LocalCoordinatorActor(val chronosService: ActorRef,
-                            val resultDatabase: JobResultsDAL,
-                            val jobResultsFactory: JobResults.Factory)
-    extends CoordinatorActor {
-  import CoordinatorStates._
-
-  log.info("Local coordinator actor started...")
-
-  when(WaitForNewJob) {
-    case Event(Start(job), Uninitialized) =>
-      val replyTo = sender()
-      log.info(s"Wait for Chronos to fulfill job ${job.jobId}, will reply to $replyTo")
-      goto(PostJobToChronos) using PartialLocalData(job, replyTo)
-  }
-
-  when(WaitForNodes) {
-    case _ => stop(Failure("Unexpected state WaitForNodes"))
-  }
-
-  when(RequestIntermediateResults) {
-    case _ => stop(Failure("Unexpected state RequestIntermediateResults"))
-  }
-
   initialize()
-
 }
 
 /*
