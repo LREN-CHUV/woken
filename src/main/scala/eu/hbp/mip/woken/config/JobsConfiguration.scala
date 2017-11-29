@@ -32,9 +32,11 @@ final case class JobsConfiguration(
 object JobsConfiguration {
 
   def read(config: Config, path: Seq[String] = List("jobs")): Validation[JobsConfiguration] = {
-    val jobsConfig = path.foldRight(config) { (s, c) =>
+    val jobsConfig = path.foldLeft(config) { (c, s) =>
       c.getConfig(s)
     }
+
+    print(jobsConfig)
 
     val node             = jobsConfig.validateString("node")
     val owner            = jobsConfig.validateString("owner")

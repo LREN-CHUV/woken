@@ -16,13 +16,12 @@
 
 package eu.hbp.mip.woken.config
 
-import com.typesafe.config.Config
+import com.typesafe.config.{ Config, ConfigFactory }
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil._
 import cats.data.Validated._
 import cats.implicits._
 
 final case class JdbcConfiguration(jdbcDriver: String,
-                                   jdbcJarPath: String,
                                    jdbcUrl: String,
                                    jdbcUser: String,
                                    jdbcPassword: String)
@@ -30,20 +29,22 @@ final case class JdbcConfiguration(jdbcDriver: String,
 object JdbcConfiguration {
 
   def read(config: Config, path: Seq[String]): Validation[JdbcConfiguration] = {
-    val jdbcConfig = path.foldRight(config) { (s, c) =>
+    val jdbcConfig = path.foldLeft(config) { (c, s) =>
       c.getConfig(s)
     }
 
-    val jdbcDriver   = jdbcConfig.validateString("jdbcDriver")
-    val jdbcJarPath  = jdbcConfig.validateString("jdbcJarPath")
-    val jdbcUrl      = jdbcConfig.validateString("jdbcUrl")
-    val jdbcUser     = jdbcConfig.validateString("jdbcUser")
-    val jdbcPassword = jdbcConfig.validateString("jdbcPassword")
+    val jdbcDriver   = jdbcConfig.validateString("jdbc_driver")
+    val jdbcUrl      = jdbcConfig.validateString("jdbc_url")
+    val jdbcUser     = jdbcConfig.validateString("jdbc_user")
+    val jdbcPassword = jdbcConfig.validateString("jdbc_password")
 
-    (jdbcDriver, jdbcJarPath, jdbcUrl, jdbcUser, jdbcPassword) mapN JdbcConfiguration.apply
+    (jdbcDriver, jdbcUrl, jdbcUser, jdbcPassword) mapN JdbcConfiguration.apply
   }
 
   def factory(config: Config): String => Validation[JdbcConfiguration] =
     dbAlias => read(config, List("db", dbAlias))
+
+  def main(args: Array[String]): Unit =
+    print(factory(ConfigFactory.load())("ldsm"))
 
 }

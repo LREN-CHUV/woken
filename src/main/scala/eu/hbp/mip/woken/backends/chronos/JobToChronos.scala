@@ -31,7 +31,6 @@ object JobToChronos {
                                   prefix: String = ""): List[EnvironmentVariable] =
     List(
       EV(prefix + "JDBC_DRIVER", conf.jdbcDriver),
-      EV(prefix + "JDBC_JAR_PATH", conf.jdbcJarPath),
       EV(prefix + "JDBC_URL", conf.jdbcUrl),
       EV(prefix + "JDBC_USER", conf.jdbcUser),
       EV(prefix + "JDBC_PASSWORD", conf.jdbcPassword)

@@ -57,7 +57,6 @@ object WokenConfig {
 
   case class DbConfig(
       jdbcDriver: String,
-      jdbcJarPath: String,
       jdbcUrl: String,
       jdbcUser: String,
       jdbcPassword: String
@@ -67,7 +66,6 @@ object WokenConfig {
     val dbConf = config.getConfig("db").getConfig(dbAlias)
     DbConfig(
       jdbcDriver = dbConf.getString("jdbc_driver"),
-      jdbcJarPath = dbConf.getString("jdbc_jar_path"),
       jdbcUrl = dbConf.getString("jdbc_url"),
       jdbcUser = dbConf.getString("jdbc_user"),
       jdbcPassword = dbConf.getString("jdbc_password")
