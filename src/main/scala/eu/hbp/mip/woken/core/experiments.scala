@@ -24,13 +24,17 @@ import akka.pattern.ask
 import akka.util
 import akka.util.Timeout
 import com.github.levkhomich.akka.tracing.ActorTracing
-import eu.hbp.mip.woken.api.{ RequestProtocol, _ }
-import eu.hbp.mip.woken.backends.DockerJob
-import eu.hbp.mip.woken.config.WokenConfig.defaultSettings.{ defaultDb, dockerImage, isPredictive }
+import eu.hbp.mip.woken.api._
+import eu.hbp.mip.woken.backends.{ DockerJob, QueryOffset }
+import eu.hbp.mip.woken.config.WokenConfig.defaultSettings.{ dockerImage, isPredictive }
 import eu.hbp.mip.woken.core.model.JobResult
 import eu.hbp.mip.woken.core.validation.{ KFoldCrossValidation, ValidationPoolManager }
-import eu.hbp.mip.woken.dao.JobResultsDAL
-import eu.hbp.mip.woken.messages.external.{ Algorithm, Validation => ApiValidation }
+import eu.hbp.mip.woken.messages.external.{
+  Algorithm,
+  ExperimentQuery,
+  MiningQuery,
+  Validation => ApiValidation
+}
 import eu.hbp.mip.woken.messages.validation._
 import eu.hbp.mip.woken.meta.{ MetaDataProtocol, VariableMetaData }
 import spray.http.StatusCodes
@@ -48,11 +52,10 @@ object ExperimentActor {
   // Incoming messages
   case class Job(
       jobId: String,
-      // TODO: does not seem to be used
-      inputDb: Option[String],
-      algorithms: Seq[Algorithm],
-      validations: Seq[ApiValidation],
-      parameters: Map[String, String]
+      inputDb: String,
+      inputTable: String,
+      query: ExperimentQuery,
+      metadata: JsObject
   )
 
   case class Start(job: Job) extends RestMessage {
@@ -153,18 +156,30 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig)
   startWith(WaitForNewJob, Uninitialized)
 
   when(WaitForNewJob) {
-    case Event(Start(job), _) if job.algorithms.nonEmpty =>
+    case Event(Start(job), _) if job.query.algorithms.nonEmpty =>
       val replyTo     = sender()
-      val algorithms  = job.algorithms
-      val validations = job.validations
+      val algorithms  = job.query.algorithms
+      val validations = job.query.validations
 
       log.info("Start new experiment job")
       log.info(s"List of algorithms: ${algorithms.mkString(",")}")
 
       // Spawn an AlgorithmActor for every algorithm
       for (a <- algorithms) {
-        val jobId  = UUID.randomUUID().toString
-        val subJob = AlgorithmActor.Job(jobId, Some(defaultDb), a, validations, job.parameters)
+        val jobId = UUID.randomUUID().toString
+        val miningQuery = MiningQuery(
+          variables = job.query.variables,
+          covariables = job.query.covariables,
+          grouping = job.query.grouping,
+          filters = job.query.filters,
+          algorithm = a
+        )
+        val subJob = AlgorithmActor.Job(jobId,
+                                        job.inputDb,
+                                        job.inputTable,
+                                        miningQuery,
+                                        job.metadata,
+                                        validations)
         val worker = context.actorOf(
           AlgorithmActor.props(coordinatorConfig),
           AlgorithmActor.actorName(subJob)
@@ -260,11 +275,11 @@ object AlgorithmActor {
   // Incoming messages
   case class Job(
       jobId: String,
-      inputDb: Option[String],
-      algorithm: Algorithm,
-      validations: Seq[ApiValidation],
-      // TODO: contains low level details (environment variables)
-      parameters: Map[String, String]
+      inputDb: String,
+      inputTable: String,
+      query: MiningQuery,
+      metadata: JsObject,
+      validations: Seq[ApiValidation]
   )
   case class Start(job: Job)
   case object Done
@@ -276,7 +291,7 @@ object AlgorithmActor {
     Props(classOf[AlgorithmActor], coordinatorConfig)
 
   def actorName(job: Job): String =
-    s"AlgorithmActor_job_${job.jobId}_algo_${job.algorithm.code}"
+    s"AlgorithmActor_job_${job.jobId}_algo_${job.query.algorithm.code}"
 
 }
 
@@ -335,9 +350,8 @@ class AlgorithmActor(val coordinatorConfig: CoordinatorConfig)
   when(WaitForNewJob) {
     case Event(AlgorithmActor.Start(job), _) =>
       val replyTo     = sender()
-      val algorithm   = job.algorithm
+      val algorithm   = job.query.algorithm
       val validations = if (isPredictive(algorithm.code)) job.validations else List()
-      val parameters  = job.parameters ++ FunctionsInOut.algoParameters(algorithm)
 
       log.info(s"Start job for algorithm ${algorithm.code}")
       log.info(s"List of validations: ${validations.size}")
@@ -346,7 +360,12 @@ class AlgorithmActor(val coordinatorConfig: CoordinatorConfig)
       {
         val jobId = UUID.randomUUID().toString
         val subJob =
-          DockerJob(jobId, dockerImage(algorithm.code), None, Some(defaultDb), parameters, None)
+          DockerJob(jobId,
+                    dockerImage(algorithm.code),
+                    job.inputDb,
+                    job.inputTable,
+                    job.query,
+                    job.metadata)
         val worker = context.actorOf(
           CoordinatorActor.props(coordinatorConfig),
           CoordinatorActor.actorName(subJob)
@@ -356,8 +375,9 @@ class AlgorithmActor(val coordinatorConfig: CoordinatorConfig)
 
       // Spawn a CrossValidationActor for every validation
       for (v <- validations) {
-        val jobId  = UUID.randomUUID().toString
-        val subJob = CrossValidationActor.Job(jobId, job.inputDb, algorithm, v, parameters)
+        val jobId = UUID.randomUUID().toString
+        val subJob =
+          CrossValidationActor.Job(jobId, job.inputDb, job.inputTable, job.query, job.metadata, v)
         val validationWorker = context.actorOf(
           CrossValidationActor.props(coordinatorConfig),
           CrossValidationActor.actorName(subJob)
@@ -387,10 +407,10 @@ class AlgorithmActor(val coordinatorConfig: CoordinatorConfig)
 
     case Event(CoordinatorActor.ErrorResponse(message), previousData: PartialAlgorithmData) =>
       log.error(
-        s"Execution of algorithm ${previousData.job.algorithm.code} failed with message: $message"
+        s"Execution of algorithm ${previousData.job.query.algorithm.code} failed with message: $message"
       )
       // We cannot trained the model we notify supervisor and we stop
-      context.parent ! ErrorResponse(previousData.job.algorithm, message)
+      context.parent ! ErrorResponse(previousData.job.query.algorithm, message)
       log.info("Stopping...")
       stop
 
@@ -412,7 +432,7 @@ class AlgorithmActor(val coordinatorConfig: CoordinatorConfig)
     case Event(CrossValidationActor.ErrorResponse(validation, message),
                previousData: PartialAlgorithmData) =>
       log.error(
-        s"Validation of algorithm ${previousData.job.algorithm.code} returned with error : $message"
+        s"Validation of algorithm ${previousData.job.query.algorithm.code} returned with error : $message"
       )
       val data = previousData.copy(results = previousData.results + (validation -> message))
       if (data.isComplete) {
@@ -445,7 +465,7 @@ class AlgorithmActor(val coordinatorConfig: CoordinatorConfig)
         .replaceFirst("\"cells\":\\{",
                       "\"cells\":{\"validations\":" + validations.compactPrint + ",")
 
-      data.replyTo ! AlgorithmActor.ResultResponse(data.job.algorithm, pfa)
+      data.replyTo ! AlgorithmActor.ResultResponse(data.job.query.algorithm, pfa)
       log.info("Stopping...")
       stop
   }
@@ -467,11 +487,11 @@ object CrossValidationActor {
   // Incoming messages
   case class Job(
       jobId: String,
-      inputDb: Option[String],
-      algorithm: Algorithm,
-      validation: ApiValidation,
-      // TODO: contains low level environment variables
-      parameters: Map[String, String]
+      inputDb: String,
+      inputTable: String,
+      query: MiningQuery,
+      metadata: JsObject,
+      validation: ApiValidation
   )
   case class Start(job: Job)
   case object Done
@@ -484,7 +504,7 @@ object CrossValidationActor {
     Props(classOf[CrossValidationActor], coordinatorConfig)
 
   def actorName(job: Job): String =
-    s"CrossValidationActor_job_${job.jobId}_algo_${job.algorithm.code}"
+    s"CrossValidationActor_job_${job.jobId}_algo_${job.query.algorithm.code}"
 
 }
 
@@ -539,7 +559,7 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
   import CrossValidationActor._
   import CrossValidationStates._
 
-  def adjust[A, B](m: Map[A, B], k: A)(f: B => B): Map[A, B] = m.updated(k, f(m(k)))
+//  def adjust[A, B](m: Map[A, B], k: A)(f: B => B): Map[A, B] = m.updated(k, f(m(k)))
 
   def nextValidationActor: Option[ActorSelection] = {
     val validationPool = ValidationPoolManager.validationPool
@@ -555,7 +575,7 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
   when(WaitForNewJob) {
     case Event(Start(job), _) =>
       val replyTo    = sender()
-      val algorithm  = job.algorithm
+      val algorithm  = job.query.algorithm
       val validation = job.validation
 
       log.info(s"List of folds: ${validation.parameters("k")}")
@@ -572,16 +592,16 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
         case (fold, (s, n)) =>
           // Spawn a LocalCoordinatorActor for that one particular fold
           val jobId = UUID.randomUUID().toString
-          // TODO To be removed in WP3
-          val parameters = adjust(job.parameters, "PARAM_query")(
-            (x: String) => x + " EXCEPT ALL (" + x + s" OFFSET $s LIMIT $n)"
+          val subJob = DockerJob(
+            jobId = jobId,
+            dockerImage = dockerImage(algorithm.code),
+            inputDb = job.inputDb,
+            inputTable = job.inputTable,
+            query = job.query,
+            metadata = job.metadata,
+            shadowOffset = Some(QueryOffset(s, n))
           )
-          val subJob = DockerJob(jobId = jobId,
-                                 dockerImage = dockerImage(algorithm.code),
-                                 jobName = None,
-                                 inputDb = Some(defaultDb),
-                                 parameters = parameters,
-                                 nodes = None)
+
           val worker = context.actorOf(
             CoordinatorActor.props(coordinatorConfig)
           )
@@ -591,13 +611,12 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
           (worker, fold)
       }
 
-      // TODO: this parsing should have been done earlier
+      // TODO: move this code in a better place, test it
+      import FunctionsInOut._
       import MetaDataProtocol._
-      val targetMetaData: VariableMetaData = job
-        .parameters("PARAM_meta")
-        .parseJson
+      val targetMetaData: VariableMetaData = job.metadata
         .convertTo[Map[String, VariableMetaData]]
-        .get(job.parameters("PARAM_variables").split(",").head) match {
+        .get(job.query.dbVariables.head) match {
         case Some(v: VariableMetaData) => v
         case None                      => throw new Exception("Problem with variables' meta data!")
       }

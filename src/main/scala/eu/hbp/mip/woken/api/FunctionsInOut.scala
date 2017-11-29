@@ -35,45 +35,44 @@ import org.slf4j.LoggerFactory
 object FunctionsInOut {
   import WokenConfig.defaultSettings._
 
-  /** Convert variable to lowercase as Postgres returns lowercase fields in its result set
-    * Variables codes are sanitized to ensure valid database field names using the following conversions:
-    * + replace - by _
-    * + prepend _ to the variable name if it starts by a number
-    */
-  private[this] val toField = (v: VariableId) =>
-    v.code.toLowerCase().replaceAll("-", "_").replaceFirst("^(\\d)", "_$1")
+  implicit class QueryEnhanced(query: Query) {
 
-  private[this] val standardParameters = (query: Query) => {
-    val varListDbSafe =
-      (query.variables ++ query.covariables ++ query.grouping).distinct.map(toField)
-    Map[String, String](
-      "PARAM_query" -> s"select ${varListDbSafe.mkString(",")} from $mainTable where ${varListDbSafe
-        .map(_ + " is not null")
-        .mkString(" and ")} ${if (query.filters != "") s"and ${query.filters}" else ""}",
-      "PARAM_variables"   -> query.variables.map(toField).mkString(","),
-      "PARAM_covariables" -> query.covariables.map(toField).mkString(","),
-      "PARAM_grouping"    -> query.grouping.map(toField).mkString(","),
-      "PARAM_meta"        -> MetaDatabaseConfig.getMetaData(varListDbSafe).compactPrint
-    )
+    /** Convert variable to lowercase as Postgres returns lowercase fields in its result set
+      * Variables codes are sanitized to ensure valid database field names using the following conversions:
+      * + replace - by _
+      * + prepend _ to the variable name if it starts by a number
+      */
+    private[this] val toField = (v: VariableId) =>
+      v.code.toLowerCase().replaceAll("-", "_").replaceFirst("^(\\d)", "_$1")
+
+    def dbAllVars: List[String] =
+      (query.variables ++ query.covariables ++ query.grouping).distinct.map(toField).toList
+
+    def dbVariables: List[String]   = query.variables.map(toField).toList
+    def dbCovariables: List[String] = query.covariables.map(toField).toList
+    def dbGrouping: List[String]    = query.grouping.map(toField).toList
+
   }
-
-  def algoParameters(algorithm: Algorithm): Map[String, String] =
-    algorithm.parameters.map({ case (key, value) => ("PARAM_MODEL_" + key, value) })
 
   def query2job(query: MiningQuery): DockerJob = {
 
-    val jobId      = UUID.randomUUID().toString
-    val parameters = standardParameters(query) ++ algoParameters(query.algorithm)
+    val jobId    = UUID.randomUUID().toString
+    val metadata = MetaDatabaseConfig.getMetaData(query.dbAllVars)
 
-    DockerJob(jobId, dockerImage(query.algorithm.code), None, Some(defaultDb), parameters, None)
+    DockerJob(jobId,
+              dockerImage(query.algorithm.code),
+              defaultDb,
+              mainTable,
+              query,
+              metadata = metadata)
   }
 
   def query2job(query: ExperimentQuery): ExperimentActor.Job = {
 
-    val jobId      = UUID.randomUUID().toString
-    val parameters = standardParameters(query)
+    val jobId    = UUID.randomUUID().toString
+    val metadata = MetaDatabaseConfig.getMetaData(query.dbAllVars)
 
-    ExperimentActor.Job(jobId, Some(defaultDb), query.algorithms, query.validations, parameters)
+    ExperimentActor.Job(jobId, defaultDb, mainTable, query, metadata = metadata)
   }
 
   lazy val summaryStatsHeader = JsonParser(

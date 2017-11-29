@@ -16,28 +16,50 @@
 
 package eu.hbp.mip.woken.backends
 
+import eu.hbp.mip.woken.api.FunctionsInOut
+import eu.hbp.mip.woken.messages.external.MiningQuery
+import spray.json.JsObject
+
 /**
   * Definition of a computation using an algorithm packaged as a Docker container.
   *
   * @param jobId Id of the job. Must be unique
   * @param dockerImage Name of the Docker image to use. Include the version to ensure reproducibility
-  * @param jobName Name of the job in Chronos. Must be unique. Default value is constructed from jobId and dockerImage
   * @param inputDb Name of the input database
-  * @param parameters Additional parameters
-  * @param nodes Selected nodes
+  * @param inputTable Name of the input table
+  * @param query The original query
+  * @param metadata Metadata associated with each field used in the query
   */
 case class DockerJob(
     jobId: String,
     dockerImage: String,
-    jobName: Option[String],
-    inputDb: Option[String],
-    parameters: Map[String, String],
-    nodes: Option[Set[String]]
+    inputDb: String,
+    inputTable: String,
+    query: MiningQuery,
+    metadata: JsObject,
+    shadowOffset: Option[QueryOffset] = None
 ) {
 
-  def jobNameResolved: String =
-    jobName
-      .getOrElse(dockerImage.replaceAll("^.*?/", "").takeWhile(_ != ':') + "_" + jobId)
+  def jobName: String =
+    (dockerImage.replaceAll("^.*?/", "").takeWhile(_ != ':') + "_" + jobId)
       .replaceAll("[/.-]", "_")
+
+  def dockerParameters: Map[String, String] = {
+    import FunctionsInOut._
+
+    Map[String, String](
+      "PARAM_query"       -> FeaturesHelper.buildQueryFeaturesSql(inputTable, query, shadowOffset),
+      "PARAM_variables"   -> query.dbVariables.mkString(","),
+      "PARAM_covariables" -> query.dbCovariables.mkString(","),
+      "PARAM_grouping"    -> query.dbGrouping.mkString(","),
+      "PARAM_meta"        -> metadata.compactPrint
+    ) ++ algoParameters
+  }
+
+  private[this] def algoParameters: Map[String, String] = {
+    val parameters = query.algorithm.parameters
+    parameters.map({ case (key, value) => ("MODEL_PARAM_" + key, value) }) ++
+    parameters.map({ case (key, value) => ("PARAM_MODEL_" + key, value) })
+  }
 
 }

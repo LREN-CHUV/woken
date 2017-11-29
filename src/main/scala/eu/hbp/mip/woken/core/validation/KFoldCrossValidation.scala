@@ -16,6 +16,8 @@
 
 package eu.hbp.mip.woken.core.validation
 
+import eu.hbp.mip.woken.api.FunctionsInOut
+import eu.hbp.mip.woken.backends.FeaturesHelper
 import eu.hbp.mip.woken.core.CrossValidationActor
 import eu.hbp.mip.woken.dao.LdsmDAL
 import spray.json.{ JsValue, _ }
@@ -74,18 +76,20 @@ class KFoldCrossValidation(data: Stream[JsObject], labels: Stream[JsObject], fol
 object KFoldCrossValidation {
 
   def apply(job: CrossValidationActor.Job, foldCount: Int): KFoldCrossValidation = {
+    import FunctionsInOut._
 
-    val conf = eu.hbp.mip.woken.config.WokenConfig.dbConfig(job.inputDb.get)
-    val dal  = new LdsmDAL(conf.jdbcDriver, conf.jdbcUrl, conf.jdbcUser, conf.jdbcPassword, "")
+    val conf  = eu.hbp.mip.woken.config.WokenConfig.dbConfig(job.inputDb)
+    val dal   = new LdsmDAL(conf.jdbcDriver, conf.jdbcUrl, conf.jdbcUser, conf.jdbcPassword, "")
+    val query = job.query
+    // TODO: shouldn't cross validation exclude here a portion of the feature dataset?
+    val sql = FeaturesHelper.buildQueryFeaturesSql(job.inputTable, query, None)
 
     // JSON objects with fieldname corresponding to variables names
-    val (_, d) = dal.runQuery(dal.ldsmConnection, job.parameters("PARAM_query"))
+    val (_, d) = dal.runQuery(dal.ldsmConnection, sql)
 
     // Separate features from labels
-    val variables = job.parameters("PARAM_variables").split(",")
-    val features = job.parameters("PARAM_covariables").split(",") ++ job
-      .parameters("PARAM_grouping")
-      .split(",")
+    val variables = query.dbVariables
+    val features  = query.dbCovariables ++ query.dbGrouping
 
     val (data, labels) = d
       .map(

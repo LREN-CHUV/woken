@@ -25,7 +25,7 @@ import spray.httpx.marshalling.ToResponseMarshaller
 
 import scala.concurrent.duration._
 import eu.hbp.mip.woken.core.CoordinatorActor.Start
-import eu.hbp.mip.woken.backends.DockerJob
+import eu.hbp.mip.woken.backends.{ DockerJob, QueryOffset }
 import eu.hbp.mip.woken.backends.chronos.ChronosService
 import eu.hbp.mip.woken.backends.chronos.{ ChronosJob, JobToChronos }
 import eu.hbp.mip.woken.config.{ JdbcConfiguration, JobsConfiguration }
@@ -51,7 +51,8 @@ object CoordinatorActor {
   case class Start(job: DockerJob) extends RestMessage {
     import ApiJsonSupport._
     import spray.httpx.SprayJsonSupport._
-    implicit val jobFormat: RootJsonFormat[DockerJob] = jsonFormat6(DockerJob.apply)
+    implicit val queryOffsetFormat: RootJsonFormat[QueryOffset] = jsonFormat2(QueryOffset.apply)
+    implicit val jobFormat: RootJsonFormat[DockerJob]           = jsonFormat7(DockerJob.apply)
     override def marshaller: ToResponseMarshaller[Start] =
       ToResponseMarshaller.fromMarshaller(StatusCodes.OK)(jsonFormat1(Start))
   }
@@ -89,7 +90,7 @@ object CoordinatorActor {
     )
 
   def actorName(job: DockerJob): String =
-    s"LocalCoordinatorActor_job_${job.jobId}_${job.jobNameResolved}"
+    s"LocalCoordinatorActor_job_${job.jobId}_${job.jobName}"
 
 }
 
