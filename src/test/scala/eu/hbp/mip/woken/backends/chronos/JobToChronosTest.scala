@@ -16,41 +16,144 @@
 
 package eu.hbp.mip.woken.backends.chronos
 
+import cats.data.ValidatedNel
 import eu.hbp.mip.woken.backends.DockerJob
-import eu.hbp.mip.woken.messages.external.{ Algorithm, MiningQuery }
+import eu.hbp.mip.woken.config.{ JdbcConfiguration, JobsConfiguration }
+import eu.hbp.mip.woken.messages.external.{ Algorithm, MiningQuery, VariableId }
 import org.scalatest.{ FlatSpec, Matchers }
+import spray.json._
+import cats.syntax.validated._
 
 class JobToChronosTest extends FlatSpec with Matchers {
 
+  val algorithm: Algorithm = Algorithm(
+    code = "knn",
+    name = "KNN",
+    parameters = Map("k" -> "5", "n" -> "1")
+  )
+
+  val query: MiningQuery = MiningQuery(
+    variables = List("target").map(VariableId),
+    covariables = List("a", "b", "c").map(VariableId),
+    grouping = List("grp1", "grp2").map(VariableId),
+    filters = "a > 10",
+    algorithm = algorithm
+  )
+
+  val jdbcConfs: Map[String, ValidatedNel[String, JdbcConfiguration]] = Map(
+    "features_db" -> JdbcConfiguration(
+      jdbcDriver = "org.postgresql.Driver",
+      jdbcUrl = "jdbc:postgres:localhost:5432/features",
+      jdbcUser = "user",
+      jdbcPassword = "test"
+    ).validNel,
+    "woken_db" -> JdbcConfiguration(
+      jdbcDriver = "org.postgresql.Driver",
+      jdbcUrl = "jdbc:postgres:localhost:5432/woken",
+      jdbcUser = "woken",
+      jdbcPassword = "wpwd"
+    ).validNel
+  ).withDefaultValue("".invalidNel)
+
+  val metadata: JsObject = """
+               |{
+               |  "target": {"type": "string"},
+               |  "a": {"type": "string"},
+               |  "b": {"type": "string"},
+               |  "c": {"type": "string"},
+               |  "grp1": {"type": "string"},
+               |  "grp2": {"type": "string"}
+               |}
+             """.stripMargin.parseJson.asJsObject
+
+  val jobsConf: JobsConfiguration = JobsConfiguration(
+    node = "test",
+    owner = "mip@chuv.ch",
+    chronosServerUrl = "http://localhost:4400",
+    featuresDb = "features_db",
+    resultDb = "woken_db"
+  )
+
   "A generic Docker job" should "be converted to a Chronos job definition" in {
 
-    val algorithm = Algorithm(
-      code = "knn",
-      name = "KNN",
-      parameters = Map("k" -> "5")
+    val dockerJob = DockerJob(
+      jobId = "1234",
+      dockerImage = "hbpmpi/test",
+      inputDb = "features_db",
+      inputTable = "features_table",
+      query = query,
+      metadata = metadata,
+      shadowOffset = None
     )
 
-    /*
-    TODO
+    val chronosJob = JobToChronos(dockerJob, None, jobsConf, jdbcConfs.apply)
 
-val query = MiningQuery(
-  variables = List("target"),
-  covariables = List("a", "b", "c"),
-  grouping = List("grp1", "grp2"),
-  filters = "a > 10",
-  algorithm = algorithm
-)
+    val environmentVariables = List(
+      EnvironmentVariable("JOB_ID", "1234"),
+      EnvironmentVariable("NODE", "test"),
+      EnvironmentVariable("DOCKER_IMAGE", "hbpmpi/test"),
+      EnvironmentVariable("PARAM_variables", "target"),
+      EnvironmentVariable("MODEL_PARAM_k", "5"),
+      EnvironmentVariable("PARAM_MODEL_n", "1"),
+      EnvironmentVariable(
+        "PARAM_query",
+        "select target,a,b,c,grp1,grp2 from features_table where target is not null and a is not null and b is not null and c is not null and grp1 is not null and grp2 is not null and a > 10"
+      ),
+      EnvironmentVariable("MODEL_PARAM_n", "1"),
+      EnvironmentVariable("PARAM_MODEL_k", "5"),
+      EnvironmentVariable("PARAM_grouping", "grp1,grp2"),
+      EnvironmentVariable(
+        "PARAM_meta",
+        """{"grp2":{"type":"string"},"a":{"type":"string"},"grp1":{"type":"string"},"b":{"type":"string"},"target":{"type":"string"},"c":{"type":"string"}}"""
+      ),
+      EnvironmentVariable("PARAM_covariables", "a,b,c"),
+      EnvironmentVariable("IN_JDBC_DRIVER", "org.postgresql.Driver"),
+      EnvironmentVariable("IN_JDBC_URL", "jdbc:postgres:localhost:5432/features"),
+      EnvironmentVariable("IN_JDBC_USER", "user"),
+      EnvironmentVariable("IN_JDBC_PASSWORD", "test"),
+      EnvironmentVariable("OUT_JDBC_DRIVER", "org.postgresql.Driver"),
+      EnvironmentVariable("OUT_JDBC_URL", "jdbc:postgres:localhost:5432/woken"),
+      EnvironmentVariable("OUT_JDBC_USER", "woken"),
+      EnvironmentVariable("OUT_JDBC_PASSWORD", "wpwd")
+    )
 
-val dockerJob = DockerJob(
-  jobId = "1234",
-  dockerImage = "hbpmpi/test",
-  inputDb = "features_db",
-  inputTable = "features_table",
-  query = query,
+    val expected = ChronosJob(
+      name = "test_1234",
+      description = None,
+      command = "compute",
+      arguments = Nil,
+      shell = false,
+      schedule = "R1//PT1M",
+      epsilon = Some("PT5M"),
+      executor = None,
+      executorFlags = None,
+      container = Some(
+        Container(`type` = ContainerType.DOCKER, image = "hbpmpi/test", network = NetworkMode.HOST)
+      ),
+      cpus = Some(0.5),
+      mem = Some(512.0),
+      disk = None,
+      owner = Some("mip@chuv.ch"),
+      environmentVariables = environmentVariables
+    )
 
-  parameters = Map(("k" -> 1), ("n" -> 10))
-)
-   */
+    chronosJob.getOrElse(None) shouldBe expected
   }
 
+  "An invalid Docker job using some unknown database" should "not be converted but marked as invalid" in {
+
+    val dockerJob = DockerJob(
+      jobId = "1234",
+      dockerImage = "hbpmpi/test",
+      inputDb = "unknown_db",
+      inputTable = "features",
+      query = query,
+      metadata = metadata,
+      shadowOffset = None
+    )
+
+    val chronosJob = JobToChronos(dockerJob, None, jobsConf, jdbcConfs.apply)
+
+    assert(chronosJob.isInvalid)
+  }
 }

@@ -16,7 +16,7 @@
 
 package eu.hbp.mip.woken.core.validation
 
-import eu.hbp.mip.woken.messages.external.{ ExperimentQuery, Validation }
+import eu.hbp.mip.woken.messages.external.{ Algorithm, ExperimentQuery, Validation, VariableId }
 import org.scalatest._
 
 class KFoldCrossValidationTest extends FlatSpec with Matchers {
@@ -42,10 +42,19 @@ class KFoldCrossValidationTest extends FlatSpec with Matchers {
         |}
         |
         |""".stripMargin
-    val jsonAst    = source.parseJson
-    val validation = jsonAst.convertTo[ExperimentQuery]
+    val jsonAst         = source.parseJson
+    val experimentQuery = jsonAst.convertTo[ExperimentQuery]
 
-    println(validation)
+    val expected = ExperimentQuery(
+      variables = List(VariableId("LeftAmygdala")),
+      covariables = List(VariableId("AGE")),
+      grouping = List(VariableId("COLPROT")),
+      filters = "",
+      algorithms = List(Algorithm("linearRegression", "linearRegression", Map())),
+      validations = List(Validation("kfold", "kfold", Map("k" -> "2")))
+    )
+
+    experimentQuery shouldBe expected
   }
 
   "A validation JSON object" should "be readable" in {
@@ -65,6 +74,8 @@ class KFoldCrossValidationTest extends FlatSpec with Matchers {
     val jsonAst    = source.parseJson
     val validation = jsonAst.convertTo[Validation]
 
-    println(validation)
+    val expected = Validation("kfold", "kfold", Map("k" -> "2"))
+
+    validation shouldBe expected
   }
 }
