@@ -60,6 +60,15 @@ services:
       - zookeeper
       - mesos_master
 
+  wait_zookeeper:
+    image: "waisbrot/wait"
+    restart: "no"
+    environment:
+      TARGETS: "zookeeper:2181"
+      TIMEOUT: 60
+    depends_on:
+      - zookeeper
+
   chronos:
     image: mesosphere/chronos:v3.0.2
     command: '--zk_hosts zookeeper:2181 --master zk://zookeeper:2181/mesos'
@@ -89,6 +98,8 @@ services:
     environment:
       TARGETS: "db:5432"
       TIMEOUT: 60
+    depends_on:
+      - db
 
   create_dbs:
     image: "hbpmip/create-databases:1.0.0"
@@ -209,8 +220,11 @@ services:
     image: "waisbrot/wait"
     restart: "no"
     environment:
-      TARGETS: "woken:8087"
+      TARGETS: "woken:8087,chronos:4400"
       TIMEOUT: 60
+    depends_on:
+      - woken
+      - chronos
 
   woken_test:
     build:

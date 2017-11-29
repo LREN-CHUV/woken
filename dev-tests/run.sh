@@ -36,7 +36,7 @@ $DOCKER_COMPOSE kill
 $DOCKER_COMPOSE rm -f
 
 echo "Deploy a Postgres instance and wait for it to be ready..."
-$DOCKER_COMPOSE up -d db
+$DOCKER_COMPOSE up -d db zookeeper mesos_master mesos_slave
 $DOCKER_COMPOSE build woken_test
 $DOCKER_COMPOSE run wait_dbs
 
@@ -53,7 +53,8 @@ echo "Migrate features database..."
 $DOCKER_COMPOSE run sample_db_setup
 
 echo "Run containers..."
-$DOCKER_COMPOSE up -d zookeeper mesos_master mesos_slave chronos zipkin zipkin-ui woken woken_validation
+$DOCKER_COMPOSE run wait_zookeeper
+$DOCKER_COMPOSE up -d chronos zipkin zipkin-ui woken woken_validation
 
 $DOCKER_COMPOSE run wait_woken
 
