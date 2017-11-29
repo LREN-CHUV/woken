@@ -66,7 +66,7 @@ lazy val library =
       val doobie        = "0.4.0"
       val snakeyaml     = "1.17"
       val hadrian       = "0.8.5"
-      val wokenMessages = "2.0.10"
+      val wokenMessages = "2.0.11"
       val spraySwagger  = "0.5.0"
       val swaggerUI     = "2.0.12"
     }
