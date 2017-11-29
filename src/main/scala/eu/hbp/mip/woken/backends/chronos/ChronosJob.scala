@@ -16,13 +16,9 @@
 
 package eu.hbp.mip.woken.backends.chronos
 
-import spray.json.{
-  DefaultJsonProtocol,
-  DeserializationException,
-  JsString,
-  JsValue,
-  RootJsonFormat
-}
+import java.time.OffsetDateTime
+
+import spray.json.{DefaultJsonProtocol, DeserializationException, JsObject, JsString, JsValue, RootJsonFormat}
 
 // Adapted from https://github.com/mesos/chronos/blob/v3.0.2/src/main/scala/org/apache/mesos/chronos/scheduler/jobs/Containers.scala
 // and https://github.com/mesos/chronos/blob/v3.0.2/src/main/scala/org/apache/mesos/chronos/scheduler/jobs/Jobs.scala
@@ -167,6 +163,17 @@ case class ChronosJob(
     // constraints: List[Constraint] = List()
 )
 
+case class ChronosJobLiveliness(
+    name: String,
+    successCount: Int,
+    errorCount: Int,
+    lastSuccess: OffsetDateTime,
+    lastError: OffsetDateTime,
+    softError: Boolean,
+    errorsSinceLastSuccess: Int
+// "schedule": "R0/2017-11-29T23:13:40.989Z/PT1M"
+)
+
 /**
   * Serialize ChronosJob in the Json format required by Chronos
   */
@@ -208,4 +215,20 @@ object ChronosJob extends DefaultJsonProtocol {
   )
   implicit val uriFormat: RootJsonFormat[Uri]               = jsonFormat1(Uri.apply)
   implicit val chronosJobFormat: RootJsonFormat[ChronosJob] = jsonFormat19(ChronosJob.apply)
+
+  implicit object ChronosJobLivelinessFormat extends RootJsonFormat[ChronosJobLiveliness] {
+    def write(c: ChronosJobLiveliness) = JsObject(
+      "name" -> JsString(c.name)/*,
+      "red" -> JsNumber(c.red),
+      "green" -> JsNumber(c.green),
+      "blue" -> JsNumber(c.blue)*/
+    )
+    def read(value: JsValue): ChronosJobLiveliness = {
+      value.asJsObject.getFields("name", "red", "green", "blue") match {
+        //case Seq(JsString(name), JsNumber(red), JsNumber(green), JsNumber(blue)) =>
+        //  new Color(name, red.toInt, green.toInt, blue.toInt)
+        case _ => throw DeserializationException("ChronosJob expected")
+      }
+    }
+  }
 }
