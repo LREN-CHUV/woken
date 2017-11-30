@@ -16,14 +16,21 @@
 
 package eu.hbp.mip.woken.api
 
-import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem }
+import java.util.UUID
+
+import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem, Props }
 import akka.testkit.{ ImplicitSender, TestKit }
+import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.config.WokenConfig
-import eu.hbp.mip.woken.core.ExperimentActor
+import eu.hbp.mip.woken.core.ExperimentActor.{ ErrorResponse, Start }
+import eu.hbp.mip.woken.core.{ CoordinatorConfig, ExperimentActor }
 import eu.hbp.mip.woken.core.model.JobResult
 import eu.hbp.mip.woken.dao.{ JobResultsDAL, LdsmDAL }
-import eu.hbp.mip.woken.messages.external.{ Algorithm, ExperimentQuery, Validation, VariableId }
+import eu.hbp.mip.woken.messages.external._
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
+import spray.json.JsObject
+
+import scala.concurrent.duration._
 
 /**
   * Validates correct implementation of the MasterRouter.
@@ -44,7 +51,15 @@ class MasterRouterTest
   case class FakeMiningService(chronosServiceRef: ActorRef,
                                resultDB: JobResultsDAL,
                                ldsmDB: LdsmDAL)
-      extends MiningService(chronosServiceRef, resultDB, ldsmDB)
+      extends MiningService(chronosServiceRef, resultDB, ldsmDB) {
+
+    override def newExperimentActor(coordinatorConfig: CoordinatorConfig): ActorRef =
+      system.actorOf(FakeActor.echoActorProps)
+
+    override def newCoordinatorActor(coordinatorConfig: CoordinatorConfig): ActorRef =
+      system.actorOf(FakeActor.echoActorProps)
+
+  }
 
   case class FakeLdsmDAL()
       extends LdsmDAL(jdbcDriver = "", jdbcUrl = "", jdbcUser = "", jdbcPassword = "", table = "")
@@ -57,23 +72,75 @@ class MasterRouterTest
 
   }
 
+  def query2job(query: ExperimentQuery) = ExperimentActor.Job(
+    jobId = UUID.randomUUID().toString,
+    inputDb = "",
+    inputTable = "",
+    query = query,
+    metadata = JsObject.empty
+  )
+
+  def query2job(query: MiningQuery): DockerJob = DockerJob(
+    jobId = UUID.randomUUID().toString,
+    dockerImage = "",
+    inputDb = "",
+    inputTable = "",
+    query = query,
+    metadata = JsObject.empty
+  )
+
   "Master Actor " must {
 
-    "starts new experiments" in {
-      val api = FakeApi()
-      val router =
-        system.actorOf(MasterRouter.props(api, FakeJobResultsDAL()))
+    val api = FakeApi()
 
-      (1 to WokenConfig.app.masterRouterConfig.experimentActorsLimit).foreach { _ =>
-        router ! ExperimentQuery(variables = Seq.empty,
-                                 covariables = Seq.empty,
-                                 grouping = Seq.empty,
-                                 filters = "",
-                                 algorithms = Seq.empty,
-                                 validations = Seq.empty)
+    val router =
+      system.actorOf(Props(new MasterRouter(api, FakeJobResultsDAL(), query2job, query2job)))
+
+    "starts new experiments" in {
+
+      val messages = WokenConfig.app.masterRouterConfig.experimentActorsLimit
+      within(messages seconds) {
+        (1 to messages).foreach { _ =>
+          router ! ExperimentQuery(variables = Seq.empty,
+                                   covariables = Seq.empty,
+                                   grouping = Seq.empty,
+                                   filters = "",
+                                   algorithms = Seq.empty,
+                                   validations = Seq.empty)
+
+        }
+
+        (1 to messages).foreach { _ =>
+          expectMsgType[Start](5 seconds)
+        }
+
+        expectNoMsg()
+        Thread.sleep(1000)
       }
 
-      expectMsg(ExperimentActor.ErrorResponse)
+    }
+
+    "do not starts new experiments" in {
+
+      val messages = WokenConfig.app.masterRouterConfig.experimentActorsLimit
+      within(messages seconds) {
+        (1 to (messages + 2)).foreach { _ =>
+          router ! ExperimentQuery(variables = Seq.empty,
+                                   covariables = Seq.empty,
+                                   grouping = Seq.empty,
+                                   filters = "",
+                                   algorithms = Seq.empty,
+                                   validations = Seq.empty)
+
+        }
+
+        (1 to messages).foreach { _ =>
+          expectMsgType[Start]
+        }
+        expectMsgType[ErrorResponse]
+        expectNoMsg()
+        Thread.sleep(300)
+      }
 
     }
 

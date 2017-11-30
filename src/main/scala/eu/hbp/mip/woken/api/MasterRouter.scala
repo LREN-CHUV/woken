@@ -24,17 +24,21 @@ import eu.hbp.mip.woken.core.model.JobResult
 import FunctionsInOut._
 import com.github.levkhomich.akka.tracing.ActorTracing
 import com.typesafe.config.ConfigFactory
+import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.config.{ JdbcConfiguration, JobsConfiguration, WokenConfig }
 import eu.hbp.mip.woken.dao.JobResultsDAL
 
 object MasterRouter {
 
   def props(api: Api, resultDatabase: JobResultsDAL): Props =
-    Props(new MasterRouter(api, resultDatabase))
+    Props(new MasterRouter(api, resultDatabase, query2job))
 
 }
 
-class MasterRouter(val api: Api, val resultDatabase: JobResultsDAL)
+class MasterRouter(val api: Api,
+                   val resultDatabase: JobResultsDAL,
+                   query2jobF: ExperimentQuery => ExperimentActor.Job = query2job,
+                   query2jobFM: MiningQuery => DockerJob = query2job)
     extends Actor
     with ActorTracing
     with ActorLogging {
@@ -44,16 +48,16 @@ class MasterRouter(val api: Api, val resultDatabase: JobResultsDAL)
     if (results.length == 1) (QueryResult.apply _).tupled(JobResult.unapply(results.head).get)
     else QueryError("Cannot make sense of the query output")
 
-  private val config = ConfigFactory.load()
-  private val jobsConf = JobsConfiguration
+  private lazy val config = ConfigFactory.load()
+  private lazy val jobsConf = JobsConfiguration
     .read(config)
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
-  private val coordinatorConfig = CoordinatorConfig(api.chronosHttp,
-                                                    resultDatabase,
-                                                    createQueryResult,
-                                                    WokenConfig.app.dockerBridgeNetwork,
-                                                    jobsConf,
-                                                    JdbcConfiguration.factory(config))
+  private lazy val coordinatorConfig = CoordinatorConfig(api.chronosHttp,
+                                                         resultDatabase,
+                                                         createQueryResult,
+                                                         WokenConfig.app.dockerBridgeNetwork,
+                                                         jobsConf,
+                                                         JdbcConfiguration.factory(config))
 
   var experimentsActiveActors: Set[ActorRef] = Set.empty
   val experimentsActiveActorsLimit           = WokenConfig.app.masterRouterConfig.miningActorsLimit
@@ -70,9 +74,9 @@ class MasterRouter(val api: Api, val resultDatabase: JobResultsDAL)
     // TODO To be implemented
 
     case query: MiningQuery =>
-      if (miningActiveActors.size < miningActiveActorsLimit) {
+      if (miningActiveActors.size <= miningActiveActorsLimit) {
         val miningActorRef = api.mining_service.newCoordinatorActor(coordinatorConfig)
-        miningActorRef.tell(CoordinatorActor.Start(query2job(query)), sender())
+        miningActorRef.tell(CoordinatorActor.Start(query2jobFM(query)), sender())
         context watch miningActorRef
         miningActiveActors += miningActorRef
       } else {
@@ -80,10 +84,10 @@ class MasterRouter(val api: Api, val resultDatabase: JobResultsDAL)
       }
 
     case query: ExperimentQuery =>
-      log.debug(s"Received message: $query")
-      if (experimentsActiveActors.size < experimentsActiveActorsLimit) {
+      log.info(s"Received message: $query")
+      if (experimentsActiveActors.size <= experimentsActiveActorsLimit) {
         val experimentActorRef = api.mining_service.newExperimentActor(coordinatorConfig)
-        experimentActorRef.tell(ExperimentActor.Start(query2job(query)), sender())
+        experimentActorRef.tell(ExperimentActor.Start(query2jobF(query)), sender())
         context watch experimentActorRef
         experimentsActiveActors += experimentActorRef
       } else {
@@ -92,9 +96,9 @@ class MasterRouter(val api: Api, val resultDatabase: JobResultsDAL)
 
     case Terminated(a) =>
       log.info(s"Actor terminated: $a")
-      context unwatch a
       miningActiveActors -= a
       experimentsActiveActors -= a
+      log.info(s"Experiments active: ${experimentsActiveActors.size}")
 
     case _ => // ignore
   }

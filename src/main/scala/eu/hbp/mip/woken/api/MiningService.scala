@@ -385,16 +385,16 @@ class MiningService(val chronosService: ActorRef,
   }
 
   // TODO: improve passing configuration around
-  private val config = ConfigFactory.load()
-  private val jobsConf = JobsConfiguration
+  private lazy val config = ConfigFactory.load()
+  private lazy val jobsConf = JobsConfiguration
     .read(config)
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
-  private val coordinatorConfig = CoordinatorConfig(chronosService,
-                                                    resultDatabase,
-                                                    RequestProtocol,
-                                                    WokenConfig.app.dockerBridgeNetwork,
-                                                    jobsConf,
-                                                    JdbcConfiguration.factory(config))
+  private lazy val coordinatorConfig = CoordinatorConfig(chronosService,
+                                                         resultDatabase,
+                                                         RequestProtocol,
+                                                         WokenConfig.app.dockerBridgeNetwork,
+                                                         jobsConf,
+                                                         JdbcConfiguration.factory(config))
 
   override def listMethods: Route = path("mining" / "list-methods") {
 
