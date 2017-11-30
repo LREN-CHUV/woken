@@ -68,8 +68,7 @@ trait BootedCore extends Core with CoreActors with Api with StaticResources {
     * Create and start actor that acts as akka entry-point
     */
   val mainRouter: ActorRef =
-    system.actorOf(MasterRouter.props(this, chronosHttp, ResultDatabaseConfig.dal),
-                   name = "entrypoint")
+    system.actorOf(MasterRouter.props(this, ResultDatabaseConfig.dal), name = "entrypoint")
 
   /**
     * Create and start actor responsible to register validation node
