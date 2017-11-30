@@ -24,11 +24,20 @@ import eu.hbp.mip.woken.core.model.JobResult
 import FunctionsInOut._
 import com.github.levkhomich.akka.tracing.ActorTracing
 import com.typesafe.config.ConfigFactory
+import eu.hbp.mip.woken.api.MasterRouter.QueuesSize
 import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.config.{ JdbcConfiguration, JobsConfiguration, WokenConfig }
 import eu.hbp.mip.woken.dao.JobResultsDAL
 
 object MasterRouter {
+
+  // Incoming messages
+  case object RequestQueuesSize
+
+  // Responses
+  case class QueuesSize(experiments: Int, mining: Int) {
+    def isEmpty: Boolean = experiments == 0 && mining == 0
+  }
 
   def props(api: Api, resultDatabase: JobResultsDAL): Props =
     Props(new MasterRouter(api, resultDatabase, query2job))
@@ -42,6 +51,8 @@ class MasterRouter(val api: Api,
     extends Actor
     with ActorTracing
     with ActorLogging {
+
+  import MasterRouter.RequestQueuesSize
 
   // For the moment we only support one JobResult
   def createQueryResult(results: scala.collection.Seq[JobResult]): Any =
@@ -60,12 +71,13 @@ class MasterRouter(val api: Api,
                                                          JdbcConfiguration.factory(config))
 
   var experimentsActiveActors: Set[ActorRef] = Set.empty
-  val experimentsActiveActorsLimit           = WokenConfig.app.masterRouterConfig.miningActorsLimit
+  val experimentsActiveActorsLimit: Int      = WokenConfig.app.masterRouterConfig.miningActorsLimit
 
   var miningActiveActors: Set[ActorRef] = Set.empty
-  val miningActiveActorsLimit           = WokenConfig.app.masterRouterConfig.experimentActorsLimit
+  val miningActiveActorsLimit: Int      = WokenConfig.app.masterRouterConfig.experimentActorsLimit
 
   def receive: PartialFunction[Any, Unit] = {
+
     case query: MethodsQuery =>
       sender ! Methods(MiningService.methods_mock.parseJson.compactPrint)
 
@@ -93,6 +105,10 @@ class MasterRouter(val api: Api,
       } else {
         sender() ! ExperimentActor.ErrorResponse("Too busy to accept new jobs.")
       }
+
+    case RequestQueuesSize =>
+      sender() ! QueuesSize(mining = miningActiveActors.size,
+                            experiments = experimentsActiveActors.size)
 
     case Terminated(a) =>
       log.debug(s"Actor terminated: $a")

@@ -20,6 +20,7 @@ import java.util.UUID
 
 import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem, Props }
 import akka.testkit.{ ImplicitSender, TestKit }
+import eu.hbp.mip.woken.api.MasterRouter.{ QueuesSize, RequestQueuesSize }
 import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.config.WokenConfig
 import eu.hbp.mip.woken.core.ExperimentActor.{ ErrorResponse, Start }
@@ -31,6 +32,7 @@ import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import spray.json.JsObject
 
 import scala.concurrent.duration._
+import scala.language.postfixOps
 
 /**
   * Validates correct implementation of the MasterRouter.
@@ -98,47 +100,102 @@ class MasterRouterTest
 
     "starts new experiments" in {
 
-      val messages = WokenConfig.app.masterRouterConfig.experimentActorsLimit
-      within(messages seconds) {
-        (1 to messages).foreach { _ =>
-          router ! ExperimentQuery(variables = Nil,
-                                   covariables = Nil,
-                                   grouping = Nil,
-                                   filters = "",
-                                   algorithms = Nil,
-                                   validations = Nil)
+      val limit = WokenConfig.app.masterRouterConfig.experimentActorsLimit
 
-        }
+      (1 to limit).foreach { _ =>
+        router ! ExperimentQuery(variables = Nil,
+                                 covariables = Nil,
+                                 grouping = Nil,
+                                 filters = "",
+                                 algorithms = Nil,
+                                 validations = Nil)
 
-        (1 to messages).foreach { _ =>
+      }
+
+      within(limit seconds) {
+
+        (1 to limit).foreach { _ =>
           expectMsgType[Start](5 seconds)
         }
 
         expectNoMsg()
-        Thread.sleep(1000)
       }
 
+      waitForEmptyQueue(router, limit)
     }
 
-    "do not starts new experiments" in {
+    "not start new experiments over the limit of concurrent experiments, then recover" in {
 
-      val messages = WokenConfig.app.masterRouterConfig.experimentActorsLimit
-      within(messages seconds) {
-        (1 to (messages + 2)).foreach { _ =>
-          router ! ExperimentQuery(variables = Nil,
-                                   covariables = Nil,
-                                   grouping = Nil,
-                                   filters = "",
-                                   algorithms = Nil,
-                                   validations = Nil)
+      val limit    = WokenConfig.app.masterRouterConfig.experimentActorsLimit
+      val overflow = limit * 2
 
+      (1 to overflow).foreach { _ =>
+        router ! ExperimentQuery(variables = Nil,
+                                 covariables = Nil,
+                                 grouping = Nil,
+                                 filters = "",
+                                 algorithms = Nil,
+                                 validations = Nil)
+
+      }
+
+      var successfulStarts = 0
+      var failures         = 0
+
+      within(overflow seconds) {
+
+        (1 to overflow).foreach { i =>
+          println(i)
+          expectMsgPF[Unit](5 seconds) {
+            case _: Start         => successfulStarts += 1
+            case _: ErrorResponse => failures += 1
+          }
         }
 
-        expectMsgType[ErrorResponse]
-        Thread.sleep(300)
+        expectNoMsg()
+        Thread.sleep(100)
       }
+
+      assert(failures > 0)
+
+      (successfulStarts + failures) shouldBe overflow
+
+      waitForEmptyQueue(router, overflow)
+
+      // Now we check that after rate limits, the actor can recover and handle new requests
+
+      (1 to limit).foreach { _ =>
+        router ! ExperimentQuery(variables = Nil,
+                                 covariables = Nil,
+                                 grouping = Nil,
+                                 filters = "",
+                                 algorithms = Nil,
+                                 validations = Nil)
+
+      }
+
+      within(limit seconds) {
+
+        (1 to limit).foreach { _ =>
+          expectMsgType[Start](5 seconds)
+        }
+
+        expectNoMsg()
+      }
+
+      waitForEmptyQueue(router, limit)
 
     }
 
   }
+
+  private def waitForEmptyQueue(router: ActorRef, limit: Int): Unit =
+    awaitAssert({
+      router ! RequestQueuesSize
+      val queues = expectMsgType[QueuesSize](5 seconds)
+      println(queues)
+      queues.isEmpty shouldBe true
+
+    }, max = limit seconds, interval = 200.millis)
+
 }
