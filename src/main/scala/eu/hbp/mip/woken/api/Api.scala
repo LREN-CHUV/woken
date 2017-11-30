@@ -31,7 +31,7 @@ trait Api extends HttpService with CoreActors with Core {
 
   protected implicit val system: ActorSystem
 
-  val mining_service =
+  lazy val mining_service =
     new MiningService(chronosHttp, ResultDatabaseConfig.dal, LdsmDatabaseConfig.dal)
 
   val routes: Route = new SwaggerService().routes ~

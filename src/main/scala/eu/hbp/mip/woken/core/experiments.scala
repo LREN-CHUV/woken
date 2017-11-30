@@ -84,7 +84,7 @@ object ExperimentActor {
   }
 
   def props(coordinatorConfig: CoordinatorConfig): Props =
-    Props(classOf[ExperimentActor], coordinatorConfig)
+    Props(new ExperimentActor(coordinatorConfig))
 
   import JobResult._
 
