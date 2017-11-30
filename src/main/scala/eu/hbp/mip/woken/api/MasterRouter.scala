@@ -20,7 +20,7 @@ import akka.actor.{ Actor, ActorLogging, ActorRef, Props, Terminated }
 import akka.routing.{ ActorRefRoutee, RoundRobinRoutingLogic, Router }
 import spray.json._
 import eu.hbp.mip.woken.messages.external._
-import eu.hbp.mip.woken.core.{ CoordinatorActor, CoordinatorConfig, CoreActors, ExperimentActor }
+import eu.hbp.mip.woken.core.{ CoordinatorActor, CoordinatorConfig, ExperimentActor }
 import eu.hbp.mip.woken.core.model.JobResult
 import FunctionsInOut._
 import com.github.levkhomich.akka.tracing.ActorTracing
