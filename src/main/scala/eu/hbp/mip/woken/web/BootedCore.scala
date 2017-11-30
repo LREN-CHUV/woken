@@ -18,10 +18,10 @@ package eu.hbp.mip.woken.web
 
 import scala.concurrent.duration._
 import akka.actor.{
-  Actor,
   ActorRef,
   ActorRefFactory,
   ActorSystem,
+  Address,
   ExtendedActorSystem,
   Extension,
   ExtensionKey,
@@ -38,7 +38,7 @@ import eu.hbp.mip.woken.config.WokenConfig.app
 import eu.hbp.mip.woken.core.validation.ValidationPoolManager
 
 class RemoteAddressExtensionImpl(system: ExtendedActorSystem) extends Extension {
-  def getAddress() =
+  def getAddress: Address =
     system.provider.getDefaultAddress
 }
 object RemoteAddressExtension extends ExtensionKey[RemoteAddressExtensionImpl]
@@ -62,7 +62,7 @@ trait BootedCore extends Core with CoreActors with Api with StaticResources {
     * Create and start our service actor
     */
   val rootService: ActorRef =
-    system.actorOf(Props(classOf[RoutedHttpService], routes ~ staticResources), app.jobServiceName)
+    system.actorOf(Props(new RoutedHttpService(routes ~ staticResources)), app.jobServiceName)
 
   /**
     * Create and start actor that acts as akka entry-point
@@ -75,7 +75,7 @@ trait BootedCore extends Core with CoreActors with Api with StaticResources {
     */
   val validationRegisterActor: ActorRef = system.actorOf(Props[ValidationPoolManager])
 
-  implicit val timeout = Timeout(5.seconds)
+  implicit val timeout: Timeout = Timeout(5.seconds)
 
   // start a new HTTP server on port 8080 with our service actor as the handler
   IO(Http)(system) ! Http.Bind(rootService, interface = app.interface, port = app.port)

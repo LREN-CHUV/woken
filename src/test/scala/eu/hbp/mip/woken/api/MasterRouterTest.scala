@@ -101,12 +101,12 @@ class MasterRouterTest
       val messages = WokenConfig.app.masterRouterConfig.experimentActorsLimit
       within(messages seconds) {
         (1 to messages).foreach { _ =>
-          router ! ExperimentQuery(variables = Seq.empty,
-                                   covariables = Seq.empty,
-                                   grouping = Seq.empty,
+          router ! ExperimentQuery(variables = Nil,
+                                   covariables = Nil,
+                                   grouping = Nil,
                                    filters = "",
-                                   algorithms = Seq.empty,
-                                   validations = Seq.empty)
+                                   algorithms = Nil,
+                                   validations = Nil)
 
         }
 
@@ -125,12 +125,12 @@ class MasterRouterTest
       val messages = WokenConfig.app.masterRouterConfig.experimentActorsLimit
       within(messages seconds) {
         (1 to (messages + 2)).foreach { _ =>
-          router ! ExperimentQuery(variables = Seq.empty,
-                                   covariables = Seq.empty,
-                                   grouping = Seq.empty,
+          router ! ExperimentQuery(variables = Nil,
+                                   covariables = Nil,
+                                   grouping = Nil,
                                    filters = "",
-                                   algorithms = Seq.empty,
-                                   validations = Seq.empty)
+                                   algorithms = Nil,
+                                   validations = Nil)
 
         }
 

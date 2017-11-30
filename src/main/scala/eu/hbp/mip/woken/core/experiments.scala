@@ -288,7 +288,7 @@ object AlgorithmActor {
   case class ErrorResponse(algorithm: Algorithm, message: String)
 
   def props(coordinatorConfig: CoordinatorConfig): Props =
-    Props(classOf[AlgorithmActor], coordinatorConfig)
+    Props(new AlgorithmActor(coordinatorConfig))
 
   def actorName(job: Job): String =
     s"AlgorithmActor_job_${job.jobId}_algo_${job.query.algorithm.code}"
@@ -501,7 +501,7 @@ object CrossValidationActor {
   case class ErrorResponse(validation: ApiValidation, message: String)
 
   def props(coordinatorConfig: CoordinatorConfig): Props =
-    Props(classOf[CrossValidationActor], coordinatorConfig)
+    Props(new CrossValidationActor(coordinatorConfig))
 
   def actorName(job: Job): String =
     s"CrossValidationActor_job_${job.jobId}_algo_${job.query.algorithm.code}"

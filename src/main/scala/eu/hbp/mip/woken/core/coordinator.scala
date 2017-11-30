@@ -80,13 +80,14 @@ object CoordinatorActor {
 
   def props(coordinatorConfig: CoordinatorConfig): Props =
     Props(
-      classOf[CoordinatorActor],
-      coordinatorConfig.chronosService,
-      coordinatorConfig.resultDatabase,
-      coordinatorConfig.jobResultsFactory,
-      coordinatorConfig.dockerBridgeNetwork,
-      coordinatorConfig.jobsConf,
-      coordinatorConfig.jdbcConfF
+      new CoordinatorActor(
+        coordinatorConfig.chronosService,
+        coordinatorConfig.resultDatabase,
+        coordinatorConfig.jobResultsFactory,
+        coordinatorConfig.dockerBridgeNetwork,
+        coordinatorConfig.jobsConf,
+        coordinatorConfig.jdbcConfF
+      )
     )
 
   def actorName(job: DockerJob): String =

@@ -114,6 +114,5 @@ class ChronosJobTest extends FlatSpec with Matchers {
         |"schedule":"R0/2017-11-29T23:13:40.989Z/PT1M","scheduleTimeZone":""}]
       """.stripMargin
 
-
   }
 }
