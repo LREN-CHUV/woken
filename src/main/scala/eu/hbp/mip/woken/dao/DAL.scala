@@ -74,8 +74,10 @@ class LdsmDAL(jdbcDriver: String,
               table: String)
     extends DAL {
 
-  Class.forName(jdbcDriver)
-  val ldsmConnection: Connection = DriverManager.getConnection(jdbcUrl, jdbcUser, jdbcPassword)
+  lazy val ldsmConnection: Connection = {
+    Class.forName(jdbcDriver)
+    DriverManager.getConnection(jdbcUrl, jdbcUser, jdbcPassword)
+  }
 
   case class ColumnMeta(index: Int, label: String, datatype: String)
 

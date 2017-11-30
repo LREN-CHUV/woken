@@ -31,6 +31,16 @@ object WokenConfig {
     val port: Int                           = appConf.getInt("port")
     val jobServiceName: String              = appConf.getString("jobServiceName")
 
+    case class MasterRouterConfig(miningActorsLimit: Int, experimentActorsLimit: Int)
+
+    def masterRouterConfig: MasterRouterConfig = {
+      val conf: Config = appConf.getConfig("master.router.actors")
+      MasterRouterConfig(
+        miningActorsLimit = conf.getInt("mining.limit"),
+        experimentActorsLimit = conf.getInt("experiment.limit")
+      )
+    }
+
   }
 
   case class JobServerConf(jobsUrl: String)
@@ -47,10 +57,12 @@ object WokenConfig {
     val nodesConf: Option[Config]    = jobsConf.getConfigOption("nodes")
 
     import scala.collection.JavaConversions._
+
     def nodes: Set[String] =
       nodesConf.fold(Set[String]())(
         c => c.entrySet().map(_.getKey.takeWhile(_ != '.'))(collection.breakOut)
       )
+
     def nodeConfig(node: String): JobServerConf =
       JobServerConf(nodesConf.get.getConfig(node).getString("jobsUrl"))
   }
@@ -76,11 +88,15 @@ object WokenConfig {
     val defaultSettingsConf: Config = config.getConfig("defaultSettings")
     lazy val requestConfig: Config  = defaultSettingsConf.getConfig("request")
     lazy val mainTable: String      = requestConfig.getString("mainTable")
+
     def dockerImage(plot: String): String =
       requestConfig.getConfig("functions").getConfig(plot).getString("image")
+
     def isPredictive(plot: String): Boolean =
       requestConfig.getConfig("functions").getConfig(plot).getBoolean("predictive")
+
     val defaultDb: String     = requestConfig.getString("inDb")
     val defaultMetaDb: String = requestConfig.getString("metaDb")
   }
+
 }
