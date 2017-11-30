@@ -134,11 +134,7 @@ class MasterRouterTest
 
         }
 
-        (1 to messages).foreach { _ =>
-          expectMsgType[Start]
-        }
         expectMsgType[ErrorResponse]
-        expectNoMsg()
         Thread.sleep(300)
       }
 

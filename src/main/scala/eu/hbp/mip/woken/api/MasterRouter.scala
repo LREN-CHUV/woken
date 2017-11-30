@@ -84,7 +84,7 @@ class MasterRouter(val api: Api,
       }
 
     case query: ExperimentQuery =>
-      log.info(s"Received message: $query")
+      log.debug(s"Received message: $query")
       if (experimentsActiveActors.size <= experimentsActiveActorsLimit) {
         val experimentActorRef = api.mining_service.newExperimentActor(coordinatorConfig)
         experimentActorRef.tell(ExperimentActor.Start(query2jobF(query)), sender())
@@ -95,10 +95,10 @@ class MasterRouter(val api: Api,
       }
 
     case Terminated(a) =>
-      log.info(s"Actor terminated: $a")
+      log.debug(s"Actor terminated: $a")
       miningActiveActors -= a
       experimentsActiveActors -= a
-      log.info(s"Experiments active: ${experimentsActiveActors.size}")
+      log.debug(s"Experiments active: ${experimentsActiveActors.size}")
 
     case _ => // ignore
   }
