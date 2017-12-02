@@ -30,6 +30,8 @@ object WokenConfig {
     val interface: String                   = appConf.getString("interface")
     val port: Int                           = appConf.getInt("port")
     val jobServiceName: String              = appConf.getString("jobServiceName")
+    val basicAuthUsername: String           = appConf.getString("basicAuth.username")
+    val basicAuthPassword: String           = appConf.getString("basicAuth.password")
 
     case class MasterRouterConfig(miningActorsLimit: Int, experimentActorsLimit: Int)
 

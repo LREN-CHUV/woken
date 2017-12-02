@@ -20,7 +20,6 @@ import javax.ws.rs.Path
 
 import com.wordnik.swagger.annotations.{ Api => SwaggerApi, _ }
 import spray.routing._
-
 import eu.hbp.mip.woken.core.CoordinatorActor.Result
 import eu.hbp.mip.woken.core.CoordinatorActor.{ Result => ExperimentResult }
 
@@ -52,10 +51,13 @@ trait MiningServiceApi extends Directives {
   @ApiResponses(
     Array(
       new ApiResponse(code = 201, message = "Mining job initialized", response = classOf[Result]),
+      new ApiResponse(code = 401, message = "Authentication required.", response = classOf[String]),
+      new ApiResponse(code = 403, message = "Authentication failed.", response = classOf[String]),
       new ApiResponse(code = 405, message = "Invalid mining job", response = classOf[String]),
       new ApiResponse(code = 500, message = "Internal server error", response = classOf[String])
     )
   )
+  @Authorization(value = "BasicAuth")
   def mining: Route
 
   @Path("/experiment")
@@ -80,10 +82,13 @@ trait MiningServiceApi extends Directives {
       new ApiResponse(code = 201,
                       message = "Experiment initialized",
                       response = classOf[ExperimentResult]),
+      new ApiResponse(code = 401, message = "Authentication required.", response = classOf[String]),
+      new ApiResponse(code = 403, message = "Authentication failed.", response = classOf[String]),
       new ApiResponse(code = 405, message = "Invalid Experiment", response = classOf[String]),
       new ApiResponse(code = 500, message = "Internal server error", response = classOf[String])
     )
   )
+  @Authorization(value = "BasicAuth")
   def experiment: Route
 
   @Path("/list-methods")
@@ -100,9 +105,12 @@ trait MiningServiceApi extends Directives {
       new ApiResponse(code = 201,
                       message = "Experiment initialized",
                       response = classOf[spray.json.JsObject]),
+      new ApiResponse(code = 401, message = "Authentication required.", response = classOf[String]),
+      new ApiResponse(code = 403, message = "Authentication failed.", response = classOf[String]),
       new ApiResponse(code = 404, message = "Not Found", response = classOf[String]),
       new ApiResponse(code = 500, message = "Internal server error", response = classOf[String])
     )
   )
+  @Authorization(value = "BasicAuth")
   def listMethods: Route
 }
