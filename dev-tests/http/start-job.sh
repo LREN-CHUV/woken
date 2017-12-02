@@ -6,7 +6,7 @@ if [ -z "$id" ]; then
   id=$(date +'%s')
 fi
 
-http -v --timeout 180 POST localhost:8087/job \
+http -v -a admin:WoKeN --timeout 180 POST localhost:8087/job \
          jobId="$id" \
          dockerImage="registry.federation.mip.hbp/mip_node/r-summary-stats:latest" \
          inputDb=ldsm \
