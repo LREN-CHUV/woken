@@ -21,6 +21,15 @@ import eu.hbp.mip.woken.cromwell.core.ConfigUtil._
 import cats.data.Validated._
 import cats.implicits._
 
+/**
+  * Configuration for the jobs executing algorithms on this node
+  *
+  * @param node Name of the current node used for computations
+  * @param owner Owner of the job, can be an email address
+  * @param chronosServerUrl URL to Chronos server used to launch Docker containers in the Mesos cluster
+  * @param featuresDb Configuration alias of the database containing features
+  * @param resultDb Configuration alias of the database used to store results
+  */
 final case class JobsConfiguration(
     node: String,
     owner: String,

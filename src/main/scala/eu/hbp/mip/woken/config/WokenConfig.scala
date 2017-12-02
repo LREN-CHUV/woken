@@ -47,6 +47,7 @@ object WokenConfig {
 
   case class JobServerConf(jobsUrl: String)
 
+  @deprecated
   object jobs {
     val jobsConf: Config = config.getConfig("jobs")
 

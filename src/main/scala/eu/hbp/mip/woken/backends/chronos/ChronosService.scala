@@ -16,11 +16,13 @@
 
 package eu.hbp.mip.woken.backends.chronos
 
-import akka.actor.{ Actor, ActorLogging, ActorSystem, Status }
+import akka.actor.{ Actor, ActorLogging, ActorSystem, Props, Status }
 import akka.io.IO
 import akka.pattern.{ AskTimeoutException, ask, pipe }
 import akka.util.Timeout
 import com.github.levkhomich.akka.tracing.ActorTracing
+import eu.hbp.mip.woken.config.JobsConfiguration
+import eu.hbp.mip.woken.core.{ CoordinatorConfig, ExperimentActor }
 import spray.can.Http
 import spray.http.{ HttpResponse, StatusCode, StatusCodes }
 import spray.httpx.RequestBuilding._
@@ -38,11 +40,17 @@ object ChronosService {
   val Ok = eu.hbp.mip.woken.core.Ok
   type Error = eu.hbp.mip.woken.core.Error
   val Error = eu.hbp.mip.woken.core.Error
+
+  def props(jobsConfig: JobsConfiguration): Props =
+    Props(new ChronosService(jobsConfig))
+
 }
 
-class ChronosService extends Actor with ActorLogging with ActorTracing {
+class ChronosService(jobsConfig: JobsConfiguration)
+    extends Actor
+    with ActorLogging
+    with ActorTracing {
   import ChronosService._
-  import eu.hbp.mip.woken.config.WokenConfig.jobs._
 
   def receive: PartialFunction[Any, Unit] = {
 
@@ -57,7 +65,7 @@ class ChronosService extends Actor with ActorLogging with ActorTracing {
       log.info(s"Send job to Chronos: ${PrettyPrinter(chronosJobFormat.write(job))}")
 
       val originalSender = sender()
-      val postUrl        = chronosServerUrl + "/v1/scheduler/iso8601"
+      val postUrl        = jobsConfig.chronosServerUrl + "/v1/scheduler/iso8601"
       val chronosResponse: Future[_] =
         IO(Http) ? Post(postUrl, job)
 
@@ -98,7 +106,7 @@ class ChronosService extends Actor with ActorLogging with ActorTracing {
       implicit val timeout: Timeout                           = Timeout(30.seconds)
 
       val originalSender = sender()
-      val postUrl        = s"$chronosServerUrl/v1/scheduler/jobs/search?name=${job.name}"
+      val postUrl        = s"${jobsConfig.chronosServerUrl}/v1/scheduler/jobs/search?name=${job.name}"
       val chronosResponse: Future[_] =
         IO(Http) ? Post(postUrl)
 
