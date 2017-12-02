@@ -16,15 +16,18 @@
 
 package eu.hbp.mip.woken.api
 
+import java.time.OffsetDateTime
+
 import org.yaml.snakeyaml.{ Yaml => YamlParser }
 import spray.json._
 import eu.hbp.mip.woken.messages.external.{ Operators, _ }
 import eu.hbp.mip.woken.core.Error
-import eu.hbp.mip.woken.core.model.JobResult
+import eu.hbp.mip.woken.json.formats
 
 object ApiJsonSupport extends DefaultJsonProtocol {
 
-  implicit val offsetDateTimeJsonFormat = JobResult.OffsetDateTimeJsonFormat
+  implicit val offsetDateTimeJsonFormat: RootJsonFormat[OffsetDateTime] =
+    formats.OffsetDateTimeJsonFormat
 
   implicit val variableIdJsonFormat: JsonFormat[VariableId] = jsonFormat1(VariableId)
   implicit val algorithmJsonFormat: JsonFormat[Algorithm]   = AlgorithmJsonFormat
