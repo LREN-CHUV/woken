@@ -18,6 +18,7 @@ package eu.hbp.mip.woken.api
 
 import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem }
 import com.typesafe.config.ConfigFactory
+import eu.hbp.mip.woken.authentication.BasicAuthentication
 import eu.hbp.mip.woken.config.{ JdbcConfiguration, JobsConfiguration, WokenConfig }
 import spray.http.MediaTypes._
 import spray.http._
@@ -25,6 +26,7 @@ import spray.routing.Route
 import eu.hbp.mip.woken.messages.external._
 import eu.hbp.mip.woken.core._
 import eu.hbp.mip.woken.dao.{ JobResultsDAL, LdsmDAL }
+import spray.routing.authentication.BasicAuth
 
 object MiningService {
 
@@ -371,7 +373,8 @@ class MiningService(val chronosService: ActorRef,
                     val ldsmDatabase: LdsmDAL)(implicit system: ActorSystem)
     extends MiningServiceApi
     with PerRequestCreator
-    with DefaultJsonFormats {
+    with DefaultJsonFormats
+    with BasicAuthentication {
 
   override def context: ActorRefFactory = system
 
@@ -396,47 +399,56 @@ class MiningService(val chronosService: ActorRef,
                                                          jobsConf,
                                                          JdbcConfiguration.factory(config))
 
+  implicit val executionContext = context.dispatcher
+
   override def listMethods: Route = path("mining" / "list-methods") {
+    authenticate(basicAuthenticator) { user =>
+      import spray.json._
 
-    import spray.json._
-
-    get {
-      respondWithMediaType(`application/json`) {
-        complete(MiningService.methods_mock.parseJson.compactPrint)
+      get {
+        respondWithMediaType(`application/json`) {
+          complete(MiningService.methods_mock.parseJson.compactPrint)
+        }
       }
     }
   }
 
   override def mining: Route = path("mining" / "job") {
-    import FunctionsInOut._
+    authenticate(basicAuthenticator) { user =>
+      import FunctionsInOut._
 
-    post {
-      entity(as[MiningQuery]) {
-        case MiningQuery(variables, covariables, groups, _, Algorithm(c, n, p))
-            if c == "" || c == "data" =>
-          ctx =>
-            ctx.complete(
-              ldsmDatabase.queryData({ variables ++ covariables ++ groups }.distinct.map(_.code))
-            )
+      post {
+        entity(as[MiningQuery]) {
+          case MiningQuery(variables, covariables, groups, _, Algorithm(c, n, p))
+              if c == "" || c == "data" =>
+            ctx =>
+              ctx.complete(
+                ldsmDatabase.queryData({
+                  variables ++ covariables ++ groups
+                }.distinct.map(_.code))
+              )
 
-        case query: MiningQuery =>
-          val job = query2job(query)
-          miningJob(coordinatorConfig) {
-            Start(job)
-          }
+          case query: MiningQuery =>
+            val job = query2job(query)
+            miningJob(coordinatorConfig) {
+              Start(job)
+            }
+        }
       }
     }
   }
 
   override def experiment: Route = path("mining" / "experiment") {
-    import FunctionsInOut._
+    authenticate(basicAuthenticator) { user =>
+      import FunctionsInOut._
 
-    post {
-      entity(as[ExperimentQuery]) { query: ExperimentQuery =>
-        {
-          val job = query2job(query)
-          experimentJob(coordinatorConfig) {
-            ExperimentActor.Start(job)
+      post {
+        entity(as[ExperimentQuery]) { query: ExperimentQuery =>
+          {
+            val job = query2job(query)
+            experimentJob(coordinatorConfig) {
+              ExperimentActor.Start(job)
+            }
           }
         }
       }
