@@ -36,6 +36,7 @@ import eu.hbp.mip.woken.config.ResultDatabaseConfig
 import eu.hbp.mip.woken.core.{ Core, CoreActors }
 import eu.hbp.mip.woken.config.WokenConfig.app
 import eu.hbp.mip.woken.core.validation.ValidationPoolManager
+import eu.hbp.mip.woken.ssl.WokenSSLConfiguration
 
 class RemoteAddressExtensionImpl(system: ExtendedActorSystem) extends Extension {
   def getAddress: Address =
@@ -47,7 +48,12 @@ object RemoteAddressExtension extends ExtensionKey[RemoteAddressExtensionImpl]
   * This trait implements ``Core`` by starting the required ``ActorSystem`` and registering the
   * termination handler to stop the system when the JVM exits.
   */
-trait BootedCore extends Core with CoreActors with Api with StaticResources {
+trait BootedCore
+    extends Core
+    with CoreActors
+    with Api
+    with StaticResources
+    with WokenSSLConfiguration {
 
   /**
     * Construct the ActorSystem we will use in our application
