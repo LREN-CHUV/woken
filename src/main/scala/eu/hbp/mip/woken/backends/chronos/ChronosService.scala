@@ -36,9 +36,9 @@ object ChronosService {
   case class Check(jobId: String, job: ChronosJob)
 
   // Responses for Schedule
-  val Ok = eu.hbp.mip.woken.core.Ok
-  type Error = eu.hbp.mip.woken.core.Error
-  val Error = eu.hbp.mip.woken.core.Error
+  sealed trait ScheduleResponse
+  object Ok                         extends ScheduleResponse
+  case class Error(message: String) extends ScheduleResponse
 
   // Responses for Check
   sealed trait JobLivelinessResponse
@@ -130,7 +130,7 @@ class ChronosService(jobsConfig: JobsConfiguration)
                 // TODO: parse json, find if job executed, on error...
                 val liveliness = response.convertTo[List[ChronosJobLiveliness]].headOption
 
-                val status = liveliness match {
+                val status: JobLivelinessResponse = liveliness match {
                   case None => JobNotFound(jobId)
                   case Some(ChronosJobLiveliness(_, successCount, _, _, _, _, _, true))
                       if successCount > 0 =>
@@ -142,7 +142,7 @@ class ChronosService(jobsConfig: JobsConfiguration)
                   case Some(ChronosJobLiveliness(_, _, _, _, _, _, _, false)) => JobQueued(jobId)
                   case Some(l: ChronosJobLiveliness)                          => JobUnknownStatus(jobId, l.toString)
                 }
-                sender() ! status
+                status
 
               case _ =>
                 log.warning(

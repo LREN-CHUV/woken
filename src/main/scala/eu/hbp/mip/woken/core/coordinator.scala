@@ -66,6 +66,7 @@ object CoordinatorActor {
   type Result = eu.hbp.mip.woken.core.model.JobResult
   val Result = eu.hbp.mip.woken.core.model.JobResult
 
+  // TODO: duplicates Error class
   case class ErrorResponse(message: String) extends RestMessage {
     import spray.httpx.SprayJsonSupport._
     import spray.json.DefaultJsonProtocol._
@@ -207,22 +208,22 @@ class CoordinatorActor(
   // Process the response to the POST request sent to Chronos
   when(SubmittedJobToChronos) {
 
-    case Event(Ok, data: PartialLocalData) =>
+    case Event(ChronosService.Ok, data: PartialLocalData) =>
       log.info(s"Job ${data.job.jobId} posted to Chronos")
       goto(RequestFinalResult) using data
 
-    case Event(e: Error, data: PartialLocalData) =>
+    case Event(e: ChronosService.Error, data: PartialLocalData) =>
       val msg =
         s"Cannot complete job ${data.job.jobId} using ${data.job.dockerImage}, received error: ${e.message}"
       log.error(msg)
-      data.replyTo ! Error(msg)
+      data.replyTo ! ErrorResponse(msg)
       stop(Failure(msg))
 
     case Event(_: Timeout @unchecked, data: PartialLocalData) =>
       val msg =
         s"Cannot complete job ${data.job.jobId} using ${data.job.dockerImage}, timeout while connecting to Chronos"
       log.error(msg)
-      data.replyTo ! Error(msg)
+      data.replyTo ! ErrorResponse(msg)
       stop(Failure(msg))
   }
 
@@ -235,7 +236,7 @@ class CoordinatorActor(
         val msg =
           s"Cannot complete job ${data.job.jobId} using ${data.job.dockerImage}, job timed out"
         log.error(msg)
-        data.replyTo ! Error(msg)
+        data.replyTo ! ErrorResponse(msg)
         stop(Failure(msg))
       } else {
         self ! CheckDb
@@ -290,24 +291,30 @@ class CoordinatorActor(
 
     case Event(ChronosService.JobNotFound(jobId), data: PartialLocalData) =>
       if (jobId != data.job.jobId) {
-        log.warning(s"Chronos returned job not found for job #$jobId, but was expecting job #{data.job.jobId}")
+        log.warning(
+          s"Chronos returned job not found for job #$jobId, but was expecting job #{data.job.jobId}"
+        )
       }
       val msg =
         s"Chronos lost track of job ${data.job.jobId} using ${data.job.dockerImage}, it may have been stopped manually"
       log.error(msg)
-      data.replyTo ! Error(msg)
+      data.replyTo ! ErrorResponse(msg)
       stop(Failure(msg))
 
     case Event(ChronosService.JobQueued(jobId), data: PartialLocalData) =>
       if (jobId != data.job.jobId) {
-        log.warning(s"Chronos returned job not found for job #$jobId, but was expecting job #{data.job.jobId}")
+        log.warning(
+          s"Chronos returned job not found for job #$jobId, but was expecting job #{data.job.jobId}"
+        )
       }
       // Nothing more to do, wait
       stay() forMax repeatDuration
 
     case Event(ChronosService.JobUnknownStatus(jobId, status), data: PartialLocalData) =>
       if (jobId != data.job.jobId) {
-        log.warning(s"Chronos returned job not found for job #$jobId, but was expecting job #{data.job.jobId}")
+        log.warning(
+          s"Chronos returned job not found for job #$jobId, but was expecting job #{data.job.jobId}"
+        )
       }
       log.warning(
         s"Chronos reported status $status for job ${data.job.jobId} using ${data.job.dockerImage}"
@@ -317,7 +324,9 @@ class CoordinatorActor(
 
     case Event(ChronosService.ChronosUnresponsive(jobId, error), data: PartialLocalData) =>
       if (jobId != data.job.jobId) {
-        log.warning(s"Chronos returned job not found for job #$jobId, but was expecting job #{data.job.jobId}")
+        log.warning(
+          s"Chronos returned job not found for job #$jobId, but was expecting job #{data.job.jobId}"
+        )
       }
       log.warning(
         s"Chronos appear unresponsive with error $error while checking job ${data.job.jobId} using ${data.job.dockerImage}"
@@ -335,7 +344,7 @@ class CoordinatorActor(
         val msg =
           s"Cannot complete job ${data.job.jobId} using ${data.job.dockerImage}, time out while waiting for job results"
         log.error(msg)
-        data.replyTo ! Error(msg)
+        data.replyTo ! ErrorResponse(msg)
         stop(Failure(msg))
       } else {
         self ! CheckDb
