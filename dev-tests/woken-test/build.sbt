@@ -46,7 +46,7 @@ lazy val library =
       val log4j         = "2.9.1"
       val disruptor     = "3.3.7"
       val config        = "1.2.1"
-      val wokenMessages = "2.0.10"
+      val wokenMessages = "2.0.11"
     }
     val scalaCheck: ModuleID   = "org.scalacheck"    %% "scalacheck"   % Version.scalaCheck
     val scalaTest: ModuleID    = "org.scalatest"     %% "scalatest"    % Version.scalaTest

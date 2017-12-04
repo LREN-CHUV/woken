@@ -54,7 +54,7 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
     val future = api ? MiningQuery(
       List(VariableId("cognitive_task2")),
       List(VariableId("score_math_course1")),
-      Seq.empty[VariableId],
+      Nil,
       "",
       Algorithm("knn",
                 "K-nearest neighbors with k=5",
@@ -133,7 +133,7 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
     ExperimentQuery(
       List(VariableId("cognitive_task2")),
       List(VariableId("score_test1"), VariableId("college_math")),
-      Seq.empty[VariableId],
+      Nil,
       "",
       List(Algorithm(algorithm, description, parameters)),
       List(Validation("kfold", "kfold", Map("k" -> "2")))
