@@ -32,7 +32,7 @@ import scala.util.Try
 
 class WokenAkkaAPITest extends FlatSpec with Matchers {
 
-  implicit val timeout: Timeout = Timeout(60 seconds)
+  implicit val timeout: Timeout = Timeout(120 seconds)
   val system = ActorSystem("woken-test")
 
   // Test methods query
@@ -157,7 +157,7 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
       List(Validation("kfold", "kfold", Map("k" -> "2")))
     )
 
-  private def waitFor[T](future: Future[Any]): Try[T] = {
+  private def waitFor[T](future: Future[Any])(implicit timeout: Timeout): Try[T] = {
     Try {
       Await.result(future, timeout.duration).asInstanceOf[T]
     }

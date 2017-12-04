@@ -26,7 +26,7 @@ import eu.hbp.mip.woken.config._
 import eu.hbp.mip.woken.core.ExperimentActor.{ ErrorResponse, Start }
 import eu.hbp.mip.woken.core.{ CoordinatorConfig, ExperimentActor }
 import eu.hbp.mip.woken.core.model.JobResult
-import eu.hbp.mip.woken.dao.{ FeaturesDAL, JobResultsDAL, NodeDAL }
+import eu.hbp.mip.woken.dao.{ FeaturesDAL, JobResultsDAL }
 import eu.hbp.mip.woken.messages.external._
 import FunctionsInOut._
 import com.typesafe.config.{ Config, ConfigFactory }

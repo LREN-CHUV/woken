@@ -378,6 +378,19 @@ class CoordinatorActor(
 
   onTransition(transitions)
 
+  onTermination {
+    // TODO: all jobs should be cleaned from Chronos after completion, but we keep the success for now for reporting
+    //case StopEvent(FSM.Normal, RequestFinalResult | ExpectFinalResult, data) => chronosService ! ChronosService.Cleanup(data.chronosJob)
+    case StopEvent(FSM.Shutdown, _, data: PartialLocalData) =>
+      chronosService ! ChronosService.Cleanup(data.chronosJob)
+    case StopEvent(FSM.Shutdown, _, data: ExpectedLocalData) =>
+      chronosService ! ChronosService.Cleanup(data.chronosJob)
+    case StopEvent(FSM.Failure(_), RequestFinalResult, data: PartialLocalData) =>
+      chronosService ! ChronosService.Cleanup(data.chronosJob)
+    case StopEvent(FSM.Failure(_), ExpectFinalResult, data: ExpectedLocalData) =>
+      chronosService ! ChronosService.Cleanup(data.chronosJob)
+  }
+
   initialize()
 }
 

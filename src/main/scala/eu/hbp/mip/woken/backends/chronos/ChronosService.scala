@@ -34,6 +34,7 @@ object ChronosService {
   // Requests
   case class Schedule(job: ChronosJob)
   case class Check(jobId: String, job: ChronosJob)
+  case class Cleanup(job: ChronosJob)
 
   // Responses for Schedule
   sealed trait ScheduleResponse
@@ -72,9 +73,9 @@ class ChronosService(jobsConfig: JobsConfiguration)
       log.info(s"Send job to Chronos: ${PrettyPrinter(chronosJobFormat.write(job))}")
 
       val originalSender = sender()
-      val postUrl        = jobsConfig.chronosServerUrl + "/v1/scheduler/iso8601"
+      val url            = jobsConfig.chronosServerUrl + "/v1/scheduler/iso8601"
       val chronosResponse: Future[_] =
-        IO(Http) ? Post(postUrl, job)
+        IO(Http) ? Post(url, job)
 
       chronosResponse
         .map {
@@ -84,25 +85,25 @@ class ChronosService(jobsConfig: JobsConfiguration)
               case _: StatusCodes.Success => Ok
               case _ =>
                 log.warning(
-                  s"Post schedule to Chronos on $postUrl returned error $statusCode: ${entity.asString}"
+                  s"Post schedule to Chronos on $url returned error $statusCode: ${entity.asString}"
                 )
                 Error(s"Error $statusCode: ${entity.asString}")
             }
 
           case f: Status.Failure =>
             log.warning(
-              s"Post schedule to Chronos on $postUrl returned error ${f.cause.getMessage}"
+              s"Post schedule to Chronos on $url returned error ${f.cause.getMessage}"
             )
             Error(f.cause.getMessage)
         }
         .recover {
 
           case _: AskTimeoutException =>
-            log.warning(s"Post schedule to Chronos on $postUrl timed out after $timeout")
+            log.warning(s"Post schedule to Chronos on $url timed out after $timeout")
             Error("Connection timeout")
 
           case e: Throwable =>
-            log.warning(s"Post schedule to Chronos on $postUrl returned an error $e")
+            log.warning(s"Post schedule to Chronos on $url returned an error $e")
             Error(e.getMessage)
 
         } pipeTo originalSender
@@ -113,9 +114,9 @@ class ChronosService(jobsConfig: JobsConfiguration)
       implicit val timeout: Timeout                           = Timeout(30.seconds)
 
       val originalSender = sender()
-      val postUrl        = s"${jobsConfig.chronosServerUrl}/v1/scheduler/jobs/search?name=${job.name}"
+      val url            = s"${jobsConfig.chronosServerUrl}/v1/scheduler/jobs/search?name=${job.name}"
       val chronosResponse: Future[_] =
-        IO(Http) ? Get(postUrl)
+        IO(Http) ? Get(url)
 
       chronosResponse
         .map {
@@ -146,28 +147,39 @@ class ChronosService(jobsConfig: JobsConfiguration)
 
               case _ =>
                 log.warning(
-                  s"Post search to Chronos on $postUrl returned error $statusCode: ${entity.asString}"
+                  s"Post search to Chronos on $url returned error $statusCode: ${entity.asString}"
                 )
                 ChronosUnresponsive(jobId, s"Error $statusCode: ${entity.asString}")
             }
 
           case f: Status.Failure =>
             log.warning(
-              s"Post search to Chronos on $postUrl returned error ${f.cause.getMessage}"
+              s"Post search to Chronos on $url returned error ${f.cause.getMessage}"
             )
             ChronosUnresponsive(jobId, f.cause.getMessage)
         }
         .recover {
 
           case _: AskTimeoutException =>
-            log.warning(s"Post search to Chronos on $postUrl timed out after $timeout")
+            log.warning(s"Post search to Chronos on $url timed out after $timeout")
             ChronosUnresponsive(jobId, "Connection timeout")
 
           case e: Throwable =>
-            log.warning(s"Post search to Chronos on $postUrl returned an error $e")
+            log.warning(s"Post search to Chronos on $url returned an error $e")
             ChronosUnresponsive(jobId, e.getMessage)
 
         } pipeTo originalSender
+
+    case Cleanup(job) =>
+      implicit val system: ActorSystem                        = context.system
+      implicit val executionContext: ExecutionContextExecutor = context.dispatcher
+      implicit val timeout: Timeout                           = Timeout(30.seconds)
+
+      val originalSender = sender()
+      val url            = s"${jobsConfig.chronosServerUrl}/v1/scheduler/jobs/${job.name}"
+      val chronosResponse: Future[_] =
+        IO(Http) ? Delete(url)
+    // We don't care about the response
 
     case e => log.error(s"Unhandled message: $e")
   }
