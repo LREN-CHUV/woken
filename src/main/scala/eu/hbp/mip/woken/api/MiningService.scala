@@ -26,7 +26,6 @@ import spray.routing.Route
 import eu.hbp.mip.woken.messages.external._
 import eu.hbp.mip.woken.core._
 import eu.hbp.mip.woken.dao.{ JobResultsDAL, LdsmDAL }
-import spray.routing.authentication.BasicAuth
 
 object MiningService {
 
@@ -378,6 +377,8 @@ class MiningService(val chronosService: ActorRef,
 
   override def context: ActorRefFactory = system
 
+  implicit val executionContext = context.dispatcher
+
   val routes: Route = mining ~ experiment ~ listMethods
 
   import ApiJsonSupport._
@@ -398,8 +399,6 @@ class MiningService(val chronosService: ActorRef,
                                                          WokenConfig.app.dockerBridgeNetwork,
                                                          jobsConf,
                                                          JdbcConfiguration.factory(config))
-
-  implicit val executionContext = context.dispatcher
 
   override def listMethods: Route = path("mining" / "list-methods") {
     authenticate(basicAuthenticator) { user =>
