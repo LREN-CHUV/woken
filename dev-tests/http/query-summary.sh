@@ -1,6 +1,6 @@
 #!/bin/bash
 
-http -v -a admin:WoKeN --timeout 180 POST localhost:8087/mining/job \
+http -v --verify=no -a admin:WoKeN --timeout 180 POST https://localhost:8087/mining/job \
          variables:='[{"code":"stress_before_test1"}]' \
          grouping:='[]' \
          covariables:='[{"code":"score_test1"}]' \
