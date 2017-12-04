@@ -71,7 +71,8 @@ services:
 
   chronos:
     image: mesosphere/chronos:v3.0.2
-    command: '--zk_hosts zookeeper:2181 --master zk://zookeeper:2181/mesos'
+    command: '--zk_hosts zookeeper:2181 --master zk://zookeeper:2181/mesos --zk_timeout 30000'
+    restart: "always"
     hostname: chronos
     ports:
       - "4400:4400"

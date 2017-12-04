@@ -239,7 +239,7 @@ class CoordinatorActor(
         stop(Failure(msg))
       } else {
         self ! CheckDb
-        if (data.pollDbCount % 5 == 0) {
+        if (data.pollDbCount % 50 == 0) {
           self ! CheckChronos
         }
         stay() forMax repeatDuration
