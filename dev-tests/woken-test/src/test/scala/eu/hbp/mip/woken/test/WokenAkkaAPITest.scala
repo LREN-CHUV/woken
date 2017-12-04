@@ -43,6 +43,10 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
 
     val result = waitFor[Methods](future)
 
+    if (!result.success) {
+      println(result)
+    }
+
     result.success.value.methods shouldNot have size 0
   }
 
@@ -63,6 +67,10 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
 
     val result = waitFor[QueryResult](future)
 
+    if (!result.success) {
+      println(result)
+    }
+
     result.success.value.data should not be empty
 
     val json = result.success.value.data.get.parseJson
@@ -81,6 +89,11 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
                                        Map("k" -> "5"))
 
     val result = waitFor[QueryResult](future)
+
+    if (!result.success) {
+      println(result)
+    }
+
     val data = result.success.value.data
 
     data should not be empty
@@ -116,6 +129,10 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
                                                  Map("k" -> "5"))
 
     val result = waitFor[QueryResult](successfulFuture)
+
+    if (!result.success) {
+      println(result)
+    }
 
     val data = result.success.value.data
 
