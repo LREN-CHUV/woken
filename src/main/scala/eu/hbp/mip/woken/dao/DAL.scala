@@ -90,7 +90,6 @@ case class FeaturesDAL(featuresDbConnection: DbConnectionConfiguration) extends 
     dbConnection.prepareStatement("SELECT setseed(0.67)").execute()
     val rs = dbConnection.prepareStatement(query).executeQuery
     dbConnection.commit()
-    dbConnection.setAutoCommit(true)
     implicit val cols = getColumnMeta(rs.getMetaData)
     (cols, getStreamOfResults(rs))
   }
