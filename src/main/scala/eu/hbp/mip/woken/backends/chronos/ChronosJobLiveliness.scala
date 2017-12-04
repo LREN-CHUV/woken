@@ -27,7 +27,8 @@ case class ChronosJobLiveliness(
     lastSuccess: Option[OffsetDateTime],
     lastError: Option[OffsetDateTime],
     softError: Boolean,
-    errorsSinceLastSuccess: Int
+    errorsSinceLastSuccess: Int,
+    disabled: Boolean
     // "schedule": "R0/2017-11-29T23:13:40.989Z/PT1M"
 )
 
@@ -38,7 +39,7 @@ object ChronosJobLiveliness extends DefaultJsonProtocol {
 
   implicit object OffsetDateTimeJsonFormat extends RootJsonFormat[Option[OffsetDateTime]] {
     override def write(x: Option[OffsetDateTime]) = throw new NotImplementedError()
-    override def read(value: JsValue) = value match {
+    override def read(value: JsValue): Option[OffsetDateTime] = value match {
       case JsString("") => None
       case JsString(x) =>
         Some(OffsetDateTime.parse(x))
@@ -47,7 +48,7 @@ object ChronosJobLiveliness extends DefaultJsonProtocol {
     }
   }
 
-  implicit val chronosJobLivelinessFormat: RootJsonFormat[ChronosJobLiveliness] = jsonFormat7(
+  implicit val chronosJobLivelinessFormat: RootJsonFormat[ChronosJobLiveliness] = jsonFormat8(
     ChronosJobLiveliness.apply
   )
 

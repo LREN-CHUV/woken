@@ -24,9 +24,9 @@ import spray.http.StatusCodes
 import spray.httpx.marshalling.ToResponseMarshaller
 
 import scala.concurrent.duration._
-import eu.hbp.mip.woken.core.CoordinatorActor.Start
 import eu.hbp.mip.woken.backends.{ DockerJob, QueryOffset }
 import eu.hbp.mip.woken.backends.chronos.ChronosService
+import eu.hbp.mip.woken.backends.chronos.ChronosService.JobLivelinessResponse
 import eu.hbp.mip.woken.backends.chronos.{ ChronosJob, JobToChronos }
 import eu.hbp.mip.woken.config.{ JdbcConfiguration, JobsConfiguration }
 import eu.hbp.mip.woken.core.model.JobResult
@@ -59,6 +59,7 @@ object CoordinatorActor {
 
   // Internal messages
   private[CoordinatorActor] object CheckDb
+  private[CoordinatorActor] object CheckChronos
 
   // Responses
 
@@ -104,9 +105,12 @@ object CoordinatorStates {
 
   case object WaitForNewJob extends State
 
-  case object PostJobToChronos extends State
+  case object SubmittedJobToChronos extends State
 
   case object RequestFinalResult extends State
+
+  /** Called when we know from Chronos that the job is complete yet results have not appeared yet in the database */
+  case object ExpectFinalResult extends State
 
   // FSM Data
 
@@ -120,28 +124,35 @@ object CoordinatorStates {
     def replyTo = throw new IllegalAccessException()
   }
 
-  case class PartialNodesData(job: DockerJob,
+  case class PartialLocalData(job: DockerJob,
+                              chronosJob: ChronosJob,
                               replyTo: ActorRef,
-                              remainingNodes: Set[String] = Set(),
-                              totalNodeCount: Int)
+                              pollDbCount: Int,
+                              timeoutTime: Long)
       extends StateData
 
-  case class PartialLocalData(job: DockerJob, replyTo: ActorRef) extends StateData
-
+  case class ExpectedLocalData(job: DockerJob,
+                               chronosJob: ChronosJob,
+                               replyTo: ActorRef,
+                               pollDbCount: Int,
+                               timeoutTime: Long)
+      extends StateData
 }
+
+// TODO: Chronos can call a callback url when a job is complete, use that functionality
 
 /**
   * The job of this Actor in our application core is to service a request to start a job and wait for the result of the calculation.
   *
   * This actor will have the responsibility of making two requests and then aggregating them together:
-  *  - One request to Chronos to start the job
-  *  - Then a separate request in the database for the results, repeated until enough results are present
+  *   - One request to Chronos to start the job
+  *   - Then a separate request in the database for the results, repeated until enough results are present
   *
-  *  _________________           ____________________                    ____________________
-  * |                 | Start   |                    | Even(Ok, data)   |                    |
-  * | WaitForNewJob   | ------> | PostJobToChronos   |----------------> | RequestFinalResult | ==> results
-  * | (Uninitialized) |         | (PartialLocalData) |                  |                    |
-  *  -----------------           --------------------                    --------------------
+  *  _________________           _______________________                   ______________________
+  * |                 | Start   |                       | Even(Ok, data)   |                    |
+  * | WaitForNewJob   | ------> | SubmittedJobToChronos |----------------> | RequestFinalResult | ==> results
+  * | (Uninitialized) |         | (PartialLocalData)    |                  | (PartialLocalData) |
+  *  -----------------           -----------------------                    --------------------
   *
   */
 class CoordinatorActor(
@@ -156,6 +167,7 @@ class CoordinatorActor(
     with ActorTracing
     with LoggingFSM[CoordinatorStates.State, CoordinatorStates.StateData] {
 
+  import CoordinatorActor._
   import CoordinatorStates._
 
   val repeatDuration: FiniteDuration = 200.milliseconds
@@ -167,11 +179,33 @@ class CoordinatorActor(
   when(WaitForNewJob) {
     case Event(Start(job), Uninitialized) =>
       val replyTo = sender()
-      log.info(s"Wait for Chronos to fulfill job ${job.jobId}, will reply to $replyTo")
-      goto(PostJobToChronos) using PartialLocalData(job, replyTo)
+
+      import ChronosService._
+      val chronosJob: Validation[ChronosJob] =
+        JobToChronos(job, dockerBridgeNetwork, jobsConf, jdbcConfF)
+
+      chronosJob.fold[State](
+        { err =>
+          val msg = err.toList.mkString
+          replyTo ! Error(msg)
+          stop(Failure(msg))
+        }, { cj =>
+          chronosService ! Schedule(cj)
+          log.info(s"Wait for Chronos to fulfill job ${job.jobId}, will reply to $replyTo")
+          goto(SubmittedJobToChronos) using PartialLocalData(
+            job,
+            chronosJob = cj,
+            replyTo,
+            0,
+            System.currentTimeMillis + 1.day.toMillis
+          )
+        }
+      )
+
   }
 
-  when(PostJobToChronos) {
+  // Process the response to the POST request sent to Chronos
+  when(SubmittedJobToChronos) {
 
     case Event(Ok, data: PartialLocalData) =>
       log.info(s"Job ${data.job.jobId} posted to Chronos")
@@ -192,9 +226,27 @@ class CoordinatorActor(
       stop(Failure(msg))
   }
 
+  // Track job status until its completion
   when(RequestFinalResult, stateTimeout = repeatDuration) {
 
+    // Handle scheduled ticks
     case Event(StateTimeout, data: PartialLocalData) =>
+      if (System.currentTimeMillis > data.timeoutTime) {
+        val msg =
+          s"Cannot complete job ${data.job.jobId} using ${data.job.dockerImage}, job timed out"
+        log.error(msg)
+        data.replyTo ! Error(msg)
+        stop(Failure(msg))
+      } else {
+        self ! CheckDb
+        if (data.pollDbCount % 5 == 0) {
+          self ! CheckChronos
+        }
+        stay() forMax repeatDuration
+      }
+
+    // Check the database for the job result; prepare the next tick or send back the response if the job completed
+    case Event(CheckDb, data: PartialLocalData) =>
       val results = resultDatabase.findJobResults(data.job.jobId)
       if (results.nonEmpty) {
         log.info(s"Received results for job ${data.job.jobId}")
@@ -202,8 +254,98 @@ class CoordinatorActor(
         log.info("Stopping...")
         stop(Normal)
       } else {
+        stay() using data.copy(pollDbCount = data.pollDbCount + 1) forMax repeatDuration
+      }
+
+    // Check Chronos for the job status; prepare the next tick
+    case Event(CheckChronos, data: PartialLocalData) =>
+      chronosService ! ChronosService.Check(data.job.jobId, data.chronosJob)
+      stay() forMax repeatDuration
+
+    // Handle Chronos responses
+    case Event(ChronosService.JobComplete(jobId, success), data: PartialLocalData) =>
+      val results = resultDatabase.findJobResults(data.job.jobId)
+      if (results.nonEmpty) {
+        log.info(s"Received results for job ${data.job.jobId}")
+        data.replyTo ! jobResultsFactory(results)
+
+        val reportedSuccess = results.foldRight(true)((res, suc) => suc && res.error.isEmpty)
+        if (reportedSuccess != success) {
+          log.warning(
+            s"Chronos reported that job ${data.job.jobId} using Docker image ${data.job.dockerImage} is ${if (!success)
+              "not "}successful, however the job results ${if (reportedSuccess) "do not "}contain an error"
+          )
+        }
+        log.info("Stopping...")
+        stop(Normal)
+      } else {
+        goto(ExpectFinalResult) using ExpectedLocalData(
+          data.job,
+          data.chronosJob,
+          data.replyTo,
+          0,
+          System.currentTimeMillis + 1.minute.toMillis
+        )
+      }
+
+    case Event(ChronosService.JobNotFound(jobId), data: PartialLocalData) =>
+      assert(jobId == data.job.jobId)
+      val msg =
+        s"Chronos lost track of job ${data.job.jobId} using ${data.job.dockerImage}, it may have been stopped manually"
+      log.error(msg)
+      data.replyTo ! Error(msg)
+      stop(Failure(msg))
+
+    case Event(ChronosService.JobQueued(jobId), data: PartialLocalData) =>
+      assert(jobId == data.job.jobId)
+      // Nothing more to do, wait
+      stay() forMax repeatDuration
+
+    case Event(ChronosService.JobUnknownStatus(jobId, status), data: PartialLocalData) =>
+      assert(jobId == data.job.jobId)
+      log.warning(
+        s"Chronos reported status $status for job ${data.job.jobId} using ${data.job.dockerImage}"
+      )
+      // Nothing more to do, wait
+      stay() forMax repeatDuration
+
+    case Event(ChronosService.ChronosUnresponsive(jobId, error), data: PartialLocalData) =>
+      assert(jobId == data.job.jobId)
+      log.warning(
+        s"Chronos appear unresponsive with error $error while checking job ${data.job.jobId} using ${data.job.dockerImage}"
+      )
+      // TODO: if Chronos is down for too long, enter panic state!
+      // Nothing more to do, wait
+      stay() forMax repeatDuration
+  }
+
+  when(ExpectFinalResult, stateTimeout = repeatDuration) {
+
+    // Handle scheduled ticks
+    case Event(StateTimeout, data: ExpectedLocalData) =>
+      if (System.currentTimeMillis > data.timeoutTime) {
+        val msg =
+          s"Cannot complete job ${data.job.jobId} using ${data.job.dockerImage}, time out while waiting for job results"
+        log.error(msg)
+        data.replyTo ! Error(msg)
+        stop(Failure(msg))
+      } else {
+        self ! CheckDb
         stay() forMax repeatDuration
       }
+
+    // Check the database for the job result; prepare the next tick or send back the response if the job completed
+    case Event(CheckDb, data: ExpectedLocalData) =>
+      val results = resultDatabase.findJobResults(data.job.jobId)
+      if (results.nonEmpty) {
+        log.info(s"Received results for job ${data.job.jobId}")
+        data.replyTo ! jobResultsFactory(results)
+        log.info("Stopping...")
+        stop(Normal)
+      } else {
+        stay() using data.copy(pollDbCount = data.pollDbCount + 1) forMax repeatDuration
+      }
+
   }
 
   whenUnhandled {
@@ -213,17 +355,8 @@ class CoordinatorActor(
   }
 
   def transitions: TransitionHandler = {
-
-    case _ -> PostJobToChronos =>
-      import ChronosService._
-      val chronosJob: Validation[ChronosJob] =
-        JobToChronos(nextStateData.job, dockerBridgeNetwork, jobsConf, jdbcConfF)
-      chronosJob.fold[Unit]({ err =>
-        nextStateData.replyTo ! Error(err.toList.mkString)
-      }, { job =>
-        chronosService ! Schedule(job)
-      })
-
+    case SubmittedJobToChronos -> RequestFinalResult =>
+      self ! CheckDb
   }
 
   onTransition(transitions)
@@ -232,6 +365,14 @@ class CoordinatorActor(
 }
 
 /*
+
+  case class PartialNodesData(job: DockerJob,
+                              replyTo: ActorRef,
+                              remainingNodes: Set[String] = Set(),
+                              totalNodeCount: Int)
+      extends StateData
+
+
 class FederationCoordinatorActor(val chronosService: ActorRef,
                                  val resultDatabase: JobResultsDAL,
                                  val federationDatabase: JobResultsDAL,
@@ -257,7 +398,7 @@ class FederationCoordinatorActor(val chronosService: ActorRef,
         }
         goto(WaitForNodes) using PartialNodesData(job, replyTo, nodes, nodes.size)
       } else {
-        goto(PostJobToChronos) using PartialLocalData(job, replyTo)
+        goto(SubmittedJobToChronos) using PartialLocalData(job, replyTo)
       }
   }
 
@@ -292,7 +433,7 @@ class FederationCoordinatorActor(val chronosService: ActorRef,
           val parameters = Map(
             "PARAM_query" -> s"select data from job_result_nodes where job_id='${data.job.jobId}'"
           )
-          goto(PostJobToChronos) using PartialLocalData(
+          goto(SubmittedJobToChronos) using PartialLocalData(
             data.job.copy(dockerImage = federationDockerImage, parameters = parameters),
             data.replyTo
           )

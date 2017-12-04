@@ -26,6 +26,7 @@ class ChronosJobLivelinessTest extends FlatSpec with Matchers {
 
     import ChronosJobLiveliness._
     import spray.json._
+    import DefaultJsonProtocol._
 
     val response =
       """
@@ -47,7 +48,7 @@ class ChronosJobLivelinessTest extends FlatSpec with Matchers {
         |"schedule":"R0/2017-11-29T23:13:40.989Z/PT1M","scheduleTimeZone":""}]
       """.stripMargin.parseJson
 
-    val liveliness = response.asInstanceOf[JsArray].elements(0).convertTo[ChronosJobLiveliness]
+    val liveliness = response.convertTo[List[ChronosJobLiveliness]].head
 
     val expected = ChronosJobLiveliness(
       name = "java_rapidminer_knn_78be29d9_bc05_4db2_a2e0_c3de218960bc",
@@ -56,7 +57,8 @@ class ChronosJobLivelinessTest extends FlatSpec with Matchers {
       lastSuccess = Some(OffsetDateTime.parse("2017-11-29T23:13:01.724Z")),
       lastError = None,
       softError = false,
-      errorsSinceLastSuccess = 0
+      errorsSinceLastSuccess = 0,
+      disabled = true
     )
 
     liveliness shouldBe expected

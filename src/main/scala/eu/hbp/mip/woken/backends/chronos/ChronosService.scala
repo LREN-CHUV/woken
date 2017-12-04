@@ -22,7 +22,6 @@ import akka.pattern.{ AskTimeoutException, ask, pipe }
 import akka.util.Timeout
 import com.github.levkhomich.akka.tracing.ActorTracing
 import eu.hbp.mip.woken.config.JobsConfiguration
-import eu.hbp.mip.woken.core.{ CoordinatorConfig, ExperimentActor }
 import spray.can.Http
 import spray.http.{ HttpResponse, StatusCode, StatusCodes }
 import spray.httpx.RequestBuilding._
@@ -34,12 +33,20 @@ import scala.concurrent.{ ExecutionContextExecutor, Future }
 object ChronosService {
   // Requests
   case class Schedule(job: ChronosJob)
-  case class Check(job: ChronosJob)
+  case class Check(jobId: String, job: ChronosJob)
 
-  // Responses
+  // Responses for Schedule
   val Ok = eu.hbp.mip.woken.core.Ok
   type Error = eu.hbp.mip.woken.core.Error
   val Error = eu.hbp.mip.woken.core.Error
+
+  // Responses for Check
+  sealed trait JobLivelinessResponse
+  case class JobNotFound(jobId: String)                        extends JobLivelinessResponse
+  case class JobComplete(jobId: String, success: Boolean)      extends JobLivelinessResponse
+  case class JobQueued(jobId: String)                          extends JobLivelinessResponse
+  case class JobUnknownStatus(jobId: String, status: String)   extends JobLivelinessResponse
+  case class ChronosUnresponsive(jobId: String, error: String) extends JobLivelinessResponse
 
   def props(jobsConfig: JobsConfiguration): Props =
     Props(new ChronosService(jobsConfig))
@@ -100,7 +107,7 @@ class ChronosService(jobsConfig: JobsConfiguration)
 
         } pipeTo originalSender
 
-    case Check(job) =>
+    case Check(jobId, job) =>
       implicit val system: ActorSystem                        = context.system
       implicit val executionContext: ExecutionContextExecutor = context.dispatcher
       implicit val timeout: Timeout                           = Timeout(30.seconds)
@@ -116,33 +123,49 @@ class ChronosService(jobsConfig: JobsConfiguration)
           case HttpResponse(statusCode: StatusCode, entity, _, _) =>
             statusCode match {
               case _: StatusCodes.Success =>
+                import ChronosJobLiveliness._
                 import spray.json._
-                val json = entity.asString.parseJson
+                import DefaultJsonProtocol._
+                val response = entity.asString.parseJson
                 // TODO: parse json, find if job executed, on error...
-                Ok
+                val liveliness = response.convertTo[List[ChronosJobLiveliness]].headOption
+
+                val status = liveliness match {
+                  case None => JobNotFound(jobId)
+                  case Some(ChronosJobLiveliness(_, successCount, _, _, _, _, _, true))
+                      if successCount > 0 =>
+                    JobComplete(jobId, success = true)
+                  case Some(
+                      ChronosJobLiveliness(_, successCount, errorCount, _, _, softError, _, true)
+                      ) if successCount == 0 && (errorCount > 0 || softError) =>
+                    JobComplete(jobId, success = false)
+                  case Some(ChronosJobLiveliness(_, _, _, _, _, _, _, false)) => JobQueued(jobId)
+                  case Some(l: ChronosJobLiveliness)                          => JobUnknownStatus(jobId, l.toString)
+                }
+                sender() ! status
 
               case _ =>
                 log.warning(
                   s"Post search to Chronos on $postUrl returned error $statusCode: ${entity.asString}"
                 )
-                Error(s"Error $statusCode: ${entity.asString}")
+                ChronosUnresponsive(jobId, s"Error $statusCode: ${entity.asString}")
             }
 
           case f: Status.Failure =>
             log.warning(
               s"Post search to Chronos on $postUrl returned error ${f.cause.getMessage}"
             )
-            Error(f.cause.getMessage)
+            ChronosUnresponsive(jobId, f.cause.getMessage)
         }
         .recover {
 
           case _: AskTimeoutException =>
             log.warning(s"Post search to Chronos on $postUrl timed out after $timeout")
-            Error("Connection timeout")
+            ChronosUnresponsive(jobId, "Connection timeout")
 
           case e: Throwable =>
             log.warning(s"Post search to Chronos on $postUrl returned an error $e")
-            Error(e.getMessage)
+            ChronosUnresponsive(jobId, e.getMessage)
 
         } pipeTo originalSender
 

@@ -145,7 +145,6 @@ class MasterRouterTest
       within(overflow seconds) {
 
         (1 to overflow).foreach { i =>
-          println(i)
           expectMsgPF[Unit](5 seconds) {
             case _: Start         => successfulStarts += 1
             case _: ErrorResponse => failures += 1
