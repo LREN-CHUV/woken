@@ -155,7 +155,7 @@ services:
       FLYWAY_DBMS: postgresql
       FLYWAY_HOST: db
       FLYWAY_PORT: 5432
-      FLYWAY_DATABASE_NAME: analytics
+      FLYWAY_DATABASE_NAME: woken
       FLYWAY_USER: postgres
       FLYWAY_PASSWORD: test
     depends_on:
