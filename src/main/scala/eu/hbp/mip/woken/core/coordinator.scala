@@ -289,7 +289,9 @@ class CoordinatorActor(
       }
 
     case Event(ChronosService.JobNotFound(jobId), data: PartialLocalData) =>
-      assert(jobId == data.job.jobId)
+      if (jobId != data.job.jobId) {
+        log.warning(s"Chronos returned job not found for job #$jobId, but was expecting job #{data.job.jobId}")
+      }
       val msg =
         s"Chronos lost track of job ${data.job.jobId} using ${data.job.dockerImage}, it may have been stopped manually"
       log.error(msg)
@@ -297,12 +299,16 @@ class CoordinatorActor(
       stop(Failure(msg))
 
     case Event(ChronosService.JobQueued(jobId), data: PartialLocalData) =>
-      assert(jobId == data.job.jobId)
+      if (jobId != data.job.jobId) {
+        log.warning(s"Chronos returned job not found for job #$jobId, but was expecting job #{data.job.jobId}")
+      }
       // Nothing more to do, wait
       stay() forMax repeatDuration
 
     case Event(ChronosService.JobUnknownStatus(jobId, status), data: PartialLocalData) =>
-      assert(jobId == data.job.jobId)
+      if (jobId != data.job.jobId) {
+        log.warning(s"Chronos returned job not found for job #$jobId, but was expecting job #{data.job.jobId}")
+      }
       log.warning(
         s"Chronos reported status $status for job ${data.job.jobId} using ${data.job.dockerImage}"
       )
@@ -310,7 +316,9 @@ class CoordinatorActor(
       stay() forMax repeatDuration
 
     case Event(ChronosService.ChronosUnresponsive(jobId, error), data: PartialLocalData) =>
-      assert(jobId == data.job.jobId)
+      if (jobId != data.job.jobId) {
+        log.warning(s"Chronos returned job not found for job #$jobId, but was expecting job #{data.job.jobId}")
+      }
       log.warning(
         s"Chronos appear unresponsive with error $error while checking job ${data.job.jobId} using ${data.job.dockerImage}"
       )
