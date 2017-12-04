@@ -115,7 +115,7 @@ class ChronosService(jobsConfig: JobsConfiguration)
       val originalSender = sender()
       val postUrl        = s"${jobsConfig.chronosServerUrl}/v1/scheduler/jobs/search?name=${job.name}"
       val chronosResponse: Future[_] =
-        IO(Http) ? Post(postUrl)
+        IO(Http) ? Get(postUrl)
 
       chronosResponse
         .map {
