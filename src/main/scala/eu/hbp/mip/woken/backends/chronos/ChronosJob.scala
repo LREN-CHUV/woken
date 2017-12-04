@@ -154,8 +154,8 @@ case class ChronosJob(
     disabled: Boolean = false,
     owner: Option[String] = None,
     ownerName: Option[String] = None,
-    environmentVariables: List[EnvironmentVariable]
-    // retries: Int = 0,
+    environmentVariables: List[EnvironmentVariable],
+    retries: Int = 2
     // dataProcessingJobType: Boolean = false,
     // scheduleTimeZone: Option[String] = None
     // concurrent: Boolean = false,
@@ -210,6 +210,6 @@ object ChronosJob extends DefaultJsonProtocol {
     EnvironmentVariable.apply
   )
   implicit val uriFormat: RootJsonFormat[Uri]               = jsonFormat1(Uri.apply)
-  implicit val chronosJobFormat: RootJsonFormat[ChronosJob] = jsonFormat19(ChronosJob.apply)
+  implicit val chronosJobFormat: RootJsonFormat[ChronosJob] = jsonFormat20(ChronosJob.apply)
 
 }

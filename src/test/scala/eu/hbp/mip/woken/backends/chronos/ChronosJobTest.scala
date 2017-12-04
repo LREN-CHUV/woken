@@ -42,7 +42,8 @@ class ChronosJobTest extends FlatSpec with Matchers {
       cpus = Some(0.5),
       mem = Some(512),
       owner = Some("mip@chuv.ch"),
-      environmentVariables = environmentVariables
+      environmentVariables = environmentVariables,
+      retries = 0
     )
 
     import ChronosJob._
@@ -83,6 +84,7 @@ class ChronosJobTest extends FlatSpec with Matchers {
         |  "name": "hbpmip_somealgo_1",
         |  "owner": "mip@chuv.ch",
         |  "runAsUser": "root",
+        |  "retries": 0,
         |  "schedule": "R1//PT24H",
         |  "shell": false
         |}

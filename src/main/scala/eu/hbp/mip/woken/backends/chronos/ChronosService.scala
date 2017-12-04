@@ -137,7 +137,7 @@ class ChronosService(jobsConfig: JobsConfiguration)
                       if successCount > 0 =>
                     JobComplete(jobId, success = true)
                   case Some(
-                      ChronosJobLiveliness(_, successCount, errorCount, _, _, softError, _, true)
+                      ChronosJobLiveliness(_, successCount, errorCount, _, _, softError, _, _)
                       ) if successCount == 0 && (errorCount > 0 || softError) =>
                     JobComplete(jobId, success = false)
                   case Some(ChronosJobLiveliness(_, _, _, _, _, _, _, false)) => JobQueued(jobId)

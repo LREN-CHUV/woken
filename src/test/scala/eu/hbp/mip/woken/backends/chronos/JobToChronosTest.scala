@@ -134,7 +134,8 @@ class JobToChronosTest extends FlatSpec with Matchers {
       mem = Some(512.0),
       disk = None,
       owner = Some("mip@chuv.ch"),
-      environmentVariables = environmentVariables
+      environmentVariables = environmentVariables,
+      retries = 0
     )
 
     chronosJob.getOrElse(None) shouldBe expected

@@ -72,7 +72,8 @@ object JobToChronos {
         cpus = Some(0.5),
         mem = Some(512),
         owner = Some(jobsConf.owner),
-        environmentVariables = environmentVariables
+        environmentVariables = environmentVariables,
+        retries = 0
       )
     }
 
