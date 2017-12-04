@@ -17,17 +17,14 @@
 package eu.hbp.mip.woken.backends.chronos
 
 import eu.hbp.mip.woken.backends.DockerJob
-import eu.hbp.mip.woken.config.{ JdbcConfiguration, JobsConfiguration }
+import eu.hbp.mip.woken.config.{ DbConnectionConfiguration, JobsConfiguration }
 import eu.hbp.mip.woken.backends.chronos.{ EnvironmentVariable => EV }
-import eu.hbp.mip.woken.config.WokenConfig.DbConfig
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import cats.implicits._
 
 object JobToChronos {
 
-  type DbBConfigF = String => DbConfig
-
-  private[this] def dbEnvironment(conf: JdbcConfiguration,
+  private[this] def dbEnvironment(conf: DbConnectionConfiguration,
                                   prefix: String = ""): List[EnvironmentVariable] =
     List(
       EV(prefix + "JDBC_DRIVER", conf.jdbcDriver),
@@ -39,7 +36,7 @@ object JobToChronos {
   def apply(job: DockerJob,
             dockerBridgeNetwork: Option[String],
             jobsConf: JobsConfiguration,
-            jdbcConfF: String => Validation[JdbcConfiguration]): Validation[ChronosJob] = {
+            jdbcConfF: String => Validation[DbConnectionConfiguration]): Validation[ChronosJob] = {
 
     val container = dockerBridgeNetwork.fold(
       Container(`type` = ContainerType.DOCKER, image = job.dockerImage)
@@ -53,7 +50,8 @@ object JobToChronos {
                   parameters = List(Parameter("network", bridge)))
     )
 
-    def buildChronosJob(inputDb: JdbcConfiguration, outputDb: JdbcConfiguration): ChronosJob = {
+    def buildChronosJob(inputDb: DbConnectionConfiguration,
+                        outputDb: DbConnectionConfiguration): ChronosJob = {
       val environmentVariables: List[EV] = List(
         EV("JOB_ID", job.jobId),
         EV("NODE", jobsConf.node),

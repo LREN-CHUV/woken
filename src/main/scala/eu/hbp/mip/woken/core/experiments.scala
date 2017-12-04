@@ -583,7 +583,7 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
       val foldCount = validation.parameters("k").toInt
 
       // TODO For now only kfold cross-validation
-      val crossValidation = KFoldCrossValidation(job, foldCount)
+      val crossValidation = KFoldCrossValidation(job, foldCount, coordinatorConfig.featuresDatabase)
 
       assert(crossValidation.partition.size == foldCount)
 

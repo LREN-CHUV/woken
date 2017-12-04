@@ -33,12 +33,13 @@ lazy val `woken` =
           library.wokenMessages,
           library.spraySwagger,
           library.swaggerUI,
+          //library.scalaCache,
           library.scalaCheck   % Test,
           library.scalaTest    % Test,
           library.akkaTestkit  % Test
         ),
         includeFilter in (Compile, unmanagedResources) := "*.xml" || "*.conf" || "*.html",
-        includeFilter in (Test, unmanagedResources) := "*.json",
+        includeFilter in (Test, unmanagedResources) := "*.json" || "*.conf",
         assemblyJarName in assembly := "woken-all.jar"
       )
     )
@@ -69,6 +70,7 @@ lazy val library =
       val wokenMessages = "2.0.11"
       val spraySwagger  = "0.5.0"
       val swaggerUI     = "2.0.12"
+      val scalaCache    = "0.21.0"
     }
     val scalaCheck: ModuleID   = "org.scalacheck"    %% "scalacheck"   % Version.scalaCheck
     val scalaTest: ModuleID    = "org.scalatest"     %% "scalatest"    % Version.scalaTest
@@ -94,6 +96,7 @@ lazy val library =
     val hadrian: ModuleID      = "com.opendatagroup" %  "hadrian"       % Version.hadrian
     val spraySwagger: ModuleID = "com.gettyimages"   %% "spray-swagger" % Version.spraySwagger excludeAll ExclusionRule(organization = "io.spray")
     val swaggerUI: ModuleID    = "org.webjars"        % "swagger-ui"   % Version.swaggerUI
+    val scalaCache: ModuleID   = "com.github.cb372"  %% "scalacache-core" % Version.scalaCache
     val wokenMessages: ModuleID = "eu.humanbrainproject.mip" %% "woken-messages" % Version.wokenMessages
   }
 

@@ -22,12 +22,14 @@ import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem, Props }
 import akka.testkit.{ ImplicitSender, TestKit }
 import eu.hbp.mip.woken.api.MasterRouter.{ QueuesSize, RequestQueuesSize }
 import eu.hbp.mip.woken.backends.DockerJob
-import eu.hbp.mip.woken.config.WokenConfig
+import eu.hbp.mip.woken.config._
 import eu.hbp.mip.woken.core.ExperimentActor.{ ErrorResponse, Start }
 import eu.hbp.mip.woken.core.{ CoordinatorConfig, ExperimentActor }
 import eu.hbp.mip.woken.core.model.JobResult
-import eu.hbp.mip.woken.dao.{ JobResultsDAL, LdsmDAL }
+import eu.hbp.mip.woken.dao.{ FeaturesDAL, JobResultsDAL, NodeDAL }
 import eu.hbp.mip.woken.messages.external._
+import FunctionsInOut._
+import com.typesafe.config.{ Config, ConfigFactory }
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import spray.json.JsObject
 
@@ -50,10 +52,27 @@ class MasterRouterTest
     override def findJobResults(jobId: String): List[JobResult] = jobResults
   }
 
+  val noDbConfig = DbConnectionConfiguration(jdbcDriver = "java.lang.String",
+                                             jdbcUrl = "",
+                                             jdbcUser = "",
+                                             jdbcPassword = "")
+  val noJobsConf = JobsConfiguration("none", "noone", "http://nowhere", "features", "results")
+
+  val fakeFeaturesDAL = FeaturesDAL(noDbConfig)
+  val fakeResultsDAL  = FakeJobResultsDAL()
+  val fakeMetaDbConfig = new MetaDatabaseConfig(noDbConfig) {
+    override def testConnection(jdbcUrl: String): Unit = ()
+  }
+
   case class FakeMiningService(chronosServiceRef: ActorRef,
                                resultDB: JobResultsDAL,
-                               ldsmDB: LdsmDAL)
-      extends MiningService(chronosServiceRef, resultDB, ldsmDB) {
+                               featuresDB: FeaturesDAL)
+      extends MiningService(chronosServiceRef,
+                            fakeFeaturesDAL,
+                            fakeResultsDAL,
+                            fakeMetaDbConfig,
+                            noJobsConf,
+                            "") {
 
     override def newExperimentActor(coordinatorConfig: CoordinatorConfig): ActorRef =
       system.actorOf(FakeActor.echoActorProps)
@@ -63,15 +82,19 @@ class MasterRouterTest
 
   }
 
-  case class FakeLdsmDAL()
-      extends LdsmDAL(jdbcDriver = "", jdbcUrl = "", jdbcUser = "", jdbcPassword = "", table = "")
-
   case class FakeApi(implicit val system: ActorSystem) extends Api {
     override implicit def actorRefFactory: ActorRefFactory = system
 
     override lazy val mining_service: MiningService =
-      FakeMiningService(chronosHttp, FakeJobResultsDAL(), FakeLdsmDAL())
+      FakeMiningService(chronosHttp, fakeResultsDAL, fakeFeaturesDAL)
 
+    override def config: Config = ConfigFactory.load()
+
+    override def featuresDAL: FeaturesDAL = fakeFeaturesDAL
+
+    override def resultsDAL: JobResultsDAL = fakeResultsDAL
+
+    override def metaDbConfig: MetaDatabaseConfig = fakeMetaDbConfig
   }
 
   def query2job(query: ExperimentQuery) = ExperimentActor.Job(
@@ -96,7 +119,15 @@ class MasterRouterTest
     val api = FakeApi()
 
     val router =
-      system.actorOf(Props(new MasterRouter(api, FakeJobResultsDAL(), query2job, query2job)))
+      system.actorOf(
+        Props(
+          new MasterRouter(api,
+                           fakeFeaturesDAL,
+                           fakeResultsDAL,
+                           experimentQuery2job(fakeMetaDbConfig),
+                           miningQuery2job(fakeMetaDbConfig))
+        )
+      )
 
     "starts new experiments" in {
 

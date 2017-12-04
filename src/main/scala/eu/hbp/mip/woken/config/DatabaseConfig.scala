@@ -17,30 +17,29 @@
 package eu.hbp.mip.woken.config
 
 import doobie.imports._
+
 import scalaz.effect.IO
 import com.typesafe.scalalogging.slf4j._
 import org.slf4j.LoggerFactory
 import spray.json.DefaultJsonProtocol._
 import spray.json.deserializationError
-
 import eu.hbp.mip.woken.dao._
 
+import scala.collection.mutable
+
 trait DatabaseConfig[D <: DAL] {
+
   def dal: D
+
 }
 
 trait DoobieDatabaseConfig[D <: DAL] extends DatabaseConfig[D] {
-  def xa: Transactor[IO]
-}
 
-/**
-  * Configuration for the database storing the results of the calculation launched locally.
-  */
-//Based on play-slick driver loader
-object ResultDatabaseConfig extends DoobieDatabaseConfig[JobResultsDAL] {
+  def xa: Transactor[IO]
+
   val logger = Logger(LoggerFactory.getLogger("database"))
 
-  def testConnection(xa: Transactor[IO], jdbcUrl: String) =
+  def testConnection(jdbcUrl: String): Unit =
     try {
       sql"select 1".query[Int].unique.transact(xa).unsafePerformIO
     } catch {
@@ -48,16 +47,25 @@ object ResultDatabaseConfig extends DoobieDatabaseConfig[JobResultsDAL] {
         logger.error(s"Cannot connect to $jdbcUrl", e)
     }
 
-  import WokenConfig._
-  val config = dbConfig(jobs.resultDb)
-  import config._
+}
+
+/**
+  * Configuration for the database storing the results of the calculation launched locally.
+  */
+case class ResultDatabaseConfig(
+    resultDbConnection: DbConnectionConfiguration
+) extends DoobieDatabaseConfig[JobResultsDAL] {
+
+  private val jdbcUrl = resultDbConnection.jdbcUrl
+
   lazy val xa = DriverManagerTransactor[IO](
-    jdbcDriver,
+    resultDbConnection.jdbcDriver,
     jdbcUrl,
-    jdbcUser,
-    jdbcPassword
+    resultDbConnection.jdbcUser,
+    resultDbConnection.jdbcPassword
   )
-  testConnection(xa, jdbcUrl)
+
+  testConnection(jdbcUrl)
 
   lazy val dal = new NodeDAL(xa)
 }
@@ -65,7 +73,7 @@ object ResultDatabaseConfig extends DoobieDatabaseConfig[JobResultsDAL] {
 /**
   * Configuration for the federation database (Denodo) gathering the results from the other nodes.
   */
-//Based on play-slick driver loader
+/*
 object FederationDatabaseConfig {
   import WokenConfig._
   import ResultDatabaseConfig.testConnection
@@ -87,38 +95,48 @@ object FederationDatabaseConfig {
         lazy val dal = new FederationDAL(xa)
       })
 }
+ */
 
-/**
-  * Configuration for the LDSM database containing the raw data to display on .
-  */
-object LdsmDatabaseConfig extends DatabaseConfig[LdsmDAL] {
-
-  import WokenConfig.dbConfig
-  import WokenConfig.defaultSettings._
-
-  val config = dbConfig(defaultDb)
-  import config._
-
-  lazy val dal = new LdsmDAL(jdbcDriver, jdbcUrl, jdbcUser, jdbcPassword, mainTable)
-}
+// TODO: move that code to MetaDAL
 
 /**
   * Configuration for the Meta database
   */
-object MetaDatabaseConfig extends DatabaseConfig[MetaDAL] {
-  val logger = Logger(LoggerFactory.getLogger("database"))
+case class MetaDatabaseConfig(
+    metaDbConnection: DbConnectionConfiguration
+) extends DoobieDatabaseConfig[MetaDAL] {
 
-  import WokenConfig.dbConfig
-  import WokenConfig.defaultSettings._
-
-  val config = dbConfig(defaultMetaDb)
-  import config._
   import spray.json.{ JsArray, JsObject }
 
-  lazy val dal    = new MetaDAL(jdbcDriver, jdbcUrl, jdbcUser, jdbcPassword, mainTable)
-  lazy val groups = dal.getMetaData
+  private val jdbcUrl = metaDbConnection.jdbcUrl
 
-  def getMetaData(variables: Seq[String]): JsObject = {
+  lazy val xa = DriverManagerTransactor[IO](
+    metaDbConnection.jdbcDriver,
+    jdbcUrl,
+    metaDbConnection.jdbcUser,
+    metaDbConnection.jdbcPassword
+  )
+
+  testConnection(jdbcUrl)
+
+  lazy val dal = new MetaDAL(metaDbConnection)
+
+  // TODO: use a real cache, for example ScalaCache + Caffeine
+  val groups: mutable.Map[String, JsObject] = new mutable.WeakHashMap[String, JsObject]() {
+
+    override def get(k: String): Option[JsObject] = {
+      var v = super.get(k)
+      if (v.isEmpty) {
+        val fetch = dal.getMetaData(k)
+        put(k, fetch)
+        v = Some(fetch)
+      }
+      v
+    }
+
+  }
+
+  def getMetaData(featuresTable: String, variables: Seq[String]): JsObject = {
 
     /**
       * Parse the tree of groups to find the variables meta data!
@@ -164,7 +182,7 @@ object MetaDatabaseConfig extends DatabaseConfig[MetaDAL] {
       variables
         .map(
           v =>
-            v -> (getVariableMetaData(v, groups) match {
+            v -> (getVariableMetaData(v, groups(featuresTable)) match {
               case Some(m) => m
               case None =>
                 logger.error(s"Cannot not find metadata for " + v)

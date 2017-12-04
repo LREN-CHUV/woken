@@ -21,7 +21,7 @@ import java.time.{ OffsetDateTime, ZoneOffset }
 
 import scalaz.effect.IO
 import doobie.imports._
-import eu.hbp.mip.woken.config.WokenConfig
+import eu.hbp.mip.woken.config.DbConnectionConfiguration
 import spray.json._
 import eu.hbp.mip.woken.core.model.JobResult
 
@@ -67,16 +67,18 @@ class FederationDAL(xa: Transactor[IO]) extends JobResultsDAL {
 
 }
 
-class LdsmDAL(jdbcDriver: String,
-              jdbcUrl: String,
-              jdbcUser: String,
-              jdbcPassword: String,
-              table: String)
-    extends DAL {
+/**
+  * Data access to features used by machine learning and visualisation algorithms
+  */
+case class FeaturesDAL(featuresDbConnection: DbConnectionConfiguration) extends DAL {
+
+  // TODO: Doobie provides better tools...
 
   lazy val ldsmConnection: Connection = {
-    Class.forName(jdbcDriver)
-    DriverManager.getConnection(jdbcUrl, jdbcUser, jdbcPassword)
+    Class.forName(featuresDbConnection.jdbcDriver)
+    DriverManager.getConnection(featuresDbConnection.jdbcUrl,
+                                featuresDbConnection.jdbcUser,
+                                featuresDbConnection.jdbcPassword)
   }
 
   case class ColumnMeta(index: Int, label: String, datatype: String)
@@ -164,10 +166,10 @@ class LdsmDAL(jdbcDriver: String,
     "java.lang.String"     -> JsString("string")
   )
 
-  def queryData(columns: Seq[String]): JsObject = {
+  def queryData(featuresTable: String, columns: Seq[String]): JsObject = {
     val (meta, data) = runQuery(
       ldsmConnection,
-      s"select ${columns.mkString(",")} from $table where ${columns.map(_ + " is not null").mkString(" and ")}"
+      s"select ${columns.mkString(",")} from $featuresTable where ${columns.map(_ + " is not null").mkString(" and ")}"
     )
     JsObject(
       "doc"   -> JsString(s"Raw data for variables ${meta.map(_.label).mkString(", ")}"),
@@ -199,33 +201,27 @@ class LdsmDAL(jdbcDriver: String,
   }
 }
 
-class MetaDAL(jdbcDriver: String,
-              jdbcUrl: String,
-              jdbcUser: String,
-              jdbcPassword: String,
-              table: String)
-    extends LdsmDAL(jdbcDriver, jdbcUrl, jdbcUser, jdbcPassword, table) {
+class MetaDAL(metaDbConnection: DbConnectionConfiguration) extends FeaturesDAL(metaDbConnection) {
 
-  import WokenConfig.defaultSettings._
+  Class.forName(metaDbConnection.jdbcDriver)
+  val metaConnection: Connection = DriverManager.getConnection(metaDbConnection.jdbcUrl,
+                                                               metaDbConnection.jdbcUser,
+                                                               metaDbConnection.jdbcPassword)
 
-  Class.forName(jdbcDriver)
-  val metaConnection: Connection = DriverManager.getConnection(jdbcUrl, jdbcUser, jdbcPassword)
-
-  def getMetaData: JsObject =
+  def getMetaData(featuresTable: String): JsObject =
     runQuery(
       metaConnection,
-      s"SELECT hierarchy FROM meta_variables WHERE target_table='${mainTable.toUpperCase}'"
+      s"SELECT hierarchy FROM meta_variables WHERE target_table='${featuresTable.toUpperCase}'"
     )._2.head.fields.get("hierarchy") match {
-      case Some(groups: JsString) => {
+
+      case Some(groups: JsString) =>
         // Eval the string
         val stringValue = groups.compactPrint
         StringContext
           .treatEscapes(stringValue.substring(1, stringValue.length() - 1))
           .parseJson
           .asJsObject
-      }
-      case _ => {
-        JsObject.empty
-      }
+
+      case _ => JsObject.empty
     }
 }

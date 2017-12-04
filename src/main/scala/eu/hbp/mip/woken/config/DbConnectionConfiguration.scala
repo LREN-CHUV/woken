@@ -21,14 +21,14 @@ import eu.hbp.mip.woken.cromwell.core.ConfigUtil._
 import cats.data.Validated._
 import cats.implicits._
 
-final case class JdbcConfiguration(jdbcDriver: String,
-                                   jdbcUrl: String,
-                                   jdbcUser: String,
-                                   jdbcPassword: String)
+final case class DbConnectionConfiguration(jdbcDriver: String,
+                                           jdbcUrl: String,
+                                           jdbcUser: String,
+                                           jdbcPassword: String)
 
-object JdbcConfiguration {
+object DbConnectionConfiguration {
 
-  def read(config: Config, path: Seq[String]): Validation[JdbcConfiguration] = {
+  def read(config: Config, path: Seq[String]): Validation[DbConnectionConfiguration] = {
     val jdbcConfig = path.foldLeft(config) { (c, s) =>
       c.getConfig(s)
     }
@@ -38,10 +38,10 @@ object JdbcConfiguration {
     val jdbcUser     = jdbcConfig.validateString("jdbc_user")
     val jdbcPassword = jdbcConfig.validateString("jdbc_password")
 
-    (jdbcDriver, jdbcUrl, jdbcUser, jdbcPassword) mapN JdbcConfiguration.apply
+    (jdbcDriver, jdbcUrl, jdbcUser, jdbcPassword) mapN DbConnectionConfiguration.apply
   }
 
-  def factory(config: Config): String => Validation[JdbcConfiguration] =
+  def factory(config: Config): String => Validation[DbConnectionConfiguration] =
     dbAlias => read(config, List("db", dbAlias))
 
 }

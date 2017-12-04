@@ -19,13 +19,18 @@ package eu.hbp.mip.woken.api
 import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem }
 import com.typesafe.config.ConfigFactory
 import eu.hbp.mip.woken.authentication.BasicAuthentication
-import eu.hbp.mip.woken.config.{ JdbcConfiguration, JobsConfiguration, WokenConfig }
+import eu.hbp.mip.woken.config.{
+  DbConnectionConfiguration,
+  JobsConfiguration,
+  MetaDatabaseConfig,
+  WokenConfig
+}
 import spray.http.MediaTypes._
 import spray.http._
 import spray.routing.Route
 import eu.hbp.mip.woken.messages.external._
 import eu.hbp.mip.woken.core._
-import eu.hbp.mip.woken.dao.{ JobResultsDAL, LdsmDAL }
+import eu.hbp.mip.woken.dao.{ FeaturesDAL, JobResultsDAL }
 
 object MiningService {
 
@@ -368,8 +373,11 @@ object MiningService {
 
 // this trait defines our service behavior independently from the service actor
 class MiningService(val chronosService: ActorRef,
+                    val featuresDatabase: FeaturesDAL,
                     val resultDatabase: JobResultsDAL,
-                    val ldsmDatabase: LdsmDAL)(implicit system: ActorSystem)
+                    val metaDbConfig: MetaDatabaseConfig,
+                    val jobsConf: JobsConfiguration,
+                    val defaultFeaturesTable: String)(implicit system: ActorSystem)
     extends MiningServiceApi
     with PerRequestCreator
     with DefaultJsonFormats
@@ -390,15 +398,13 @@ class MiningService(val chronosService: ActorRef,
 
   // TODO: improve passing configuration around
   private lazy val config = ConfigFactory.load()
-  private lazy val jobsConf = JobsConfiguration
-    .read(config)
-    .getOrElse(throw new IllegalStateException("Invalid configuration"))
   private lazy val coordinatorConfig = CoordinatorConfig(chronosService,
+                                                         featuresDatabase,
                                                          resultDatabase,
                                                          RequestProtocol,
                                                          WokenConfig.app.dockerBridgeNetwork,
                                                          jobsConf,
-                                                         JdbcConfiguration.factory(config))
+                                                         DbConnectionConfiguration.factory(config))
 
   override def listMethods: Route = path("mining" / "list-methods") {
     authenticate(basicAuthenticator) { user =>
@@ -418,17 +424,19 @@ class MiningService(val chronosService: ActorRef,
 
       post {
         entity(as[MiningQuery]) {
-          case MiningQuery(variables, covariables, groups, _, Algorithm(c, n, p))
+          case MiningQuery(variables, covariables, groups, filters, Algorithm(c, n, p))
               if c == "" || c == "data" =>
             ctx =>
-              ctx.complete(
-                ldsmDatabase.queryData({
-                  variables ++ covariables ++ groups
-                }.distinct.map(_.code))
-              )
+              {
+                ctx.complete(
+                  featuresDatabase.queryData(defaultFeaturesTable, {
+                    variables ++ covariables ++ groups
+                  }.distinct.map(_.code))
+                )
+              }
 
           case query: MiningQuery =>
-            val job = query2job(query)
+            val job = miningQuery2job(metaDbConfig)(query)
             miningJob(coordinatorConfig) {
               Start(job)
             }
@@ -444,7 +452,7 @@ class MiningService(val chronosService: ActorRef,
       post {
         entity(as[ExperimentQuery]) { query: ExperimentQuery =>
           {
-            val job = query2job(query)
+            val job = experimentQuery2job(metaDbConfig)(query)
             experimentJob(coordinatorConfig) {
               ExperimentActor.Start(job)
             }

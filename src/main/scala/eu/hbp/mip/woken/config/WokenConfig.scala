@@ -77,20 +77,10 @@ object WokenConfig {
       jdbcPassword: String
   )
 
-  def dbConfig(dbAlias: String): DbConfig = {
-    val dbConf = config.getConfig("db").getConfig(dbAlias)
-    DbConfig(
-      jdbcDriver = dbConf.getString("jdbc_driver"),
-      jdbcUrl = dbConf.getString("jdbc_url"),
-      jdbcUser = dbConf.getString("jdbc_user"),
-      jdbcPassword = dbConf.getString("jdbc_password")
-    )
-  }
-
   object defaultSettings {
-    val defaultSettingsConf: Config = config.getConfig("defaultSettings")
-    lazy val requestConfig: Config  = defaultSettingsConf.getConfig("request")
-    lazy val mainTable: String      = requestConfig.getString("mainTable")
+    lazy val defaultSettingsConf: Config = config.getConfig("defaultSettings")
+    lazy val requestConfig: Config       = defaultSettingsConf.getConfig("request")
+    lazy val mainTable: String           = requestConfig.getString("mainTable")
 
     def dockerImage(plot: String): String =
       requestConfig.getConfig("functions").getConfig(plot).getString("image")
@@ -98,8 +88,8 @@ object WokenConfig {
     def isPredictive(plot: String): Boolean =
       requestConfig.getConfig("functions").getConfig(plot).getBoolean("predictive")
 
-    val defaultDb: String     = requestConfig.getString("inDb")
-    val defaultMetaDb: String = requestConfig.getString("metaDb")
+    lazy val defaultDb: String     = requestConfig.getString("inDb")
+    lazy val defaultMetaDb: String = requestConfig.getString("metaDb")
   }
 
 }

@@ -26,20 +26,20 @@ import spray.httpx.marshalling.ToResponseMarshaller
 import scala.concurrent.duration._
 import eu.hbp.mip.woken.backends.{ DockerJob, QueryOffset }
 import eu.hbp.mip.woken.backends.chronos.ChronosService
-import eu.hbp.mip.woken.backends.chronos.ChronosService.JobLivelinessResponse
 import eu.hbp.mip.woken.backends.chronos.{ ChronosJob, JobToChronos }
-import eu.hbp.mip.woken.config.{ JdbcConfiguration, JobsConfiguration }
+import eu.hbp.mip.woken.config.{ DbConnectionConfiguration, JobsConfiguration }
 import eu.hbp.mip.woken.core.model.JobResult
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
-import eu.hbp.mip.woken.dao.JobResultsDAL
+import eu.hbp.mip.woken.dao.{ FeaturesDAL, JobResultsDAL }
 import spray.json.{ JsonFormat, RootJsonFormat }
 
 case class CoordinatorConfig(chronosService: ActorRef,
+                             featuresDatabase: FeaturesDAL,
                              resultDatabase: JobResultsDAL,
                              jobResultsFactory: JobResults.Factory,
                              dockerBridgeNetwork: Option[String],
                              jobsConf: JobsConfiguration,
-                             jdbcConfF: String => Validation[JdbcConfiguration])
+                             jdbcConfF: String => Validation[DbConnectionConfiguration])
 
 /**
   * We use the companion object to hold all the messages that the ``CoordinatorActor``
@@ -161,7 +161,7 @@ class CoordinatorActor(
     val jobResultsFactory: JobResults.Factory,
     dockerBridgeNetwork: Option[String],
     jobsConf: JobsConfiguration,
-    jdbcConfF: String => Validation[JdbcConfiguration]
+    jdbcConfF: String => Validation[DbConnectionConfiguration]
 ) extends Actor
     with ActorLogging
     with ActorTracing
@@ -350,7 +350,7 @@ class CoordinatorActor(
 
   whenUnhandled {
     case Event(e, s) =>
-      log.warning("Received unhandled request {} in state {}/{}", e, stateName, s)
+      log.warning(s"Received unhandled request $e of type ${e.getClass} in state $stateName/$s")
       stay
   }
 
