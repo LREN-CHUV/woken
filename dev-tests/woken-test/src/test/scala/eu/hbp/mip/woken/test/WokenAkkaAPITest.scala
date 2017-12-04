@@ -27,6 +27,7 @@ import spray.json._
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 import scala.io.Source
+import scala.language.postfixOps
 import scala.util.Try
 
 class WokenAkkaAPITest extends FlatSpec with Matchers {
@@ -43,7 +44,7 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
 
     val result = waitFor[Methods](future)
 
-    if (!result.success) {
+    if (!result.isSuccess) {
       println(result)
     }
 
@@ -67,7 +68,7 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
 
     val result = waitFor[QueryResult](future)
 
-    if (!result.success) {
+    if (!result.isSuccess) {
       println(result)
     }
 
@@ -90,7 +91,7 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
 
     val result = waitFor[QueryResult](future)
 
-    if (!result.success) {
+    if (!result.isSuccess) {
       println(result)
     }
 
@@ -130,7 +131,7 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
 
     val result = waitFor[QueryResult](successfulFuture)
 
-    if (!result.success) {
+    if (!result.isSuccess) {
       println(result)
     }
 
