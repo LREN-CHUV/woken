@@ -16,7 +16,7 @@
 
 package eu.hbp.mip.woken.core
 
-import akka.actor.FSM.{ Failure, Normal }
+import akka.actor.FSM.{Failure, Normal}
 import akka.actor._
 import com.github.levkhomich.akka.tracing.ActorTracing
 import eu.hbp.mip.woken.api.ApiJsonSupport
@@ -24,20 +24,18 @@ import spray.http.StatusCodes
 import spray.httpx.marshalling.ToResponseMarshaller
 
 import scala.concurrent.duration._
-import eu.hbp.mip.woken.backends.{ DockerJob, QueryOffset }
+import eu.hbp.mip.woken.backends.{DockerJob, QueryOffset}
 import eu.hbp.mip.woken.backends.chronos.ChronosService
-import eu.hbp.mip.woken.backends.chronos.{ ChronosJob, JobToChronos }
-import eu.hbp.mip.woken.config.{ DbConnectionConfiguration, JobsConfiguration }
-import eu.hbp.mip.woken.core.model.JobResult
+import eu.hbp.mip.woken.backends.chronos.{ChronosJob, JobToChronos}
+import eu.hbp.mip.woken.config.{DbConnectionConfiguration, JobsConfiguration}
+import eu.hbp.mip.woken.core.model.{ErrorJobResult, JobResult}
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
-import eu.hbp.mip.woken.dao.{ FeaturesDAL, JobResultsDAL }
-import spray.json.{ JsonFormat, RootJsonFormat }
+import eu.hbp.mip.woken.dao.{FeaturesDAL, JobResultsDAL}
+import spray.json.RootJsonFormat
 
-// TODO: jobResultsFactory does serialisation in strange ways depending on the needs of the client. This is applied too early and should be removed
 case class CoordinatorConfig(chronosService: ActorRef,
                              featuresDatabase: FeaturesDAL,
                              resultDatabase: JobResultsDAL,
-                             jobResultsFactory: JobResults.Factory,
                              dockerBridgeNetwork: Option[String],
                              jobsConf: JobsConfiguration,
                              jdbcConfF: String => Validation[DbConnectionConfiguration])
@@ -58,35 +56,15 @@ object CoordinatorActor {
       ToResponseMarshaller.fromMarshaller(StatusCodes.OK)(jsonFormat1(Start))
   }
 
-  // Internal messages
-  private[CoordinatorActor] object CheckDb
-  private[CoordinatorActor] object CheckChronos
-
   // Responses
 
-  type Result = eu.hbp.mip.woken.core.model.JobResult
-  val Result: JobResult.type = eu.hbp.mip.woken.core.model.JobResult
-
-  // TODO: duplicates Error class
-  case class ErrorResponse(message: String) extends RestMessage {
-    import spray.httpx.SprayJsonSupport._
-    import spray.json.DefaultJsonProtocol._
-    override def marshaller: ToResponseMarshaller[ErrorResponse] =
-      ToResponseMarshaller.fromMarshaller(StatusCodes.InternalServerError)(
-        jsonFormat1(ErrorResponse)
-      )
-  }
-
-  import JobResult._
-  implicit val resultFormat: JsonFormat[Result]                   = JobResult.jobResultFormat
-  implicit val errorResponseFormat: RootJsonFormat[ErrorResponse] = jsonFormat1(ErrorResponse.apply)
+  case class Response(result: JobResult)
 
   def props(coordinatorConfig: CoordinatorConfig): Props =
     Props(
       new CoordinatorActor(
         coordinatorConfig.chronosService,
         coordinatorConfig.resultDatabase,
-        coordinatorConfig.jobResultsFactory,
         coordinatorConfig.dockerBridgeNetwork,
         coordinatorConfig.jobsConf,
         coordinatorConfig.jdbcConfF
@@ -99,7 +77,11 @@ object CoordinatorActor {
 }
 
 /** FSM States and internal data */
-object CoordinatorStates {
+private[core] object CoordinatorStates {
+
+  // Internal messages
+  private[CoordinatorActor] object CheckDb
+  private[CoordinatorActor] object CheckChronos
 
   // FSM States
 
@@ -118,7 +100,6 @@ object CoordinatorStates {
 
   trait StateData {
     def job: DockerJob
-    def replyTo: ActorRef
   }
 
   case object Uninitialized extends StateData {
@@ -128,14 +109,12 @@ object CoordinatorStates {
 
   case class PartialLocalData(job: DockerJob,
                               chronosJob: ChronosJob,
-                              replyTo: ActorRef,
                               pollDbCount: Int,
                               timeoutTime: Long)
       extends StateData
 
   case class ExpectedLocalData(job: DockerJob,
                                chronosJob: ChronosJob,
-                               replyTo: ActorRef,
                                pollDbCount: Int,
                                timeoutTime: Long)
       extends StateData
@@ -160,7 +139,6 @@ object CoordinatorStates {
 class CoordinatorActor(
     val chronosService: ActorRef,
     val resultDatabase: JobResultsDAL,
-    val jobResultsFactory: JobResults.Factory,
     dockerBridgeNetwork: Option[String],
     jobsConf: JobsConfiguration,
     jdbcConfF: String => Validation[DbConnectionConfiguration]
@@ -189,7 +167,7 @@ class CoordinatorActor(
       chronosJob.fold[State](
         { err =>
           val msg = err.toList.mkString
-          replyTo ! Error(msg)
+          replyTo ! ErrorJobResult(msg)
           stop(Failure(msg))
         }, { cj =>
           chronosService ! Schedule(cj)
@@ -199,7 +177,6 @@ class CoordinatorActor(
           goto(SubmittedJobToChronos) using PartialLocalData(
             job,
             chronosJob = cj,
-            replyTo,
             0,
             System.currentTimeMillis + 1.day.toMillis
           )

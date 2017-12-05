@@ -56,22 +56,11 @@ object PutJobResults extends DefaultJsonProtocol with JobResults.Factory {
   }
 }
 
-// Domain objects
-
-object Ok
-
-case class Error(message: String)
-
 // Exceptions
-
-case object ChronosNotReachableException extends Exception("Cannot connect to Chronos")
 
 object DefaultMarshallers extends DefaultJsonProtocol {
 
   import spray.httpx.SprayJsonSupport._
-
-  implicit val ErrorMarshaller: ToResponseMarshaller[Error] =
-    ToResponseMarshaller.fromMarshaller(StatusCodes.BadRequest)(jsonFormat1(Error))
 
   implicit object ReceiveTimeoutFormat extends RootJsonFormat[ReceiveTimeout] {
     override def write(r: ReceiveTimeout) = JsString("ReceiveTimeoutFormat")

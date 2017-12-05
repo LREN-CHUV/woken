@@ -73,7 +73,7 @@ $DOCKER_COMPOSE run woken_test
 echo
 echo "Now that's up to you to play with the user interface..."
 
-$DOCKER_COMPOSE up -d portal_backend
+$DOCKER_COMPOSE up -d portalbackend
 
 $DOCKER_COMPOSE run wait_portal_backend
 

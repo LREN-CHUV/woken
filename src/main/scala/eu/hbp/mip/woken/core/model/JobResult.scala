@@ -21,18 +21,39 @@ import java.time.OffsetDateTime
 import eu.hbp.mip.woken.json.formats
 import spray.json._
 
-case class JobResult(jobId: String,
+sealed trait JobResult {
+  def jobId: String
+  def node: String
+  def timestamp: OffsetDateTime
+  def function: String
+}
+
+case class PfaJobResult(jobId: String,
                      node: String,
                      timestamp: OffsetDateTime,
-                     shape: String,
                      function: String,
-                     data: Option[String] = None,
-                     error: Option[String] = None)
+                     data: JsObject) extends JobResult
 
-object JobResult extends DefaultJsonProtocol {
+case class ErrorJobResult(jobId: String,
+                          node: String,
+                          timestamp: OffsetDateTime,
+                          function: String,
+                          error: String) extends JobResult
 
-  implicit val OffsetDateTimeJsonFormat: RootJsonFormat[OffsetDateTime] =
-    formats.OffsetDateTimeJsonFormat
-
-  implicit val jobResultFormat: JsonFormat[JobResult] = lazyFormat(jsonFormat7(JobResult.apply))
+sealed trait VisualisationJobResult extends JobResult {
+  def shape: String
 }
+
+case class JsonDataJobResult(jobId: String,
+                        node: String,
+                        timestamp: OffsetDateTime,
+                        shape: String,
+                        function: String,
+                        data: JsObject) extends VisualisationJobResult
+
+case class OtherDataJobResult(jobId: String,
+                             node: String,
+                             timestamp: OffsetDateTime,
+                             shape: String,
+                             function: String,
+                             data: String) extends VisualisationJobResult

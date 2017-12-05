@@ -234,8 +234,8 @@ services:
     depends_on:
       - woken
 
-  portal_backend:
-    image: "hbpmip/portal-backend:2.4.1"
+  portalbackend:
+    image: "hbpmip/portal-backend:90dad37"
     container_name: "backend-test"
     restart: "no"
     ports:
@@ -273,21 +273,21 @@ services:
     image: "waisbrot/wait"
     restart: "no"
     environment:
-      - TARGETS=portal_backend:8080
+      - TARGETS=portalbackend:8080
     depends_on:
-      - portal_backend
+      - portalbackend
 
   frontend:
     image: hbpmip/portal-frontend:2.3.2
     depends_on:
-      - portal_backend
+      - portalbackend
     ports:
       - "80:80"
     environment:
       WORKER_PROCESSES: 1
       ERROR_LOG_LEVEL: warn
       PORTAL_VIRTUAL_HOST: frontend
-      PORTAL_BACKEND_SERVER: portal_backend:8080
+      PORTAL_BACKEND_SERVER: portalbackend:8080
       PORTAL_BACKEND_CONTEXT: services
 
 networks:
