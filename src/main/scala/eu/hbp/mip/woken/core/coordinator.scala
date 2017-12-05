@@ -193,7 +193,7 @@ class CoordinatorActor(
           stop(Failure(msg))
         }, { cj =>
           chronosService ! Schedule(cj)
-          log.info(s"Wait for Chronos to fulfill job ${job.jobId}, will reply to $replyTo")
+          log.info(s"Wait for Chronos to fulfill job ${job.jobId}, Coordinator will reply to $replyTo")
           goto(SubmittedJobToChronos) using PartialLocalData(
             job,
             chronosJob = cj,

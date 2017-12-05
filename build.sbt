@@ -21,6 +21,7 @@ lazy val `woken` =
           library.sprayCan,
           library.sprayJson,
           library.sprayRouting,
+          library.sprayClient,
           library.slf4j,
           library.log4jSlf4j,
           library.disruptor,
@@ -84,6 +85,7 @@ lazy val library =
     val akkaTracingCore: ModuleID  = "com.github.levkhomich" %% "akka-tracing-core" % Version.akkaTracing
     val akkaTracingSpray: ModuleID  = "com.github.levkhomich" %% "akka-tracing-spray" % Version.akkaTracing excludeAll ExclusionRule(organization = "io.spray")
     val sprayCan: ModuleID     = "io.spray"          %% "spray-can"    % Version.spray exclude("io.spray", "spray-routing")
+    val sprayClient: ModuleID  = "io.spray"          %% "spray-client" % Version.spray
     val sprayRouting: ModuleID = "io.spray"          %% "spray-routing-shapeless2" % Version.sprayRouting
     val sprayJson: ModuleID    = "io.spray"          %% "spray-json"   % Version.sprayJson
     val slf4j: ModuleID        = "org.slf4j"          % "slf4j-api"    % Version.slf4j
