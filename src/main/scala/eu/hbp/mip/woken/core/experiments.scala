@@ -258,6 +258,12 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig)
       stop
   }
 
+  whenUnhandled {
+    case Event(e, s) =>
+      log.warning(s"Received unhandled request $e of type ${e.getClass} in state $stateName/$s")
+      stay
+  }
+
   onTransition {
     case _ -> Reduce =>
       self ! Done
@@ -349,7 +355,6 @@ class AlgorithmActor(val coordinatorConfig: CoordinatorConfig)
 
   when(WaitForNewJob) {
     case Event(AlgorithmActor.Start(job), _) =>
-      val replyTo     = sender()
       val algorithm   = job.query.algorithm
       val validations = if (isPredictive(algorithm.code)) job.validations else List()
 
@@ -385,6 +390,7 @@ class AlgorithmActor(val coordinatorConfig: CoordinatorConfig)
         validationWorker ! CrossValidationActor.Start(subJob)
       }
 
+      val replyTo = sender()
       goto(WaitForWorkers) using PartialAlgorithmData(job, replyTo, None, Map(), validations.size)
   }
 
@@ -468,6 +474,12 @@ class AlgorithmActor(val coordinatorConfig: CoordinatorConfig)
       data.replyTo ! AlgorithmActor.ResultResponse(data.job.query.algorithm, pfa)
       log.info("Stopping...")
       stop
+  }
+
+  whenUnhandled {
+    case Event(e, s) =>
+      log.warning(s"Received unhandled request $e of type ${e.getClass} in state $stateName/$s")
+      stay
   }
 
   onTransition {
@@ -574,7 +586,6 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
 
   when(WaitForNewJob) {
     case Event(Start(job), _) =>
-      val replyTo    = sender()
       val algorithm  = job.query.algorithm
       val validation = job.validation
 
@@ -606,6 +617,7 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
             CoordinatorActor.props(coordinatorConfig)
           )
           //workers(worker) = fold
+
           worker ! CoordinatorActor.Start(subJob)
 
           (worker, fold)
@@ -621,6 +633,7 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
         case None                      => throw new Exception("Problem with variables' meta data!")
       }
 
+      val replyTo = sender()
       goto(WaitForWorkers) using WaitForWorkersState(job = job,
                                                      replyTo = replyTo,
                                                      validation = crossValidation,
@@ -775,6 +788,12 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
       }
       log.info("Stopping...")
       stop
+  }
+
+  whenUnhandled {
+    case Event(e, s) =>
+      log.warning(s"Received unhandled request $e of type ${e.getClass} in state $stateName/$s")
+      stay
   }
 
   onTransition {
