@@ -189,7 +189,7 @@ services:
       # Change this if connecting to a different zipkin server
       - ZIPKIN_BASE_URL=http://zipkin:9411
     ports:
-      - 80:80
+      - 9080:80
     depends_on:
       - zipkin
 

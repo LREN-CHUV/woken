@@ -33,6 +33,7 @@ import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import eu.hbp.mip.woken.dao.{ FeaturesDAL, JobResultsDAL }
 import spray.json.{ JsonFormat, RootJsonFormat }
 
+// TODO: jobResultsFactory does serialisation in strange ways depending on the needs of the client. This is applied too early and should be removed
 case class CoordinatorConfig(chronosService: ActorRef,
                              featuresDatabase: FeaturesDAL,
                              resultDatabase: JobResultsDAL,
@@ -64,7 +65,7 @@ object CoordinatorActor {
   // Responses
 
   type Result = eu.hbp.mip.woken.core.model.JobResult
-  val Result = eu.hbp.mip.woken.core.model.JobResult
+  val Result: JobResult.type = eu.hbp.mip.woken.core.model.JobResult
 
   // TODO: duplicates Error class
   case class ErrorResponse(message: String) extends RestMessage {
@@ -265,6 +266,11 @@ class CoordinatorActor(
 
     // Handle Chronos responses
     case Event(ChronosService.JobComplete(jobId, success), data: PartialLocalData) =>
+      if (jobId != data.job.jobId) {
+        log.warning(
+          s"Chronos returned job complete for job #$jobId, but was expecting job #{data.job.jobId}"
+        )
+      }
       val results = resultDatabase.findJobResults(data.job.jobId)
       if (results.nonEmpty) {
         log.info(s"Received results for job ${data.job.jobId}")
