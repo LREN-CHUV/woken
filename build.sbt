@@ -30,6 +30,7 @@ lazy val `woken` =
           library.config,
           library.doobieCore,
           library.doobiePostgres,
+          library.doobieHikari,
           library.yaml,
           library.hadrian,
           library.wokenMessages,
@@ -66,7 +67,7 @@ lazy val library =
       val cats          = "1.0.0-RC1"
       val scalaz        = "7.2.7"
       val config        = "1.2.1"
-      val doobie        = "0.4.0"
+      val doobie        = "0.5.0-M9"
       val snakeyaml     = "1.17"
       val hadrian       = "0.8.5"
       val wokenMessages = "2.0.11"
@@ -96,6 +97,7 @@ lazy val library =
     val config: ModuleID       = "com.typesafe"       % "config"       % Version.config
     val doobieCore: ModuleID   = "org.tpolecat"      %% "doobie-core"  % Version.doobie
     val doobiePostgres: ModuleID = "org.tpolecat"    %% "doobie-postgres" % Version.doobie
+    val doobieHikari: ModuleID = "org.tpolecat"      %% "doobie-hikari" % Version.doobie
     val yaml: ModuleID         = "org.yaml"           % "snakeyaml"    % Version.snakeyaml
     val hadrian: ModuleID      = "com.opendatagroup" %  "hadrian"       % Version.hadrian
     val spraySwagger: ModuleID = "com.gettyimages"   %% "spray-swagger" % Version.spraySwagger excludeAll ExclusionRule(organization = "io.spray")

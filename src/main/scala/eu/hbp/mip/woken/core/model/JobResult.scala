@@ -18,8 +18,7 @@ package eu.hbp.mip.woken.core.model
 
 import java.time.OffsetDateTime
 
-import eu.hbp.mip.woken.json.formats
-import spray.json._
+import spray.json.JsObject
 
 sealed trait JobResult {
   def jobId: String
@@ -29,31 +28,35 @@ sealed trait JobResult {
 }
 
 case class PfaJobResult(jobId: String,
-                     node: String,
-                     timestamp: OffsetDateTime,
-                     function: String,
-                     data: JsObject) extends JobResult
+                        node: String,
+                        timestamp: OffsetDateTime,
+                        function: String,
+                        data: JsObject)
+    extends JobResult
 
 case class ErrorJobResult(jobId: String,
                           node: String,
                           timestamp: OffsetDateTime,
                           function: String,
-                          error: String) extends JobResult
+                          error: String)
+    extends JobResult
 
 sealed trait VisualisationJobResult extends JobResult {
   def shape: String
 }
 
 case class JsonDataJobResult(jobId: String,
-                        node: String,
-                        timestamp: OffsetDateTime,
-                        shape: String,
-                        function: String,
-                        data: JsObject) extends VisualisationJobResult
-
-case class OtherDataJobResult(jobId: String,
                              node: String,
                              timestamp: OffsetDateTime,
                              shape: String,
                              function: String,
-                             data: String) extends VisualisationJobResult
+                             data: JsObject)
+    extends VisualisationJobResult
+
+case class OtherDataJobResult(jobId: String,
+                              node: String,
+                              timestamp: OffsetDateTime,
+                              shape: String,
+                              function: String,
+                              data: String)
+    extends VisualisationJobResult

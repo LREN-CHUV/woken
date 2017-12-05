@@ -19,21 +19,63 @@ package eu.hbp.mip.woken.dao
 import java.sql.{ Connection, DriverManager, ResultSet, ResultSetMetaData }
 import java.time.{ OffsetDateTime, ZoneOffset }
 
-import scalaz.effect.IO
-import doobie.imports._
+import cats.Monad
+import doobie._
+import doobie.implicits._
 import eu.hbp.mip.woken.config.DbConnectionConfiguration
 import spray.json._
-import eu.hbp.mip.woken.core.model.JobResult
+import eu.hbp.mip.woken.core.model._
+import eu.hbp.mip.woken.json.yaml
+import eu.hbp.mip.woken.json.yaml.Yaml
 
 /**
   * Data Access Layer
   */
 trait DAL {}
 
-object DAL {
+object Shapes {
+  val pfa_json        = "pfa_json"
+  val pfa_yaml        = "pfa_yaml"
+  val html            = "html"
+  val svg             = "svg"
+  val highcharts      = "highcharts"
+  val highcharts_mime = "application/highcharts+json"
+}
+
+object JobResultsDAO {
+  import Shapes._
+
   implicit val DateTimeMeta: Meta[OffsetDateTime] =
-    Meta[java.sql.Timestamp].nxmap(ts => OffsetDateTime.of(ts.toLocalDateTime, ZoneOffset.UTC),
-                                   dt => java.sql.Timestamp.valueOf(dt.toLocalDateTime))
+    Meta[java.sql.Timestamp].xmap(ts => OffsetDateTime.of(ts.toLocalDateTime, ZoneOffset.UTC),
+                                  dt => java.sql.Timestamp.valueOf(dt.toLocalDateTime))
+
+  private val toJobResult: (String,
+                            String,
+                            OffsetDateTime,
+                            String,
+                            String,
+                            Option[String],
+                            Option[String]) => JobResult = {
+    case (jobId, node, timestamp, _, function, _, Some(error)) =>
+      ErrorJobResult(jobId, node, timestamp, function, error)
+    case (jobId, node, timestamp, shape, function, Some(data), None) if shape == pfa_json =>
+      PfaJobResult(jobId, node, timestamp, function, data.parseJson.asJsObject)
+    case (jobId, node, timestamp, shape, function, Some(data), None) if shape == pfa_yaml =>
+      PfaJobResult(jobId, node, timestamp, function, yaml.yaml2Json(Yaml(data)).asJsObject)
+    case (jobId, node, timestamp, shape, function, Some(data), None) if shape == highcharts =>
+      JsonDataJobResult(jobId, node, timestamp, shape, function, data.parseJson.asJsObject)
+    case (jobId, node, timestamp, shape, function, Some(data), None)
+        if shape == svg || shape == html =>
+      OtherDataJobResult(jobId, node, timestamp, shape, function, data)
+    case (_, _, _, shape, _, _, _) =>
+      throw new IllegalArgumentException(s"Cannot handle job results of shape $shape")
+  }
+
+  def queryJobResults(jobId: String): ConnectionIO[List[JobResult]] =
+    sql"select job_id, node, timestamp, shape, function, data, error from job_result where job_id = $jobId"
+      .query[(String, String, OffsetDateTime, String, String, Option[String], Option[String])]
+      .list
+      .map(toJobResult)
 
 }
 
@@ -43,18 +85,14 @@ trait JobResultsDAL extends DAL {
 
 }
 
-class NodeDAL(xa: Transactor[IO]) extends JobResultsDAL {
-  import DAL._
+class NodeDAL[M: Monad](xa: Transactor[M]) extends JobResultsDAL {
 
-  def queryJobResults(jobId: String): ConnectionIO[List[JobResult]] =
-    sql"select job_id, node, timestamp, shape, function, data, error from job_result where job_id = $jobId"
-      .query[JobResult]
-      .list
-
-  override def findJobResults(jobId: String) = queryJobResults(jobId).transact(xa).unsafePerformIO
+  override def findJobResults(jobId: String) =
+    JobResultsDAO.queryJobResults(jobId).transact(xa).unsafePerformIO
 
 }
 
+/*
 class FederationDAL(xa: Transactor[IO]) extends JobResultsDAL {
   import DAL._
 
@@ -66,6 +104,7 @@ class FederationDAL(xa: Transactor[IO]) extends JobResultsDAL {
   override def findJobResults(jobId: String) = queryJobResults(jobId).transact(xa).unsafePerformIO
 
 }
+ */
 
 /**
   * Data access to features used by machine learning and visualisation algorithms

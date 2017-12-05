@@ -82,7 +82,6 @@ case class MasterRouter(api: Api,
     api.chronosHttp,
     featuresDatabase,
     resultDatabase,
-    createQueryResult,
     WokenConfig.app.dockerBridgeNetwork,
     jobsConf,
     DbConnectionConfiguration.factory(config)
@@ -113,12 +112,13 @@ case class MasterRouter(api: Api,
         sender() ! CoordinatorActor.ErrorResponse("Too  busy to accept new jobs.")
       }
 
+    case CoordinatorActor.Response(results) =>
+      sender() ! results
+
     case query: ExperimentQuery =>
       log.debug(s"Received message: $query")
       if (experimentsActiveActors.size <= experimentsActiveActorsLimit) {
-        val experimentActorRef = api.mining_service.newExperimentActor(
-          coordinatorConfig.copy(jobResultsFactory = RequestProtocol)
-        )
+        val experimentActorRef = api.mining_service.newExperimentActor(coordinatorConfig)
         experimentActorRef.tell(ExperimentActor.Start(query2jobF(query)), sender())
         context watch experimentActorRef
         experimentsActiveActors += experimentActorRef
@@ -136,6 +136,8 @@ case class MasterRouter(api: Api,
       experimentsActiveActors -= a
       log.debug(s"Experiments active: ${experimentsActiveActors.size}")
 
-    case _ => // ignore
+    case e =>
+      log.warning(s"Received unhandled request $e of type ${e.getClass}")
+
   }
 }

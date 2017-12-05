@@ -16,22 +16,20 @@
 
 package eu.hbp.mip.woken.core
 
-import akka.actor.FSM.{Failure, Normal}
+import java.time.OffsetDateTime
+
+import akka.actor.FSM.{ Failure, Normal }
 import akka.actor._
 import com.github.levkhomich.akka.tracing.ActorTracing
-import eu.hbp.mip.woken.api.ApiJsonSupport
-import spray.http.StatusCodes
-import spray.httpx.marshalling.ToResponseMarshaller
 
 import scala.concurrent.duration._
-import eu.hbp.mip.woken.backends.{DockerJob, QueryOffset}
+import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.backends.chronos.ChronosService
-import eu.hbp.mip.woken.backends.chronos.{ChronosJob, JobToChronos}
-import eu.hbp.mip.woken.config.{DbConnectionConfiguration, JobsConfiguration}
-import eu.hbp.mip.woken.core.model.{ErrorJobResult, JobResult}
+import eu.hbp.mip.woken.backends.chronos.{ ChronosJob, JobToChronos }
+import eu.hbp.mip.woken.config.{ DbConnectionConfiguration, JobsConfiguration }
+import eu.hbp.mip.woken.core.model.{ ErrorJobResult, JobResult }
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
-import eu.hbp.mip.woken.dao.{FeaturesDAL, JobResultsDAL}
-import spray.json.RootJsonFormat
+import eu.hbp.mip.woken.dao.{ FeaturesDAL, JobResultsDAL }
 
 case class CoordinatorConfig(chronosService: ActorRef,
                              featuresDatabase: FeaturesDAL,
@@ -47,18 +45,11 @@ case class CoordinatorConfig(chronosService: ActorRef,
 object CoordinatorActor {
 
   // Incoming messages
-  case class Start(job: DockerJob) extends RestMessage {
-    import ApiJsonSupport._
-    import spray.httpx.SprayJsonSupport._
-    implicit val queryOffsetFormat: RootJsonFormat[QueryOffset] = jsonFormat2(QueryOffset.apply)
-    implicit val jobFormat: RootJsonFormat[DockerJob]           = jsonFormat7(DockerJob.apply)
-    override def marshaller: ToResponseMarshaller[Start] =
-      ToResponseMarshaller.fromMarshaller(StatusCodes.OK)(jsonFormat1(Start))
-  }
+  case class Start(job: DockerJob)
 
   // Responses
 
-  case class Response(result: JobResult)
+  case class Response(results: List[JobResult])
 
   def props(coordinatorConfig: CoordinatorConfig): Props =
     Props(
@@ -167,7 +158,7 @@ class CoordinatorActor(
       chronosJob.fold[State](
         { err =>
           val msg = err.toList.mkString
-          replyTo ! ErrorJobResult(msg)
+          replyTo ! errorResponse(job, msg)
           stop(Failure(msg))
         }, { cj =>
           chronosService ! Schedule(cj)
@@ -196,14 +187,14 @@ class CoordinatorActor(
       val msg =
         s"Cannot complete job ${data.job.jobId} using ${data.job.dockerImage}, received error: ${e.message}"
       log.error(msg)
-      data.replyTo ! ErrorResponse(msg)
+      sender() ! errorResponse(data.job, msg)
       stop(Failure(msg))
 
     case Event(_: Timeout @unchecked, data: PartialLocalData) =>
       val msg =
         s"Cannot complete job ${data.job.jobId} using ${data.job.dockerImage}, timeout while connecting to Chronos"
       log.error(msg)
-      data.replyTo ! ErrorResponse(msg)
+      sender() ! errorResponse(data.job, msg)
       stop(Failure(msg))
   }
 
@@ -216,7 +207,7 @@ class CoordinatorActor(
         val msg =
           s"Cannot complete job ${data.job.jobId} using ${data.job.dockerImage}, job timed out"
         log.error(msg)
-        data.replyTo ! ErrorResponse(msg)
+        sender() ! errorResponse(data.job, msg)
         stop(Failure(msg))
       } else {
         self ! CheckDb
@@ -231,7 +222,7 @@ class CoordinatorActor(
       val results = resultDatabase.findJobResults(data.job.jobId)
       if (results.nonEmpty) {
         log.info(s"Received results for job ${data.job.jobId}")
-        data.replyTo ! jobResultsFactory(results)
+        sender() ! Response(results)
         log.info("Stopping...")
         stop(Normal)
       } else {
@@ -253,9 +244,9 @@ class CoordinatorActor(
       val results = resultDatabase.findJobResults(data.job.jobId)
       if (results.nonEmpty) {
         log.info(s"Received results for job ${data.job.jobId}")
-        data.replyTo ! jobResultsFactory(results)
+        sender() ! Response(results)
 
-        val reportedSuccess = results.foldRight(true)((res, suc) => suc && res.error.isEmpty)
+        val reportedSuccess = !results.exists { case _: ErrorJobResult => true; case _ => false }
         if (reportedSuccess != success) {
           log.warning(
             s"Chronos reported that job ${data.job.jobId} using Docker image ${data.job.dockerImage} is ${if (!success)
@@ -268,7 +259,6 @@ class CoordinatorActor(
         goto(ExpectFinalResult) using ExpectedLocalData(
           data.job,
           data.chronosJob,
-          data.replyTo,
           0,
           System.currentTimeMillis + 1.minute.toMillis
         )
@@ -283,7 +273,7 @@ class CoordinatorActor(
       val msg =
         s"Chronos lost track of job ${data.job.jobId} using ${data.job.dockerImage}, it may have been stopped manually"
       log.error(msg)
-      data.replyTo ! ErrorResponse(msg)
+      sender() ! errorResponse(data.job, msg)
       stop(Failure(msg))
 
     case Event(ChronosService.JobQueued(jobId), data: PartialLocalData) =>
@@ -329,7 +319,7 @@ class CoordinatorActor(
         val msg =
           s"Cannot complete job ${data.job.jobId} using ${data.job.dockerImage}, time out while waiting for job results"
         log.error(msg)
-        data.replyTo ! ErrorResponse(msg)
+        sender() ! errorResponse(data.job, msg)
         stop(Failure(msg))
       } else {
         self ! CheckDb
@@ -341,7 +331,7 @@ class CoordinatorActor(
       val results = resultDatabase.findJobResults(data.job.jobId)
       if (results.nonEmpty) {
         log.info(s"Received results for job ${data.job.jobId}")
-        data.replyTo ! jobResultsFactory(results)
+        sender() ! Response(results)
         log.info("Stopping...")
         stop(Normal)
       } else {
@@ -377,6 +367,18 @@ class CoordinatorActor(
   }
 
   initialize()
+
+  private def errorResponse(job: DockerJob, msg: String) =
+    Response(
+      List(
+        ErrorJobResult(job.jobId,
+                       jobsConf.node,
+                       OffsetDateTime.now(),
+                       job.query.algorithm.code,
+                       msg)
+      )
+    )
+
 }
 
 /*

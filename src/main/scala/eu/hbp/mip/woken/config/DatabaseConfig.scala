@@ -16,9 +16,10 @@
 
 package eu.hbp.mip.woken.config
 
-import doobie.imports._
+import cats.effect.IO
+import doobie._
+import doobie.implicits._
 
-import scalaz.effect.IO
 import com.typesafe.scalalogging.slf4j._
 import org.slf4j.LoggerFactory
 import spray.json.DefaultJsonProtocol._

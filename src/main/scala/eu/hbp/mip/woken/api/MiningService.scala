@@ -401,7 +401,6 @@ class MiningService(val chronosService: ActorRef,
   private lazy val coordinatorConfig = CoordinatorConfig(chronosService,
                                                          featuresDatabase,
                                                          resultDatabase,
-                                                         RequestProtocol,
                                                          WokenConfig.app.dockerBridgeNetwork,
                                                          jobsConf,
                                                          DbConnectionConfiguration.factory(config))
