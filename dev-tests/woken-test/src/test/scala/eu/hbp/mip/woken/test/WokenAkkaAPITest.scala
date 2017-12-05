@@ -16,7 +16,6 @@
 
 package eu.hbp.mip.woken.test
 
-import java.time.OffsetDateTime
 import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorSystem
