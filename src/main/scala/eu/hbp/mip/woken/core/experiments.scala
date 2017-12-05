@@ -372,7 +372,7 @@ class AlgorithmActor(val coordinatorConfig: CoordinatorConfig)
                     job.query,
                     job.metadata)
         val worker = context.actorOf(
-          CoordinatorActor.props(coordinatorConfig),
+          CoordinatorActor.props(coordinatorConfig.copy(jobResultsFactory = RequestProtocol)),
           CoordinatorActor.actorName(subJob)
         )
         worker ! CoordinatorActor.Start(subJob)
@@ -614,7 +614,7 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
           )
 
           val worker = context.actorOf(
-            CoordinatorActor.props(coordinatorConfig)
+            CoordinatorActor.props(coordinatorConfig.copy(jobResultsFactory = RequestProtocol))
           )
           //workers(worker) = fold
 

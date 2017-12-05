@@ -116,7 +116,7 @@ case class MasterRouter(api: Api,
     case query: ExperimentQuery =>
       log.debug(s"Received message: $query")
       if (experimentsActiveActors.size <= experimentsActiveActorsLimit) {
-        val experimentActorRef = api.mining_service.newExperimentActor(coordinatorConfig)
+        val experimentActorRef = api.mining_service.newExperimentActor(coordinatorConfig.copy(jobResultsFactory = RequestProtocol))
         experimentActorRef.tell(ExperimentActor.Start(query2jobF(query)), sender())
         context watch experimentActorRef
         experimentsActiveActors += experimentActorRef
