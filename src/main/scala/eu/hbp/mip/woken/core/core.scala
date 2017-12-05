@@ -16,8 +16,8 @@
 
 package eu.hbp.mip.woken.core
 
-import akka.actor.{ActorRef, ActorSystem, Props}
-import akka.contrib.throttle.{Throttler, TimerBasedThrottler}
+import akka.actor.{ ActorRef, ActorSystem, Props }
+import akka.contrib.throttle.{ Throttler, TimerBasedThrottler }
 import com.typesafe.config.ConfigFactory
 import eu.hbp.mip.woken.backends.chronos.ChronosService
 import eu.hbp.mip.woken.config.JobsConfiguration
@@ -50,7 +50,10 @@ trait CoreActors {
 
   import Throttler._
   // The throttler for this example, setting the rate
-  val chronosHttp: ActorRef = system.actorOf(Props(classOf[TimerBasedThrottler], 1 msgsPer 300.millisecond), "rateLimit.chronos")
+  val chronosHttp: ActorRef = system.actorOf(
+    Props(classOf[TimerBasedThrottler], 1 msgsPer 300.millisecond),
+    "rateLimit.chronos"
+  )
 
   // Set the target
   chronosHttp ! SetTarget(Some(chronosActor))
