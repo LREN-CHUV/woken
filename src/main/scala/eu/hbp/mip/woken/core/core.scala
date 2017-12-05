@@ -16,10 +16,12 @@
 
 package eu.hbp.mip.woken.core
 
-import akka.actor.{ ActorRef, ActorSystem, Props }
+import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.contrib.throttle.{Throttler, TimerBasedThrottler}
 import com.typesafe.config.ConfigFactory
 import eu.hbp.mip.woken.backends.chronos.ChronosService
 import eu.hbp.mip.woken.config.JobsConfiguration
+import scala.concurrent.duration._
 
 /**
   * Core is type containing the ``system: ActorSystem`` member. This enables us to use it in our
@@ -44,6 +46,13 @@ trait CoreActors {
     .read(config)
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
 
-  val chronosHttp: ActorRef = system.actorOf(ChronosService.props(jobsConf), "http.chronos")
+  private val chronosActor: ActorRef = system.actorOf(ChronosService.props(jobsConf), "chronos")
+
+  import Throttler._
+  // The throttler for this example, setting the rate
+  val chronosHttp: ActorRef = system.actorOf(Props(classOf[TimerBasedThrottler], 1 msgsPer 300.millisecond), "rateLimit.chronos")
+
+  // Set the target
+  chronosHttp ! SetTarget(Some(chronosActor))
 
 }
