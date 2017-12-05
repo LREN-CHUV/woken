@@ -16,6 +16,9 @@
 
 package eu.hbp.mip.woken.test
 
+import java.time.OffsetDateTime
+import java.util.concurrent.TimeUnit
+
 import akka.actor.ActorSystem
 import akka.pattern.ask
 import akka.util.Timeout
@@ -32,17 +35,22 @@ import scala.util.Try
 
 class WokenAkkaAPITest extends FlatSpec with Matchers {
 
-  implicit val timeout: Timeout = Timeout(120 seconds)
+  implicit val timeout: Timeout = Timeout(200 seconds)
   val system = ActorSystem("woken-test")
 
   // Test methods query
   "Woken" should "respond to a query for the list of methods" in {
     val api =
       system.actorSelection("akka.tcp://woken@woken:8088/user/entrypoint")
+    val start = System.currentTimeMillis()
 
     val future = api ? MethodsQuery()
 
     val result = waitFor[Methods](future)
+
+    val end = System.currentTimeMillis()
+
+    println("Complete in " + Duration(end - start, TimeUnit.MILLISECONDS))
 
     if (!result.isSuccess) {
       println(result)
@@ -55,6 +63,7 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
   "Woken" should "respond to a data mining query" in {
     val api =
       system.actorSelection("akka.tcp://woken@woken:8088/user/entrypoint")
+    val start = System.currentTimeMillis()
 
     val future = api ? MiningQuery(
       List(VariableId("cognitive_task2")),
@@ -67,6 +76,10 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
     )
 
     val result = waitFor[QueryResult](future)
+
+    val end = System.currentTimeMillis()
+
+    println("Complete in " + Duration(end - start, TimeUnit.MILLISECONDS))
 
     if (!result.isSuccess) {
       println(result)
@@ -84,12 +97,17 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
   "Woken" should "respond to an experiment query" in {
     val api =
       system.actorSelection("akka.tcp://woken@woken:8088/user/entrypoint")
+    val start = System.currentTimeMillis()
 
     val future = api ? experimentQuery("knn",
                                        "K-nearest neighbors with k=5",
                                        Map("k" -> "5"))
 
     val result = waitFor[QueryResult](future)
+
+    val end = System.currentTimeMillis()
+
+    println("Complete in " + Duration(end - start, TimeUnit.MILLISECONDS))
 
     if (!result.isSuccess) {
       println(result)
