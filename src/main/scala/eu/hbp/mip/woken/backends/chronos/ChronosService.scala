@@ -189,7 +189,7 @@ class ChronosService(jobsConfig: JobsConfiguration)
         Thread.sleep(100)
       }
 
-      val url                        = s"${jobsConfig.chronosServerUrl}/v1/scheduler/jobs/${job.name}"
+      val url                        = s"${jobsConfig.chronosServerUrl}/v1/scheduler/job/${job.name}"
       val chronosResponse: Future[_] = pipeline(Delete(url))
 
       lastRequest = System.currentTimeMillis()
