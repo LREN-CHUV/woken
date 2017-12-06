@@ -23,37 +23,12 @@ import spray.json.{ DefaultJsonProtocol, JsString, JsValue, RootJsonFormat }
 
 import eu.hbp.mip.woken.core.model.JobResult
 
+// TODO: move to json.rest?
+
 // Messages
 
 trait RestMessage {
   def marshaller: ToResponseMarshaller[this.type]
-}
-
-object JobResults {
-  type Factory = scala.collection.Seq[JobResult] => Any
-
-  val defaultFactory: Factory = PutJobResults
-}
-
-case class PutJobResults(results: scala.collection.Seq[JobResult]) extends RestMessage {
-  import PutJobResults._
-  import spray.httpx.SprayJsonSupport._
-  override def marshaller: ToResponseMarshaller[PutJobResults] =
-    ToResponseMarshaller.fromMarshaller(StatusCodes.OK)(sprayJsonMarshaller(putJobResultsFormat))
-}
-
-object PutJobResults extends DefaultJsonProtocol with JobResults.Factory {
-
-  import JobResult._
-  implicit val seqJobResultFormat: RootJsonFormat[Seq[JobResult]] = seqFormat[JobResult]
-
-  implicit object putJobResultsFormat extends RootJsonFormat[PutJobResults] {
-    override def write(r: PutJobResults): JsValue =
-      if (r.results.length == 1) jobResultFormat.write(r.results.head)
-      else seqJobResultFormat.write(r.results)
-    override def read(json: JsValue): PutJobResults =
-      throw new NotImplementedError("Cannot read a PutJobResult")
-  }
 }
 
 // Exceptions
