@@ -19,22 +19,27 @@ package eu.hbp.mip.woken.core
 import java.time.OffsetDateTime
 import java.util.UUID
 
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSelection, LoggingFSM, Props}
+import akka.actor.{ Actor, ActorLogging, ActorRef, ActorSelection, LoggingFSM, Props }
 import akka.pattern.ask
 import akka.util
 import akka.util.Timeout
 import com.github.levkhomich.akka.tracing.ActorTracing
 import eu.hbp.mip.woken.api._
-import eu.hbp.mip.woken.backends.{DockerJob, QueryOffset}
-import eu.hbp.mip.woken.config.WokenConfig.defaultSettings.{dockerImage, isPredictive}
-import eu.hbp.mip.woken.core.model.{ErrorJobResult, JobResult, PfaExperimentJobResult, PfaJobResult}
-import eu.hbp.mip.woken.core.validation.{KFoldCrossValidation, ValidationPoolManager}
-import eu.hbp.mip.woken.messages.external.{Algorithm, ExperimentQuery, MiningQuery, Validation => ApiValidation}
+import eu.hbp.mip.woken.backends.{ DockerJob, QueryOffset }
+import eu.hbp.mip.woken.config.WokenConfig.defaultSettings.{ dockerImage, isPredictive }
+import eu.hbp.mip.woken.core.model.{ ErrorJobResult, PfaExperimentJobResult, PfaJobResult }
+import eu.hbp.mip.woken.core.validation.{ KFoldCrossValidation, ValidationPoolManager }
+import eu.hbp.mip.woken.messages.external.{
+  Algorithm,
+  ExperimentQuery,
+  MiningQuery,
+  Validation => ApiValidation
+}
 import eu.hbp.mip.woken.messages.validation._
-import eu.hbp.mip.woken.meta.{MetaDataProtocol, VariableMetaData}
-import spray.json.{JsString, _}
+import eu.hbp.mip.woken.meta.{ MetaDataProtocol, VariableMetaData }
+import spray.json.{ JsString, _ }
 
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{ Await, Future }
 import scala.util.Random
 
 /**
@@ -57,7 +62,7 @@ object ExperimentActor {
 
   // Output messages: JobResult containing the experiment PFA
 
-  type Result = Either[ErrorJobResult, PfaJobResult]
+  type Result = Either[ErrorJobResult, PfaExperimentJobResult]
 
   def props(coordinatorConfig: CoordinatorConfig): Props =
     Props(new ExperimentActor(coordinatorConfig))
@@ -65,7 +70,7 @@ object ExperimentActor {
 }
 
 /** FSM States and internal data */
-object ExperimentStates {
+private[core] object ExperimentStates {
   import ExperimentActor.Job
 
   // FSM States
@@ -85,28 +90,27 @@ object ExperimentStates {
     def initiator = throw new IllegalAccessException()
   }
 
-  // TODO: results should be Map[Algorithm, \/[String,String]] to keep notion of error responses
   case class PartialExperimentData(
       initiator: ActorRef,
       job: Job,
-      results: Map[Algorithm, String],
+      results: Map[Algorithm, Either[ErrorJobResult, PfaJobResult]],
       algorithms: List[Algorithm]
   ) extends ExperimentData {
     def isComplete: Boolean = results.size == algorithms.length
   }
 
+  // TODO: it seems quite complex, we have now ExperimentJobResults
   case class CompletedExperimentData(
       initiator: ActorRef,
       job: Job,
-      results: Map[Algorithm, String],
+      results: Map[Algorithm, Either[ErrorJobResult, PfaJobResult]],
       algorithms: List[Algorithm]
   ) extends ExperimentData
 
   object CompletedExperimentData {
     def apply(from: PartialExperimentData): CompletedExperimentData =
-      CompletedExperimentData(
-        initiator = from.initiator,
-        job = from.job,
+      CompletedExperimentData(initiator = from.initiator,
+                              job = from.job,
                               results = from.results,
                               algorithms = from.algorithms)
   }
@@ -134,7 +138,7 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig)
 
   when(WaitForNewJob) {
     case Event(Start(job), _) if job.query.algorithms.nonEmpty =>
-      val initiator = sender()
+      val initiator   = sender()
       val algorithms  = job.query.algorithms
       val validations = job.query.validations
 
@@ -171,7 +175,7 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig)
     case Event(AlgorithmActor.ResultResponse(algorithm, algorithmResults),
                previousExperimentData: PartialExperimentData) =>
       log.info(s"Received algorithm result $algorithmResults")
-      val results        = previousExperimentData.results + (algorithm -> algorithmResults)
+      val results        = previousExperimentData.results + (algorithm -> Right(algorithmResults))
       val experimentData = previousExperimentData.copy(results = results)
       if (experimentData.isComplete) {
         log.info("All results received")
@@ -183,10 +187,10 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig)
         stay using experimentData
       }
 
-    case Event(AlgorithmActor.ErrorResponse(algorithm, errorMessage),
+    case Event(AlgorithmActor.ErrorResponse(algorithm, error),
                previousExperimentData: PartialExperimentData) =>
-      log.error(s"Algorithm ${algorithm.code} returned with error $errorMessage")
-      val results        = previousExperimentData.results + (algorithm -> errorMessage)
+      log.error(s"Algorithm ${algorithm.code} returned with error ${error.error.take(50)}")
+      val results        = previousExperimentData.results + (algorithm -> Left(error))
       val experimentData = previousExperimentData.copy(results = results)
       if (experimentData.isComplete) {
         log.info("All results received")
@@ -209,20 +213,31 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig)
       val output = JsArray(
         experimentData.algorithms
           .map(
-            a =>
-              JsObject("code" -> JsString(a.code),
-                       "name" -> JsString(a.name),
-                       "data" -> JsonParser(experimentData.results(a)))
+            a => {
+              val value: Either[ErrorJobResult, PfaJobResult] = experimentData.results(a)
+              value match {
+                case Right(data) =>
+                  JsObject("code" -> JsString(a.code),
+                           "name" -> JsString(a.name),
+                           "data" -> data.model)
+                case Left(error) =>
+                  JsObject("code"  -> JsString(a.code),
+                           "name"  -> JsString(a.name),
+                           "error" -> JsString(error.error))
+              }
+            }
           )
           .toVector
       )
 
-      experimentData.initiator ! Right(PfaExperimentJobResult(
-        jobId = experimentData.job.jobId,
-        node = "",
-        timestamp = OffsetDateTime.now(),
-        data = output
-      ))
+      experimentData.initiator ! Right(
+        PfaExperimentJobResult(
+          jobId = experimentData.job.jobId,
+          node = "",
+          timestamp = OffsetDateTime.now(),
+          models = output
+        )
+      )
 
       log.info("Stopping...")
       stop
@@ -248,20 +263,19 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig)
   */
 object AlgorithmActor {
 
-  // Incoming messages
-  case class Job(
-      jobId: String,
-      inputDb: String,
-      inputTable: String,
-      query: MiningQuery,
-      metadata: JsObject,
-      validations: List[ApiValidation]
-  )
-  case class Start(job: Job)
-  case object Done
+  case class Job(jobId: String,
+                 inputDb: String,
+                 inputTable: String,
+                 query: MiningQuery,
+                 metadata: JsObject,
+                 validations: List[ApiValidation])
 
-  case class ResultResponse(algorithm: Algorithm, data: String)
-  case class ErrorResponse(algorithm: Algorithm, message: String)
+  // Incoming messages
+  case class Start(job: Job)
+
+  // Output messages
+  case class ResultResponse(algorithm: Algorithm, model: PfaJobResult)
+  case class ErrorResponse(algorithm: Algorithm, error: ErrorJobResult)
 
   def props(coordinatorConfig: CoordinatorConfig): Props =
     Props(new AlgorithmActor(coordinatorConfig))
@@ -272,8 +286,11 @@ object AlgorithmActor {
 }
 
 /** FSM States and internal data */
-object AlgorithmStates {
+private[core] object AlgorithmStates {
   import AlgorithmActor.Job
+
+  // Private messages
+  case object Done
 
   // FSM States
   sealed trait State
@@ -292,26 +309,26 @@ object AlgorithmStates {
 
   case class PartialAlgorithmData(initiator: ActorRef,
                                   job: Job,
-                                  model: Option[JobResult],
-                                  incomingValidations: Map[ApiValidation, String],
+                                  model: Option[PfaJobResult],
+                                  incomingValidations: Map[ApiValidation, Either[String, JsObject]],
                                   expectedValidationCount: Int)
       extends AlgorithmData {
 
-    def isComplete: Boolean = (incomingValidations.size == expectedValidationCount) && model.isDefined
+    def isComplete: Boolean =
+      (incomingValidations.size == expectedValidationCount) && model.isDefined
     def remainingValidations: Int = expectedValidationCount - incomingValidations.size
   }
 
   case class CompleteAlgorithmData(initiator: ActorRef,
                                    job: Job,
-                                   model: JobResult,
-                                   validations: Map[ApiValidation, String])
+                                   model: PfaJobResult,
+                                   validations: Map[ApiValidation, Either[String, JsObject]])
       extends AlgorithmData
 
   object CompleteAlgorithmData {
     def apply(from: PartialAlgorithmData): CompleteAlgorithmData =
-      new CompleteAlgorithmData(
-        initiator = from.initiator,
-        job = from.job,
+      new CompleteAlgorithmData(initiator = from.initiator,
+                                job = from.job,
                                 model = from.model.get,
                                 validations = from.incomingValidations)
   }
@@ -329,7 +346,7 @@ class AlgorithmActor(val coordinatorConfig: CoordinatorConfig)
 
   when(WaitForNewJob) {
     case Event(Start(job), _) =>
-      val initiator = sender()
+      val initiator   = sender()
       val algorithm   = job.query.algorithm
       val validations = if (isPredictive(algorithm.code)) job.validations else Nil
 
@@ -369,7 +386,8 @@ class AlgorithmActor(val coordinatorConfig: CoordinatorConfig)
   }
 
   when(WaitForWorkers) {
-    case Event(CoordinatorActor.Response(List(model: PfaJobResult)), previousData: PartialAlgorithmData) =>
+    case Event(CoordinatorActor.Response(List(model: PfaJobResult)),
+               previousData: PartialAlgorithmData) =>
       val data = previousData.copy(model = Some(model))
       if (data.isComplete) {
         log.info("Received PFA result, algorithm processing complete")
@@ -379,20 +397,24 @@ class AlgorithmActor(val coordinatorConfig: CoordinatorConfig)
         stay using data
       }
 
-    case Event(CoordinatorActor.Response(List(model: ErrorJobResult)), previousData: PartialAlgorithmData) =>
+    case Event(CoordinatorActor.Response(List(model: ErrorJobResult)),
+               previousData: PartialAlgorithmData) =>
       log.error(
-        s"Execution of algorithm ${previousData.job.query.algorithm.code} failed with message: ${model.error.take(50)}"
+        s"Execution of algorithm ${previousData.job.query.algorithm.code} failed with message: ${model.error
+          .take(50)}"
       )
       // We cannot train the model, we notify the initiator and we stop
       val initiator = previousData.initiator
-      initiator ! Left(model)
+      initiator ! ErrorResponse(previousData.job.query.algorithm, model)
 
       log.info("Stopping...")
       stop
 
     case Event(CrossValidationActor.ResultResponse(validation, results),
                previousData: PartialAlgorithmData) =>
-      val data = previousData.copy(incomingValidations = previousData.incomingValidations + (validation -> results))
+      val data = previousData.copy(
+        incomingValidations = previousData.incomingValidations + (validation -> Right(results))
+      )
       if (data.isComplete) {
         log.info("Received validation result, algorithm processing complete")
         goto(Reduce) using CompleteAlgorithmData(data)
@@ -408,7 +430,9 @@ class AlgorithmActor(val coordinatorConfig: CoordinatorConfig)
       log.error(
         s"Validation of algorithm ${previousData.job.query.algorithm.code} returned with error : $message"
       )
-      val data = previousData.copy(incomingValidations = previousData.incomingValidations + (validation -> message))
+      val data = previousData.copy(
+        incomingValidations = previousData.incomingValidations + (validation -> Left(message))
+      )
       if (data.isComplete) {
         log.info("Received validation error, algorithm processing complete")
         goto(Reduce) using CompleteAlgorithmData(data)
@@ -425,20 +449,19 @@ class AlgorithmActor(val coordinatorConfig: CoordinatorConfig)
       val validations = JsArray(
         data.validations
           .map({
-            case (key, value) =>
-              JsObject("code" -> JsString(key.code),
-                       "name" -> JsString(key.name),
-                       "data" -> JsonParser(value))
+            case (key, Right(value)) =>
+              JsObject("code" -> JsString(key.code), "name" -> JsString(key.name), "data" -> value)
+            case (key, Left(message)) =>
+              JsObject("code"  -> JsString(key.code),
+                       "name"  -> JsString(key.name),
+                       "error" -> JsString(message))
           })
           .toVector
       )
 
-      // TODO Do better by merging JsObject (not yet supported by Spray...)
-      val pfa = data.model
-        .replaceFirst("\"cells\":\\{",
-                      "\"cells\":{\"validations\":" + validations.compactPrint + ",")
+      val pfa = data.model.injectCell("validations", validations)
 
-      data.replyTo ! AlgorithmActor.ResultResponse(data.job.query.algorithm, pfa)
+      data.initiator ! ResultResponse(data.job.query.algorithm, pfa)
       log.info("Stopping...")
       stop
   }
@@ -464,7 +487,6 @@ class AlgorithmActor(val coordinatorConfig: CoordinatorConfig)
   */
 object CrossValidationActor {
 
-  // Incoming messages
   case class Job(
       jobId: String,
       inputDb: String,
@@ -473,11 +495,12 @@ object CrossValidationActor {
       metadata: JsObject,
       validation: ApiValidation
   )
+
+  // Incoming messages
   case class Start(job: Job)
-  case object Done
 
   // Output Messages
-  case class ResultResponse(validation: ApiValidation, data: String)
+  case class ResultResponse(validation: ApiValidation, data: JsObject)
   case class ErrorResponse(validation: ApiValidation, message: String)
 
   def props(coordinatorConfig: CoordinatorConfig): Props =
@@ -489,8 +512,11 @@ object CrossValidationActor {
 }
 
 /** FSM States and internal data */
-object CrossValidationStates {
+private[core] object CrossValidationStates {
   import CrossValidationActor.Job
+
+  // Private messages
+  case object Done
 
   // FSM States
   sealed trait State
@@ -512,8 +538,8 @@ object CrossValidationStates {
     def job = throw new IllegalAccessException()
   }
 
-  case class WaitForWorkersState(job: Job,
-                                 replyTo: ActorRef,
+  case class WaitForWorkersState(initiator: ActorRef,
+                                 job: Job,
                                  validation: KFoldCrossValidation,
                                  workers: Map[ActorRef, Fold],
                                  foldCount: Int,
@@ -522,8 +548,8 @@ object CrossValidationStates {
                                  results: Map[String, ScoringResult])
       extends StateData
 
-  case class ReduceData(job: Job,
-                        replyTo: ActorRef,
+  case class ReduceData(initiator: ActorRef,
+                        job: Job,
                         targetMetaData: VariableMetaData,
                         average: (List[String], List[String]),
                         results: Map[String, ScoringResult])
@@ -582,7 +608,7 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
           )
 
           val worker = context.actorOf(
-            CoordinatorActor.props(coordinatorConfig.copy(jobResultsFactory = RequestProtocol))
+            CoordinatorActor.props(coordinatorConfig)
           )
           //workers(worker) = fold
 
@@ -601,29 +627,31 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
         case None                      => throw new Exception("Problem with variables' meta data!")
       }
 
-      val replyTo = sender()
-      goto(WaitForWorkers) using WaitForWorkersState(job = job,
-                                                     replyTo = replyTo,
-                                                     validation = crossValidation,
-                                                     workers = workers,
-                                                     targetMetaData = targetMetaData,
-                                                     average = (Nil, Nil),
-                                                     results = Map(),
-                                                     foldCount = foldCount)
+      val initiator = sender()
+      goto(WaitForWorkers) using WaitForWorkersState(
+        initiator = initiator,
+        job = job,
+        validation = crossValidation,
+        workers = workers,
+        targetMetaData = targetMetaData,
+        average = (Nil, Nil),
+        results = Map(),
+        foldCount = foldCount
+      )
   }
 
   when(WaitForWorkers) {
-    case Event(JsonMessage(pfa: JsValue), data: WaitForWorkersState) =>
+    case Event(CoordinatorActor.Response(List(pfa: PfaJobResult)), data: WaitForWorkersState) =>
       // Validate the results
       log.info("Received result from local method.")
-      val model    = pfa.toString()
+      val model    = pfa.model.toString()
       val fold     = data.workers(sender)
       val testData = data.validation.getTestSet(fold)._1.map(d => d.compactPrint)
 
       val sendTo = nextValidationActor
       log.info(s"Send a validation work for fold $fold to pool agent: $sendTo")
       sendTo.fold {
-        context.parent ! CrossValidationActor.ErrorResponse(data.job.validation,
+        data.initiator ! CrossValidationActor.ErrorResponse(data.job.validation,
                                                             "Validation system not available")
         log.info("Stopping...")
         stop
@@ -655,9 +683,10 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
 
           futureO.fold {
             log.error("Validation system not connected")
-            data.replyTo ! CrossValidationActor.ErrorResponse(data.job.validation,
-                                                              "Validation system not connected")
+            data.initiator ! CrossValidationActor.ErrorResponse(data.job.validation,
+                                                                "Validation system not connected")
             stop
+
           } { future =>
             log.info("Waiting for scoring results...")
             val scores = Await.result(future, timeout.duration).asInstanceOf[ScoringResult]
@@ -671,8 +700,8 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
             // If we have validated all the fold we finish!
             if (updatedResults.size == data.foldCount) {
               log.info("Received the scores for each folds, moving on to final reduce step")
-              goto(Reduce) using ReduceData(job = data.job,
-                                            replyTo = data.replyTo,
+              goto(Reduce) using ReduceData(initiator = data.initiator,
+                                            job = data.job,
                                             targetMetaData = data.targetMetaData,
                                             average = updatedAverage,
                                             results = updatedResults)
@@ -687,19 +716,19 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
         case (Some(_), None) =>
           val message = s"No results on fold $fold"
           log.error(message)
-          context.parent ! CrossValidationActor.ErrorResponse(data.job.validation, message)
+          data.initiator ! CrossValidationActor.ErrorResponse(data.job.validation, message)
           log.info("Stopping...")
           stop
         case (None, Some(_)) =>
           val message = s"Empty test set on fold $fold"
           log.error(message)
-          context.parent ! CrossValidationActor.ErrorResponse(data.job.validation, message)
+          data.initiator ! CrossValidationActor.ErrorResponse(data.job.validation, message)
           log.info("Stopping...")
           stop
         case _ =>
           val message = s"No data selected during fold $fold"
           log.error(message)
-          context.parent ! CrossValidationActor.ErrorResponse(data.job.validation, message)
+          data.initiator ! CrossValidationActor.ErrorResponse(data.job.validation, message)
           log.info("Stopping...")
           stop
       }
@@ -707,14 +736,15 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
     case Event(ValidationError(message), data: WaitForWorkersState) =>
       log.error(message)
       // On testing fold fails, we notify supervisor and we stop
-      context.parent ! CrossValidationActor.ErrorResponse(data.job.validation, message)
+      data.initiator ! CrossValidationActor.ErrorResponse(data.job.validation, message)
       log.info("Stopping...")
       stop
 
-    case Event(Error(message), data: WaitForWorkersState) =>
-      log.error(message)
+    case Event(CoordinatorActor.Response(List(error: ErrorJobResult)), data: WaitForWorkersState) =>
+      val message = error.error
+      log.error(s"Error on cross validation job ${error.jobId}: $message")
       // On training fold fails, we notify supervisor and we stop
-      context.parent ! CrossValidationActor.ErrorResponse(data.job.validation, message)
+      data.initiator ! CrossValidationActor.ErrorResponse(data.job.validation, message)
       log.info("Stopping...")
       stop
   }
@@ -734,8 +764,8 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
           val futureO: Option[Future[_]] =
             nextValidationActor.map(_ ? ScoringQuery(r, gt, data.targetMetaData))
           futureO.fold(
-            data.replyTo ! CrossValidationActor.ErrorResponse(data.job.validation,
-                                                              "Validation system not connected")
+            data.initiator ! CrossValidationActor.ErrorResponse(data.job.validation,
+                                                                "Validation system not connected")
           ) { future =>
             val scores = Await.result(future, timeout.duration).asInstanceOf[ScoringResult]
 
@@ -746,13 +776,13 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
               "folds"   -> new JsObject(data.results.mapValues(s => s.scores))
             )
 
-            data.replyTo ! CrossValidationActor.ResultResponse(data.job.validation,
-                                                               jsonValidation.compactPrint)
+            data.initiator ! CrossValidationActor.ResultResponse(data.job.validation,
+                                                                 jsonValidation)
           }
         case _ =>
           val message = s"Final reduce for cross-validation uses empty datasets"
           log.error(message)
-          context.parent ! CrossValidationActor.ErrorResponse(data.job.validation, message)
+          data.initiator ! CrossValidationActor.ErrorResponse(data.job.validation, message)
       }
       log.info("Stopping...")
       stop

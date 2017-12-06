@@ -18,7 +18,7 @@ package eu.hbp.mip.woken.core.model
 
 import java.time.OffsetDateTime
 
-import spray.json.{JsArray, JsObject}
+import spray.json.{ JsArray, JsObject, JsValue }
 
 sealed trait JobResult {
   def jobId: String
@@ -31,20 +31,24 @@ case class PfaJobResult(jobId: String,
                         node: String,
                         timestamp: OffsetDateTime,
                         function: String,
-                        data: JsObject)
+                        model: JsObject)
     extends JobResult {
 
-  def injectValidation(): PfaJobResult = {
+  def injectCell(name: String, value: JsValue): PfaJobResult = {
+    val cells        = model.fields.getOrElse("cells", JsObject()).asJsObject
+    val updatedCells = JsObject(cells.fields + (name -> value))
+    val updatedModel = JsObject(model.fields + ("cells" -> updatedCells))
 
+    copy(model = updatedModel)
   }
 
 }
 
 case class PfaExperimentJobResult(jobId: String,
-                        node: String,
-                        timestamp: OffsetDateTime,
-                        data: JsArray)
-  extends JobResult {
+                                  node: String,
+                                  timestamp: OffsetDateTime,
+                                  models: JsArray)
+    extends JobResult {
 
   override val function = "experiment"
 }

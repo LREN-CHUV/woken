@@ -96,7 +96,7 @@ private[core] object CoordinatorStates {
 
   case object Uninitialized extends StateData {
     def initiator = throw new IllegalAccessException()
-    def job     = throw new IllegalAccessException()
+    def job       = throw new IllegalAccessException()
   }
 
   case class PartialLocalData(initiator: ActorRef,
