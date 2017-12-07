@@ -20,7 +20,7 @@ import java.time.OffsetDateTime
 
 import spray.json.{ JsArray, JsObject, JsValue }
 
-sealed trait JobResult {
+sealed trait JobResult extends Product with Serializable {
   def jobId: String
   def node: String
   def timestamp: OffsetDateTime
