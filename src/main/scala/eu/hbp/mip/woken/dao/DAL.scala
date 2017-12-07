@@ -19,13 +19,16 @@ package eu.hbp.mip.woken.dao
 import java.sql.{ Connection, DriverManager, ResultSet, ResultSetMetaData }
 import java.time.{ OffsetDateTime, ZoneOffset }
 
-import cats.Monad
-import doobie.util.transactor.Transactor
+import cats._
+import cats.data._
+import doobie._
 import eu.hbp.mip.woken.config.DbConnectionConfiguration
 import spray.json._
 import eu.hbp.mip.woken.core.model._
 import eu.hbp.mip.woken.json.yaml
 import eu.hbp.mip.woken.json.yaml.Yaml
+
+import scala.language.higherKinds
 
 /**
   * Data Access Layer
@@ -92,29 +95,31 @@ object JobResultsDAO {
       (j.jobId, j.node, j.timestamp, j.shape, j.function, Some(j.data), None)
   }
 
-  //implicit val JobResultMeta: Meta[JobResult] =
-  // Meta[JobResultColumns].xmap(unsafeFromColumns, jobResultToColumns)
+  implicit val JobResultComposite: Composite[JobResult] =
+    Composite[JobResultColumns].imap(unsafeFromColumns)(jobResultToColumns)
 
-  def queryJobResults(jobId: String): ConnectionIO[List[JobResult]] =
+  def queryJobResults(jobId: String): Query0[JobResult] =
     sql"select job_id, node, timestamp, shape, function, data, error from job_result where job_id = $jobId"
-      .query[JobResultColumns]
-      .list
-      .map(_.map(unsafeFromColumns))
+      .query[JobResult]
 
 }
 
-trait JobResultsDAL extends DAL {
-
-  def findJobResults(jobId: String): List[JobResult]
-
-}
-
-class NodeDAL[M: Monad](xa: Transactor[M]) extends JobResultsDAL {
+final class JobResultsDAL[M[_]: Monad] private (private val xa: Transactor[M]) extends DAL {
+  import JobResultsDAO._
+  import cats.implicits._
+  import doobie._
   import doobie.implicits._
 
-  override def findJobResults(jobId: String) =
-    JobResultsDAO.queryJobResults(jobId).transact(xa).unsafePerformIO
+  def findJobResults(jobId: String): M[List[JobResult]] =
+    queryJobResults(jobId).transact(xa)
 
+}
+
+object JobResultsDAL {
+  import doobie._
+  import cats.implicits._
+
+  def apply[M[_]: Monad](xa: Transactor[M]): JobResultsDAL[M] = new JobResultsDAL(xa)
 }
 
 /*
