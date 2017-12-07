@@ -20,8 +20,7 @@ import java.sql.{ Connection, DriverManager, ResultSet, ResultSetMetaData }
 import java.time.{ OffsetDateTime, ZoneOffset }
 
 import cats.Monad
-import doobie._
-import doobie.implicits._
+import doobie.util.transactor.Transactor
 import eu.hbp.mip.woken.config.DbConnectionConfiguration
 import spray.json._
 import eu.hbp.mip.woken.core.model._
@@ -34,32 +33,35 @@ import eu.hbp.mip.woken.json.yaml.Yaml
 trait DAL {}
 
 object Shapes {
-  val pfa_json        = "pfa_json"
-  val pfa_yaml        = "pfa_yaml"
-  val html            = "html"
-  val svg             = "svg"
-  val highcharts      = "highcharts"
-  val highcharts_mime = "application/highcharts+json"
+  val error               = "error"
+  val pfa_json            = "pfa_json"
+  val pfa_experiment_json = "pfa_experiment_json"
+  val pfa_yaml            = "pfa_yaml"
+  val html                = "html"
+  val svg                 = "svg"
+  val highcharts          = "highcharts"
+  val highcharts_mime     = "application/highcharts+json"
 }
 
 object JobResultsDAO {
   import Shapes._
+  import doobie._
+  import doobie.implicits._
 
   implicit val DateTimeMeta: Meta[OffsetDateTime] =
     Meta[java.sql.Timestamp].xmap(ts => OffsetDateTime.of(ts.toLocalDateTime, ZoneOffset.UTC),
                                   dt => java.sql.Timestamp.valueOf(dt.toLocalDateTime))
 
-  private val toJobResult: (String,
-                            String,
-                            OffsetDateTime,
-                            String,
-                            String,
-                            Option[String],
-                            Option[String]) => JobResult = {
-    case (jobId, node, timestamp, _, function, _, Some(error)) =>
-      ErrorJobResult(jobId, node, timestamp, function, error)
+  type JobResultColumns =
+    (String, String, OffsetDateTime, String, String, Option[String], Option[String])
+
+  private val unsafeFromColumns: JobResultColumns => JobResult = {
+    case (jobId, node, timestamp, _, function, _, Some(errorMessage)) =>
+      ErrorJobResult(jobId, node, timestamp, function, errorMessage)
     case (jobId, node, timestamp, shape, function, Some(data), None) if shape == pfa_json =>
       PfaJobResult(jobId, node, timestamp, function, data.parseJson.asJsObject)
+    case (jobId, node, timestamp, shape, _, Some(data), None) if shape == pfa_experiment_json =>
+      PfaExperimentJobResult(jobId, node, timestamp, data.parseJson.asInstanceOf[JsArray])
     case (jobId, node, timestamp, shape, function, Some(data), None) if shape == pfa_yaml =>
       PfaJobResult(jobId, node, timestamp, function, yaml.yaml2Json(Yaml(data)).asJsObject)
     case (jobId, node, timestamp, shape, function, Some(data), None) if shape == highcharts =>
@@ -71,11 +73,33 @@ object JobResultsDAO {
       throw new IllegalArgumentException(s"Cannot handle job results of shape $shape")
   }
 
+  private val jobResultToColumns: JobResult => JobResultColumns = {
+    case j: PfaJobResult =>
+      (j.jobId, j.node, j.timestamp, pfa_json, j.function, Some(j.model.compactPrint), None)
+    case j: PfaExperimentJobResult =>
+      (j.jobId,
+       j.node,
+       j.timestamp,
+       pfa_experiment_json,
+       j.function,
+       Some(j.models.compactPrint),
+       None)
+    case j: ErrorJobResult =>
+      (j.jobId, j.node, j.timestamp, pfa_json, j.function, None, Some(j.error))
+    case j: JsonDataJobResult =>
+      (j.jobId, j.node, j.timestamp, j.shape, j.function, Some(j.data.compactPrint), None)
+    case j: OtherDataJobResult =>
+      (j.jobId, j.node, j.timestamp, j.shape, j.function, Some(j.data), None)
+  }
+
+  //implicit val JobResultMeta: Meta[JobResult] =
+  // Meta[JobResultColumns].xmap(unsafeFromColumns, jobResultToColumns)
+
   def queryJobResults(jobId: String): ConnectionIO[List[JobResult]] =
     sql"select job_id, node, timestamp, shape, function, data, error from job_result where job_id = $jobId"
-      .query[(String, String, OffsetDateTime, String, String, Option[String], Option[String])]
+      .query[JobResultColumns]
       .list
-      .map(toJobResult)
+      .map(_.map(unsafeFromColumns))
 
 }
 
@@ -86,6 +110,7 @@ trait JobResultsDAL extends DAL {
 }
 
 class NodeDAL[M: Monad](xa: Transactor[M]) extends JobResultsDAL {
+  import doobie.implicits._
 
   override def findJobResults(jobId: String) =
     JobResultsDAO.queryJobResults(jobId).transact(xa).unsafePerformIO

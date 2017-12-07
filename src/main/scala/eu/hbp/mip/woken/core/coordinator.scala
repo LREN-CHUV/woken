@@ -47,6 +47,10 @@ object CoordinatorActor {
   // Incoming messages
   case class Start(job: DockerJob)
 
+  // Internal messages
+  case object CheckDb
+  case object CheckChronos
+
   // Responses
 
   case class Response(results: List[JobResult])
@@ -69,10 +73,6 @@ object CoordinatorActor {
 
 /** FSM States and internal data */
 private[core] object CoordinatorStates {
-
-  // Internal messages
-  private[CoordinatorActor] object CheckDb
-  private[CoordinatorActor] object CheckChronos
 
   // FSM States
 

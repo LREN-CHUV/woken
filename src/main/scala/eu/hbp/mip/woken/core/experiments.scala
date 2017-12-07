@@ -419,7 +419,7 @@ class AlgorithmActor(val coordinatorConfig: CoordinatorConfig)
         log.info("Received validation result, algorithm processing complete")
         goto(Reduce) using CompleteAlgorithmData(data)
       } else {
-        log.info("Received validation result, pending ${data.remainingValidations} validations")
+        log.info(s"Received validation result, pending ${data.remainingValidations} validations")
         if (data.model.isEmpty)
           log.info("Waiting for missing PFA model...")
         stay using data
@@ -437,7 +437,7 @@ class AlgorithmActor(val coordinatorConfig: CoordinatorConfig)
         log.info("Received validation error, algorithm processing complete")
         goto(Reduce) using CompleteAlgorithmData(data)
       } else {
-        log.info("Received validation result, pending ${data.remainingValidations} validations")
+        log.info(s"Received validation result, pending ${data.remainingValidations} validations")
         if (data.model.isEmpty)
           log.info("Waiting for missing PFA model...")
         stay using data

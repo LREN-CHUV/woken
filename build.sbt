@@ -26,7 +26,7 @@ lazy val `woken` =
           library.log4jSlf4j,
           library.disruptor,
           library.catsCore,
-          //library.scalaz,
+          library.scalaz,
           library.config,
           library.doobieCore,
           library.doobiePostgres,
@@ -117,7 +117,7 @@ lazy val settings = commonSettings ++ gitSettings ++ scalafmtSettings
 
 lazy val commonSettings =
   Seq(
-    scalaVersion := "2.11.8",
+    scalaVersion := "2.11.11",
     organization in ThisBuild := "eu.humanbrainproject.mip",
     organizationName in ThisBuild := "Human Brain Project MIP by LREN CHUV",
     homepage in ThisBuild := Some(url(s"https://github.com/HBPMedical/${name.value}/#readme")),
@@ -136,6 +136,7 @@ lazy val commonSettings =
       "-Yno-adapted-args",
       "-Ywarn-dead-code",
       "-Ywarn-value-discard",
+      "-Ypartial-unification",
       "-language:_",
       "-target:jvm-1.8",
       "-encoding",
