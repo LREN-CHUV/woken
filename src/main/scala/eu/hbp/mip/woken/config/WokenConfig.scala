@@ -70,13 +70,6 @@ object WokenConfig {
       JobServerConf(nodesConf.get.getConfig(node).getString("jobsUrl"))
   }
 
-  case class DbConfig(
-      jdbcDriver: String,
-      jdbcUrl: String,
-      jdbcUser: String,
-      jdbcPassword: String
-  )
-
   object defaultSettings {
     lazy val defaultSettingsConf: Config = config.getConfig("defaultSettings")
     lazy val requestConfig: Config       = defaultSettingsConf.getConfig("request")

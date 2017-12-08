@@ -22,6 +22,7 @@ import cats._
 import cats.data._
 import doobie._
 import eu.hbp.mip.woken.config.DbConnectionConfiguration
+import org.postgresql.util.PGobject
 import spray.json._
 
 import scala.language.higherKinds
@@ -29,21 +30,22 @@ import scala.language.higherKinds
 /**
   * Data Access Layer
   */
-trait DAL {}
+object DAL {
 
-/*
-class FederationDAL(xa: Transactor[IO]) extends JobResultsDAL {
-  import DAL._
-
-  def queryJobResults(jobId: String): ConnectionIO[List[JobResult]] =
-    sql"select job_id, node, timestamp, shape, function, data, error from job_result_nodes where job_id = $jobId"
-      .query[JobResult]
-      .list
-
-  override def findJobResults(jobId: String) = queryJobResults(jobId).transact(xa).unsafePerformIO
-
+  implicit val JsObjectMeta: Meta[JsObject] =
+    Meta
+      .other[PGobject]("json")
+      .xmap[JsObject](
+        a => a.getValue.parseJson.asJsObject, // failure raises an exception
+        a => {
+          val o = new PGobject
+          o.setType("json")
+          o.setValue(a.compactPrint)
+          o
+        }
+      )
 }
- */
+trait DAL {}
 
 /**
   * Data access to features used by machine learning and visualisation algorithms
@@ -55,8 +57,8 @@ case class FeaturesDAL(featuresDbConnection: DbConnectionConfiguration) extends 
   lazy val ldsmConnection: Connection = {
     Class.forName(featuresDbConnection.jdbcDriver)
     DriverManager.getConnection(featuresDbConnection.jdbcUrl,
-                                featuresDbConnection.jdbcUser,
-                                featuresDbConnection.jdbcPassword)
+                                featuresDbConnection.user,
+                                featuresDbConnection.password)
   }
 
   case class ColumnMeta(index: Int, label: String, datatype: String)
@@ -176,29 +178,4 @@ case class FeaturesDAL(featuresDbConnection: DbConnectionConfiguration) extends 
       "action" -> JsArray(JsObject("cell" -> JsString("data")))
     )
   }
-}
-
-class MetaDAL(metaDbConnection: DbConnectionConfiguration) extends FeaturesDAL(metaDbConnection) {
-
-  Class.forName(metaDbConnection.jdbcDriver)
-  val metaConnection: Connection = DriverManager.getConnection(metaDbConnection.jdbcUrl,
-                                                               metaDbConnection.jdbcUser,
-                                                               metaDbConnection.jdbcPassword)
-
-  def getMetaData(featuresTable: String): JsObject =
-    runQuery(
-      metaConnection,
-      s"SELECT hierarchy FROM meta_variables WHERE target_table='${featuresTable.toUpperCase}'"
-    )._2.head.fields.get("hierarchy") match {
-
-      case Some(groups: JsString) =>
-        // Eval the string
-        val stringValue = groups.compactPrint
-        StringContext
-          .treatEscapes(stringValue.substring(1, stringValue.length() - 1))
-          .parseJson
-          .asJsObject
-
-      case _ => JsObject.empty
-    }
 }

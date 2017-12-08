@@ -16,15 +16,24 @@
 
 package eu.hbp.mip.woken.config
 
-import com.typesafe.config.Config
-import eu.hbp.mip.woken.cromwell.core.ConfigUtil._
-import cats.data.Validated._
+import doobie._
+import doobie.implicits._
+import doobie.hikari.HikariTransactor
+import cats._
 import cats.implicits._
+import cats.effect._
+import cats.data.Validated._
+import com.typesafe.config.Config
+import com.typesafe.scalalogging.slf4j.Logger
+import eu.hbp.mip.woken.cromwell.core.ConfigUtil._
+import org.slf4j.LoggerFactory
+
+import scala.language.higherKinds
 
 final case class DbConnectionConfiguration(jdbcDriver: String,
                                            jdbcUrl: String,
-                                           jdbcUser: String,
-                                           jdbcPassword: String)
+                                           user: String,
+                                           password: String)
 
 object DbConnectionConfiguration {
 
@@ -35,13 +44,26 @@ object DbConnectionConfiguration {
 
     val jdbcDriver   = jdbcConfig.validateString("jdbc_driver")
     val jdbcUrl      = jdbcConfig.validateString("jdbc_url")
-    val jdbcUser     = jdbcConfig.validateString("jdbc_user")
-    val jdbcPassword = jdbcConfig.validateString("jdbc_password")
+    val jdbcUser     = jdbcConfig.validateString("user")
+    val jdbcPassword = jdbcConfig.validateString("password")
 
     (jdbcDriver, jdbcUrl, jdbcUser, jdbcPassword) mapN DbConnectionConfiguration.apply
   }
 
   def factory(config: Config): String => Validation[DbConnectionConfiguration] =
     dbAlias => read(config, List("db", dbAlias))
+
+  def dbTransactor[F[_]: Async](dbConfig: DbConnectionConfiguration): F[HikariTransactor[F]] =
+    HikariTransactor[F](dbConfig.jdbcDriver, dbConfig.jdbcUrl, dbConfig.user, dbConfig.password)
+
+  val logger = Logger(LoggerFactory.getLogger("database"))
+  // TODO: it should become Validated[]
+  def testConnection[F[_]: Monad](xa: Transactor[F], dbConfig: DbConnectionConfiguration): Unit =
+    try {
+      sql"select 1".query[Int].unique.transact(xa).unsafePerformIO
+    } catch {
+      case e: java.sql.SQLException =>
+        logger.error(s"Cannot connect to ${dbConfig.jdbcUrl}", e)
+    }
 
 }

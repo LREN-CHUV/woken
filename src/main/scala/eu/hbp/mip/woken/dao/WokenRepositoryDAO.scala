@@ -21,9 +21,6 @@ import java.time.{ OffsetDateTime, ZoneOffset }
 import doobie._
 import doobie.implicits._
 import cats._
-import cats.data._
-import cats.implicits._
-import shapeless._
 import eu.hbp.mip.woken.core.model.Shapes._
 import eu.hbp.mip.woken.core.model._
 import eu.hbp.mip.woken.json.yaml
@@ -32,10 +29,16 @@ import spray.json._
 
 import scala.language.higherKinds
 
+class WokenRepositoryDAO[F[_]: Monad](val xa: Transactor[F]) extends WokenRepository[F] {
+
+  override val jobResults: JobResultRepositoryDAO[F] = new JobResultRepositoryDAO[F](xa)
+
+}
+
 /**
   * Interpreter based on Doobie that provides the operations of the algebra
   */
-class WokenRepositoryDAO[F[_]: Monad](val xa: Transactor[F]) extends WokenRepositoryAlgebra[F] {
+class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F]) extends JobResultRepository[F] {
 
   private implicit val DateTimeMeta: Meta[OffsetDateTime] =
     Meta[java.sql.Timestamp].xmap(ts => OffsetDateTime.of(ts.toLocalDateTime, ZoneOffset.UTC),
