@@ -16,12 +16,9 @@
 
 package eu.hbp.mip.woken.backends.chronos
 
-import java.time.OffsetDateTime
-
 import spray.json.{
   DefaultJsonProtocol,
   DeserializationException,
-  JsObject,
   JsString,
   JsValue,
   RootJsonFormat

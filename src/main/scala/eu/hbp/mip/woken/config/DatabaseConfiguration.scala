@@ -30,14 +30,14 @@ import org.slf4j.LoggerFactory
 
 import scala.language.higherKinds
 
-final case class DbConnectionConfiguration(jdbcDriver: String,
-                                           jdbcUrl: String,
-                                           user: String,
-                                           password: String)
+final case class DatabaseConfiguration(jdbcDriver: String,
+                                       jdbcUrl: String,
+                                       user: String,
+                                       password: String)
 
-object DbConnectionConfiguration {
+object DatabaseConfiguration {
 
-  def read(config: Config, path: Seq[String]): Validation[DbConnectionConfiguration] = {
+  def read(config: Config, path: Seq[String]): Validation[DatabaseConfiguration] = {
     val jdbcConfig = path.foldLeft(config) { (c, s) =>
       c.getConfig(s)
     }
@@ -47,18 +47,18 @@ object DbConnectionConfiguration {
     val jdbcUser     = jdbcConfig.validateString("user")
     val jdbcPassword = jdbcConfig.validateString("password")
 
-    (jdbcDriver, jdbcUrl, jdbcUser, jdbcPassword) mapN DbConnectionConfiguration.apply
+    (jdbcDriver, jdbcUrl, jdbcUser, jdbcPassword) mapN DatabaseConfiguration.apply
   }
 
-  def factory(config: Config): String => Validation[DbConnectionConfiguration] =
+  def factory(config: Config): String => Validation[DatabaseConfiguration] =
     dbAlias => read(config, List("db", dbAlias))
 
-  def dbTransactor[F[_]: Async](dbConfig: DbConnectionConfiguration): F[HikariTransactor[F]] =
+  def dbTransactor[F[_]: Async](dbConfig: DatabaseConfiguration): F[HikariTransactor[F]] =
     HikariTransactor[F](dbConfig.jdbcDriver, dbConfig.jdbcUrl, dbConfig.user, dbConfig.password)
 
   val logger = Logger(LoggerFactory.getLogger("database"))
   // TODO: it should become Validated[]
-  def testConnection[F[_]: Monad](xa: Transactor[F], dbConfig: DbConnectionConfiguration): Unit =
+  def testConnection[F[_]: Monad](xa: Transactor[F], dbConfig: DatabaseConfiguration): Unit =
     try {
       sql"select 1".query[Int].unique.transact(xa).unsafePerformIO
     } catch {

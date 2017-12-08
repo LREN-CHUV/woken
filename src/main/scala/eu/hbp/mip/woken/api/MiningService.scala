@@ -20,7 +20,7 @@ import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem }
 import com.typesafe.config.ConfigFactory
 import eu.hbp.mip.woken.authentication.BasicAuthentication
 import eu.hbp.mip.woken.config.{
-  DbConnectionConfiguration,
+  DatabaseConfiguration,
   JobsConfiguration,
   MetaDatabaseConfig,
   WokenConfig
@@ -403,7 +403,7 @@ class MiningService(val chronosService: ActorRef,
                                                          resultDatabase,
                                                          WokenConfig.app.dockerBridgeNetwork,
                                                          jobsConf,
-                                                         DbConnectionConfiguration.factory(config))
+                                                         DatabaseConfiguration.factory(config))
 
   override def listMethods: Route = path("mining" / "list-methods") {
     authenticate(basicAuthenticator) { user =>

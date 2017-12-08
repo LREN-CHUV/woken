@@ -52,7 +52,7 @@ class MasterRouterTest
     override def findJobResults(jobId: String): List[JobResult] = jobResults
   }
 
-  val noDbConfig = DbConnectionConfiguration(jdbcDriver = "java.lang.String",
+  val noDbConfig = DatabaseConfiguration(jdbcDriver = "java.lang.String",
                                              jdbcUrl = "",
                                              jdbcUser = "",
                                              jdbcPassword = "")

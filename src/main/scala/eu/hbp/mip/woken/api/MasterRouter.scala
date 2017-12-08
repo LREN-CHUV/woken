@@ -27,7 +27,7 @@ import com.typesafe.config.ConfigFactory
 import eu.hbp.mip.woken.api.MasterRouter.QueuesSize
 import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.config.{
-  DbConnectionConfiguration,
+  DatabaseConfiguration,
   JobsConfiguration,
   MetaDatabaseConfig,
   WokenConfig
@@ -84,7 +84,7 @@ case class MasterRouter(api: Api,
     resultDatabase,
     WokenConfig.app.dockerBridgeNetwork,
     jobsConf,
-    DbConnectionConfiguration.factory(config)
+    DatabaseConfiguration.factory(config)
   )
 
   var experimentsActiveActors: Set[ActorRef] = Set.empty

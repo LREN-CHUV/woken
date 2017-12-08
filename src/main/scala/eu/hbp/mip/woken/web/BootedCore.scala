@@ -17,32 +17,20 @@
 package eu.hbp.mip.woken.web
 
 import scala.concurrent.duration._
-import akka.actor.{
-  ActorRef,
-  ActorRefFactory,
-  ActorSystem,
-  Address,
-  ExtendedActorSystem,
-  Extension,
-  ExtensionKey,
-  Props
-}
+import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, Address, ExtendedActorSystem, Extension, ExtensionKey, Props}
 import akka.io.IO
 import akka.util.Timeout
 import akka.cluster.Cluster
-import com.typesafe.config.{ Config, ConfigFactory }
+import cats.effect.IO
+import com.typesafe.config.{Config, ConfigFactory}
 import spray.can.Http
-import eu.hbp.mip.woken.api.{ Api, MasterRouter, RoutedHttpService }
-import eu.hbp.mip.woken.config.{
-  DbConnectionConfiguration,
-  MetaDatabaseConfig,
-  ResultDatabaseConfig,
-  WokenConfig
-}
-import eu.hbp.mip.woken.core.{ Core, CoreActors }
+import eu.hbp.mip.woken.api.{Api, MasterRouter, RoutedHttpService}
+import eu.hbp.mip.woken.config.{DatabaseConfiguration, MetaDatabaseConfig, ResultDatabaseConfig, WokenConfig}
+import eu.hbp.mip.woken.core.{Core, CoreActors}
 import eu.hbp.mip.woken.config.WokenConfig.app
 import eu.hbp.mip.woken.core.validation.ValidationPoolManager
-import eu.hbp.mip.woken.dao.{ FeaturesDAL, NodeDAL }
+import eu.hbp.mip.woken.dao.{FeaturesDAL, NodeDAL, WokenRepositoryDAO}
+import eu.hbp.mip.woken.service.JobResultService
 import eu.hbp.mip.woken.ssl.WokenSSLConfiguration
 
 class RemoteAddressExtensionImpl(system: ExtendedActorSystem) extends Extension {
@@ -69,19 +57,26 @@ trait BootedCore
   override lazy val actorRefFactory: ActorRefFactory = system
 
   override lazy val config: Config = ConfigFactory.load()
-  private lazy val resultsDbConfig = DbConnectionConfiguration
+  private lazy val resultsDbConfig = DatabaseConfiguration
     .factory(config)("woken")
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
 
-  private lazy val featuresDbConnection = DbConnectionConfiguration
+  private lazy val featuresDbConnection = DatabaseConfiguration
     .factory(config)(WokenConfig.defaultSettings.defaultDb)
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
 
   override lazy val featuresDAL = FeaturesDAL(featuresDbConnection)
 
   override lazy val resultsDAL: NodeDAL = ResultDatabaseConfig(resultsDbConfig).dal
+  val resultDbConfig: DatabaseConfiguration = ???
+  for {
+    xa <- DatabaseConfiguration.dbTransactor[IO](resultDbConfig)
+    wokenDb = new WokenRepositoryDAO[IO](xa)
+  } yield {
+    JobResultService(wokenDb.jobResults)
+  }
 
-  private lazy val metaDbConnection = DbConnectionConfiguration
+  private lazy val metaDbConnection = DatabaseConfiguration
     .factory(config)(WokenConfig.defaultSettings.defaultMetaDb)
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
 

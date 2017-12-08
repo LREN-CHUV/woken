@@ -18,25 +18,28 @@ package eu.hbp.mip.woken.core
 
 import java.time.OffsetDateTime
 
-import akka.actor.FSM.{ Failure, Normal }
+import akka.actor.FSM.{Failure, Normal}
 import akka.actor._
 import com.github.levkhomich.akka.tracing.ActorTracing
 
 import scala.concurrent.duration._
 import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.backends.chronos.ChronosService
-import eu.hbp.mip.woken.backends.chronos.{ ChronosJob, JobToChronos }
-import eu.hbp.mip.woken.config.{ DbConnectionConfiguration, JobsConfiguration }
-import eu.hbp.mip.woken.core.model.{ ErrorJobResult, JobResult }
+import eu.hbp.mip.woken.backends.chronos.{ChronosJob, JobToChronos}
+import eu.hbp.mip.woken.config.{DatabaseConfiguration, JobsConfiguration}
+import eu.hbp.mip.woken.core.model.{ErrorJobResult, JobResult}
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
-import eu.hbp.mip.woken.dao.{ FeaturesDAL, JobResultsDAL }
+import eu.hbp.mip.woken.dao.FeaturesDAL
+import eu.hbp.mip.woken.service.JobResultService
+
+import scala.language.higherKinds
 
 case class CoordinatorConfig(chronosService: ActorRef,
+                                dockerBridgeNetwork: Option[String],
                              featuresDatabase: FeaturesDAL,
-                             resultDatabase: JobResultsDAL,
-                             dockerBridgeNetwork: Option[String],
+                                jobResultService: JobResultService,
                              jobsConf: JobsConfiguration,
-                             jdbcConfF: String => Validation[DbConnectionConfiguration])
+                             jdbcConfF: String => Validation[DatabaseConfiguration])
 
 /**
   * We use the companion object to hold all the messages that the ``CoordinatorActor``
@@ -53,14 +56,15 @@ object CoordinatorActor {
 
   // Responses
 
+  // TODO: we can return only one JobResult at the moment
   case class Response(results: List[JobResult])
 
   def props(coordinatorConfig: CoordinatorConfig): Props =
     Props(
       new CoordinatorActor(
         coordinatorConfig.chronosService,
-        coordinatorConfig.resultDatabase,
         coordinatorConfig.dockerBridgeNetwork,
+        coordinatorConfig.jobResultService,
         coordinatorConfig.jobsConf,
         coordinatorConfig.jdbcConfF
       )
@@ -131,11 +135,11 @@ private[core] object CoordinatorStates {
   *
   */
 class CoordinatorActor(
-    val chronosService: ActorRef,
-    val resultDatabase: JobResultsDAL,
+    chronosService: ActorRef,
     dockerBridgeNetwork: Option[String],
+    jobResultService: JobResultService,
     jobsConf: JobsConfiguration,
-    jdbcConfF: String => Validation[DbConnectionConfiguration]
+    jdbcConfF: String => Validation[DatabaseConfiguration]
 ) extends Actor
     with ActorLogging
     with ActorTracing
@@ -223,10 +227,14 @@ class CoordinatorActor(
 
     // Check the database for the job result; prepare the next tick or send back the response if the job completed
     case Event(CheckDb, data: PartialLocalData) =>
-      val results = resultDatabase.findJobResults(data.job.jobId)
+     // conf <- PetStoreConfig.load[F]
+    //xa <- DatabaseConfig.dbTransactor(conf.db)
+    //_ <- DatabaseConfig.initializeDb(conf.db, xa)
+
+    val results = jobResultService.get(data.job.jobId)
       if (results.nonEmpty) {
         log.info(s"Received results for job ${data.job.jobId}")
-        data.initiator ! Response(results)
+        data.initiator ! Response(results.toList)
         log.info("Stopping...")
         stop(Normal)
       } else {
@@ -245,10 +253,10 @@ class CoordinatorActor(
           s"Chronos returned job complete for job #$jobId, but was expecting job #{data.job.jobId}"
         )
       }
-      val results = resultDatabase.findJobResults(data.job.jobId)
+      val results = jobResultService.get(data.job.jobId)
       if (results.nonEmpty) {
         log.info(s"Received results for job ${data.job.jobId}")
-        data.initiator ! Response(results)
+        data.initiator ! Response(results.toList)
 
         val reportedSuccess = !results.exists { case _: ErrorJobResult => true; case _ => false }
         if (reportedSuccess != success) {
@@ -333,10 +341,10 @@ class CoordinatorActor(
 
     // Check the database for the job result; prepare the next tick or send back the response if the job completed
     case Event(CheckDb, data: ExpectedLocalData) =>
-      val results = resultDatabase.findJobResults(data.job.jobId)
+      val results = jobResultService.get(data.job.jobId)
       if (results.nonEmpty) {
         log.info(s"Received results for job ${data.job.jobId}")
-        data.initiator ! Response(results)
+        data.initiator ! Response(results.toList)
         log.info("Stopping...")
         stop(Normal)
       } else {

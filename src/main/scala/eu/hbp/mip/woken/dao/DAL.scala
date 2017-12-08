@@ -21,7 +21,7 @@ import java.sql.{ Connection, DriverManager, ResultSet, ResultSetMetaData }
 import cats._
 import cats.data._
 import doobie._
-import eu.hbp.mip.woken.config.DbConnectionConfiguration
+import eu.hbp.mip.woken.config.DatabaseConfiguration
 import org.postgresql.util.PGobject
 import spray.json._
 
@@ -50,7 +50,7 @@ trait DAL {}
 /**
   * Data access to features used by machine learning and visualisation algorithms
   */
-case class FeaturesDAL(featuresDbConnection: DbConnectionConfiguration) extends DAL {
+case class FeaturesDAL(featuresDbConnection: DatabaseConfiguration) extends DAL {
 
   // TODO: Doobie provides better tools...
 
