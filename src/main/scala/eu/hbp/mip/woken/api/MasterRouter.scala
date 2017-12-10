@@ -23,13 +23,11 @@ import eu.hbp.mip.woken.messages.external._
 import eu.hbp.mip.woken.core.{ CoordinatorActor, CoordinatorConfig, ExperimentActor }
 import FunctionsInOut._
 import com.github.levkhomich.akka.tracing.ActorTracing
-import com.typesafe.config.ConfigFactory
 import eu.hbp.mip.woken.api.MasterRouter.QueuesSize
 import eu.hbp.mip.woken.backends.DockerJob
-import eu.hbp.mip.woken.config.{ DatabaseConfiguration, JobsConfiguration, WokenConfig }
+import eu.hbp.mip.woken.config.WokenConfig
 import eu.hbp.mip.woken.core.model.ErrorJobResult
-import eu.hbp.mip.woken.dao.FeaturesDAL
-import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, JobResultService, VariablesMetaService }
+import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, VariablesMetaService }
 
 object MasterRouter {
 
@@ -41,15 +39,11 @@ object MasterRouter {
     def isEmpty: Boolean = experiments == 0 && mining == 0
   }
 
-  def props(api: Api,
-            featuresDatabase: FeaturesDAL,
-            jobResultService: JobResultService,
+  def props(coordinatorConfig: CoordinatorConfig,
             variablesMetaService: VariablesMetaService,
             algorithmLibraryService: AlgorithmLibraryService): Props =
     Props(
-      new MasterRouter(api,
-                       featuresDatabase,
-                       jobResultService,
+      new MasterRouter(coordinatorConfig,
                        algorithmLibraryService,
                        experimentQuery2job(variablesMetaService),
                        miningQuery2job(variablesMetaService))
@@ -57,9 +51,7 @@ object MasterRouter {
 
 }
 
-case class MasterRouter(api: Api,
-                        featuresDatabase: FeaturesDAL,
-                        jobResultService: JobResultService,
+case class MasterRouter(coordinatorConfig: CoordinatorConfig,
                         algorithmLibraryService: AlgorithmLibraryService,
                         query2jobF: ExperimentQuery => ExperimentActor.Job,
                         query2jobFM: MiningQuery => DockerJob)
@@ -68,19 +60,6 @@ case class MasterRouter(api: Api,
     with ActorLogging {
 
   import MasterRouter.RequestQueuesSize
-
-  private lazy val config = ConfigFactory.load()
-  private lazy val jobsConf = JobsConfiguration
-    .read(config)
-    .getOrElse(throw new IllegalStateException("Invalid configuration"))
-  private lazy val coordinatorConfig = CoordinatorConfig(
-    api.chronosHttp,
-    WokenConfig.app.dockerBridgeNetwork,
-    featuresDatabase,
-    jobResultService,
-    jobsConf,
-    DatabaseConfiguration.factory(config)
-  )
 
   var experimentsActiveActors: Set[ActorRef] = Set.empty
   val experimentsActiveActorsLimit: Int      = WokenConfig.app.masterRouterConfig.miningActorsLimit
@@ -100,7 +79,7 @@ case class MasterRouter(api: Api,
 
     case query: MiningQuery =>
       if (miningActiveActors.size <= miningActiveActorsLimit) {
-        val miningActorRef = context.actorOf(CoordinatorActor.props(coordinatorConfig))
+        val miningActorRef = newCoordinatorActor
         miningActorRef.tell(CoordinatorActor.Start(query2jobFM(query)), sender())
         context watch miningActorRef
         miningActiveActors += miningActorRef
@@ -120,7 +99,7 @@ case class MasterRouter(api: Api,
     case query: ExperimentQuery =>
       log.debug(s"Received message: $query")
       if (experimentsActiveActors.size <= experimentsActiveActorsLimit) {
-        val experimentActorRef = context.actorOf(ExperimentActor.props(coordinatorConfig))
+        val experimentActorRef = newExperimentActor
         experimentActorRef.tell(ExperimentActor.Start(query2jobF(query)), sender())
         context watch experimentActorRef
         experimentsActiveActors += experimentActorRef
@@ -144,4 +123,10 @@ case class MasterRouter(api: Api,
       log.warning(s"Received unhandled request $e of type ${e.getClass}")
 
   }
+
+  private[api] def newExperimentActor: ActorRef =
+    context.actorOf(ExperimentActor.props(coordinatorConfig))
+
+  private[api] def newCoordinatorActor: ActorRef =
+    context.actorOf(CoordinatorActor.props(coordinatorConfig))
 }

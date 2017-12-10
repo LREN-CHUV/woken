@@ -18,11 +18,9 @@ package eu.hbp.mip.woken.api
 
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
-import eu.hbp.mip.woken.config.{ JobsConfiguration, WokenConfig }
+import eu.hbp.mip.woken.config.JobsConfiguration
 import spray.routing.{ HttpService, Route }
 import eu.hbp.mip.woken.core.{ Core, CoreActors }
-import eu.hbp.mip.woken.dao.FeaturesDAL
-import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, JobResultService, VariablesMetaService }
 
 /**
   * The REST API layer. It exposes the REST services, but does not provide any
@@ -35,10 +33,6 @@ trait Api extends HttpService with CoreActors with Core {
   protected implicit val system: ActorSystem
 
   def config: Config
-  def featuresDAL: FeaturesDAL
-  def jobResultService: JobResultService
-  def variablesMetaService: VariablesMetaService
-  def algorithmLibraryService: AlgorithmLibraryService
 
   private lazy val jobsConf = JobsConfiguration
     .read(config)

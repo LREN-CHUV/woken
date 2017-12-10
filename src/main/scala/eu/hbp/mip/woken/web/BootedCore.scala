@@ -33,8 +33,8 @@ import cats.effect.IO
 import com.typesafe.config.{ Config, ConfigFactory }
 import spray.can.Http
 import eu.hbp.mip.woken.api.{ Api, MasterRouter, RoutedHttpService }
-import eu.hbp.mip.woken.config.{ DatabaseConfiguration, WokenConfig }
-import eu.hbp.mip.woken.core.{ Core, CoreActors }
+import eu.hbp.mip.woken.config.{ DatabaseConfiguration, JobsConfiguration, WokenConfig }
+import eu.hbp.mip.woken.core.{ CoordinatorConfig, Core, CoreActors }
 import eu.hbp.mip.woken.config.WokenConfig.app
 import eu.hbp.mip.woken.core.validation.ValidationPoolManager
 import eu.hbp.mip.woken.dao.{ FeaturesDAL, MetadataRepositoryDAO, WokenRepositoryDAO }
@@ -73,7 +73,7 @@ trait BootedCore
     .factory(config)(WokenConfig.defaultSettings.defaultDb)
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
 
-  override lazy val featuresDAL = FeaturesDAL(featuresDbConnection)
+  private lazy val featuresDAL = FeaturesDAL(featuresDbConnection)
 
   private lazy val jrsIO: IO[JobResultService] = for {
     xa <- DatabaseConfiguration.dbTransactor[IO](resultsDbConfig)
@@ -82,7 +82,7 @@ trait BootedCore
   } yield {
     JobResultService(wokenDb.jobResults)
   }
-  override lazy val jobResultService: JobResultService = jrsIO.unsafeRunSync()
+  private lazy val jobResultService: JobResultService = jrsIO.unsafeRunSync()
 
   private lazy val metaDbConfig = DatabaseConfiguration
     .factory(config)(WokenConfig.defaultSettings.defaultMetaDb)
@@ -96,9 +96,9 @@ trait BootedCore
     VariablesMetaService(metaDb.variablesMeta)
   }
 
-  override lazy val variablesMetaService: VariablesMetaService = vmsIO.unsafeRunSync()
+  private lazy val variablesMetaService: VariablesMetaService = vmsIO.unsafeRunSync()
 
-  override lazy val algorithmLibraryService: AlgorithmLibraryService = AlgorithmLibraryService()
+  private lazy val algorithmLibraryService: AlgorithmLibraryService = AlgorithmLibraryService()
 
   //Cluster(system).join(RemoteAddressExtension(system).getAddress())
   lazy val cluster = Cluster(system)
@@ -109,16 +109,26 @@ trait BootedCore
   val rootService: ActorRef =
     system.actorOf(Props(new RoutedHttpService(routes ~ staticResources)), app.jobServiceName)
 
+  private lazy val jobsConf = JobsConfiguration
+    .read(config)
+    .getOrElse(throw new IllegalStateException("Invalid configuration"))
+  private lazy val coordinatorConfig = CoordinatorConfig(
+    chronosHttp,
+    WokenConfig.app.dockerBridgeNetwork,
+    featuresDAL,
+    jobResultService,
+    jobsConf,
+    DatabaseConfiguration.factory(config)
+  )
+
   /**
     * Create and start actor that acts as akka entry-point
     */
   val mainRouter: ActorRef =
-    system.actorOf(MasterRouter.props(this,
-                                      featuresDAL,
-                                      jobResultService,
-                                      variablesMetaService,
-                                      algorithmLibraryService),
-                   name = "entrypoint")
+    system.actorOf(
+      MasterRouter.props(coordinatorConfig, variablesMetaService, algorithmLibraryService),
+      name = "entrypoint"
+    )
 
   /**
     * Create and start actor responsible to register validation node

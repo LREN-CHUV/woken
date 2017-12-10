@@ -46,16 +46,18 @@
 
 package eu.hbp.mip.woken.cromwell.util
 
-import java.net.{ MalformedURLException, URL }
+import java.net.URL
 
-import com.typesafe.config.{ Config, ConfigException, ConfigFactory, ConfigValue }
-import org.slf4j.{ Logger, LoggerFactory }
+import com.typesafe.config.{ Config, ConfigException, ConfigValue }
+import org.slf4j.LoggerFactory
 import scala.reflect.{ ClassTag, classTag }
 import scala.collection.JavaConversions._
 import scala.util.Try
 import scalaz._
 import Scalaz._
 
+// TODO: delete with WokenConfig
+@deprecated
 object ConfigUtil {
 
   private[this] val validationLogger = LoggerFactory.getLogger("ConfigurationValidation")

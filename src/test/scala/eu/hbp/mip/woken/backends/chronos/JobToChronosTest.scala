@@ -44,14 +44,14 @@ class JobToChronosTest extends FlatSpec with Matchers {
     "features_db" -> DatabaseConfiguration(
       jdbcDriver = "org.postgresql.Driver",
       jdbcUrl = "jdbc:postgres:localhost:5432/features",
-      jdbcUser = "user",
-      jdbcPassword = "test"
+      user = "user",
+      password = "test"
     ).validNel,
     "woken_db" -> DatabaseConfiguration(
       jdbcDriver = "org.postgresql.Driver",
       jdbcUrl = "jdbc:postgres:localhost:5432/woken",
-      jdbcUser = "woken",
-      jdbcPassword = "wpwd"
+      user = "woken",
+      password = "wpwd"
     ).validNel
   ).withDefaultValue("".invalidNel)
 
@@ -109,10 +109,14 @@ class JobToChronosTest extends FlatSpec with Matchers {
       EnvironmentVariable("PARAM_covariables", "a,b,c"),
       EnvironmentVariable("IN_JDBC_DRIVER", "org.postgresql.Driver"),
       EnvironmentVariable("IN_JDBC_URL", "jdbc:postgres:localhost:5432/features"),
+      EnvironmentVariable("IN_USER", "user"),
+      EnvironmentVariable("IN_PASSWORD", "test"),
       EnvironmentVariable("IN_JDBC_USER", "user"),
       EnvironmentVariable("IN_JDBC_PASSWORD", "test"),
       EnvironmentVariable("OUT_JDBC_DRIVER", "org.postgresql.Driver"),
       EnvironmentVariable("OUT_JDBC_URL", "jdbc:postgres:localhost:5432/woken"),
+      EnvironmentVariable("OUT_USER", "woken"),
+      EnvironmentVariable("OUT_PASSWORD", "wpwd"),
       EnvironmentVariable("OUT_JDBC_USER", "woken"),
       EnvironmentVariable("OUT_JDBC_PASSWORD", "wpwd")
     )
