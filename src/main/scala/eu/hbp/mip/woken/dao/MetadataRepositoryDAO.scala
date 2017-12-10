@@ -61,7 +61,7 @@ class VariablesMetaRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
     val v = variablesMetaCache.get(targetFeaturesTable)
 
     v.fold(
-      sql"SELECT id, source, hierarchy, target_table, histogram_groupings FROM meta_variables WHERE target_table='${targetFeaturesTable.toUpperCase}'"
+      sql"SELECT id, source, hierarchy, target_table, histogram_groupings FROM meta_variables WHERE target_table=${targetFeaturesTable.toUpperCase}"
         .query[VariablesMeta]
         .option
         .transact(xa)
