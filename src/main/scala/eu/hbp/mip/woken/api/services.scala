@@ -100,7 +100,7 @@ class RoutedHttpService(route: Route)
 
   implicit def actorRefFactory: ActorContext = context
 
-  implicit val handler = ExceptionHandler {
+  implicit val handler: ExceptionHandler = ExceptionHandler {
     case NonFatal(ErrorResponseException(statusCode, entity)) =>
       ctx =>
         ctx.complete((statusCode, entity))

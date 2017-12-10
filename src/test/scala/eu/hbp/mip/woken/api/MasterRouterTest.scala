@@ -92,7 +92,7 @@ class MasterRouterTest
 
     override def featuresDAL: FeaturesDAL = fakeFeaturesDAL
 
-    override def resultsDAL: JobResultsDAL = fakeResultsDAL
+    override def jobResultService: JobResultsDAL = fakeResultsDAL
 
     override def metaDbConfig: MetaDatabaseConfig = fakeMetaDbConfig
   }

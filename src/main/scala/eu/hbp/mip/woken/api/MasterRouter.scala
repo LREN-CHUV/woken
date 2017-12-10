@@ -16,23 +16,20 @@
 
 package eu.hbp.mip.woken.api
 
+import java.time.OffsetDateTime
+
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props, Terminated }
-import spray.json._
 import eu.hbp.mip.woken.messages.external._
 import eu.hbp.mip.woken.core.{ CoordinatorActor, CoordinatorConfig, ExperimentActor }
-import eu.hbp.mip.woken.core.model.JobResult
 import FunctionsInOut._
 import com.github.levkhomich.akka.tracing.ActorTracing
 import com.typesafe.config.ConfigFactory
 import eu.hbp.mip.woken.api.MasterRouter.QueuesSize
 import eu.hbp.mip.woken.backends.DockerJob
-import eu.hbp.mip.woken.config.{
-  DatabaseConfiguration,
-  JobsConfiguration,
-  MetaDatabaseConfig,
-  WokenConfig
-}
-import eu.hbp.mip.woken.dao.{ FeaturesDAL, JobResultsDAL }
+import eu.hbp.mip.woken.config.{ DatabaseConfiguration, JobsConfiguration, WokenConfig }
+import eu.hbp.mip.woken.core.model.ErrorJobResult
+import eu.hbp.mip.woken.dao.FeaturesDAL
+import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, JobResultService, VariablesMetaService }
 
 object MasterRouter {
 
@@ -46,21 +43,24 @@ object MasterRouter {
 
   def props(api: Api,
             featuresDatabase: FeaturesDAL,
-            resultDatabase: JobResultsDAL,
-            metaDbConfig: MetaDatabaseConfig): Props =
+            jobResultService: JobResultService,
+            variablesMetaService: VariablesMetaService,
+            algorithmLibraryService: AlgorithmLibraryService): Props =
     Props(
       new MasterRouter(api,
                        featuresDatabase,
-                       resultDatabase,
-                       experimentQuery2job(metaDbConfig),
-                       miningQuery2job(metaDbConfig))
+                       jobResultService,
+                       algorithmLibraryService,
+                       experimentQuery2job(variablesMetaService),
+                       miningQuery2job(variablesMetaService))
     )
 
 }
 
 case class MasterRouter(api: Api,
                         featuresDatabase: FeaturesDAL,
-                        resultDatabase: JobResultsDAL,
+                        jobResultService: JobResultService,
+                        algorithmLibraryService: AlgorithmLibraryService,
                         query2jobF: ExperimentQuery => ExperimentActor.Job,
                         query2jobFM: MiningQuery => DockerJob)
     extends Actor
@@ -69,20 +69,15 @@ case class MasterRouter(api: Api,
 
   import MasterRouter.RequestQueuesSize
 
-  // For the moment we only support one JobResult
-  def createQueryResult(results: scala.collection.Seq[JobResult]): Any =
-    if (results.length == 1) (QueryResult.apply _).tupled(JobResult.unapply(results.head).get)
-    else QueryError("Cannot make sense of the query output")
-
   private lazy val config = ConfigFactory.load()
   private lazy val jobsConf = JobsConfiguration
     .read(config)
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
   private lazy val coordinatorConfig = CoordinatorConfig(
     api.chronosHttp,
-    featuresDatabase,
-    resultDatabase,
     WokenConfig.app.dockerBridgeNetwork,
+    featuresDatabase,
+    jobResultService,
     jobsConf,
     DatabaseConfiguration.factory(config)
   )
@@ -95,8 +90,9 @@ case class MasterRouter(api: Api,
 
   def receive: PartialFunction[Any, Unit] = {
 
-    case query: MethodsQuery =>
-      sender ! Methods(MiningService.methods_mock.parseJson.compactPrint)
+    // TODO: MethodsQuery should be case object
+    case _: MethodsQuery =>
+      sender ! Methods(algorithmLibraryService.algorithms().compactPrint)
 
     case MiningQuery(variables, covariables, groups, _, Algorithm(c, n, p))
         if c == "" || c == "data" =>
@@ -104,12 +100,18 @@ case class MasterRouter(api: Api,
 
     case query: MiningQuery =>
       if (miningActiveActors.size <= miningActiveActorsLimit) {
-        val miningActorRef = api.mining_service.newCoordinatorActor(coordinatorConfig)
+        val miningActorRef = context.actorOf(CoordinatorActor.props(coordinatorConfig))
         miningActorRef.tell(CoordinatorActor.Start(query2jobFM(query)), sender())
         context watch miningActorRef
         miningActiveActors += miningActorRef
       } else {
-        sender() ! CoordinatorActor.ErrorResponse("Too  busy to accept new jobs.")
+        sender() ! List(
+          ErrorJobResult("",
+                         "",
+                         OffsetDateTime.now(),
+                         query.algorithm.code,
+                         "Too busy to accept new jobs.")
+        )
       }
 
     case CoordinatorActor.Response(results) =>
@@ -118,12 +120,14 @@ case class MasterRouter(api: Api,
     case query: ExperimentQuery =>
       log.debug(s"Received message: $query")
       if (experimentsActiveActors.size <= experimentsActiveActorsLimit) {
-        val experimentActorRef = api.mining_service.newExperimentActor(coordinatorConfig)
+        val experimentActorRef = context.actorOf(ExperimentActor.props(coordinatorConfig))
         experimentActorRef.tell(ExperimentActor.Start(query2jobF(query)), sender())
         context watch experimentActorRef
         experimentsActiveActors += experimentActorRef
       } else {
-        sender() ! ExperimentActor.ErrorResponse("Too busy to accept new jobs.")
+        sender() ! List(
+          ErrorJobResult("", "", OffsetDateTime.now(), "experiment", "Too busy to accept new jobs.")
+        )
       }
 
     case RequestQueuesSize =>

@@ -20,8 +20,8 @@ import javax.ws.rs.Path
 
 import com.wordnik.swagger.annotations.{ Api => SwaggerApi, _ }
 import spray.routing._
-import eu.hbp.mip.woken.core.CoordinatorActor.Result
-import eu.hbp.mip.woken.core.CoordinatorActor.{ Result => ExperimentResult }
+//import eu.hbp.mip.woken.core.CoordinatorActor.Result
+//import eu.hbp.mip.woken.core.CoordinatorActor.{ Result => ExperimentResult }
 
 /**
   * Document the API, try not to pollute the code with annotations
@@ -31,7 +31,7 @@ import eu.hbp.mip.woken.core.CoordinatorActor.{ Result => ExperimentResult }
             consumes = "application/json",
             produces = "application/json")
 trait MiningServiceApi extends Directives {
-
+  /*
   @ApiOperation(
     value = "Run a data mining job",
     notes = "Run a data mining job and return id",
@@ -113,4 +113,6 @@ trait MiningServiceApi extends Directives {
   )
   @Authorization(value = "BasicAuth")
   def listMethods: Route
+
+ */
 }

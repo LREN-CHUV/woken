@@ -17,8 +17,8 @@
 package eu.hbp.mip.woken.service
 
 import cats.effect.{ Effect, IO }
-import eu.hbp.mip.woken.core.model.JobResult
-import eu.hbp.mip.woken.dao.JobResultRepository
+import eu.hbp.mip.woken.core.model.VariablesMeta
+import eu.hbp.mip.woken.dao.VariablesMetaRepository
 
 import scala.language.higherKinds
 
@@ -28,15 +28,16 @@ import scala.language.higherKinds
   * The entry point to our domain, works with repositories and validations to implement behavior
   * @param repository where we get our data
   */
-class JobResultService(repository: JobResultRepository[IO])(implicit E: Effect[IO]) {
+class VariablesMetaService(repository: VariablesMetaRepository[IO])(implicit E: Effect[IO]) {
 
-  def put(result: JobResult): JobResult = repository.put(result).unsafeRunSync()
+  def put(meta: VariablesMeta): VariablesMeta = repository.put(meta).unsafeRunSync()
 
-  def get(jobId: String): Option[JobResult] = repository.get(jobId).unsafeRunSync()
+  def get(targetFeaturesTable: String): Option[VariablesMeta] =
+    repository.get(targetFeaturesTable).unsafeRunSync()
 
 }
 
-object JobResultService {
-  def apply(repo: JobResultRepository[IO])(implicit E: Effect[IO]): JobResultService =
-    new JobResultService(repo)
+object VariablesMetaService {
+  def apply(repo: VariablesMetaRepository[IO])(implicit E: Effect[IO]): VariablesMetaService =
+    new VariablesMetaService(repo)
 }

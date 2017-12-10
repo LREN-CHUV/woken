@@ -16,14 +16,15 @@
 
 package eu.hbp.mip.woken.core.model
 
-import spray.json.{ JsArray, JsObject, JsString, deserializationError }
+import spray.json._
+import spray.json.DefaultJsonProtocol._
 
 // TODO: defaultHistogramGroupings: List[String]
-case class Variables(id: Int,
-                     source: String,
-                     hierarchy: JsObject,
-                     featuresTable: String,
-                     defaultHistogramGroupings: String) {
+case class VariablesMeta(id: Int,
+                         source: String,
+                         hierarchy: JsObject,
+                         targetFeaturesTable: String,
+                         defaultHistogramGroupings: String) {
 
   def getMetaData(variables: Seq[String]): JsObject = {
 

@@ -18,7 +18,7 @@ package eu.hbp.mip.woken.dao
 
 import cats._
 import cats.implicits._
-import eu.hbp.mip.woken.core.model.Variables
+import eu.hbp.mip.woken.core.model.VariablesMeta
 import spray.json.{ JsArray, JsObject, deserializationError }
 
 import scala.collection.concurrent.TrieMap
@@ -29,31 +29,31 @@ import scala.language.higherKinds
   */
 trait MetadataRepository[F[_]] extends DAL {
 
-  def variables: VariablesRepository[F]
+  def variablesMeta: VariablesMetaRepository[F]
 
 }
 
-trait VariablesRepository[F[_]] {
+trait VariablesMetaRepository[F[_]] {
 
-  def put(variables: Variables): F[Variables]
+  def put(variablesMeta: VariablesMeta): F[VariablesMeta]
 
-  def get(featuresTable: String): F[Option[Variables]]
+  def get(targetFeaturesTable: String): F[Option[VariablesMeta]]
 
 }
 
 class MetadataInMemoryRepository[F[_]: Applicative] extends MetadataRepository[F] {
 
-  override val variables: VariablesRepository[F] = new VariablesRepository[F] {
+  override val variablesMeta: VariablesMetaRepository[F] = new VariablesMetaRepository[F] {
 
-    private val cache = new TrieMap[String, Variables]
+    private val cache = new TrieMap[String, VariablesMeta]
 
-    override def put(variables: Variables): F[Variables] = {
-      cache.put(variables.featuresTable, variables)
-      variables.pure[F]
+    override def put(variablesMeta: VariablesMeta): F[VariablesMeta] = {
+      cache.put(variablesMeta.targetFeaturesTable, variablesMeta)
+      variablesMeta.pure[F]
     }
 
-    override def get(featuresTable: String): F[Option[Variables]] =
-      cache.get(featuresTable).pure[F]
+    override def get(targetFeaturesTable: String): F[Option[VariablesMeta]] =
+      cache.get(targetFeaturesTable).pure[F]
 
   }
 

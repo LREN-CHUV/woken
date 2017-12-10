@@ -22,10 +22,11 @@ import spray.http.StatusCodes._
 import spray.httpx.marshalling.ToResponseMarshaller
 import spray.routing.RequestContext
 import akka.actor.OneForOneStrategy
+
 import scala.concurrent.duration._
 import spray.http.StatusCode
-
 import eu.hbp.mip.woken.core._
+import eu.hbp.mip.woken.messages.Error
 
 trait PerRequest extends Actor with ActorLogging {
 
@@ -41,12 +42,12 @@ trait PerRequest extends Actor with ActorLogging {
 
   // TODO: status code parameter redundant
 
-  def receive = {
+  def receive: PartialFunction[Any, Unit] = {
     case res: RestMessage =>
       complete(OK, res)(res.marshaller.asInstanceOf[ToResponseMarshaller[RestMessage]])
-    case v: Error       => complete(BadRequest, v)
-    case ReceiveTimeout => complete(GatewayTimeout, Error("Request timeout"))
-    case e: Any         => log.error(s"Unhandled message: $e")
+// TODO    case v: Error       => complete(BadRequest, v)
+    // TODO    case ReceiveTimeout => complete(GatewayTimeout, Error("Request timeout"))
+    case e: Any => log.error(s"Unhandled message: $e")
   }
 
   def complete[T <: AnyRef](status: StatusCode,
@@ -58,7 +59,8 @@ trait PerRequest extends Actor with ActorLogging {
   override val supervisorStrategy: SupervisorStrategy =
     OneForOneStrategy() {
       case e => {
-        complete(InternalServerError, Error(e.getMessage))
+        // TODO: was Error(e.getMessage)
+        complete(InternalServerError, e.getMessage)
         Stop
       }
     }

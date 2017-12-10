@@ -24,9 +24,7 @@ import cats.implicits._
 import cats.effect._
 import cats.data.Validated._
 import com.typesafe.config.Config
-import com.typesafe.scalalogging.slf4j.Logger
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil._
-import org.slf4j.LoggerFactory
 
 import scala.language.higherKinds
 
@@ -56,14 +54,8 @@ object DatabaseConfiguration {
   def dbTransactor[F[_]: Async](dbConfig: DatabaseConfiguration): F[HikariTransactor[F]] =
     HikariTransactor[F](dbConfig.jdbcDriver, dbConfig.jdbcUrl, dbConfig.user, dbConfig.password)
 
-  val logger = Logger(LoggerFactory.getLogger("database"))
   // TODO: it should become Validated[]
-  def testConnection[F[_]: Monad](xa: Transactor[F], dbConfig: DatabaseConfiguration): Unit =
-    try {
-      sql"select 1".query[Int].unique.transact(xa).unsafePerformIO
-    } catch {
-      case e: java.sql.SQLException =>
-        logger.error(s"Cannot connect to ${dbConfig.jdbcUrl}", e)
-    }
+  def testConnection[F[_]: Monad](xa: Transactor[F]): F[Int] =
+    sql"select 1".query[Int].unique.transact(xa)
 
 }

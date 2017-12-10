@@ -23,8 +23,9 @@ import spray.http.StatusCodes
 import spray.httpx.marshalling.ToResponseMarshaller
 import spray.json._
 import eu.hbp.mip.woken.messages.external._
-import eu.hbp.mip.woken.config.{ MetaDatabaseConfig, WokenConfig }
+import eu.hbp.mip.woken.config.WokenConfig
 import eu.hbp.mip.woken.core.{ ExperimentActor, RestMessage }
+import eu.hbp.mip.woken.service.VariablesMetaService
 
 /**
   * Transformations for input and output values of functions
@@ -51,10 +52,10 @@ object FunctionsInOut {
 
   }
 
-  def miningQuery2job(metaDbConfig: MetaDatabaseConfig)(query: MiningQuery): DockerJob = {
+  def miningQuery2job(variablesMetaService: VariablesMetaService)(query: MiningQuery): DockerJob = {
 
     val jobId    = UUID.randomUUID().toString
-    val metadata = metaDbConfig.getMetaData(mainTable, query.dbAllVars)
+    val metadata = variablesMetaService.get(mainTable).get.getMetaData(query.dbAllVars)
 
     DockerJob(jobId,
               dockerImage(query.algorithm.code),
@@ -65,11 +66,11 @@ object FunctionsInOut {
   }
 
   def experimentQuery2job(
-      metaDbConfig: MetaDatabaseConfig
+      variablesMetaService: VariablesMetaService
   )(query: ExperimentQuery): ExperimentActor.Job = {
 
     val jobId    = UUID.randomUUID().toString
-    val metadata = metaDbConfig.getMetaData(mainTable, query.dbAllVars)
+    val metadata = variablesMetaService.get(mainTable).get.getMetaData(query.dbAllVars)
 
     ExperimentActor.Job(jobId, defaultDb, mainTable, query, metadata = metadata)
   }

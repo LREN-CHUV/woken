@@ -20,7 +20,7 @@ import doobie._
 import doobie.implicits._
 import cats._
 import cats.implicits._
-import eu.hbp.mip.woken.core.model.Variables
+import eu.hbp.mip.woken.core.model.VariablesMeta
 import spray.json.JsObject
 
 import scala.collection.mutable
@@ -28,16 +28,18 @@ import scala.language.higherKinds
 
 class MetadataRepositoryDAO[F[_]: Monad](val xa: Transactor[F]) extends MetadataRepository[F] {
 
-  override def variables: VariablesRepository[F] = new VariablesRepositoryDAO[F](xa)
+  override def variablesMeta: VariablesMetaRepository[F] = new VariablesMetaRepositoryDAO[F](xa)
 }
 
-class VariablesRepositoryDAO[F[_]: Monad](val xa: Transactor[F]) extends VariablesRepository[F] {
+class VariablesMetaRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
+    extends VariablesMetaRepository[F] {
   implicit val JsObjectMeta: Meta[JsObject] = DAL.JsObjectMeta
 
   // TODO: use a real cache, for example ScalaCache + Caffeine
-  val variablesCache: mutable.Map[String, Variables] = new mutable.WeakHashMap[String, Variables]()
+  val variablesMetaCache: mutable.Map[String, VariablesMeta] =
+    new mutable.WeakHashMap[String, VariablesMeta]()
 
-  override def put(v: Variables): F[Variables] =
+  override def put(v: VariablesMeta): F[VariablesMeta] =
     sql"""
         INSERT INTO meta_variables (source,
                              hierarchy,
@@ -45,26 +47,26 @@ class VariablesRepositoryDAO[F[_]: Monad](val xa: Transactor[F]) extends Variabl
                              histogram_groupings)
               VALUES (${v.source},
                       ${v.hierarchy},
-                      ${v.featuresTable},
+                      ${v.targetFeaturesTable},
                       ${v.defaultHistogramGroupings})
       """.update
-      .withUniqueGeneratedKeys[Variables]("id",
-                                          "source",
-                                          "hierarchy",
-                                          "target_table",
-                                          "histogram_groupings")
+      .withUniqueGeneratedKeys[VariablesMeta]("id",
+                                              "source",
+                                              "hierarchy",
+                                              "target_table",
+                                              "histogram_groupings")
       .transact(xa)
 
-  override def get(featuresTable: String): F[Option[Variables]] = {
-    val v = variablesCache.get(featuresTable)
+  override def get(targetFeaturesTable: String): F[Option[VariablesMeta]] = {
+    val v = variablesMetaCache.get(targetFeaturesTable)
 
     v.fold(
-      sql"SELECT id, source, hierarchy, target_table, histogram_groupings FROM meta_variables WHERE target_table='${featuresTable.toUpperCase}'"
-        .query[Variables]
+      sql"SELECT id, source, hierarchy, target_table, histogram_groupings FROM meta_variables WHERE target_table='${targetFeaturesTable.toUpperCase}'"
+        .query[VariablesMeta]
         .option
         .transact(xa)
-        .map { (r: Option[Variables]) =>
-          r.foreach(variablesCache.put(featuresTable, _))
+        .map { (r: Option[VariablesMeta]) =>
+          r.foreach(variablesMetaCache.put(targetFeaturesTable, _))
           r
         }
     )(Option(_).pure[F])

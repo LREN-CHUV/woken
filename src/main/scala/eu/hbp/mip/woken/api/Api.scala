@@ -18,10 +18,11 @@ package eu.hbp.mip.woken.api
 
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
-import eu.hbp.mip.woken.config.{ JobsConfiguration, MetaDatabaseConfig, WokenConfig }
+import eu.hbp.mip.woken.config.{ JobsConfiguration, WokenConfig }
 import spray.routing.{ HttpService, Route }
 import eu.hbp.mip.woken.core.{ Core, CoreActors }
-import eu.hbp.mip.woken.dao.{ FeaturesDAL, JobResultsDAL }
+import eu.hbp.mip.woken.dao.FeaturesDAL
+import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, JobResultService, VariablesMetaService }
 
 /**
   * The REST API layer. It exposes the REST services, but does not provide any
@@ -35,25 +36,25 @@ trait Api extends HttpService with CoreActors with Core {
 
   def config: Config
   def featuresDAL: FeaturesDAL
-  def resultsDAL: JobResultsDAL
-  // TODO: replace by MetaDAL
-  def metaDbConfig: MetaDatabaseConfig
+  def jobResultService: JobResultService
+  def variablesMetaService: VariablesMetaService
+  def algorithmLibraryService: AlgorithmLibraryService
 
   private lazy val jobsConf = JobsConfiguration
     .read(config)
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
 
   // TODO: refactor
-  private lazy val defaults = WokenConfig.defaultSettings
-  lazy val mining_service =
-    new MiningService(chronosHttp,
-                      featuresDAL,
-                      resultsDAL,
-                      metaDbConfig,
-                      jobsConf,
-                      defaults.mainTable)
+//  private lazy val defaults = WokenConfig.defaultSettings
+//  lazy val mining_service =
+//    new MiningService(chronosHttp,
+//                      featuresDAL,
+//                      jobResultService,
+//                      variablesMetaService,
+//                      jobsConf,
+//                      defaults.mainTable)
 
-  val routes: Route = new SwaggerService().routes ~
-    mining_service.routes
+  val routes: Route = new SwaggerService().routes /* ~ TODO
+    mining_service.routes*/
 
 }

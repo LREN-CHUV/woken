@@ -18,16 +18,16 @@ package eu.hbp.mip.woken.core
 
 import java.time.OffsetDateTime
 
-import akka.actor.FSM.{Failure, Normal}
+import akka.actor.FSM.{ Failure, Normal }
 import akka.actor._
 import com.github.levkhomich.akka.tracing.ActorTracing
 
 import scala.concurrent.duration._
 import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.backends.chronos.ChronosService
-import eu.hbp.mip.woken.backends.chronos.{ChronosJob, JobToChronos}
-import eu.hbp.mip.woken.config.{DatabaseConfiguration, JobsConfiguration}
-import eu.hbp.mip.woken.core.model.{ErrorJobResult, JobResult}
+import eu.hbp.mip.woken.backends.chronos.{ ChronosJob, JobToChronos }
+import eu.hbp.mip.woken.config.{ DatabaseConfiguration, JobsConfiguration }
+import eu.hbp.mip.woken.core.model.{ ErrorJobResult, JobResult }
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import eu.hbp.mip.woken.dao.FeaturesDAL
 import eu.hbp.mip.woken.service.JobResultService
@@ -35,9 +35,9 @@ import eu.hbp.mip.woken.service.JobResultService
 import scala.language.higherKinds
 
 case class CoordinatorConfig(chronosService: ActorRef,
-                                dockerBridgeNetwork: Option[String],
+                             dockerBridgeNetwork: Option[String],
                              featuresDatabase: FeaturesDAL,
-                                jobResultService: JobResultService,
+                             jobResultService: JobResultService,
                              jobsConf: JobsConfiguration,
                              jdbcConfF: String => Validation[DatabaseConfiguration])
 
@@ -227,11 +227,11 @@ class CoordinatorActor(
 
     // Check the database for the job result; prepare the next tick or send back the response if the job completed
     case Event(CheckDb, data: PartialLocalData) =>
-     // conf <- PetStoreConfig.load[F]
-    //xa <- DatabaseConfig.dbTransactor(conf.db)
-    //_ <- DatabaseConfig.initializeDb(conf.db, xa)
+      // conf <- PetStoreConfig.load[F]
+      //xa <- DatabaseConfig.dbTransactor(conf.db)
+      //_ <- DatabaseConfig.initializeDb(conf.db, xa)
 
-    val results = jobResultService.get(data.job.jobId)
+      val results = jobResultService.get(data.job.jobId)
       if (results.nonEmpty) {
         log.info(s"Received results for job ${data.job.jobId}")
         data.initiator ! Response(results.toList)

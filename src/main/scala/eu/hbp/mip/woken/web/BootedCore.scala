@@ -17,20 +17,28 @@
 package eu.hbp.mip.woken.web
 
 import scala.concurrent.duration._
-import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, Address, ExtendedActorSystem, Extension, ExtensionKey, Props}
-import akka.io.IO
+import akka.actor.{
+  ActorRef,
+  ActorRefFactory,
+  ActorSystem,
+  Address,
+  ExtendedActorSystem,
+  Extension,
+  ExtensionKey,
+  Props
+}
 import akka.util.Timeout
 import akka.cluster.Cluster
 import cats.effect.IO
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.{ Config, ConfigFactory }
 import spray.can.Http
-import eu.hbp.mip.woken.api.{Api, MasterRouter, RoutedHttpService}
-import eu.hbp.mip.woken.config.{DatabaseConfiguration, MetaDatabaseConfig, ResultDatabaseConfig, WokenConfig}
-import eu.hbp.mip.woken.core.{Core, CoreActors}
+import eu.hbp.mip.woken.api.{ Api, MasterRouter, RoutedHttpService }
+import eu.hbp.mip.woken.config.{ DatabaseConfiguration, WokenConfig }
+import eu.hbp.mip.woken.core.{ Core, CoreActors }
 import eu.hbp.mip.woken.config.WokenConfig.app
 import eu.hbp.mip.woken.core.validation.ValidationPoolManager
-import eu.hbp.mip.woken.dao.{FeaturesDAL, NodeDAL, WokenRepositoryDAO}
-import eu.hbp.mip.woken.service.JobResultService
+import eu.hbp.mip.woken.dao.{ FeaturesDAL, MetadataRepositoryDAO, WokenRepositoryDAO }
+import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, JobResultService, VariablesMetaService }
 import eu.hbp.mip.woken.ssl.WokenSSLConfiguration
 
 class RemoteAddressExtensionImpl(system: ExtendedActorSystem) extends Extension {
@@ -67,20 +75,30 @@ trait BootedCore
 
   override lazy val featuresDAL = FeaturesDAL(featuresDbConnection)
 
-  override lazy val resultsDAL: NodeDAL = ResultDatabaseConfig(resultsDbConfig).dal
-  val resultDbConfig: DatabaseConfiguration = ???
-  for {
-    xa <- DatabaseConfiguration.dbTransactor[IO](resultDbConfig)
+  private lazy val jrsIO: IO[JobResultService] = for {
+    xa <- DatabaseConfiguration.dbTransactor[IO](resultsDbConfig)
+    _  <- DatabaseConfiguration.testConnection[IO](xa)
     wokenDb = new WokenRepositoryDAO[IO](xa)
   } yield {
     JobResultService(wokenDb.jobResults)
   }
+  override lazy val jobResultService: JobResultService = jrsIO.unsafeRunSync()
 
-  private lazy val metaDbConnection = DatabaseConfiguration
+  private lazy val metaDbConfig = DatabaseConfiguration
     .factory(config)(WokenConfig.defaultSettings.defaultMetaDb)
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
 
-  override lazy val metaDbConfig = MetaDatabaseConfig(metaDbConnection)
+  private lazy val vmsIO: IO[VariablesMetaService] = for {
+    xa <- DatabaseConfiguration.dbTransactor[IO](metaDbConfig)
+    _  <- DatabaseConfiguration.testConnection[IO](xa)
+    metaDb = new MetadataRepositoryDAO[IO](xa)
+  } yield {
+    VariablesMetaService(metaDb.variablesMeta)
+  }
+
+  override lazy val variablesMetaService: VariablesMetaService = vmsIO.unsafeRunSync()
+
+  override lazy val algorithmLibraryService: AlgorithmLibraryService = AlgorithmLibraryService()
 
   //Cluster(system).join(RemoteAddressExtension(system).getAddress())
   lazy val cluster = Cluster(system)
@@ -95,7 +113,11 @@ trait BootedCore
     * Create and start actor that acts as akka entry-point
     */
   val mainRouter: ActorRef =
-    system.actorOf(MasterRouter.props(this, featuresDAL, resultsDAL, metaDbConfig),
+    system.actorOf(MasterRouter.props(this,
+                                      featuresDAL,
+                                      jobResultService,
+                                      variablesMetaService,
+                                      algorithmLibraryService),
                    name = "entrypoint")
 
   /**
@@ -106,7 +128,7 @@ trait BootedCore
   implicit val timeout: Timeout = Timeout(5.seconds)
 
   // start a new HTTP server on port 8080 with our service actor as the handler
-  IO(Http)(system) ! Http.Bind(rootService, interface = app.interface, port = app.port)
+  akka.io.IO(Http)(system) ! Http.Bind(rootService, interface = app.interface, port = app.port)
 
   /**
     * Ensure that the constructed ActorSystem is shut down when the JVM shuts down

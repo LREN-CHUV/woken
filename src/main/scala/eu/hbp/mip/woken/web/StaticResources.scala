@@ -16,12 +16,12 @@
 
 package eu.hbp.mip.woken.web
 
-import spray.routing.HttpService
+import spray.routing.{ HttpService, Route }
 import spray.http.StatusCodes
 
 trait StaticResources extends HttpService {
 
-  val staticResources =
+  val staticResources: Route =
     get {
       path("") {
         pathEndOrSingleSlash {

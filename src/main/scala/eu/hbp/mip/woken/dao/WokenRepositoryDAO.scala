@@ -21,7 +21,7 @@ import java.time.{ OffsetDateTime, ZoneOffset }
 import doobie._
 import doobie.implicits._
 import cats._
-import eu.hbp.mip.woken.core.model.Shapes._
+import eu.hbp.mip.woken.core.model.Shapes.{ error => errorShape, _ }
 import eu.hbp.mip.woken.core.model._
 import eu.hbp.mip.woken.json.yaml
 import eu.hbp.mip.woken.json.yaml.Yaml
@@ -43,6 +43,7 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F]) extends JobResu
   private implicit val DateTimeMeta: Meta[OffsetDateTime] =
     Meta[java.sql.Timestamp].xmap(ts => OffsetDateTime.of(ts.toLocalDateTime, ZoneOffset.UTC),
                                   dt => java.sql.Timestamp.valueOf(dt.toLocalDateTime))
+  implicit val JsObjectMeta: Meta[JsObject] = DAL.JsObjectMeta
 
   type JobResultColumns =
     (String, String, OffsetDateTime, String, String, Option[String], Option[String])
@@ -83,10 +84,40 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F]) extends JobResu
   private implicit val JobResultComposite: Composite[JobResult] =
     Composite[JobResultColumns].imap(unsafeFromColumns)(jobResultToColumns)
 
-  override def findJobResults(jobId: String): F[List[JobResult]] =
+  override def get(jobId: String): F[Option[JobResult]] =
     sql"select job_id, node, timestamp, shape, function, data, error from job_result where job_id = $jobId"
       .query[JobResult]
-      .list
+      .option
       .transact(xa)
+
+  override def put(jobResult: JobResult): F[JobResult] = {
+    val update: Update0 = jobResult match {
+      case ErrorJobResult(jobId, node, timestamp, function, error) =>
+        sql"""
+          INSERT INTO job_result (job_id, node, timestamp, shape, function, data, error)
+                 VALUES ($jobId, $node, $timestamp, $errorShape, $function, NULL, $error)
+          """.update
+      case PfaJobResult(jobId, node, timestamp, function, model) =>
+        sql"""
+          INSERT INTO job_result (job_id, node, timestamp, shape, function, data, error)
+                 VALUES ($jobId, $node, $timestamp, $errorShape, $function, ${model.compactPrint}, NULL)
+          """.update
+      case PfaExperimentJobResult(jobId, node, timestamp, models) =>
+        sql"""
+          INSERT INTO job_result (job_id, node, timestamp, shape, function, data, error)
+                 VALUES ($jobId, $node, $timestamp, $errorShape, $pfa_experiment_json, ${models.compactPrint}, NULL)
+          """.update
+      case e => throw new IllegalArgumentException("Unsupported type of JobResult: $e")
+    }
+    update
+      .withUniqueGeneratedKeys[JobResult]("job_id",
+                                          "node",
+                                          "timestamp",
+                                          "shape",
+                                          "function",
+                                          "data",
+                                          "error")
+      .transact(xa)
+  }
 
 }
