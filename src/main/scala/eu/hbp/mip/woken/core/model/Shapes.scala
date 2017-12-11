@@ -16,6 +16,7 @@
 
 package eu.hbp.mip.woken.core.model
 
+// TODO: enum like
 object Shapes {
   val error               = "error"
   val pfa_json            = "pfa_json"
