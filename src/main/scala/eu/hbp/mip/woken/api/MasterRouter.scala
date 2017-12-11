@@ -26,7 +26,7 @@ import com.github.levkhomich.akka.tracing.ActorTracing
 import eu.hbp.mip.woken.api.MasterRouter.QueuesSize
 import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.config.WokenConfig
-import eu.hbp.mip.woken.core.model.ErrorJobResult
+import eu.hbp.mip.woken.core.model.{ ErrorJobResult, JobResult }
 import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, VariablesMetaService }
 
 object MasterRouter {
@@ -61,11 +61,13 @@ case class MasterRouter(coordinatorConfig: CoordinatorConfig,
 
   import MasterRouter.RequestQueuesSize
 
-  var experimentsActiveActors: Set[ActorRef] = Set.empty
-  val experimentsActiveActorsLimit: Int      = WokenConfig.app.masterRouterConfig.miningActorsLimit
+  var experimentActiveActors: Set[ActorRef]                      = Set.empty
+  val experimentActiveActorsLimit: Int                           = WokenConfig.app.masterRouterConfig.miningActorsLimit
+  var experimentJobsInFlight: Map[ExperimentActor.Job, ActorRef] = Map()
 
-  var miningActiveActors: Set[ActorRef] = Set.empty
-  val miningActiveActorsLimit: Int      = WokenConfig.app.masterRouterConfig.experimentActorsLimit
+  var miningActiveActors: Set[ActorRef]            = Set.empty
+  val miningActiveActorsLimit: Int                 = WokenConfig.app.masterRouterConfig.experimentActorsLimit
+  var miningJobsInFlight: Map[DockerJob, ActorRef] = Map()
 
   def receive: PartialFunction[Any, Unit] = {
 
@@ -80,9 +82,11 @@ case class MasterRouter(coordinatorConfig: CoordinatorConfig,
     case query: MiningQuery =>
       if (miningActiveActors.size <= miningActiveActorsLimit) {
         val miningActorRef = newCoordinatorActor
-        miningActorRef.tell(CoordinatorActor.Start(query2jobFM(query)), sender())
+        val job            = query2jobFM(query)
+        miningActorRef ! CoordinatorActor.Start(job)
         context watch miningActorRef
         miningActiveActors += miningActorRef
+        miningJobsInFlight += (job -> sender())
       } else {
         sender() ! List(
           ErrorJobResult("",
@@ -93,31 +97,50 @@ case class MasterRouter(coordinatorConfig: CoordinatorConfig,
         )
       }
 
-    case CoordinatorActor.Response(results) =>
-      sender() ! results
+    case CoordinatorActor.Response(job, results) =>
+      // TODO: we can only handle one result from the Coordinator handling a mining query.
+      // Containerised algorithms that can produce more than one result (e.g. PFA model + images) are ignored
+      val jobResult = results.head
+      val initiator = miningJobsInFlight.get(job)
+      miningJobsInFlight -= job
+      initiator.get ! JobResult.asQueryResult(jobResult)
 
     case query: ExperimentQuery =>
       log.debug(s"Received message: $query")
-      if (experimentsActiveActors.size <= experimentsActiveActorsLimit) {
+      if (experimentActiveActors.size <= experimentActiveActorsLimit) {
         val experimentActorRef = newExperimentActor
-        experimentActorRef.tell(ExperimentActor.Start(query2jobF(query)), sender())
+        val job                = query2jobF(query)
+        experimentActorRef ! ExperimentActor.Start(job)
         context watch experimentActorRef
-        experimentsActiveActors += experimentActorRef
+        experimentActiveActors += experimentActorRef
+        experimentJobsInFlight += (job -> sender())
       } else {
-        sender() ! List(
+        val error =
           ErrorJobResult("", "", OffsetDateTime.now(), "experiment", "Too busy to accept new jobs.")
-        )
+        sender() ! JobResult.asQueryResult(error)
       }
+
+    case ExperimentActor.Response(job, Left(results)) =>
+      log.info(s"Received experiment error response $results")
+      val initiator = experimentJobsInFlight.get(job)
+      experimentJobsInFlight -= job
+      initiator.get ! JobResult.asQueryResult(results)
+
+    case ExperimentActor.Response(job, Right(results)) =>
+      log.info(s"Received experiment response $results")
+      val initiator = experimentJobsInFlight.get(job)
+      experimentJobsInFlight -= job
+      initiator.get ! JobResult.asQueryResult(results)
 
     case RequestQueuesSize =>
       sender() ! QueuesSize(mining = miningActiveActors.size,
-                            experiments = experimentsActiveActors.size)
+                            experiments = experimentActiveActors.size)
 
     case Terminated(a) =>
       log.debug(s"Actor terminated: $a")
       miningActiveActors -= a
-      experimentsActiveActors -= a
-      log.debug(s"Experiments active: ${experimentsActiveActors.size}")
+      experimentActiveActors -= a
+      log.debug(s"Experiments active: ${experimentActiveActors.size}")
 
     case e =>
       log.warning(s"Received unhandled request $e of type ${e.getClass}")

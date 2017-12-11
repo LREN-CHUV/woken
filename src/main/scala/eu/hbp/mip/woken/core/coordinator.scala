@@ -34,6 +34,7 @@ import eu.hbp.mip.woken.service.JobResultService
 
 import scala.language.higherKinds
 
+// TODO: featuresDatabase needed by CrossValidationActor, not by CoordinatorActor
 case class CoordinatorConfig(chronosService: ActorRef,
                              dockerBridgeNetwork: Option[String],
                              featuresDatabase: FeaturesDAL,
@@ -57,17 +58,11 @@ object CoordinatorActor {
   // Responses
 
   // TODO: we can return only one JobResult at the moment
-  case class Response(results: List[JobResult])
+  case class Response(job: DockerJob, results: List[JobResult])
 
   def props(coordinatorConfig: CoordinatorConfig): Props =
     Props(
-      new CoordinatorActor(
-        coordinatorConfig.chronosService,
-        coordinatorConfig.dockerBridgeNetwork,
-        coordinatorConfig.jobResultService,
-        coordinatorConfig.jobsConf,
-        coordinatorConfig.jdbcConfF
-      )
+      new CoordinatorActor(coordinatorConfig)
     )
 
   def actorName(job: DockerJob): String =
@@ -134,13 +129,8 @@ private[core] object CoordinatorStates {
   *  -----------------           -----------------------                    --------------------
   *
   */
-class CoordinatorActor(
-    chronosService: ActorRef,
-    dockerBridgeNetwork: Option[String],
-    jobResultService: JobResultService,
-    jobsConf: JobsConfiguration,
-    jdbcConfF: String => Validation[DatabaseConfiguration]
-) extends Actor
+class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
+    extends Actor
     with ActorLogging
     with ActorTracing
     with LoggingFSM[CoordinatorStates.State, CoordinatorStates.StateData] {
@@ -160,7 +150,10 @@ class CoordinatorActor(
 
       import ChronosService._
       val chronosJob: Validation[ChronosJob] =
-        JobToChronos(job, dockerBridgeNetwork, jobsConf, jdbcConfF)
+        JobToChronos(job,
+                     coordinatorConfig.dockerBridgeNetwork,
+                     coordinatorConfig.jobsConf,
+                     coordinatorConfig.jdbcConfF)
 
       chronosJob.fold[State](
         { err =>
@@ -168,7 +161,7 @@ class CoordinatorActor(
           initiator ! errorResponse(job, msg)
           stop(Failure(msg))
         }, { cj =>
-          chronosService ! Schedule(cj)
+          coordinatorConfig.chronosService ! Schedule(cj)
           log.info(
             s"Wait for Chronos to fulfill job ${job.jobId}, Coordinator will reply to $initiator"
           )
@@ -231,10 +224,10 @@ class CoordinatorActor(
       //xa <- DatabaseConfig.dbTransactor(conf.db)
       //_ <- DatabaseConfig.initializeDb(conf.db, xa)
 
-      val results = jobResultService.get(data.job.jobId)
+      val results = coordinatorConfig.jobResultService.get(data.job.jobId)
       if (results.nonEmpty) {
         log.info(s"Received results for job ${data.job.jobId}")
-        data.initiator ! Response(results.toList)
+        data.initiator ! Response(data.job, results.toList)
         log.info("Stopping...")
         stop(Normal)
       } else {
@@ -243,7 +236,7 @@ class CoordinatorActor(
 
     // Check Chronos for the job status; prepare the next tick
     case Event(CheckChronos, data: PartialLocalData) =>
-      chronosService ! ChronosService.Check(data.job.jobId, data.chronosJob)
+      coordinatorConfig.chronosService ! ChronosService.Check(data.job.jobId, data.chronosJob)
       stay() forMax repeatDuration
 
     // Handle Chronos responses
@@ -253,10 +246,10 @@ class CoordinatorActor(
           s"Chronos returned job complete for job #$jobId, but was expecting job #{data.job.jobId}"
         )
       }
-      val results = jobResultService.get(data.job.jobId)
+      val results = coordinatorConfig.jobResultService.get(data.job.jobId)
       if (results.nonEmpty) {
         log.info(s"Received results for job ${data.job.jobId}")
-        data.initiator ! Response(results.toList)
+        data.initiator ! Response(data.job, results.toList)
 
         val reportedSuccess = !results.exists { case _: ErrorJobResult => true; case _ => false }
         if (reportedSuccess != success) {
@@ -341,10 +334,10 @@ class CoordinatorActor(
 
     // Check the database for the job result; prepare the next tick or send back the response if the job completed
     case Event(CheckDb, data: ExpectedLocalData) =>
-      val results = jobResultService.get(data.job.jobId)
+      val results = coordinatorConfig.jobResultService.get(data.job.jobId)
       if (results.nonEmpty) {
         log.info(s"Received results for job ${data.job.jobId}")
-        data.initiator ! Response(results.toList)
+        data.initiator ! Response(data.job, results.toList)
         log.info("Stopping...")
         stop(Normal)
       } else {
@@ -370,111 +363,25 @@ class CoordinatorActor(
     // TODO: all jobs should be cleaned from Chronos after completion, but we keep the success for now for reporting
     //case StopEvent(FSM.Normal, RequestFinalResult | ExpectFinalResult, data) => chronosService ! ChronosService.Cleanup(data.chronosJob)
     case StopEvent(FSM.Shutdown, _, data: PartialLocalData) =>
-      chronosService ! ChronosService.Cleanup(data.chronosJob)
+      coordinatorConfig.chronosService ! ChronosService.Cleanup(data.chronosJob)
     case StopEvent(FSM.Shutdown, _, data: ExpectedLocalData) =>
-      chronosService ! ChronosService.Cleanup(data.chronosJob)
+      coordinatorConfig.chronosService ! ChronosService.Cleanup(data.chronosJob)
     case StopEvent(FSM.Failure(_), RequestFinalResult, data: PartialLocalData) =>
-      chronosService ! ChronosService.Cleanup(data.chronosJob)
+      coordinatorConfig.chronosService ! ChronosService.Cleanup(data.chronosJob)
     case StopEvent(FSM.Failure(_), ExpectFinalResult, data: ExpectedLocalData) =>
-      chronosService ! ChronosService.Cleanup(data.chronosJob)
+      coordinatorConfig.chronosService ! ChronosService.Cleanup(data.chronosJob)
   }
 
   initialize()
 
   private def errorResponse(job: DockerJob, msg: String) =
-    Response(
-      List(
-        ErrorJobResult(job.jobId,
-                       jobsConf.node,
-                       OffsetDateTime.now(),
-                       job.query.algorithm.code,
-                       msg)
-      )
-    )
+    Response(job,
+             List(
+               ErrorJobResult(job.jobId,
+                              coordinatorConfig.jobsConf.node,
+                              OffsetDateTime.now(),
+                              job.query.algorithm.code,
+                              msg)
+             ))
 
 }
-
-/*
-
-  case class PartialNodesData(job: DockerJob,
-                              replyTo: ActorRef,
-                              remainingNodes: Set[String] = Set(),
-                              totalNodeCount: Int)
-      extends StateData
-
-
-class FederationCoordinatorActor(val chronosService: ActorRef,
-                                 val resultDatabase: JobResultsDAL,
-                                 val federationDatabase: JobResultsDAL,
-                                 val jobResultsFactory: JobResults.Factory)
-    extends CoordinatorActor {
-
-  import CoordinatorActor._
-  import CoordinatorStates._
-
-  when(WaitForNewJob) {
-
-    case Event(Start(job), Uninitialized) =>
-      import eu.hbp.mip.woken.config.WokenConfig
-      val replyTo = sender()
-      val nodes   = job.nodes.filter(_.isEmpty).getOrElse(WokenConfig.jobs.nodes)
-
-      log.warning(s"List of nodes: ${nodes.mkString(",")}")
-
-      if (nodes.nonEmpty) {
-        for (node <- nodes) {
-          val workerNode = context.actorOf(Props(classOf[JobClientService], node))
-          workerNode ! Start(job.copy(nodes = None))
-        }
-        goto(WaitForNodes) using PartialNodesData(job, replyTo, nodes, nodes.size)
-      } else {
-        goto(SubmittedJobToChronos) using PartialLocalData(job, replyTo)
-      }
-  }
-
-  // TODO: implement a reconciliation algorithm: http://mesos.apache.org/documentation/latest/reconciliation/
-  when(WaitForNodes) {
-
-    case Event(WorkerJobComplete(node), data: PartialNodesData) =>
-      if (data.remainingNodes == Set(node)) {
-        goto(RequestIntermediateResults) using data.copy(remainingNodes = Set())
-      } else {
-        goto(WaitForNodes) using data.copy(remainingNodes = data.remainingNodes - node)
-      }
-
-    case Event(WorkerJobError(node, message), data: PartialNodesData) =>
-      log.error(message)
-      if (data.remainingNodes == Set(node)) {
-        goto(RequestIntermediateResults) using data.copy(remainingNodes = Set())
-      } else {
-        goto(WaitForNodes) using data.copy(remainingNodes = data.remainingNodes - node)
-      }
-  }
-
-  when(RequestIntermediateResults, stateTimeout = repeatDuration) {
-
-    case Event(StateTimeout, data: PartialNodesData) =>
-      val results = federationDatabase.findJobResults(data.job.jobId)
-      if (results.size == data.totalNodeCount) {
-        data.job.federationDockerImage.fold {
-          data.replyTo ! PutJobResults(results)
-          stop()
-        } { federationDockerImage =>
-          val parameters = Map(
-            "PARAM_query" -> s"select data from job_result_nodes where job_id='${data.job.jobId}'"
-          )
-          goto(SubmittedJobToChronos) using PartialLocalData(
-            data.job.copy(dockerImage = federationDockerImage, parameters = parameters),
-            data.replyTo
-          )
-        }
-      } else {
-        stay() forMax repeatDuration
-      }
-  }
-
-  initialize()
-
-}
-
- */

@@ -62,7 +62,8 @@ object ExperimentActor {
 
   // Output messages: JobResult containing the experiment PFA
 
-  type Result = Either[ErrorJobResult, PfaExperimentJobResult]
+  // TODO: Left(ErrorJobResult) is never used, maybe we should better report errors...
+  case class Response(job: Job, result: Either[ErrorJobResult, PfaExperimentJobResult])
 
   def props(coordinatorConfig: CoordinatorConfig): Props =
     Props(new ExperimentActor(coordinatorConfig))
@@ -230,14 +231,15 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig)
           .toVector
       )
 
-      experimentData.initiator ! Right(
-        PfaExperimentJobResult(
-          jobId = experimentData.job.jobId,
-          node = "",
-          timestamp = OffsetDateTime.now(),
-          models = output
-        )
-      )
+      experimentData.initiator ! Response(experimentData.job,
+                                          Right(
+                                            PfaExperimentJobResult(
+                                              jobId = experimentData.job.jobId,
+                                              node = "",
+                                              timestamp = OffsetDateTime.now(),
+                                              models = output
+                                            )
+                                          ))
 
       log.info("Stopping...")
       stop
@@ -386,7 +388,7 @@ class AlgorithmActor(val coordinatorConfig: CoordinatorConfig)
   }
 
   when(WaitForWorkers) {
-    case Event(CoordinatorActor.Response(List(model: PfaJobResult)),
+    case Event(CoordinatorActor.Response(_, List(model: PfaJobResult)),
                previousData: PartialAlgorithmData) =>
       val data = previousData.copy(model = Some(model))
       if (data.isComplete) {
@@ -397,7 +399,7 @@ class AlgorithmActor(val coordinatorConfig: CoordinatorConfig)
         stay using data
       }
 
-    case Event(CoordinatorActor.Response(List(model: ErrorJobResult)),
+    case Event(CoordinatorActor.Response(_, List(model: ErrorJobResult)),
                previousData: PartialAlgorithmData) =>
       log.error(
         s"Execution of algorithm ${previousData.job.query.algorithm.code} failed with message: ${model.error
@@ -641,7 +643,7 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
   }
 
   when(WaitForWorkers) {
-    case Event(CoordinatorActor.Response(List(pfa: PfaJobResult)), data: WaitForWorkersState) =>
+    case Event(CoordinatorActor.Response(_, List(pfa: PfaJobResult)), data: WaitForWorkersState) =>
       // Validate the results
       log.info("Received result from local method.")
       val model    = pfa.model.toString()
@@ -740,7 +742,8 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
       log.info("Stopping...")
       stop
 
-    case Event(CoordinatorActor.Response(List(error: ErrorJobResult)), data: WaitForWorkersState) =>
+    case Event(CoordinatorActor.Response(_, List(error: ErrorJobResult)),
+               data: WaitForWorkersState) =>
       val message = error.error
       log.error(s"Error on cross validation job ${error.jobId}: $message")
       // On training fold fails, we notify supervisor and we stop

@@ -24,7 +24,12 @@ import eu.hbp.mip.woken.api.MasterRouter.{ QueuesSize, RequestQueuesSize }
 import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.config._
 import eu.hbp.mip.woken.core.ExperimentActor.Start
-import eu.hbp.mip.woken.core.{ CoordinatorConfig, ExperimentActor }
+import eu.hbp.mip.woken.core.{
+  CoordinatorConfig,
+  ExperimentActor,
+  FakeCoordinatorActor,
+  FakeExperimentActor
+}
 import eu.hbp.mip.woken.dao.FeaturesDAL
 import eu.hbp.mip.woken.messages.external._
 import com.typesafe.config.{ Config, ConfigFactory }
@@ -32,7 +37,6 @@ import eu.hbp.mip.woken.service.AlgorithmLibraryService
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import spray.json.JsObject
 import cats.data.Validated._
-import eu.hbp.mip.woken.api.FunctionsInOut.{ experimentQuery2job, miningQuery2job }
 import eu.hbp.mip.woken.core.model.ErrorJobResult
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil
 
@@ -84,10 +88,10 @@ class MasterRouterTest
                            miningQuery2job) {
 
     override def newExperimentActor: ActorRef =
-      system.actorOf(FakeActor.echoActorProps)
+      system.actorOf(Props(new FakeExperimentActor()))
 
     override def newCoordinatorActor: ActorRef =
-      system.actorOf(FakeActor.echoActorProps)
+      system.actorOf(Props(new FakeCoordinatorActor()))
 
   }
 
@@ -127,7 +131,7 @@ class MasterRouterTest
       within(limit seconds) {
 
         (1 to limit).foreach { _ =>
-          expectMsgType[Start](5 seconds)
+          expectMsgType[QueryResult](5 seconds)
         }
 
         expectNoMsg()
@@ -158,8 +162,8 @@ class MasterRouterTest
 
         (1 to overflow).foreach { i =>
           expectMsgPF[Unit](5 seconds) {
-            case _: Start                => successfulStarts += 1
-            case List(_: ErrorJobResult) => failures += 1
+            case QueryResult(_, _, _, _, _, Some(_), None) => successfulStarts += 1
+            case QueryResult(_, _, _, _, _, None, Some(_)) => failures += 1
           }
         }
 
@@ -188,7 +192,7 @@ class MasterRouterTest
       within(limit seconds) {
 
         (1 to limit).foreach { _ =>
-          expectMsgType[Start](5 seconds)
+          expectMsgType[QueryResult](5 seconds)
         }
 
         expectNoMsg()

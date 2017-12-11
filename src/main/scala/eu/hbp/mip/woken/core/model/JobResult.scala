@@ -18,7 +18,9 @@ package eu.hbp.mip.woken.core.model
 
 import java.time.OffsetDateTime
 
-import spray.json.{ JsArray, JsObject, JsValue }
+import eu.hbp.mip.woken.core.model.Shapes._
+import eu.hbp.mip.woken.messages.external.QueryResult
+import spray.json._
 
 sealed trait JobResult extends Product with Serializable {
   def jobId: String
@@ -79,3 +81,61 @@ case class OtherDataJobResult(jobId: String,
                               function: String,
                               data: String)
     extends VisualisationJobResult
+
+object JobResult {
+
+  def asQueryResult(jobResult: JobResult): QueryResult =
+    jobResult match {
+      case pfa: PfaJobResult =>
+        QueryResult(
+          jobId = pfa.jobId,
+          node = pfa.node,
+          timestamp = pfa.timestamp,
+          shape = pfa_json,
+          function = pfa.function,
+          data = Some(pfa.model.compactPrint),
+          error = None
+        )
+      case pfa: PfaExperimentJobResult =>
+        QueryResult(
+          jobId = pfa.jobId,
+          node = pfa.node,
+          timestamp = pfa.timestamp,
+          shape = pfa_json,
+          function = pfa.function,
+          data = Some(pfa.models.compactPrint),
+          error = None
+        )
+      case v: JsonDataJobResult =>
+        QueryResult(
+          jobId = v.jobId,
+          node = v.node,
+          timestamp = v.timestamp,
+          shape = v.shape,
+          function = v.function,
+          data = Some(v.data.compactPrint),
+          error = None
+        )
+      case v: OtherDataJobResult =>
+        QueryResult(
+          jobId = v.jobId,
+          node = v.node,
+          timestamp = v.timestamp,
+          shape = v.shape,
+          function = v.function,
+          data = Some(JsString(v.data).compactPrint),
+          error = None
+        )
+      case e: ErrorJobResult =>
+        QueryResult(
+          jobId = e.jobId,
+          node = e.node,
+          timestamp = e.timestamp,
+          shape = error,
+          function = e.function,
+          data = None,
+          error = Some(e.error)
+        )
+    }
+
+}

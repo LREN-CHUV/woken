@@ -18,6 +18,7 @@ package eu.hbp.mip.woken.api
 
 import java.util.UUID
 
+import akka.actor.ActorRef
 import eu.hbp.mip.woken.backends.DockerJob
 import spray.http.StatusCodes
 import spray.httpx.marshalling.ToResponseMarshaller
@@ -52,7 +53,9 @@ object FunctionsInOut {
 
   }
 
-  def miningQuery2job(variablesMetaService: VariablesMetaService)(query: MiningQuery): DockerJob = {
+  def miningQuery2job(
+      variablesMetaService: VariablesMetaService
+  )(query: MiningQuery): DockerJob = {
 
     val jobId    = UUID.randomUUID().toString
     val metadata = variablesMetaService.get(mainTable).get.getMetaData(query.dbAllVars)
