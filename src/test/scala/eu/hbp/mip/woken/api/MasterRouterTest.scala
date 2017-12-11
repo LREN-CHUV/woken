@@ -23,7 +23,6 @@ import akka.testkit.{ ImplicitSender, TestKit }
 import eu.hbp.mip.woken.api.MasterRouter.{ QueuesSize, RequestQueuesSize }
 import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.config._
-import eu.hbp.mip.woken.core.ExperimentActor.Start
 import eu.hbp.mip.woken.core.{
   CoordinatorConfig,
   ExperimentActor,
@@ -37,7 +36,6 @@ import eu.hbp.mip.woken.service.AlgorithmLibraryService
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import spray.json.JsObject
 import cats.data.Validated._
-import eu.hbp.mip.woken.core.model.ErrorJobResult
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil
 
 import scala.concurrent.duration._
