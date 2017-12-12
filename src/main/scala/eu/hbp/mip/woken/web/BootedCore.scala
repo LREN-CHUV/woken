@@ -29,9 +29,9 @@ import akka.actor.{
 }
 import akka.util.Timeout
 import akka.cluster.Cluster
+import akka.http.scaladsl.Http
 import cats.effect.IO
 import com.typesafe.config.{ Config, ConfigFactory }
-import spray.can.Http
 import eu.hbp.mip.woken.api.{ Api, MasterRouter, RoutedHttpService }
 import eu.hbp.mip.woken.config.{ DatabaseConfiguration, JobsConfiguration, WokenConfig }
 import eu.hbp.mip.woken.core.{ CoordinatorConfig, Core, CoreActors }
@@ -138,11 +138,14 @@ trait BootedCore
   implicit val timeout: Timeout = Timeout(5.seconds)
 
   // start a new HTTP server on port 8080 with our service actor as the handler
-  akka.io.IO(Http)(system) ! Http.Bind(rootService, interface = app.interface, port = app.port)
+  val binding = Http().bindAndHandle(rootService, interface = app.interface, port = app.port)
 
   /**
     * Ensure that the constructed ActorSystem is shut down when the JVM shuts down
     */
-  sys.addShutdownHook(system.shutdown())
+  sys.addShutdownHook{
+    binding.flatMap(_.unbind())
+      .onComplete(_ => system.terminate())
+  }
 
 }

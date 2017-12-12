@@ -17,8 +17,6 @@
 package eu.hbp.mip.woken.authentication
 
 import eu.hbp.mip.woken.config.WokenConfig
-import spray.routing.authentication.{ BasicAuth, UserPass }
-import spray.routing.directives.AuthMagnet
 
 import scala.concurrent.{ ExecutionContext, Future }
 

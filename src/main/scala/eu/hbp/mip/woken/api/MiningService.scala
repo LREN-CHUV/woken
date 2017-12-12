@@ -16,17 +16,16 @@
 
 package eu.hbp.mip.woken.api
 
-import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem }
+import akka.actor.{ActorRef, ActorRefFactory, ActorSystem}
+import akka.http.scaladsl.server.Route
 import com.typesafe.config.ConfigFactory
+import eu.hbp.mip.woken.api.swagger.MiningServiceApi
 import eu.hbp.mip.woken.authentication.BasicAuthentication
-import eu.hbp.mip.woken.config.{ DatabaseConfiguration, JobsConfiguration, WokenConfig }
-import spray.http.MediaTypes._
-import spray.http._
-import spray.routing.Route
+import eu.hbp.mip.woken.config.{DatabaseConfiguration, JobsConfiguration, WokenConfig}
 import eu.hbp.mip.woken.messages.external._
 import eu.hbp.mip.woken.core._
 import eu.hbp.mip.woken.dao.FeaturesDAL
-import eu.hbp.mip.woken.service.{ JobResultService, VariablesMetaService }
+import eu.hbp.mip.woken.service.{JobResultService, VariablesMetaService}
 
 object MiningService {}
 
@@ -37,7 +36,7 @@ class MiningService(val chronosService: ActorRef,
                     val variablesMetaService: VariablesMetaService,
                     val jobsConf: JobsConfiguration,
                     val defaultFeaturesTable: String)(implicit system: ActorSystem)
-    extends MiningServiceApi
+  extends MiningServiceApi
     with PerRequestCreator
     with DefaultJsonFormats
     with BasicAuthentication {
@@ -46,80 +45,76 @@ class MiningService(val chronosService: ActorRef,
 
   implicit val executionContext = context.dispatcher
 
-  val routes: Route = (_) => () // mining ~ experiment ~ listMethods
+  val routes: Route = mining ~ experiment ~ listMethods
 
-  /*
+
   import ApiJsonSupport._
   import CoordinatorActor._
-
-  implicit object EitherErrorSelector extends ErrorSelector[ErrorResponse.type] {
-    def apply(v: ErrorResponse.type): StatusCode = StatusCodes.BadRequest
-  }
 
   // TODO: improve passing configuration around
   private lazy val config = ConfigFactory.load()
   private lazy val coordinatorConfig = CoordinatorConfig(chronosService,
-                                                         featuresDatabase,
-                                                         resultDatabase,
-                                                         WokenConfig.app.dockerBridgeNetwork,
-                                                         jobsConf,
-                                                         DatabaseConfiguration.factory(config))
+    featuresDatabase,
+    resultDatabase,
+    WokenConfig.app.dockerBridgeNetwork,
+    jobsConf,
+    DatabaseConfiguration.factory(config))
 
   override def listMethods: Route = path("mining" / "list-methods") {
-    authenticate(basicAuthenticator) { user =>
-      import spray.json._
+    //authenticate(basicAuthenticator) { user =>
+    import spray.json._
 
-      get {
-        respondWithMediaType(`application/json`) {
-          complete(MiningService.methods_mock.parseJson.compactPrint)
-        }
-      }
+    get {
+      complete(MiningService.methods_mock.parseJson.compactPrint)
     }
   }
+
+  //}
+
 
   override def mining: Route = path("mining" / "job") {
-    authenticate(basicAuthenticator) { user =>
-      import FunctionsInOut._
+    //authenticate(basicAuthenticator) { user =>
+    import FunctionsInOut._
 
-      post {
-        entity(as[MiningQuery]) {
-          case MiningQuery(variables, covariables, groups, filters, Algorithm(c, n, p))
-              if c == "" || c == "data" =>
-            ctx =>
-              {
-                ctx.complete(
-                  featuresDatabase.queryData(defaultFeaturesTable, {
-                    variables ++ covariables ++ groups
-                  }.distinct.map(_.code))
-                )
-              }
+    post {
+      entity(as[MiningQuery]) {
+        case MiningQuery(variables, covariables, groups, filters, Algorithm(c, n, p))
+          if c == "" || c == "data" =>
+          ctx => {
+            ctx.complete(
+              featuresDatabase.queryData(defaultFeaturesTable, {
+                variables ++ covariables ++ groups
+              }.distinct.map(_.code))
+            )
+          }
 
-          case query: MiningQuery =>
-            val job = miningQuery2job(metaDbConfig)(query)
-            miningJob(coordinatorConfig) {
-              Start(job)
-            }
-        }
+        case query: MiningQuery =>
+          val job = miningQuery2job(metaDbConfig)(query)
+          miningJob(coordinatorConfig) {
+            Start(job)
+          }
       }
     }
   }
+
+  //}
 
   override def experiment: Route = path("mining" / "experiment") {
-    authenticate(basicAuthenticator) { user =>
-      import FunctionsInOut._
+    //authenticate(basicAuthenticator) { user =>
+    import FunctionsInOut._
 
-      post {
-        entity(as[ExperimentQuery]) { query: ExperimentQuery =>
-          {
-            val job = experimentQuery2job(metaDbConfig)(query)
-            experimentJob(coordinatorConfig) {
-              ExperimentActor.Start(job)
-            }
-          }
+    post {
+      entity(as[ExperimentQuery]) { query: ExperimentQuery => {
+        val job = experimentQuery2job(metaDbConfig)(query)
+        experimentJob(coordinatorConfig) {
+          ExperimentActor.Start(job)
         }
+      }
       }
     }
   }
+
+  //}
 
   private def newCoordinatorActor(coordinatorConfig: CoordinatorConfig): ActorRef =
     context.actorOf(CoordinatorActor.props(coordinatorConfig))
@@ -127,11 +122,18 @@ class MiningService(val chronosService: ActorRef,
   private def newExperimentActor(coordinatorConfig: CoordinatorConfig): ActorRef =
     context.actorOf(ExperimentActor.props(coordinatorConfig))
 
+  import PerRequest._
+
   def miningJob(coordinatorConfig: CoordinatorConfig)(message: RestMessage): Route =
-    ctx => perRequest(ctx, newCoordinatorActor(coordinatorConfig), message)
+    asyncComplete { ctx =>
+      perRequest(ctx, newCoordinatorActor(coordinatorConfig), message)
+    }
 
   def experimentJob(coordinatorConfig: CoordinatorConfig)(message: RestMessage): Route =
-    ctx => perRequest(ctx, newExperimentActor(coordinatorConfig), message)
 
- */
+    asyncComplete { ctx =>
+      perRequest(ctx, newExperimentActor(coordinatorConfig), message)
+    }
+
+
 }

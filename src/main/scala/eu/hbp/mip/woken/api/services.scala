@@ -16,12 +16,6 @@
 
 package eu.hbp.mip.woken.api
 
-import akka.event.LoggingReceive
-import spray.http.StatusCodes._
-import spray.http._
-import spray.routing._
-import spray.util.LoggingContext
-
 import util.control.NonFatal
 import akka.actor.{ Actor, ActorContext, ActorLogging }
 

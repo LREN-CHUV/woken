@@ -17,11 +17,9 @@ lazy val `woken` =
           library.akkaContrib,
           library.akkaSlf4j,
           library.akkaTracingCore,
-          library.akkaTracingSpray,
-          library.sprayCan,
-          library.sprayJson,
-          library.sprayRouting,
-          library.sprayClient,
+          library.akkaTracingAkkaHttp,
+          library.akkaHttp,
+          library.akkaHttpJson,
           library.slf4j,
           library.log4jSlf4j,
           library.disruptor,
@@ -34,7 +32,7 @@ lazy val `woken` =
           library.yaml,
           library.hadrian,
           library.wokenMessages,
-          library.spraySwagger,
+          library.akkaHttpSwagger,
           library.swaggerUI,
           //library.scalaCache,
           library.scalaCheck   % Test,
@@ -56,11 +54,9 @@ lazy val library =
     object Version {
       val scalaCheck    = "1.13.5"
       val scalaTest     = "3.0.3"
-      val akka          = "2.3.16"
-      val akkaTracing   = "0.5.2" // use 0.6.1 with akka-http
-      val spray         = "1.3.4"
-      val sprayJson     = "1.3.4"
-      val sprayRouting  = "1.3.3"
+      val akka          = "2.5.8"
+      val akkaTracing   = "0.6.1"
+      val akkaHttp      = "10.0.11"
       val slf4j         = "1.7.25"
       val log4j         = "2.9.1"
       val disruptor     = "3.3.7"
@@ -71,7 +67,7 @@ lazy val library =
       val snakeyaml     = "1.17"
       val hadrian       = "0.8.5"
       val wokenMessages = "2.0.11"
-      val spraySwagger  = "0.5.0"
+      val akkaHttpSwagger  = "0.11.0"
       val swaggerUI     = "2.0.12"
       val scalaCache    = "0.21.0"
     }
@@ -84,11 +80,9 @@ lazy val library =
     val akkaSlf4j: ModuleID    = "com.typesafe.akka" %% "akka-slf4j"   % Version.akka
     val akkaTestkit: ModuleID  = "com.typesafe.akka" %% "akka-testkit" % Version.akka
     val akkaTracingCore: ModuleID  = "com.github.levkhomich" %% "akka-tracing-core" % Version.akkaTracing
-    val akkaTracingSpray: ModuleID  = "com.github.levkhomich" %% "akka-tracing-spray" % Version.akkaTracing excludeAll ExclusionRule(organization = "io.spray")
-    val sprayCan: ModuleID     = "io.spray"          %% "spray-can"    % Version.spray exclude("io.spray", "spray-routing")
-    val sprayClient: ModuleID  = "io.spray"          %% "spray-client" % Version.spray
-    val sprayRouting: ModuleID = "io.spray"          %% "spray-routing-shapeless2" % Version.sprayRouting
-    val sprayJson: ModuleID    = "io.spray"          %% "spray-json"   % Version.sprayJson
+    val akkaTracingAkkaHttp: ModuleID  = "com.github.levkhomich" %% "akka-tracing-http" % Version.akkaTracing
+    val akkaHttp: ModuleID = "com.typesafe.akka" %% "akka-http" % Version.akkaHttp
+    val akkaHttpJson: ModuleID = "com.typesafe.akka" %% "akka-http-spray-json" % Version.akkaHttp
     val slf4j: ModuleID        = "org.slf4j"          % "slf4j-api"    % Version.slf4j
     val log4jSlf4j: ModuleID   = "org.apache.logging.log4j" % "log4j-slf4j-impl" % Version.log4j
     val disruptor: ModuleID    = "com.lmax"           % "disruptor"    % Version.disruptor
@@ -100,7 +94,7 @@ lazy val library =
     val doobieHikari: ModuleID = "org.tpolecat"      %% "doobie-hikari" % Version.doobie
     val yaml: ModuleID         = "org.yaml"           % "snakeyaml"    % Version.snakeyaml
     val hadrian: ModuleID      = "com.opendatagroup" %  "hadrian"       % Version.hadrian
-    val spraySwagger: ModuleID = "com.gettyimages"   %% "spray-swagger" % Version.spraySwagger excludeAll ExclusionRule(organization = "io.spray")
+    val akkaHttpSwagger: ModuleID = "com.github.swagger-akka-http"   %% "swagger-akka-http" % Version.akkaHttpSwagger
     val swaggerUI: ModuleID    = "org.webjars"        % "swagger-ui"   % Version.swaggerUI
     val scalaCache: ModuleID   = "com.github.cb372"  %% "scalacache-core" % Version.scalaCache
     val wokenMessages: ModuleID = "eu.humanbrainproject.mip" %% "woken-messages" % Version.wokenMessages

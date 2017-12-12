@@ -17,9 +17,10 @@
 package eu.hbp.mip.woken.api
 
 import akka.actor.ActorSystem
+import akka.http.scaladsl.server.Route
 import com.typesafe.config.Config
+import eu.hbp.mip.woken.api.swagger.SwaggerService
 import eu.hbp.mip.woken.config.JobsConfiguration
-import spray.routing.{ HttpService, Route }
 import eu.hbp.mip.woken.core.{ Core, CoreActors }
 
 /**
@@ -28,7 +29,7 @@ import eu.hbp.mip.woken.core.{ Core, CoreActors }
   * Notice that it requires to be mixed in with ``core.CoreActors``, which provides access
   * to the top-level actors that make up the system.
   */
-trait Api extends HttpService with CoreActors with Core {
+trait Api extends CoreActors with Core {
 
   protected implicit val system: ActorSystem
 
@@ -39,16 +40,17 @@ trait Api extends HttpService with CoreActors with Core {
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
 
   // TODO: refactor
-//  private lazy val defaults = WokenConfig.defaultSettings
-//  lazy val mining_service =
-//    new MiningService(chronosHttp,
-//                      featuresDAL,
-//                      jobResultService,
-//                      variablesMetaService,
-//                      jobsConf,
-//                      defaults.mainTable)
+  //  private lazy val defaults = WokenConfig.defaultSettings
+  //  lazy val mining_service =
+  //    new MiningService(chronosHttp,
+  //                      featuresDAL,
+  //                      jobResultService,
+  //                      variablesMetaService,
+  //                      jobsConf,
+  //                      defaults.mainTable)
 
-  val routes: Route = new SwaggerService().routes /* ~ TODO
-    mining_service.routes*/
+  val routes: Route = SwaggerService.routes
+  /* ~ TODO
+     mining_service.routes*/
 
 }

@@ -53,6 +53,7 @@ object ChronosService {
 
 }
 
+//TODO: need to use akka http client
 class ChronosService(jobsConfig: JobsConfiguration)
     extends Actor
     with ActorLogging

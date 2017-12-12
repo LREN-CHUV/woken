@@ -18,10 +18,7 @@ package eu.hbp.mip.woken.api
 
 import java.util.UUID
 
-import akka.actor.ActorRef
 import eu.hbp.mip.woken.backends.DockerJob
-import spray.http.StatusCodes
-import spray.httpx.marshalling.ToResponseMarshaller
 import spray.json._
 import eu.hbp.mip.woken.messages.external._
 import eu.hbp.mip.woken.config.WokenConfig
@@ -85,11 +82,8 @@ object FunctionsInOut {
 }
 
 case class JsonMessage(json: JsValue) extends RestMessage {
-  import spray.httpx.SprayJsonSupport._
   import ApiJsonSupport._
   val JsonFormat: RootJsonFormat[JsonMessage] = lift(new RootJsonWriter[JsonMessage] {
     override def write(obj: JsonMessage): JsValue = JsValueFormat.write(json)
   })
-  override def marshaller: ToResponseMarshaller[JsonMessage] =
-    ToResponseMarshaller.fromMarshaller(StatusCodes.OK)(sprayJsonMarshaller(JsonFormat))
 }
