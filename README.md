@@ -140,3 +140,9 @@ Woken :
 * the Woken river in China - we were looking for rivers in China
 * passive form of awake - it launches Docker containers and computations
 * workflow - the previous name, not too different
+
+# Acknowledgements
+
+This work has been funded by the European Union Seventh Framework Program (FP7/2007­2013) under grant agreement no. 604102 (HBP)
+
+This work is part of SP8 of the Human Brain Project (SGA1).
