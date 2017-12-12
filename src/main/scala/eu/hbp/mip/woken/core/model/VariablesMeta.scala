@@ -45,7 +45,7 @@ case class VariablesMeta(id: Int,
                   case None              => false
               }
             ) match {
-              case Some(value) => return Some(value.asJsObject)
+              case Some(value) => Some(value.asJsObject)
               case None        => None
             }
           case _ => deserializationError("JsArray expected")
@@ -55,7 +55,7 @@ case class VariablesMeta(id: Int,
       if (groups.fields.contains("groups")) {
         groups.fields("groups") match {
           case a: JsArray =>
-            return a.elements.toStream
+            a.elements.toStream
               .map(g => getVariableMetaData(variable, g.asJsObject))
               .find(o => o.isDefined) match {
               case Some(variable: Option[JsObject]) => variable

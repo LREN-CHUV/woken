@@ -45,7 +45,7 @@ object DAL {
         }
       )
 }
-trait DAL {}
+trait DAL
 
 /**
   * Data access to features used by machine learning and visualisation algorithms
