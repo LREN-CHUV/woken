@@ -208,10 +208,10 @@ class AlgorithmLibraryService {
             {
                 "code": "tSNE",
                 "label": "tSNE",
-                "disable": true,
+                "disable": false,
                 "type": ["features_extraction"],
-                "docker_image": "hbpmip/r-tsne:latest",
-                "environment": "R",
+                "docker_image": "hbpmip/python-tsne:latest",
+                "environment": "Python",
                 "description": "tSNE...",
                 "parameters": [],
                 "constraints": {
