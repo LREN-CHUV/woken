@@ -17,7 +17,6 @@
 package eu.hbp.mip.woken.core.model
 
 import spray.json._
-import spray.json.DefaultJsonProtocol._
 
 // TODO: defaultHistogramGroupings: List[String]
 case class VariablesMeta(id: Int,

@@ -49,7 +49,7 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
 
     val end = System.currentTimeMillis()
 
-    println("Complete in " + Duration(end - start, TimeUnit.MILLISECONDS))
+    println("List of methods query complete in " + Duration(end - start, TimeUnit.MILLISECONDS))
 
     if (!result.isSuccess) {
       println(result)
@@ -78,7 +78,7 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
 
     val end = System.currentTimeMillis()
 
-    println("Complete in " + Duration(end - start, TimeUnit.MILLISECONDS))
+    println("Data mining query complete in " + Duration(end - start, TimeUnit.MILLISECONDS))
 
     if (!result.isSuccess) {
       println(result)
@@ -106,7 +106,7 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
 
     val end = System.currentTimeMillis()
 
-    println("Complete in " + Duration(end - start, TimeUnit.MILLISECONDS))
+    println("Experiment query complete in " + Duration(end - start, TimeUnit.MILLISECONDS))
 
     if (!result.isSuccess) {
       println(result)
@@ -137,7 +137,7 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
       api ? experimentQuery("chaos", "Failure", Map("failure" -> failure)))
 
     futures.foreach { f =>
-      println("Waiting for result...")
+      println("Waiting for result from chaos algorithm...")
       val result = waitFor[QueryResult](f)
       println(s"Chaos algorithm returned ${result.success.value}")
     }
