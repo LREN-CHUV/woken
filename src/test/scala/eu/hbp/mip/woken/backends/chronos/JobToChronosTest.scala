@@ -71,7 +71,9 @@ class JobToChronosTest extends FlatSpec with Matchers {
     owner = "mip@chuv.ch",
     chronosServerUrl = "http://localhost:4400",
     featuresDb = "features_db",
-    resultDb = "woken_db"
+    featuresTable = "features",
+    resultDb = "woken_db",
+    metaDb = "meta_db"
   )
 
   "A generic Docker job" should "be converted to a Chronos job definition" in {

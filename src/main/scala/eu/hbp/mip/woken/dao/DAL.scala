@@ -18,8 +18,6 @@ package eu.hbp.mip.woken.dao
 
 import java.sql.{ Connection, DriverManager, ResultSet, ResultSetMetaData }
 
-import cats._
-import cats.data._
 import doobie._
 import eu.hbp.mip.woken.config.DatabaseConfiguration
 import org.postgresql.util.PGobject
@@ -45,6 +43,7 @@ object DAL {
         }
       )
 }
+
 trait DAL
 
 /**

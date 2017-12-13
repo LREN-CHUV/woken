@@ -16,8 +16,10 @@
 
 package eu.hbp.mip.woken.backends
 
-import eu.hbp.mip.woken.api.FunctionsInOut
 import eu.hbp.mip.woken.messages.external.MiningQuery
+import eu.hbp.mip.woken.core.model.Queries._
+
+// TODO: merge with Queries?
 
 case class QueryOffset(start: Int, count: Int)
 
@@ -26,7 +28,6 @@ object FeaturesHelper {
   def buildQueryFeaturesSql(inputTable: String,
                             query: MiningQuery,
                             shadowOffset: Option[QueryOffset]): String = {
-    import FunctionsInOut._
 
     val varListDbSafe = query.dbAllVars
 

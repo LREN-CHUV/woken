@@ -18,6 +18,8 @@ package eu.hbp.mip.woken.service
 
 import spray.json._
 
+// TODO: merge/provide with AlgorithmLookup ?
+
 class AlgorithmLibraryService {
   // TODO Gather this information from all the containers
   private val methods_mock =

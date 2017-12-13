@@ -19,7 +19,7 @@ package eu.hbp.mip.woken.api
 import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem }
 import com.typesafe.config.ConfigFactory
 import eu.hbp.mip.woken.authentication.BasicAuthentication
-import eu.hbp.mip.woken.config.{ DatabaseConfiguration, JobsConfiguration, WokenConfig }
+import eu.hbp.mip.woken.config.{ AppConfiguration, DatabaseConfiguration, JobsConfiguration }
 import spray.http.MediaTypes._
 import spray.http._
 import spray.routing.Route
@@ -35,6 +35,7 @@ class MiningService(val chronosService: ActorRef,
                     val featuresDatabase: FeaturesDAL,
                     val jobResultService: JobResultService,
                     val variablesMetaService: VariablesMetaService,
+                    override val appConfiguration: AppConfiguration,
                     val jobsConf: JobsConfiguration,
                     val defaultFeaturesTable: String)(implicit system: ActorSystem)
     extends MiningServiceApi

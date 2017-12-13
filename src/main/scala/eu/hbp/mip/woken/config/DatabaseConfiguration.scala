@@ -35,17 +35,17 @@ final case class DatabaseConfiguration(jdbcDriver: String,
 
 object DatabaseConfiguration {
 
-  def read(config: Config, path: Seq[String]): Validation[DatabaseConfiguration] = {
-    val jdbcConfig = path.foldLeft(config) { (c, s) =>
-      c.getConfig(s)
+  def read(config: Config, path: List[String]): Validation[DatabaseConfiguration] = {
+    val jdbcConfig = config.validateConfig(path.mkString("."))
+
+    jdbcConfig.andThen { jdbc =>
+      val jdbcDriver   = jdbc.validateString("jdbc_driver")
+      val jdbcUrl      = jdbc.validateString("jdbc_url")
+      val jdbcUser     = jdbc.validateString("user")
+      val jdbcPassword = jdbc.validateString("password")
+
+      (jdbcDriver, jdbcUrl, jdbcUser, jdbcPassword) mapN DatabaseConfiguration.apply
     }
-
-    val jdbcDriver   = jdbcConfig.validateString("jdbc_driver")
-    val jdbcUrl      = jdbcConfig.validateString("jdbc_url")
-    val jdbcUser     = jdbcConfig.validateString("user")
-    val jdbcPassword = jdbcConfig.validateString("password")
-
-    (jdbcDriver, jdbcUrl, jdbcUser, jdbcPassword) mapN DatabaseConfiguration.apply
   }
 
   def factory(config: Config): String => Validation[DatabaseConfiguration] =

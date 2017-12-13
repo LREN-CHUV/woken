@@ -33,9 +33,13 @@ import cats.effect.IO
 import com.typesafe.config.{ Config, ConfigFactory }
 import spray.can.Http
 import eu.hbp.mip.woken.api.{ Api, MasterRouter, RoutedHttpService }
-import eu.hbp.mip.woken.config.{ DatabaseConfiguration, JobsConfiguration, WokenConfig }
+import eu.hbp.mip.woken.config.{
+  AlgorithmsConfiguration,
+  AppConfiguration,
+  DatabaseConfiguration,
+  JobsConfiguration
+}
 import eu.hbp.mip.woken.core.{ CoordinatorConfig, Core, CoreActors }
-import eu.hbp.mip.woken.config.WokenConfig.app
 import eu.hbp.mip.woken.core.validation.ValidationPoolManager
 import eu.hbp.mip.woken.dao.{ FeaturesDAL, MetadataRepositoryDAO, WokenRepositoryDAO }
 import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, JobResultService, VariablesMetaService }
@@ -58,19 +62,28 @@ trait BootedCore
     with StaticResources
     with WokenSSLConfiguration {
 
+  override lazy val config: Config = ConfigFactory.load()
+
+  private lazy val appConfig = AppConfiguration
+    .read(config)
+    .getOrElse(throw new IllegalStateException("Invalid configuration"))
+
+  private lazy val jobsConf = JobsConfiguration
+    .read(config)
+    .getOrElse(throw new IllegalStateException("Invalid configuration"))
+
   /**
     * Construct the ActorSystem we will use in our application
     */
-  override lazy val system: ActorSystem              = ActorSystem(app.systemName)
+  override lazy val system: ActorSystem              = ActorSystem(appConfig.systemName)
   override lazy val actorRefFactory: ActorRefFactory = system
 
-  override lazy val config: Config = ConfigFactory.load()
   private lazy val resultsDbConfig = DatabaseConfiguration
     .factory(config)("woken")
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
 
   private lazy val featuresDbConnection = DatabaseConfiguration
-    .factory(config)(WokenConfig.defaultSettings.defaultDb)
+    .factory(config)(jobsConf.featuresDb)
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
 
   private lazy val featuresDAL = FeaturesDAL(featuresDbConnection)
@@ -85,7 +98,7 @@ trait BootedCore
   private lazy val jobResultService: JobResultService = jrsIO.unsafeRunSync()
 
   private lazy val metaDbConfig = DatabaseConfiguration
-    .factory(config)(WokenConfig.defaultSettings.defaultMetaDb)
+    .factory(config)(jobsConf.metaDb)
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
 
   private lazy val vmsIO: IO[VariablesMetaService] = for {
@@ -107,14 +120,11 @@ trait BootedCore
     * Create and start our service actor
     */
   val rootService: ActorRef =
-    system.actorOf(Props(new RoutedHttpService(routes ~ staticResources)), app.jobServiceName)
+    system.actorOf(Props(new RoutedHttpService(routes ~ staticResources)), appConfig.jobServiceName)
 
-  private lazy val jobsConf = JobsConfiguration
-    .read(config)
-    .getOrElse(throw new IllegalStateException("Invalid configuration"))
   private lazy val coordinatorConfig = CoordinatorConfig(
     chronosHttp,
-    WokenConfig.app.dockerBridgeNetwork,
+    appConfig.dockerBridgeNetwork,
     featuresDAL,
     jobResultService,
     jobsConf,
@@ -126,7 +136,11 @@ trait BootedCore
     */
   val mainRouter: ActorRef =
     system.actorOf(
-      MasterRouter.props(coordinatorConfig, variablesMetaService, algorithmLibraryService),
+      MasterRouter.props(appConfig,
+                         coordinatorConfig,
+                         variablesMetaService,
+                         algorithmLibraryService,
+                         AlgorithmsConfiguration.factory(config)),
       name = "entrypoint"
     )
 
@@ -138,7 +152,9 @@ trait BootedCore
   implicit val timeout: Timeout = Timeout(5.seconds)
 
   // start a new HTTP server on port 8080 with our service actor as the handler
-  akka.io.IO(Http)(system) ! Http.Bind(rootService, interface = app.interface, port = app.port)
+  akka.io.IO(Http)(system) ! Http.Bind(rootService,
+                                       interface = appConfig.networkInterface,
+                                       port = appConfig.webServicesPort)
 
   /**
     * Ensure that the constructed ActorSystem is shut down when the JVM shuts down

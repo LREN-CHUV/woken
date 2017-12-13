@@ -16,7 +16,7 @@
 
 package eu.hbp.mip.woken.authentication
 
-import eu.hbp.mip.woken.config.WokenConfig
+import eu.hbp.mip.woken.config.AppConfiguration
 import spray.routing.authentication.{ BasicAuth, UserPass }
 import spray.routing.directives.AuthMagnet
 
@@ -27,15 +27,16 @@ import scala.concurrent.{ ExecutionContext, Future }
   */
 trait BasicAuthentication {
 
+  def appConfiguration: AppConfiguration
+
   def basicAuthenticator(implicit executionContext: ExecutionContext): AuthMagnet[String] = {
-    def validateUser(userPass: Option[UserPass]): Option[String] = {
-      println(WokenConfig.app)
+    val expectedUsername = appConfiguration.basicAuth.username
+    val expectedPassword = appConfiguration.basicAuth.password
+
+    def validateUser(userPass: Option[UserPass]): Option[String] =
       userPass
-        .filter(
-          up => up.user == WokenConfig.app.basicAuthUsername && up.pass == WokenConfig.app.basicAuthPassword
-        )
+        .filter(up => up.user == expectedUsername && up.pass == expectedPassword)
         .map(_.user)
-    }
 
     def wokenUserPassAuthenticator(userPass: Option[UserPass]): Future[Option[String]] = Future {
       validateUser(userPass)

@@ -29,7 +29,7 @@ case class AppConfiguration(
     systemName: String,
     dockerBridgeNetwork: Option[String],
     networkInterface: String,
-    port: Int,
+    webServicesPort: Int,
     jobServiceName: String,
     basicAuth: BasicAuthentication,
     masterRouterConfig: MasterRouterConfig
@@ -37,38 +37,38 @@ case class AppConfiguration(
 
 object AppConfiguration {
 
-  def read(config: Config, path: Seq[String] = List("app")): Validation[AppConfiguration] = {
-    val appConfig = path.foldLeft(config) { (c, s) =>
-      c.getConfig(s)
-    }
+  def read(config: Config, path: List[String] = List("app")): Validation[AppConfiguration] = {
+    val appConfig = config.validateConfig(path.mkString("."))
 
-    val systemName          = appConfig.validateString("systemName")
-    val dockerBridgeNetwork = appConfig.validateOptionalString("dockerBridgeNetwork")
-    val networkInterface    = appConfig.validateString("networkInterface")
-    val port                = appConfig.validateInt("port")
-    val jobServiceName      = appConfig.validateString("jobServiceName")
+    appConfig.andThen { app =>
+      val systemName          = app.validateString("systemName")
+      val dockerBridgeNetwork = app.validateOptionalString("dockerBridgeNetwork")
+      val networkInterface    = app.validateString("networkInterface")
+      val port                = app.validateInt("webServicesPort")
+      val jobServiceName      = app.validateString("jobServiceName")
 
-    val basicAuth: Validation[BasicAuthentication] = appConfig.validateConfig("basicAuth").andThen {
-      c =>
-        val username = c.validateString("username")
-        val password = c.validateString("password")
-        (username, password) mapN BasicAuthentication.apply
-    }
-
-    val masterRouterConfig: Validation[MasterRouterConfig] =
-      appConfig.validateConfig("master.router.actors").andThen { c =>
-        val miningActorsLimit     = c.validateInt("mining.limit")
-        val experimentActorsLimit = c.validateInt("experiment.limit")
-        (miningActorsLimit, experimentActorsLimit) mapN MasterRouterConfig.apply
+      val basicAuth: Validation[BasicAuthentication] = app.validateConfig("basicAuth").andThen {
+        c =>
+          val username = c.validateString("username")
+          val password = c.validateString("password")
+          (username, password) mapN BasicAuthentication.apply
       }
 
-    (systemName,
-     dockerBridgeNetwork,
-     networkInterface,
-     port,
-     jobServiceName,
-     basicAuth,
-     masterRouterConfig) mapN AppConfiguration.apply
+      val masterRouterConfig: Validation[MasterRouterConfig] =
+        app.validateConfig("master.router.actors").andThen { c =>
+          val miningActorsLimit     = c.validateInt("mining.limit")
+          val experimentActorsLimit = c.validateInt("experiment.limit")
+          (miningActorsLimit, experimentActorsLimit) mapN MasterRouterConfig.apply
+        }
+
+      (systemName,
+       dockerBridgeNetwork,
+       networkInterface,
+       port,
+       jobServiceName,
+       basicAuth,
+       masterRouterConfig) mapN AppConfiguration.apply
+    }
   }
 
 }

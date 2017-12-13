@@ -35,8 +35,12 @@ echo "Remove old running containers (if any)..."
 $DOCKER_COMPOSE kill
 $DOCKER_COMPOSE rm -f
 
-echo "Deploy a Postgres instance and wait for it to be ready..."
-$DOCKER_COMPOSE up -d db zookeeper mesos_master mesos_slave
+echo "Deploy a Postgres server and wait for it to be ready..."
+$DOCKER_COMPOSE up -d db zookeeper
+$DOCKER_COMPOSE run wait_zookeeper
+$DOCKER_COMPOSE up -d mesos_master
+$DOCKER_COMPOSE run wait_mesos_master
+$DOCKER_COMPOSE up -d mesos_slave
 $DOCKER_COMPOSE build woken_test
 $DOCKER_COMPOSE run wait_dbs
 
@@ -53,10 +57,25 @@ echo "Migrate features database..."
 $DOCKER_COMPOSE run sample_db_setup
 
 echo "Run containers..."
-$DOCKER_COMPOSE run wait_zookeeper
-$DOCKER_COMPOSE up -d chronos zipkin zipkin-ui woken woken_validation
+for i in 1 2 3 4 5 ; do
+  $DOCKER_COMPOSE up -d chronos
+  $DOCKER_COMPOSE run wait_chronos
+  $DOCKER_COMPOSE logs chronos | grep java.util.concurrent.TimeoutException || break
+  echo "Chronos failed to start, restarting..."
+  $DOCKER_COMPOSE stop chronos
+done
+
+$DOCKER_COMPOSE up -d zipkin zipkin-ui woken woken_validation
 
 $DOCKER_COMPOSE run wait_woken
+
+for i in 1 2 3 4 5 ; do
+  $DOCKER_COMPOSE logs chronos | grep java.util.concurrent.TimeoutException || break
+  echo "Chronos failed to start, restarting..."
+  $DOCKER_COMPOSE stop chronos
+  $DOCKER_COMPOSE up -d chronos
+  $DOCKER_COMPOSE run wait_chronos
+done
 
 echo "The Algorithm Factory is now running on your system"
 

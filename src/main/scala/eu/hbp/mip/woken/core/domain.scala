@@ -21,8 +21,6 @@ import spray.http.StatusCodes
 import spray.httpx.marshalling.ToResponseMarshaller
 import spray.json.{ DefaultJsonProtocol, JsString, JsValue, RootJsonFormat }
 
-import eu.hbp.mip.woken.core.model.JobResult
-
 // TODO: move to json.rest?
 
 // Messages

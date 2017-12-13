@@ -21,13 +21,14 @@ import java.time.OffsetDateTime
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props, Terminated }
 import eu.hbp.mip.woken.messages.external._
 import eu.hbp.mip.woken.core.{ CoordinatorActor, CoordinatorConfig, ExperimentActor }
-import FunctionsInOut._
 import com.github.levkhomich.akka.tracing.ActorTracing
 import eu.hbp.mip.woken.api.MasterRouter.QueuesSize
 import eu.hbp.mip.woken.backends.DockerJob
-import eu.hbp.mip.woken.config.WokenConfig
 import eu.hbp.mip.woken.core.model.{ ErrorJobResult, JobResult }
 import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, VariablesMetaService }
+import MiningQueries._
+import eu.hbp.mip.woken.config.{ AlgorithmDefinition, AppConfiguration }
+import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 
 object MasterRouter {
 
@@ -39,22 +40,30 @@ object MasterRouter {
     def isEmpty: Boolean = experiments == 0 && mining == 0
   }
 
-  def props(coordinatorConfig: CoordinatorConfig,
+  def props(appConfiguration: AppConfiguration,
+            coordinatorConfig: CoordinatorConfig,
             variablesMetaService: VariablesMetaService,
-            algorithmLibraryService: AlgorithmLibraryService): Props =
+            algorithmLibraryService: AlgorithmLibraryService,
+            algorithmLookup: String => Validation[AlgorithmDefinition]): Props =
     Props(
-      new MasterRouter(coordinatorConfig,
-                       algorithmLibraryService,
-                       experimentQuery2job(variablesMetaService),
-                       miningQuery2job(variablesMetaService))
+      new MasterRouter(
+        appConfiguration,
+        coordinatorConfig,
+        algorithmLibraryService,
+        algorithmLookup,
+        experimentQuery2job(variablesMetaService, coordinatorConfig.jobsConf),
+        miningQuery2job(variablesMetaService, coordinatorConfig.jobsConf, algorithmLookup)
+      )
     )
 
 }
 
-case class MasterRouter(coordinatorConfig: CoordinatorConfig,
+case class MasterRouter(appConfiguration: AppConfiguration,
+                        coordinatorConfig: CoordinatorConfig,
                         algorithmLibraryService: AlgorithmLibraryService,
+                        algorithmLookup: String => Validation[AlgorithmDefinition],
                         query2jobF: ExperimentQuery => ExperimentActor.Job,
-                        query2jobFM: MiningQuery => DockerJob)
+                        query2jobFM: MiningQuery => Validation[DockerJob])
     extends Actor
     with ActorTracing
     with ActorLogging {
@@ -62,11 +71,11 @@ case class MasterRouter(coordinatorConfig: CoordinatorConfig,
   import MasterRouter.RequestQueuesSize
 
   var experimentActiveActors: Set[ActorRef]                      = Set.empty
-  val experimentActiveActorsLimit: Int                           = WokenConfig.app.masterRouterConfig.miningActorsLimit
+  val experimentActiveActorsLimit: Int                           = appConfiguration.masterRouterConfig.miningActorsLimit
   var experimentJobsInFlight: Map[ExperimentActor.Job, ActorRef] = Map()
 
   var miningActiveActors: Set[ActorRef]            = Set.empty
-  val miningActiveActorsLimit: Int                 = WokenConfig.app.masterRouterConfig.experimentActorsLimit
+  val miningActiveActorsLimit: Int                 = appConfiguration.masterRouterConfig.experimentActorsLimit
   var miningJobsInFlight: Map[DockerJob, ActorRef] = Map()
 
   def receive: PartialFunction[Any, Unit] = {
@@ -82,19 +91,29 @@ case class MasterRouter(coordinatorConfig: CoordinatorConfig,
     case query: MiningQuery =>
       if (miningActiveActors.size <= miningActiveActorsLimit) {
         val miningActorRef = newCoordinatorActor
-        val job            = query2jobFM(query)
-        miningActorRef ! CoordinatorActor.Start(job)
-        context watch miningActorRef
-        miningActiveActors += miningActorRef
-        miningJobsInFlight += (job -> sender())
-      } else {
-        sender() ! List(
-          ErrorJobResult("",
-                         "",
-                         OffsetDateTime.now(),
-                         query.algorithm.code,
-                         "Too busy to accept new jobs.")
+        val jobValidated   = query2jobFM(query)
+
+        jobValidated.fold(
+          errorMsg => {
+            val error =
+              ErrorJobResult("",
+                             "",
+                             OffsetDateTime.now(),
+                             query.algorithm.code,
+                             errorMsg.reduceLeft(_ + ", " + _))
+            sender() ! JobResult.asQueryResult(error)
+          },
+          job => {
+            miningActorRef ! CoordinatorActor.Start(job)
+            context watch miningActorRef
+            miningActiveActors += miningActorRef
+            miningJobsInFlight += (job -> sender())
+          }
         )
+      } else {
+        val error =
+          ErrorJobResult("", "", OffsetDateTime.now(), "experiment", "Too busy to accept new jobs.")
+        sender() ! JobResult.asQueryResult(error)
       }
 
     case CoordinatorActor.Response(job, results) =>
@@ -148,7 +167,7 @@ case class MasterRouter(coordinatorConfig: CoordinatorConfig,
   }
 
   private[api] def newExperimentActor: ActorRef =
-    context.actorOf(ExperimentActor.props(coordinatorConfig))
+    context.actorOf(ExperimentActor.props(coordinatorConfig, algorithmLookup))
 
   private[api] def newCoordinatorActor: ActorRef =
     context.actorOf(CoordinatorActor.props(coordinatorConfig))

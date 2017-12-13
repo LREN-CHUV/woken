@@ -5,12 +5,25 @@ version: '3'
 
 services:
   zookeeper:
-    image: netflixoss/exhibitor:1.5.2
+    image: zookeeper:3.4.11
     hostname: zookeeper
     ports:
       - '2181:2181'
       - '2888:2888'
       - '3888:3888'
+    environment:
+      ZOO_MY_ID: 1
+      ZOO_SERVERS: server.1=zookeeper:2888:3888
+    restart: always
+
+  wait_zookeeper:
+    image: "waisbrot/wait"
+    restart: "no"
+    environment:
+      TARGETS: "zookeeper:2181"
+      TIMEOUT: 60
+    depends_on:
+      - zookeeper
 
   mesos_master:
     image: mesosphere/mesos-master:1.3.0
@@ -29,6 +42,15 @@ services:
       MESOS_WORK_DIR: '/var/lib/mesos'
     depends_on:
       - zookeeper
+
+  wait_mesos_master:
+    image: "waisbrot/wait"
+    restart: "no"
+    environment:
+      TARGETS: "mesos_master:5050"
+      TIMEOUT: 60
+    depends_on:
+      - mesos_master
 
   mesos_slave:
     image: mesosphere/mesos-slave:1.3.0
@@ -60,15 +82,6 @@ services:
       - zookeeper
       - mesos_master
 
-  wait_zookeeper:
-    image: "waisbrot/wait"
-    restart: "no"
-    environment:
-      TARGETS: "zookeeper:2181"
-      TIMEOUT: 60
-    depends_on:
-      - zookeeper
-
   chronos:
     image: mesosphere/chronos:v3.0.2
     command: '--zk_hosts zookeeper:2181 --master zk://zookeeper:2181/mesos --zk_timeout 30000'
@@ -83,6 +96,15 @@ services:
     depends_on:
       - zookeeper
       - mesos_slave
+
+  wait_chronos:
+    image: "waisbrot/wait"
+    restart: "no"
+    environment:
+      TARGETS: "chronos:4400"
+      TIMEOUT: 60
+    depends_on:
+      - chronos
 
   # Expose the database to the host
   db:
