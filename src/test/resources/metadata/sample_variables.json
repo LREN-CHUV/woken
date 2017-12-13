@@ -1,0 +1,83 @@
+{
+  "code": "root",
+  "groups": [
+    {
+      "code": "all",
+      "groups": [],
+      "label": "All",
+      "variables": [
+        {
+          "code": "ID",
+          "description": "Identifier",
+          "label": "ID",
+          "methodology": "test",
+          "type": "integer"
+        },
+        {
+          "code": "stress_before_test1",
+          "description": "",
+          "label": "Stress Before Test 1",
+          "methodology": "test",
+          "type": "real"
+        },
+        {
+          "code": "score_test1",
+          "description": "",
+          "label": "Score Test 1",
+          "methodology": "test",
+          "type": "real"
+        },
+        {
+          "code": "IQ",
+          "description": "",
+          "label": "IQ",
+          "methodology": "test",
+          "type": "real"
+        },
+        {
+          "code": "cognitive_task2",
+          "description": "",
+          "label": "Cognitive Task 2",
+          "methodology": "test",
+          "type": "real"
+        },
+        {
+          "code": "practice_task2",
+          "description": "",
+          "label": "Practice Task 2",
+          "methodology": "test",
+          "type": "real"
+        },
+        {
+          "code": "response_time_task2",
+          "description": "",
+          "label": "Response Time Task 2",
+          "methodology": "test",
+          "type": "real"
+        },
+        {
+          "code": "college_math",
+          "description": "",
+          "label": "College Math",
+          "methodology": "test",
+          "type": "real"
+        },
+        {
+          "code": "score_math_course1",
+          "description": "",
+          "label": "Score Math Course 1",
+          "methodology": "test",
+          "type": "real"
+        },
+        {
+          "code": "score_math_course2",
+          "description": "",
+          "label": "Score Math Course 2",
+          "methodology": "test",
+          "type": "real"
+        }
+      ]
+    }
+  ],
+  "label": "root"
+}

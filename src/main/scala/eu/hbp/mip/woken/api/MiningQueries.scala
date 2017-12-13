@@ -42,7 +42,7 @@ object MiningQueries {
     val jobId         = UUID.randomUUID().toString
     val featuresDb    = jobsConfiguration.featuresDb
     val featuresTable = jobsConfiguration.featuresTable
-    val metadata      = variablesMetaService.get(featuresTable).get.getMetaData(query.dbAllVars)
+    val metadata      = variablesMetaService.get(featuresTable).get.selectVariablesMeta(query.dbAllVars)
 
     algorithmLookup(query.algorithm.code).andThen { algo =>
       DockerJob(jobId, algo.dockerImage, featuresDb, featuresTable, query, metadata = metadata).validNel
@@ -57,7 +57,7 @@ object MiningQueries {
     val jobId         = UUID.randomUUID().toString
     val featuresDb    = jobsConfiguration.featuresDb
     val featuresTable = jobsConfiguration.featuresTable
-    val metadata      = variablesMetaService.get(featuresTable).get.getMetaData(query.dbAllVars)
+    val metadata      = variablesMetaService.get(featuresTable).get.selectVariablesMeta(query.dbAllVars)
 
     ExperimentActor.Job(jobId, featuresDb, featuresTable, query, metadata = metadata)
   }

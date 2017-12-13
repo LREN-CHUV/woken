@@ -58,15 +58,16 @@ class VariablesMetaRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
       .transact(xa)
 
   override def get(targetFeaturesTable: String): F[Option[VariablesMeta]] = {
-    val v = variablesMetaCache.get(targetFeaturesTable)
+    val table = targetFeaturesTable.toUpperCase
+    val v     = variablesMetaCache.get(table)
 
     v.fold(
-      sql"SELECT id, source, hierarchy, target_table, histogram_groupings FROM meta_variables WHERE target_table=${targetFeaturesTable.toUpperCase}"
+      sql"SELECT id, source, hierarchy, target_table, histogram_groupings FROM meta_variables WHERE target_table=$table"
         .query[VariablesMeta]
         .option
         .transact(xa)
         .map { (r: Option[VariablesMeta]) =>
-          r.foreach(variablesMetaCache.put(targetFeaturesTable, _))
+          r.foreach(variablesMetaCache.put(table, _))
           r
         }
     )(Option(_).pure[F])

@@ -26,47 +26,37 @@ case class VariablesMeta(id: Int,
                          targetFeaturesTable: String,
                          defaultHistogramGroupings: String) {
 
-  def getMetaData(variables: Seq[String]): JsObject = {
+  def selectVariablesMeta(variables: List[String]): JsObject = {
 
     /**
       * Parse the tree of groups to find the variables meta data!
       * Temporary... We need to separate groups from variable meta!
       * @return
       */
-    def getVariableMetaData(variable: String, groups: JsObject): Option[JsObject] = {
-
+    def getVariableMetaData(variable: String, groups: JsObject): Option[JsObject] =
       if (groups.fields.contains("variables")) {
         groups.fields("variables") match {
           case a: JsArray =>
-            a.elements.find(
-              v =>
-                v.asJsObject.fields.get("code") match {
-                  case Some(stringValue) => stringValue.convertTo[String] == variable
-                  case None              => false
-              }
-            ) match {
-              case Some(value) => Some(value.asJsObject)
-              case None        => None
-            }
+            a.elements.toStream
+              .map(_.asJsObject)
+              .find(
+                v =>
+                  v.fields.get("code") match {
+                    case Some(JsString(code)) if code == variable => true
+                    case _                                        => false
+                }
+              )
           case _ => deserializationError("JsArray expected")
         }
-      }
-
-      if (groups.fields.contains("groups")) {
+      } else if (groups.fields.contains("groups")) {
         groups.fields("groups") match {
           case a: JsArray =>
-            a.elements.toStream
+            a.elements
               .map(g => getVariableMetaData(variable, g.asJsObject))
-              .find(o => o.isDefined) match {
-              case Some(variable: Option[JsObject]) => variable
-              case None                             => None
-            }
+              .collectFirst { case Some(varMeta) => varMeta }
           case _ => deserializationError("JsArray expected")
         }
-      }
-
-      None
-    }
+      } else None
 
     new JsObject(
       variables
