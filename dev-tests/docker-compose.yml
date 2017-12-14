@@ -257,7 +257,7 @@ services:
       - woken
 
   portalbackend:
-    image: "hbpmip/portal-backend:90dad37"
+    image: "hbpmip/portal-backend:2.5.1"
     container_name: "backend-test"
     restart: "no"
     ports:

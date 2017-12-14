@@ -157,8 +157,9 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
     data should not be empty
 
     val json = data.get.parseJson
+    val expected = loadJson("/knn_experiment.json")
 
-    assertResult(loadJson("/knn_experiment.json"))(json)
+    assertResult(approximate(expected))(approximate(json))
 
   }
 
