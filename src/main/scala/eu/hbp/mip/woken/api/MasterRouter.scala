@@ -62,7 +62,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
                         coordinatorConfig: CoordinatorConfig,
                         algorithmLibraryService: AlgorithmLibraryService,
                         algorithmLookup: String => Validation[AlgorithmDefinition],
-                        query2jobF: ExperimentQuery => ExperimentActor.Job,
+                        query2jobF: ExperimentQuery => Validation[ExperimentActor.Job],
                         query2jobFM: MiningQuery => Validation[DockerJob])
     extends Actor
     with ActorTracing
@@ -128,11 +128,24 @@ case class MasterRouter(appConfiguration: AppConfiguration,
       log.debug(s"Received message: $query")
       if (experimentActiveActors.size <= experimentActiveActorsLimit) {
         val experimentActorRef = newExperimentActor
-        val job                = query2jobF(query)
-        experimentActorRef ! ExperimentActor.Start(job)
-        context watch experimentActorRef
-        experimentActiveActors += experimentActorRef
-        experimentJobsInFlight += (job -> sender())
+        val jobValidated       = query2jobF(query)
+        jobValidated.fold(
+          errorMsg => {
+            val error =
+              ErrorJobResult("",
+                             "",
+                             OffsetDateTime.now(),
+                             "experiment",
+                             errorMsg.reduceLeft(_ + ", " + _))
+            sender() ! JobResult.asQueryResult(error)
+          },
+          job => {
+            experimentActorRef ! ExperimentActor.Start(job)
+            context watch experimentActorRef
+            experimentActiveActors += experimentActorRef
+            experimentJobsInFlight += (job -> sender())
+          }
+        )
       } else {
         val error =
           ErrorJobResult("", "", OffsetDateTime.now(), "experiment", "Too busy to accept new jobs.")

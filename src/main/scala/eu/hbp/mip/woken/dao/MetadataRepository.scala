@@ -19,7 +19,6 @@ package eu.hbp.mip.woken.dao
 import cats._
 import cats.implicits._
 import eu.hbp.mip.woken.core.model.VariablesMeta
-import spray.json.{ JsArray, JsObject, deserializationError }
 
 import scala.collection.concurrent.TrieMap
 import scala.language.higherKinds

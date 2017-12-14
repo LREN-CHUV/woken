@@ -16,6 +16,8 @@
 
 package eu.hbp.mip.woken.core.model
 
+import eu.hbp.mip.woken.cromwell.core.ConfigUtil._
+import cats.implicits._
 import spray.json._
 
 // TODO: defaultHistogramGroupings: List[String]
@@ -25,14 +27,9 @@ case class VariablesMeta(id: Int,
                          targetFeaturesTable: String,
                          defaultHistogramGroupings: String) {
 
-  def selectVariablesMeta(variables: List[String]): JsObject = {
+  def selectVariablesMeta(variables: List[String]): Validation[JsObject] = {
 
-    /**
-      * Parse the tree of groups to find the variables meta data!
-      * Temporary... We need to separate groups from variable meta!
-      * @return
-      */
-    def getVariableMetaData(variable: String, groups: JsObject): Option[JsObject] =
+    def scanVariables(variable: String, groups: JsObject): Option[JsObject] =
       if (groups.fields.contains("variables")) {
         groups.fields("variables") match {
           case a: JsArray =>
@@ -45,30 +42,43 @@ case class VariablesMeta(id: Int,
                     case _                                        => false
                 }
               )
-          case _ => deserializationError("JsArray expected")
+          case _ =>
+            deserializationError("JsArray expected")
+            None
         }
-      } else if (groups.fields.contains("groups")) {
+      } else None
+
+    def scanGroups(variable: String, groups: JsObject): Option[JsObject] =
+      if (groups.fields.contains("groups")) {
         groups.fields("groups") match {
           case a: JsArray =>
             a.elements
               .map(g => getVariableMetaData(variable, g.asJsObject))
               .collectFirst { case Some(varMeta) => varMeta }
-          case _ => deserializationError("JsArray expected")
+          case _ =>
+            deserializationError("JsArray expected")
+            None
         }
       } else None
 
-    new JsObject(
-      variables
-        .map(
-          v =>
-            v -> (getVariableMetaData(v, hierarchy) match {
-              case Some(m) => m
-              case None =>
-                JsObject("error" -> JsString(s"Cannot not find metadata for $v"))
-            })
-        )
-        .toMap
-    )
+    /**
+      * Parse the tree of groups to find the variables meta data!
+      * Temporary... We need to separate groups from variable meta!
+      * @return
+      */
+    def getVariableMetaData(variable: String, groups: JsObject): Option[JsObject] =
+      scanVariables(variable, groups).fold(
+        scanGroups(variable, groups)
+      )(
+        Option(_)
+      )
+
+    val results = variables.map(v => v -> getVariableMetaData(v, hierarchy))
+    if (results.exists(p => p._2.isEmpty)) {
+      val variablesNotFound = results.collect { case (v, None) => v }
+      s"Cannot not find metadata for ${variablesNotFound.mkString(", ")}".invalidNel
+    } else
+      lift(JsObject(results.map { case (v, m) => (v, m.get) }.toMap))
   }
 
 }

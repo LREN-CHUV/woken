@@ -25,8 +25,8 @@ import eu.hbp.mip.woken.core.ExperimentActor
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import eu.hbp.mip.woken.service.VariablesMetaService
 import eu.hbp.mip.woken.core.model.Queries._
-
 import cats.implicits._
+import spray.json.JsObject
 
 /**
   * Transform incoming mining and experiment queries into jobs
@@ -43,23 +43,27 @@ object MiningQueries {
     val featuresDb    = jobsConfiguration.featuresDb
     val featuresTable = jobsConfiguration.featuresTable
     val metadata      = variablesMetaService.get(featuresTable).get.selectVariablesMeta(query.dbAllVars)
+    val algorithm     = algorithmLookup(query.algorithm.code)
 
-    algorithmLookup(query.algorithm.code).andThen { algo =>
-      DockerJob(jobId, algo.dockerImage, featuresDb, featuresTable, query, metadata = metadata).validNel
-    }
+    def createJob(mt: JsObject, al: AlgorithmDefinition) =
+      DockerJob(jobId, al.dockerImage, featuresDb, featuresTable, query, metadata = mt)
+
+    (metadata, algorithm) mapN createJob
   }
 
   def experimentQuery2job(
       variablesMetaService: VariablesMetaService,
       jobsConfiguration: JobsConfiguration
-  )(query: ExperimentQuery): ExperimentActor.Job = {
+  )(query: ExperimentQuery): Validation[ExperimentActor.Job] = {
 
     val jobId         = UUID.randomUUID().toString
     val featuresDb    = jobsConfiguration.featuresDb
     val featuresTable = jobsConfiguration.featuresTable
     val metadata      = variablesMetaService.get(featuresTable).get.selectVariablesMeta(query.dbAllVars)
 
-    ExperimentActor.Job(jobId, featuresDb, featuresTable, query, metadata = metadata)
+    metadata.andThen { mt: JsObject =>
+      ExperimentActor.Job(jobId, featuresDb, featuresTable, query, metadata = mt).validNel[String]
+    }
   }
 
 }

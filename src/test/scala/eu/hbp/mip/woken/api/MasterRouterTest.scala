@@ -63,13 +63,16 @@ class MasterRouterTest
 
   val fakeFeaturesDAL = FeaturesDAL(noDbConfig)
 
-  def experimentQuery2job(query: ExperimentQuery) = ExperimentActor.Job(
-    jobId = UUID.randomUUID().toString,
-    inputDb = "",
-    inputTable = "",
-    query = query,
-    metadata = JsObject.empty
-  )
+  def experimentQuery2job(query: ExperimentQuery): Validation[ExperimentActor.Job] =
+    ConfigUtil.lift(
+      ExperimentActor.Job(
+        jobId = UUID.randomUUID().toString,
+        inputDb = "",
+        inputTable = "",
+        query = query,
+        metadata = JsObject.empty
+      )
+    )
 
   def miningQuery2job(query: MiningQuery): Validation[DockerJob] =
     ConfigUtil.lift(
