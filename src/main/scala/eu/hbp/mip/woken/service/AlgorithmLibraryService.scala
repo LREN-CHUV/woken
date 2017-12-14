@@ -212,6 +212,7 @@ class AlgorithmLibraryService {
                 "label": "tSNE",
                 "disable": false,
                 "type": ["features_extraction"],
+                "maturity": "experimental",
                 "docker_image": "hbpmip/python-tsne:latest",
                 "environment": "Python",
                 "description": "tSNE...",
@@ -232,6 +233,34 @@ class AlgorithmLibraryService {
                         "max_count": null
                     },
                     "mixed": false
+                }
+            },
+            {
+                "code": "ggparci",
+                "label": "ggparci",
+                "disable": false,
+                "type": ["dataset_exploration"],
+                "maturity": "experimental",
+                "docker_image": "hbpmip/r-ggparci:latest",
+                "environment": "R",
+                "description": "Parallel coordinate plot with added confidence interval bands",
+                "parameters": [],
+                "constraints": {
+                    "variable": {
+                      "real": true,
+                      "integer": true,
+                      "binominal": true,
+                      "polynominal": true
+                    },
+                    "groupings": {
+                        "min_count": 0,
+                        "max_count": 0
+                    },
+                    "covariables": {
+                        "min_count": 1,
+                        "max_count": null
+                    },
+                    "mixed": true
                 }
             }
             ],

@@ -18,9 +18,10 @@ package eu.hbp.mip.woken.core
 
 import akka.actor.{ ActorRef, ActorSystem, Props }
 import akka.contrib.throttle.{ Throttler, TimerBasedThrottler }
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{ Config, ConfigFactory }
 import eu.hbp.mip.woken.backends.chronos.ChronosService
 import eu.hbp.mip.woken.config.JobsConfiguration
+
 import scala.concurrent.duration._
 
 /**
@@ -31,6 +32,9 @@ trait Core {
 
   protected implicit def system: ActorSystem
 
+  protected def config: Config
+  protected def jobsConf: JobsConfiguration
+
 }
 
 /**
@@ -40,9 +44,8 @@ trait Core {
 trait CoreActors {
   this: Core =>
 
-  // TODO: improve passing configuration around
-  private lazy val config = ConfigFactory.load()
-  private lazy val jobsConf = JobsConfiguration
+  protected lazy val config: Config = ConfigFactory.load()
+  protected lazy val jobsConf: JobsConfiguration = JobsConfiguration
     .read(config)
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
 

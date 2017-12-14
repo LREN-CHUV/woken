@@ -88,6 +88,7 @@ private[core] object ExperimentStates {
     def initiator: ActorRef
   }
 
+  @SuppressWarnings(Array("org.wartremover.warts.Throw"))
   case object Uninitialized extends ExperimentData {
     def initiator = throw new IllegalAccessException()
   }
@@ -334,6 +335,7 @@ private[core] object AlgorithmStates {
     def initiator: ActorRef
   }
 
+  @SuppressWarnings(Array("org.wartremover.warts.Throw"))
   case object Uninitialized extends AlgorithmData {
     def initiator = throw new IllegalAccessException()
   }
@@ -572,6 +574,7 @@ private[core] object CrossValidationStates {
     def job: Job
   }
 
+  @SuppressWarnings(Array("org.wartremover.warts.Throw"))
   case object Uninitialized extends StateData {
     def job = throw new IllegalAccessException()
   }

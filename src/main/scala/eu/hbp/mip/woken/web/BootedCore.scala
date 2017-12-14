@@ -30,15 +30,9 @@ import akka.actor.{
 import akka.util.Timeout
 import akka.cluster.Cluster
 import cats.effect.IO
-import com.typesafe.config.{ Config, ConfigFactory }
 import spray.can.Http
 import eu.hbp.mip.woken.api.{ Api, MasterRouter, RoutedHttpService }
-import eu.hbp.mip.woken.config.{
-  AlgorithmsConfiguration,
-  AppConfiguration,
-  DatabaseConfiguration,
-  JobsConfiguration
-}
+import eu.hbp.mip.woken.config.{ AlgorithmsConfiguration, AppConfiguration, DatabaseConfiguration }
 import eu.hbp.mip.woken.core.{ CoordinatorConfig, Core, CoreActors }
 import eu.hbp.mip.woken.core.validation.ValidationPoolManager
 import eu.hbp.mip.woken.dao.{ FeaturesDAL, MetadataRepositoryDAO, WokenRepositoryDAO }
@@ -55,6 +49,7 @@ object RemoteAddressExtension extends ExtensionKey[RemoteAddressExtensionImpl]
   * This trait implements ``Core`` by starting the required ``ActorSystem`` and registering the
   * termination handler to stop the system when the JVM exits.
   */
+@SuppressWarnings(Array("org.wartremover.warts.Throw"))
 trait BootedCore
     extends Core
     with CoreActors
@@ -62,13 +57,7 @@ trait BootedCore
     with StaticResources
     with WokenSSLConfiguration {
 
-  override lazy val config: Config = ConfigFactory.load()
-
   private lazy val appConfig = AppConfiguration
-    .read(config)
-    .getOrElse(throw new IllegalStateException("Invalid configuration"))
-
-  private lazy val jobsConf = JobsConfiguration
     .read(config)
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
 
@@ -159,6 +148,6 @@ trait BootedCore
   /**
     * Ensure that the constructed ActorSystem is shut down when the JVM shuts down
     */
-  sys.addShutdownHook(system.shutdown())
+  val _ = sys.addShutdownHook(system.shutdown())
 
 }

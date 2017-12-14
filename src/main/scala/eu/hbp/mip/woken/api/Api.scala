@@ -16,9 +16,6 @@
 
 package eu.hbp.mip.woken.api
 
-import akka.actor.ActorSystem
-import com.typesafe.config.Config
-import eu.hbp.mip.woken.config.JobsConfiguration
 import spray.routing.{ HttpService, Route }
 import eu.hbp.mip.woken.core.{ Core, CoreActors }
 
@@ -29,14 +26,6 @@ import eu.hbp.mip.woken.core.{ Core, CoreActors }
   * to the top-level actors that make up the system.
   */
 trait Api extends HttpService with CoreActors with Core {
-
-  protected implicit val system: ActorSystem
-
-  def config: Config
-
-  private lazy val jobsConf = JobsConfiguration
-    .read(config)
-    .getOrElse(throw new IllegalStateException("Invalid configuration"))
 
   // TODO: refactor
 //  private lazy val defaults = WokenConfig.defaultSettings

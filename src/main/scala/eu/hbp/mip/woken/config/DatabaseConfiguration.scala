@@ -28,23 +28,31 @@ import eu.hbp.mip.woken.cromwell.core.ConfigUtil._
 
 import scala.language.higherKinds
 
-final case class DatabaseConfiguration(jdbcDriver: String,
+final case class DatabaseConfiguration(dbiDriver: String,
+                                       jdbcDriver: String,
                                        jdbcUrl: String,
+                                       host: String,
+                                       port: Int,
                                        user: String,
                                        password: String)
 
 object DatabaseConfiguration {
 
   def read(config: Config, path: List[String]): Validation[DatabaseConfiguration] = {
-    val jdbcConfig = config.validateConfig(path.mkString("."))
+    val dbConfig = config.validateConfig(path.mkString("."))
 
-    jdbcConfig.andThen { jdbc =>
-      val jdbcDriver   = jdbc.validateString("jdbc_driver")
-      val jdbcUrl      = jdbc.validateString("jdbc_url")
-      val jdbcUser     = jdbc.validateString("user")
-      val jdbcPassword = jdbc.validateString("password")
+    dbConfig.andThen { db =>
+      val dbiDriver: Validation[String] =
+        db.validateString("dbi_driver").orElse(lift("PostgreSQL"))
+      val jdbcDriver: Validation[String] =
+        db.validateString("jdbc_driver").orElse(lift("org.postgresql.Driver"))
+      val jdbcUrl  = db.validateString("jdbc_url")
+      val host     = db.validateString("host")
+      val port     = db.validateInt("port")
+      val user     = db.validateString("user")
+      val password = db.validateString("password")
 
-      (jdbcDriver, jdbcUrl, jdbcUser, jdbcPassword) mapN DatabaseConfiguration.apply
+      (dbiDriver, jdbcDriver, jdbcUrl, host, port, user, password) mapN DatabaseConfiguration.apply
     }
   }
 

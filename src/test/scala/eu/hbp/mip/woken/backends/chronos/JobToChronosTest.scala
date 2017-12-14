@@ -42,14 +42,20 @@ class JobToChronosTest extends FlatSpec with Matchers {
 
   val jdbcConfs: Map[String, ValidatedNel[String, DatabaseConfiguration]] = Map(
     "features_db" -> DatabaseConfiguration(
+      dbiDriver = "PostgreSQL",
       jdbcDriver = "org.postgresql.Driver",
       jdbcUrl = "jdbc:postgres:localhost:5432/features",
+      host = "localhost",
+      port = 5432,
       user = "user",
       password = "test"
     ).validNel,
     "woken_db" -> DatabaseConfiguration(
+      dbiDriver = "PostgreSQL",
       jdbcDriver = "org.postgresql.Driver",
       jdbcUrl = "jdbc:postgres:localhost:5432/woken",
+      host = "localhost",
+      port = 5432,
       user = "woken",
       password = "wpwd"
     ).validNel
@@ -109,14 +115,20 @@ class JobToChronosTest extends FlatSpec with Matchers {
         """{"grp2":{"type":"string"},"a":{"type":"string"},"grp1":{"type":"string"},"b":{"type":"string"},"target":{"type":"string"},"c":{"type":"string"}}"""
       ),
       EnvironmentVariable("PARAM_covariables", "a,b,c"),
+      EnvironmentVariable("IN_DBI_DRIVER", "PostgreSQL"),
       EnvironmentVariable("IN_JDBC_DRIVER", "org.postgresql.Driver"),
       EnvironmentVariable("IN_JDBC_URL", "jdbc:postgres:localhost:5432/features"),
+      EnvironmentVariable("IN_HOST", "localhost"),
+      EnvironmentVariable("IN_PORT", "5432"),
       EnvironmentVariable("IN_USER", "user"),
       EnvironmentVariable("IN_PASSWORD", "test"),
       EnvironmentVariable("IN_JDBC_USER", "user"),
       EnvironmentVariable("IN_JDBC_PASSWORD", "test"),
+      EnvironmentVariable("OUT_DBI_DRIVER", "PostgreSQL"),
       EnvironmentVariable("OUT_JDBC_DRIVER", "org.postgresql.Driver"),
       EnvironmentVariable("OUT_JDBC_URL", "jdbc:postgres:localhost:5432/woken"),
+      EnvironmentVariable("OUT_HOST", "localhost"),
+      EnvironmentVariable("OUT_PORT", "5432"),
       EnvironmentVariable("OUT_USER", "woken"),
       EnvironmentVariable("OUT_PASSWORD", "wpwd"),
       EnvironmentVariable("OUT_JDBC_USER", "woken"),

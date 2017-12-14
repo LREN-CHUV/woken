@@ -57,7 +57,13 @@ class MasterRouterTest
   import eu.hbp.mip.woken.service.TestServices._
 
   val noDbConfig =
-    DatabaseConfiguration(jdbcDriver = "java.lang.String", jdbcUrl = "", user = "", password = "")
+    DatabaseConfiguration(dbiDriver = "DBI",
+                          jdbcDriver = "java.lang.String",
+                          jdbcUrl = "",
+                          host = "",
+                          port = 0,
+                          user = "",
+                          password = "")
   val noJobsConf =
     JobsConfiguration("none", "noone", "http://nowhere", "features", "features", "results", "meta")
 
