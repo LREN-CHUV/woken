@@ -13,7 +13,7 @@ RUN sbt compile
 COPY src/ /build/src/
 COPY .git/ /build/.git/
 COPY .circleci/ /build/.circleci/
-COPY dev-tests/ /build/dev-tests/
+COPY tests/ /build/tests/
 COPY docker/ /build/docker/
 COPY docs/ /build/docs/
 COPY .*.cfg .*ignore .*.yaml .*.conf .gitattributes *.md *.sh *.yml *.json *.txt Dockerfile LICENSE /build/
