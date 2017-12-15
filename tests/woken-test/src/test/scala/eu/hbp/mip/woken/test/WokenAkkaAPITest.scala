@@ -24,6 +24,7 @@ import akka.util.Timeout
 import eu.hbp.mip.woken.messages.external._
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.TryValues._
+import org.scalatest.tagobjects.Slow
 import spray.json._
 
 import scala.concurrent.{Await, Future}
@@ -123,7 +124,7 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
   }
 
   // Test resiliency
-  "Woken" should "recover from multiple failed experiments" in {
+  "Woken" should "recover from multiple failed experiments" taggedAs Slow in {
     val api =
       system.actorSelection("akka.tcp://woken@woken:8088/user/entrypoint")
 

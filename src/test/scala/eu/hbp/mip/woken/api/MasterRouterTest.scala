@@ -18,26 +18,22 @@ package eu.hbp.mip.woken.api
 
 import java.util.UUID
 
-import akka.actor.{ ActorRef, ActorSystem, Props }
-import akka.testkit.{ ImplicitSender, TestKit }
-import eu.hbp.mip.woken.api.MasterRouter.{ QueuesSize, RequestQueuesSize }
+import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.testkit.{ImplicitSender, TestKit}
+import eu.hbp.mip.woken.api.MasterRouter.{QueuesSize, RequestQueuesSize}
 import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.config._
-import eu.hbp.mip.woken.core.{
-  CoordinatorConfig,
-  ExperimentActor,
-  FakeCoordinatorActor,
-  FakeExperimentActor
-}
+import eu.hbp.mip.woken.core.{CoordinatorConfig, ExperimentActor, FakeCoordinatorActor, FakeExperimentActor}
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import eu.hbp.mip.woken.dao.FeaturesDAL
-import eu.hbp.mip.woken.messages.external.{ ExperimentQuery, MiningQuery, QueryResult }
-import com.typesafe.config.{ Config, ConfigFactory }
+import eu.hbp.mip.woken.messages.external.{ExperimentQuery, MiningQuery, QueryResult}
+import com.typesafe.config.{Config, ConfigFactory}
 import eu.hbp.mip.woken.service.AlgorithmLibraryService
-import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import spray.json.JsObject
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil
 import cats.data.Validated._
+import org.scalatest.tagobjects.Slow
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -165,7 +161,7 @@ class MasterRouterTest
       waitForEmptyQueue(router, limit)
     }
 
-    "not start new experiments over the limit of concurrent experiments, then recover" in {
+    "not start new experiments over the limit of concurrent experiments, then recover" taggedAs Slow in {
 
       val limit    = appConfig.masterRouterConfig.experimentActorsLimit
       val overflow = limit * 2
