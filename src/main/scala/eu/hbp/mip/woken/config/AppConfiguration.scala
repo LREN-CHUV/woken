@@ -26,7 +26,7 @@ case class BasicAuthentication(username: String, password: String)
 case class MasterRouterConfig(miningActorsLimit: Int, experimentActorsLimit: Int)
 
 case class AppConfiguration(
-    systemName: String,
+    clusterSystemName: String,
     dockerBridgeNetwork: Option[String],
     networkInterface: String,
     webServicesPort: Int,
@@ -41,7 +41,7 @@ object AppConfiguration {
     val appConfig = config.validateConfig(path.mkString("."))
 
     appConfig.andThen { app =>
-      val systemName          = app.validateString("systemName")
+      val clusterSystemName   = app.validateString("clusterSystemName")
       val dockerBridgeNetwork = app.validateOptionalString("dockerBridgeNetwork")
       val networkInterface    = app.validateString("networkInterface")
       val port                = app.validateInt("webServicesPort")
@@ -61,7 +61,7 @@ object AppConfiguration {
           (miningActorsLimit, experimentActorsLimit) mapN MasterRouterConfig.apply
         }
 
-      (systemName,
+      (clusterSystemName,
        dockerBridgeNetwork,
        networkInterface,
        port,

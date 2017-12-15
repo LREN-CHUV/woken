@@ -64,7 +64,7 @@ trait BootedCore
   /**
     * Construct the ActorSystem we will use in our application
     */
-  override lazy val system: ActorSystem              = ActorSystem(appConfig.systemName)
+  override lazy val system: ActorSystem              = ActorSystem(appConfig.clusterSystemName)
   override lazy val actorRefFactory: ActorRefFactory = system
 
   private lazy val resultsDbConfig = DatabaseConfiguration

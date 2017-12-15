@@ -97,7 +97,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
           errorMsg => {
             val error =
               ErrorJobResult("",
-                             "",
+                             coordinatorConfig.jobsConf.node,
                              OffsetDateTime.now(),
                              query.algorithm.code,
                              errorMsg.reduceLeft(_ + ", " + _))

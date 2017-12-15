@@ -25,7 +25,7 @@ import akka.util
 import akka.util.Timeout
 import com.github.levkhomich.akka.tracing.ActorTracing
 import eu.hbp.mip.woken.backends.{ DockerJob, QueryOffset }
-import eu.hbp.mip.woken.config.AlgorithmDefinition
+import eu.hbp.mip.woken.config.{ AlgorithmDefinition, JobsConfiguration }
 import eu.hbp.mip.woken.core.model.{
   ErrorJobResult,
   JobResult,
@@ -112,14 +112,13 @@ private[core] object ExperimentStates {
       results: PfaExperimentJobResult
   ) extends ExperimentData
 
-  // TODO: define node
   object CompletedExperimentData {
-    def apply(from: PartialExperimentData): CompletedExperimentData =
+    def apply(from: PartialExperimentData, jobsConfig: JobsConfiguration): CompletedExperimentData =
       CompletedExperimentData(
         initiator = from.initiator,
         job = from.job,
         results = PfaExperimentJobResult(experimentJobId = from.job.jobId,
-                                         experimentNode = "",
+                                         experimentNode = jobsConfig.node,
                                          results = from.results,
                                          algorithms = from.algorithms)
       )
@@ -170,7 +169,7 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
         algorithmLookup(a.code).fold[Map[Algorithm, JobResult]](
           errorMessage => {
             res + (a -> ErrorJobResult(jobId,
-                                       "",
+                                       coordinatorConfig.jobsConf.node,
                                        OffsetDateTime.now(),
                                        a.code,
                                        errorMessage.reduceLeft(_ + ", " + _)))
@@ -196,7 +195,13 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
       if (results.size == algorithms.size) {
         val msg = "Experiment contains no algorithms or only invalid algorithms"
         initiator ! Response(job,
-                             Left(ErrorJobResult("", "", OffsetDateTime.now(), "experiment", msg)))
+                             Left(
+                               ErrorJobResult(job.jobId,
+                                              coordinatorConfig.jobsConf.node,
+                                              OffsetDateTime.now(),
+                                              "experiment",
+                                              msg)
+                             ))
         stop(FSM.Failure(msg))
       } else {
         goto(WaitForWorkers) using PartialExperimentData(initiator, job, results, algorithms)
@@ -211,7 +216,7 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
       val experimentData = previousExperimentData.copy(results = results)
       if (experimentData.isComplete) {
         log.info("All results received")
-        goto(Reduce) using CompletedExperimentData(experimentData)
+        goto(Reduce) using CompletedExperimentData(experimentData, coordinatorConfig.jobsConf)
       } else {
         log.info(
           s"Received ${experimentData.results.size} results out of ${experimentData.algorithms.size}"
@@ -226,7 +231,7 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
       val experimentData = previousExperimentData.copy(results = results)
       if (experimentData.isComplete) {
         log.info("All results received")
-        goto(Reduce) using CompletedExperimentData(experimentData)
+        goto(Reduce) using CompletedExperimentData(experimentData, coordinatorConfig.jobsConf)
       } else {
         log.info(
           s"Received ${experimentData.results.size} results out of ${experimentData.algorithms.size}"
