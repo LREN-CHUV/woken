@@ -19,7 +19,8 @@ package eu.hbp.mip.woken.core.model
 import java.time.OffsetDateTime
 
 import eu.hbp.mip.woken.core.model.Shapes._
-import eu.hbp.mip.woken.messages.external.QueryResult
+import eu.hbp.mip.woken.json.formats
+import eu.hbp.mip.woken.messages.external.{ Algorithm, QueryResult }
 import spray.json._
 
 sealed trait JobResult extends Product with Serializable {
@@ -53,6 +54,82 @@ case class PfaExperimentJobResult(jobId: String,
     extends JobResult {
 
   override val function = "experiment"
+}
+
+object PfaExperimentJobResult {
+
+  def apply(algorithms: List[Algorithm],
+            results: Map[Algorithm, JobResult],
+            experimentJobId: String,
+            experimentNode: String): PfaExperimentJobResult = {
+
+    implicit val offsetDateTimeJsonFormat: RootJsonFormat[OffsetDateTime] =
+      formats.OffsetDateTimeJsonFormat
+
+    // Concatenate results while respecting received algorithms order
+    val output = JsArray(
+      algorithms
+        .map(
+          a => {
+            results(a) match {
+              case PfaJobResult(jobId, node, timestamp, function, model) =>
+                // TODO: inform if algorithm is predictive...
+                JsObject(
+                  "type"      -> JsString(pfa_json),
+                  "function"  -> JsString(function),
+                  "code"      -> JsString(a.code),
+                  "name"      -> JsString(a.name),
+                  "jobId"     -> JsString(jobId),
+                  "node"      -> JsString(node),
+                  "timestamp" -> timestamp.toJson,
+                  "data"      -> model
+                )
+              case ErrorJobResult(jobId, node, timestamp, function, errorMsg) =>
+                JsObject(
+                  "type"      -> JsString(error),
+                  "function"  -> JsString(function),
+                  "code"      -> JsString(a.code),
+                  "name"      -> JsString(a.name),
+                  "jobId"     -> JsString(jobId),
+                  "node"      -> JsString(node),
+                  "timestamp" -> timestamp.toJson,
+                  "error"     -> JsString(errorMsg)
+                )
+              case JsonDataJobResult(jobId, node, timestamp, shape, function, data) =>
+                JsObject(
+                  "type"      -> JsString(shape),
+                  "function"  -> JsString(function),
+                  "code"      -> JsString(a.code),
+                  "name"      -> JsString(a.name),
+                  "jobId"     -> JsString(jobId),
+                  "node"      -> JsString(node),
+                  "timestamp" -> timestamp.toJson,
+                  "data"      -> data
+                )
+              case OtherDataJobResult(jobId, node, timestamp, shape, function, data) =>
+                JsObject(
+                  "type"      -> JsString(shape),
+                  "function"  -> JsString(function),
+                  "code"      -> JsString(a.code),
+                  "name"      -> JsString(a.name),
+                  "jobId"     -> JsString(jobId),
+                  "node"      -> JsString(node),
+                  "timestamp" -> timestamp.toJson,
+                  "data"      -> JsString(data)
+                )
+            }
+          }
+        )
+        .toVector
+    )
+
+    PfaExperimentJobResult(
+      jobId = experimentJobId,
+      node = experimentNode,
+      timestamp = OffsetDateTime.now(),
+      models = output
+    )
+  }
 }
 
 case class ErrorJobResult(jobId: String,

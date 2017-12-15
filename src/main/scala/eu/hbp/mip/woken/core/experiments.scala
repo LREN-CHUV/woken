@@ -26,7 +26,12 @@ import akka.util.Timeout
 import com.github.levkhomich.akka.tracing.ActorTracing
 import eu.hbp.mip.woken.backends.{ DockerJob, QueryOffset }
 import eu.hbp.mip.woken.config.AlgorithmDefinition
-import eu.hbp.mip.woken.core.model.{ ErrorJobResult, PfaExperimentJobResult, PfaJobResult }
+import eu.hbp.mip.woken.core.model.{
+  ErrorJobResult,
+  JobResult,
+  PfaExperimentJobResult,
+  PfaJobResult
+}
 import eu.hbp.mip.woken.core.validation.{ KFoldCrossValidation, ValidationPoolManager }
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import eu.hbp.mip.woken.messages.external.{
@@ -62,7 +67,6 @@ object ExperimentActor {
 
   // Output messages: JobResult containing the experiment PFA
 
-  // TODO: Left(ErrorJobResult) is never used, maybe we should better report errors...
   case class Response(job: Job, result: Either[ErrorJobResult, PfaExperimentJobResult])
 
   def props(coordinatorConfig: CoordinatorConfig,
@@ -96,26 +100,29 @@ private[core] object ExperimentStates {
   case class PartialExperimentData(
       initiator: ActorRef,
       job: Job,
-      results: Map[Algorithm, Either[ErrorJobResult, PfaJobResult]],
+      results: Map[Algorithm, JobResult],
       algorithms: List[Algorithm]
   ) extends ExperimentData {
     def isComplete: Boolean = results.size == algorithms.length
   }
 
-  // TODO: it seems quite complex, we have now ExperimentJobResults
   case class CompletedExperimentData(
       initiator: ActorRef,
       job: Job,
-      results: Map[Algorithm, Either[ErrorJobResult, PfaJobResult]],
-      algorithms: List[Algorithm]
+      results: PfaExperimentJobResult
   ) extends ExperimentData
 
+  // TODO: define node
   object CompletedExperimentData {
     def apply(from: PartialExperimentData): CompletedExperimentData =
-      CompletedExperimentData(initiator = from.initiator,
-                              job = from.job,
-                              results = from.results,
-                              algorithms = from.algorithms)
+      CompletedExperimentData(
+        initiator = from.initiator,
+        job = from.job,
+        results = PfaExperimentJobResult(experimentJobId = from.job.jobId,
+                                         experimentNode = "",
+                                         results = from.results,
+                                         algorithms = from.algorithms)
+      )
   }
 }
 
@@ -145,13 +152,13 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
       val initiator   = sender()
       val algorithms  = job.query.algorithms
       val validations = job.query.validations
-      var results     = Map[Algorithm, Either[ErrorJobResult, PfaJobResult]]()
 
       log.info("Start new experiment job")
       log.info(s"List of algorithms: ${algorithms.mkString(",")}")
 
       // Spawn an AlgorithmActor for every algorithm
-      for (a <- algorithms) {
+      val noResults = Map[Algorithm, JobResult]()
+      val results: Map[Algorithm, JobResult] = algorithms.foldLeft(noResults) { (res, a) =>
         val jobId = UUID.randomUUID().toString
         val miningQuery = MiningQuery(
           variables = job.query.variables,
@@ -160,15 +167,13 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
           filters = job.query.filters,
           algorithm = a
         )
-        algorithmLookup(a.code).fold(
+        algorithmLookup(a.code).fold[Map[Algorithm, JobResult]](
           errorMessage => {
-            results = results + (a -> Left(
-              ErrorJobResult(jobId,
-                             "",
-                             OffsetDateTime.now(),
-                             a.code,
-                             errorMessage.reduceLeft(_ + ", " + _))
-            ))
+            res + (a -> ErrorJobResult(jobId,
+                                       "",
+                                       OffsetDateTime.now(),
+                                       a.code,
+                                       errorMessage.reduceLeft(_ + ", " + _)))
           },
           algorithmDefinition => {
             val subJob = AlgorithmActor.Job(jobId,
@@ -183,9 +188,9 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
               AlgorithmActor.actorName(subJob)
             )
             worker ! AlgorithmActor.Start(subJob)
+            res
           }
         )
-
       }
 
       if (results.size == algorithms.size) {
@@ -202,7 +207,7 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
     case Event(AlgorithmActor.ResultResponse(algorithm, algorithmResults),
                previousExperimentData: PartialExperimentData) =>
       log.info(s"Received algorithm result $algorithmResults")
-      val results        = previousExperimentData.results + (algorithm -> Right(algorithmResults))
+      val results        = previousExperimentData.results + (algorithm -> algorithmResults)
       val experimentData = previousExperimentData.copy(results = results)
       if (experimentData.isComplete) {
         log.info("All results received")
@@ -217,7 +222,7 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
     case Event(AlgorithmActor.ErrorResponse(algorithm, error),
                previousExperimentData: PartialExperimentData) =>
       log.error(s"Algorithm ${algorithm.code} returned with error ${error.error.take(50)}")
-      val results        = previousExperimentData.results + (algorithm -> Left(error))
+      val results        = previousExperimentData.results + (algorithm -> error)
       val experimentData = previousExperimentData.copy(results = results)
       if (experimentData.isComplete) {
         log.info("All results received")
@@ -236,36 +241,7 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
 
       //TODO WP3 Save the results in results DB
 
-      // Concatenate results while respecting received algorithms order
-      val output = JsArray(
-        experimentData.algorithms
-          .map(
-            a => {
-              val value: Either[ErrorJobResult, PfaJobResult] = experimentData.results(a)
-              value match {
-                case Right(data) =>
-                  JsObject("code" -> JsString(a.code),
-                           "name" -> JsString(a.name),
-                           "data" -> data.model)
-                case Left(error) =>
-                  JsObject("code"  -> JsString(a.code),
-                           "name"  -> JsString(a.name),
-                           "error" -> JsString(error.error))
-              }
-            }
-          )
-          .toVector
-      )
-
-      experimentData.initiator ! Response(experimentData.job,
-                                          Right(
-                                            PfaExperimentJobResult(
-                                              jobId = experimentData.job.jobId,
-                                              node = "",
-                                              timestamp = OffsetDateTime.now(),
-                                              models = output
-                                            )
-                                          ))
+      experimentData.initiator ! Response(experimentData.job, Right(experimentData.results))
 
       log.info("Stopping...")
       stop
@@ -306,7 +282,7 @@ object AlgorithmActor {
   case class Start(job: Job)
 
   // Output messages
-  case class ResultResponse(algorithm: Algorithm, model: PfaJobResult)
+  case class ResultResponse(algorithm: Algorithm, model: JobResult)
   case class ErrorResponse(algorithm: Algorithm, error: ErrorJobResult)
 
   def props(coordinatorConfig: CoordinatorConfig): Props =
@@ -342,7 +318,7 @@ private[core] object AlgorithmStates {
 
   case class PartialAlgorithmData(initiator: ActorRef,
                                   job: Job,
-                                  model: Option[PfaJobResult],
+                                  model: Option[JobResult],
                                   incomingValidations: Map[ApiValidation, Either[String, JsObject]],
                                   expectedValidationCount: Int)
       extends AlgorithmData {
@@ -354,7 +330,7 @@ private[core] object AlgorithmStates {
 
   case class CompleteAlgorithmData(initiator: ActorRef,
                                    job: Job,
-                                   model: PfaJobResult,
+                                   model: JobResult,
                                    validations: Map[ApiValidation, Either[String, JsObject]])
       extends AlgorithmData
 
@@ -425,21 +401,10 @@ class AlgorithmActor(coordinatorConfig: CoordinatorConfig)
   }
 
   when(WaitForWorkers) {
-    case Event(CoordinatorActor.Response(_, List(model: PfaJobResult)),
-               previousData: PartialAlgorithmData) =>
-      val data = previousData.copy(model = Some(model))
-      if (data.isComplete) {
-        log.info("Received PFA result, algorithm processing complete")
-        goto(Reduce) using CompleteAlgorithmData(data)
-      } else {
-        log.info(s"Received PFA result, pending ${data.remainingValidations} validations")
-        stay using data
-      }
-
     case Event(CoordinatorActor.Response(_, List(model: ErrorJobResult)),
                previousData: PartialAlgorithmData) =>
       log.error(
-        s"Execution of algorithm ${previousData.job.query.algorithm.code} failed with message: ${model.error
+        s"Execution of algorithm ${algorithmIn(previousData)} failed with message: ${model.error
           .take(50)}"
       )
       // We cannot train the model, we notify the initiator and we stop
@@ -449,16 +414,35 @@ class AlgorithmActor(coordinatorConfig: CoordinatorConfig)
       log.info("Stopping...")
       stop
 
+    case Event(CoordinatorActor.Response(_, List(model: JobResult)),
+               previousData: PartialAlgorithmData) =>
+      val data = previousData.copy(model = Some(model))
+      if (data.isComplete) {
+        log.info(
+          s"Received job result, processing of algorithm ${algorithmIn(previousData)} complete"
+        )
+        goto(Reduce) using CompleteAlgorithmData(data)
+      } else {
+        log.info(
+          s"Received job result for algorithm algorithm ${algorithmIn(previousData)}, pending ${data.remainingValidations} validations"
+        )
+        stay using data
+      }
+
     case Event(CrossValidationActor.ResultResponse(validation, results),
                previousData: PartialAlgorithmData) =>
       val data = previousData.copy(
         incomingValidations = previousData.incomingValidations + (validation -> Right(results))
       )
       if (data.isComplete) {
-        log.info("Received validation result, algorithm processing complete")
+        log.info(
+          s"Received validation result, processing of algorithm ${algorithmIn(previousData)} complete"
+        )
         goto(Reduce) using CompleteAlgorithmData(data)
       } else {
-        log.info(s"Received validation result, pending ${data.remainingValidations} validations")
+        log.info(
+          s"Received validation result for algorithm algorithm ${algorithmIn(previousData)}, pending ${data.remainingValidations} validations"
+        )
         if (data.model.isEmpty)
           log.info("Waiting for missing PFA model...")
         stay using data
@@ -467,16 +451,20 @@ class AlgorithmActor(coordinatorConfig: CoordinatorConfig)
     case Event(CrossValidationActor.ErrorResponse(validation, message),
                previousData: PartialAlgorithmData) =>
       log.error(
-        s"Validation of algorithm ${previousData.job.query.algorithm.code} returned with error : $message"
+        s"Validation of algorithm ${algorithmIn(previousData)} returned with error : $message"
       )
       val data = previousData.copy(
         incomingValidations = previousData.incomingValidations + (validation -> Left(message))
       )
       if (data.isComplete) {
-        log.info("Received validation error, algorithm processing complete")
+        log.info(
+          s"Received validation error, processing of algorithm ${algorithmIn(previousData)} complete"
+        )
         goto(Reduce) using CompleteAlgorithmData(data)
       } else {
-        log.info(s"Received validation result, pending ${data.remainingValidations} validations")
+        log.info(
+          s"Received validation result for algorithm algorithm ${algorithmIn(previousData)}, pending ${data.remainingValidations} validations"
+        )
         if (data.model.isEmpty)
           log.info("Waiting for missing PFA model...")
         stay using data
@@ -498,9 +486,12 @@ class AlgorithmActor(coordinatorConfig: CoordinatorConfig)
           .toVector
       )
 
-      val pfa = data.model.injectCell("validations", validations)
+      val model = data.model match {
+        case pfa: PfaJobResult => pfa.injectCell("validations", validations)
+        case m                 => m
+      }
 
-      data.initiator ! ResultResponse(data.job.query.algorithm, pfa)
+      data.initiator ! ResultResponse(data.job.query.algorithm, model)
       log.info("Stopping...")
       stop
   }
@@ -517,6 +508,9 @@ class AlgorithmActor(coordinatorConfig: CoordinatorConfig)
   }
 
   initialize()
+
+  private def algorithmIn(data: PartialAlgorithmData) =
+    data.job.query.algorithm.code
 
 }
 
