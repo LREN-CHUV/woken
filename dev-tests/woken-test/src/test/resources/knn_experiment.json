@@ -1321,6 +1321,6 @@
     "name": "K-nearest neighbors with k=5",
     "node": "federation",
     "timestamp": 0.0,
-    "type": "pfa_json"
+    "type": "application/pfa+json"
   }
 ]

@@ -125,7 +125,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
     case CoordinatorActor.Response(job, results) =>
       // TODO: we can only handle one result from the Coordinator handling a mining query.
       // Containerised algorithms that can produce more than one result (e.g. PFA model + images) are ignored
-      log.debug(s"Received results for mining ${job.query}: $results")
+      log.info(s"Received results for mining ${job.query}: $results")
       val jobResult = results.head
       val initiator = miningJobsInFlight.get(job)
       miningJobsInFlight -= job

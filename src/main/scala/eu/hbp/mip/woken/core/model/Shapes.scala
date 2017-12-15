@@ -16,14 +16,71 @@
 
 package eu.hbp.mip.woken.core.model
 
-// TODO: enum like
 object Shapes {
-  val error               = "error"
-  val pfa_json            = "pfa_json"
-  val pfa_experiment_json = "pfa_experiment_json"
-  val pfa_yaml            = "pfa_yaml"
-  val html                = "html"
-  val svg                 = "svg"
-  val highcharts          = "highcharts"
-  val highcharts_mime     = "application/highcharts+json"
+
+  sealed trait Shape {
+    def mime: String
+    def values: Set[String]
+    def contains(s: String): Boolean = values.contains(s)
+  }
+
+  object error extends Shape {
+    val error  = "error"
+    val mime   = "text/plain+error"
+    val values = Set(error, mime)
+  }
+
+  object pfa extends Shape {
+    val pfa    = "pfa"
+    val json   = "pfa_json"
+    val mime   = "application/pfa+json"
+    val values = Set(pfa, json, mime)
+  }
+
+  object pfaYaml extends Shape {
+    val yaml   = "pfa_yaml"
+    val mime   = "application/pfa+yaml"
+    val values = Set(yaml, mime)
+  }
+
+  object pfaExperiment extends Shape {
+    val json   = "pfa_experiment_json"
+    val mime   = "application/vnd.mip.experiment.pfa+json"
+    val values = Set(json, mime)
+  }
+
+  object html extends Shape {
+    val html   = "html"
+    val mime   = "text/html"
+    val values = Set(html, mime)
+  }
+
+  object svg extends Shape {
+    val svg       = "svg"
+    val svg_image = "svg_image"
+    val mime      = "image/svg+xml"
+    val values    = Set(svg, svg_image, mime)
+  }
+
+  object png extends Shape {
+    val png       = "png"
+    val png_image = "png_image"
+    val mime      = "image/png;base64"
+    val values    = Set(png, png_image, mime)
+  }
+
+  object highcharts extends Shape {
+    val highcharts = "highcharts"
+    val json       = "highcharts_json"
+    val mime       = "application/highcharts+json"
+    val values     = Set(highcharts, json, mime)
+  }
+
+  object visjs extends Shape {
+    val visjs  = "visjs"
+    val js     = "visjs_javascript"
+    val mime   = "application/visjs+javascript"
+    val values = Set(visjs, js, mime)
+  }
+
 }

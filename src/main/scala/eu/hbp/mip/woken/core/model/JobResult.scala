@@ -18,7 +18,7 @@ package eu.hbp.mip.woken.core.model
 
 import java.time.OffsetDateTime
 
-import eu.hbp.mip.woken.core.model.Shapes._
+import eu.hbp.mip.woken.core.model.Shapes.{ pfa => pfaShape, _ }
 import eu.hbp.mip.woken.json.formats
 import eu.hbp.mip.woken.messages.external.{ Algorithm, QueryResult }
 import spray.json._
@@ -75,7 +75,7 @@ object PfaExperimentJobResult {
               case PfaJobResult(jobId, node, timestamp, function, model) =>
                 // TODO: inform if algorithm is predictive...
                 JsObject(
-                  "type"      -> JsString(pfa_json),
+                  "type"      -> JsString(pfaShape.mime),
                   "function"  -> JsString(function),
                   "code"      -> JsString(a.code),
                   "name"      -> JsString(a.name),
@@ -86,7 +86,7 @@ object PfaExperimentJobResult {
                 )
               case ErrorJobResult(jobId, node, timestamp, function, errorMsg) =>
                 JsObject(
-                  "type"      -> JsString(error),
+                  "type"      -> JsString(error.mime),
                   "function"  -> JsString(function),
                   "code"      -> JsString(a.code),
                   "name"      -> JsString(a.name),
@@ -168,7 +168,7 @@ object JobResult {
           jobId = pfa.jobId,
           node = pfa.node,
           timestamp = pfa.timestamp,
-          shape = pfa_json,
+          shape = pfaShape.mime,
           function = pfa.function,
           data = Some(pfa.model.compactPrint),
           error = None
@@ -178,7 +178,7 @@ object JobResult {
           jobId = pfa.jobId,
           node = pfa.node,
           timestamp = pfa.timestamp,
-          shape = pfa_json,
+          shape = pfaExperiment.mime,
           function = pfa.function,
           data = Some(pfa.models.compactPrint),
           error = None
@@ -208,7 +208,7 @@ object JobResult {
           jobId = e.jobId,
           node = e.node,
           timestamp = e.timestamp,
-          shape = error,
+          shape = error.mime,
           function = e.function,
           data = None,
           error = Some(e.error)
