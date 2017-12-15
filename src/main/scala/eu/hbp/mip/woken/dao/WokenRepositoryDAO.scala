@@ -68,7 +68,7 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F]) extends JobResu
       PfaJobResult(jobId, node, timestamp, function, yaml.yaml2Json(Yaml(data)).asJsObject)
     case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
         if highcharts.contains(shape) =>
-      val json = data.parseJson.asJsObject
+      val json = data.parseJson
       JsonDataJobResult(jobId, node, timestamp, highcharts.mime, function, json)
     case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
         if visjs.contains(shape) =>

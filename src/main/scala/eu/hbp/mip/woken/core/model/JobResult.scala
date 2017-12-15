@@ -148,7 +148,7 @@ case class JsonDataJobResult(jobId: String,
                              timestamp: OffsetDateTime,
                              shape: String,
                              function: String,
-                             data: JsObject)
+                             data: JsValue)
     extends VisualisationJobResult
 
 case class OtherDataJobResult(jobId: String,
