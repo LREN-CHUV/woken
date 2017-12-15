@@ -78,7 +78,7 @@ trait BootedCore
   private lazy val featuresDAL = FeaturesDAL(featuresDbConnection)
 
   private lazy val jrsIO: IO[JobResultService] = for {
-    xa <- DatabaseConfiguration.dbTransactor[IO](resultsDbConfig)
+    xa <- DatabaseConfiguration.dbTransactor(resultsDbConfig)
     _  <- DatabaseConfiguration.testConnection[IO](xa)
     wokenDb = new WokenRepositoryDAO[IO](xa)
   } yield {
@@ -91,7 +91,7 @@ trait BootedCore
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
 
   private lazy val vmsIO: IO[VariablesMetaService] = for {
-    xa <- DatabaseConfiguration.dbTransactor[IO](metaDbConfig)
+    xa <- DatabaseConfiguration.dbTransactor(metaDbConfig)
     _  <- DatabaseConfiguration.testConnection[IO](xa)
     metaDb = new MetadataRepositoryDAO[IO](xa)
   } yield {

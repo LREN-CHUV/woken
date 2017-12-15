@@ -158,6 +158,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
       chronosJob.fold[State](
         { err =>
           val msg = err.toList.mkString
+          log.error(msg)
           initiator ! errorResponse(job, msg)
           stop(Failure(msg))
         }, { cj =>
@@ -220,10 +221,6 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
 
     // Check the database for the job result; prepare the next tick or send back the response if the job completed
     case Event(CheckDb, data: PartialLocalData) =>
-      // conf <- PetStoreConfig.load[F]
-      //xa <- DatabaseConfig.dbTransactor(conf.db)
-      //_ <- DatabaseConfig.initializeDb(conf.db, xa)
-
       val results = coordinatorConfig.jobResultService.get(data.job.jobId)
       if (results.nonEmpty) {
         log.info(s"Received results for job ${data.job.jobId}")

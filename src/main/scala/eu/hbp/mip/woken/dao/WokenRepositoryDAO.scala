@@ -57,8 +57,8 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F]) extends JobResu
       PfaExperimentJobResult(jobId, node, timestamp, data.parseJson.asInstanceOf[JsArray])
     case (jobId, node, timestamp, shape, function, Some(data), None) if shape == pfa_yaml =>
       PfaJobResult(jobId, node, timestamp, function, yaml.yaml2Json(Yaml(data)).asJsObject)
-    case (jobId, node, timestamp, shape, function, Some(data), None) if shape == highcharts =>
-      JsonDataJobResult(jobId, node, timestamp, shape, function, data.parseJson.asJsObject)
+    case (jobId, node, timestamp, shape, function, Some(data), None) if shape == highcharts || shape == highcharts_mime =>
+      JsonDataJobResult(jobId, node, timestamp, highcharts_mime, function, data.parseJson.asJsObject)
     case (jobId, node, timestamp, shape, function, Some(data), None)
         if shape == svg || shape == html =>
       OtherDataJobResult(jobId, node, timestamp, shape, function, data)

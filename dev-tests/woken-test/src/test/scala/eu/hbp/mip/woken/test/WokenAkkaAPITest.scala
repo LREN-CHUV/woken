@@ -193,6 +193,16 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
   }
 
   class ApproximatePrinter extends SortedPrinter {
+
+    override protected def printObject(members: Map[String, JsValue], sb: java.lang.StringBuilder, indent: Int): Unit = {
+      val filteredMembers = members.map {
+        case ("jobId", _) => "jobId" -> JsString("*")
+        case ("timestamp", _) => "timestamp" -> JsNumber(0.0)
+        case (k, v) => k -> v
+      }
+      super.printObject(filteredMembers, sb, indent)
+    }
+
     override protected def printLeaf(j: JsValue, sb: java.lang.StringBuilder): Unit =
       j match {
         case JsNull      => sb.append("null")

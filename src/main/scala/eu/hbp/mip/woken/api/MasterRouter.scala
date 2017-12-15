@@ -116,9 +116,16 @@ case class MasterRouter(appConfiguration: AppConfiguration,
         sender() ! JobResult.asQueryResult(error)
       }
 
+    case CoordinatorActor.Response(job, List(errorJob: ErrorJobResult)) =>
+      log.warning(s"Received error while mining ${job.query}: $errorJob")
+      val initiator = miningJobsInFlight.get(job)
+      miningJobsInFlight -= job
+      initiator.get ! JobResult.asQueryResult(errorJob)
+
     case CoordinatorActor.Response(job, results) =>
       // TODO: we can only handle one result from the Coordinator handling a mining query.
       // Containerised algorithms that can produce more than one result (e.g. PFA model + images) are ignored
+      log.debug(s"Received results for mining ${job.query}: $results")
       val jobResult = results.head
       val initiator = miningJobsInFlight.get(job)
       miningJobsInFlight -= job
