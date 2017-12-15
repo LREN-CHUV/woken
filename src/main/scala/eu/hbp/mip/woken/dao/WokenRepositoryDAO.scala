@@ -58,23 +58,29 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F]) extends JobResu
     case (jobId, node, timestamp, _, function, data, Some(errorMessage))
         if data.isEmpty && errorMessage.trim.nonEmpty =>
       ErrorJobResult(jobId, node, timestamp, function, errorMessage)
-    case (jobId, node, timestamp, shape, function, Some(data), None) if pfa.contains(shape) =>
+    case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
+        if pfa.contains(shape) =>
       PfaJobResult(jobId, node, timestamp, function, data.parseJson.asJsObject)
     case (jobId, node, timestamp, shape, _, Some(data), None) if pfaExperiment.contains(shape) =>
       PfaExperimentJobResult(jobId, node, timestamp, data.parseJson.asInstanceOf[JsArray])
-    case (jobId, node, timestamp, shape, function, Some(data), None) if pfaYaml.contains(shape) =>
+    case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
+        if pfaYaml.contains(shape) =>
       PfaJobResult(jobId, node, timestamp, function, yaml.yaml2Json(Yaml(data)).asJsObject)
-    case (jobId, node, timestamp, shape, function, Some(data), None)
+    case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
         if highcharts.contains(shape) =>
       val json = data.parseJson.asJsObject
       JsonDataJobResult(jobId, node, timestamp, highcharts.mime, function, json)
-    case (jobId, node, timestamp, shape, function, Some(data), None) if visjs.contains(shape) =>
+    case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
+        if visjs.contains(shape) =>
       OtherDataJobResult(jobId, node, timestamp, visjs.mime, function, data)
-    case (jobId, node, timestamp, shape, function, Some(data), None) if html.contains(shape) =>
+    case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
+        if html.contains(shape) =>
       OtherDataJobResult(jobId, node, timestamp, html.mime, function, data)
-    case (jobId, node, timestamp, shape, function, Some(data), None) if svg.contains(shape) =>
+    case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
+        if svg.contains(shape) =>
       OtherDataJobResult(jobId, node, timestamp, svg.mime, function, data)
-    case (jobId, node, timestamp, shape, function, Some(data), None) if png.contains(shape) =>
+    case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
+        if png.contains(shape) =>
       OtherDataJobResult(jobId, node, timestamp, png.mime, function, data)
     case (_, _, _, shape, function, _, _) =>
       val msg = s"Cannot handle job results of shape $shape produced by function $function"
