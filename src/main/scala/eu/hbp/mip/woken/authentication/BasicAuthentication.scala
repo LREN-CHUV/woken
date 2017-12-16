@@ -16,30 +16,24 @@
 
 package eu.hbp.mip.woken.authentication
 
+import akka.http.scaladsl.server.directives.Credentials
 import eu.hbp.mip.woken.config.WokenConfig
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.Future
 
 /**
   * Simple support for basic authentication.
   */
 trait BasicAuthentication {
 
-  def basicAuthenticator(implicit executionContext: ExecutionContext): AuthMagnet[String] = {
-    def validateUser(userPass: Option[UserPass]): Option[String] = {
-      println(WokenConfig.app)
-      userPass
-        .filter(
-          up => up.user == WokenConfig.app.basicAuthUsername && up.pass == WokenConfig.app.basicAuthPassword
-        )
-        .map(_.user)
+  def basicAuthenticator(credentials: Credentials): Future[Option[String]] = {
+    credentials match {
+      case cred@Credentials.Provided(id) =>
+        Future {
+          if (cred.verify(WokenConfig.app.basicAuthPassword)) Some(id) else None
+        }
+      case _ => Future.successful(None)
     }
-
-    def wokenUserPassAuthenticator(userPass: Option[UserPass]): Future[Option[String]] = Future {
-      validateUser(userPass)
-    }
-
-    BasicAuth(wokenUserPassAuthenticator _, realm = "Woken Private API")
   }
 
 }

@@ -21,7 +21,7 @@ import akka.actor.SupervisorStrategy.Stop
 import akka.actor.OneForOneStrategy
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
 import akka.http.scaladsl.model.StatusCodes._
-import akka.http.scaladsl.server.{RequestContext, Route, RouteResult}
+import akka.http.scaladsl.server.{ RequestContext, Route, RouteResult }
 
 import scala.concurrent.duration._
 import eu.hbp.mip.woken.core._
@@ -70,17 +70,18 @@ trait PerRequest extends Actor with ActorLogging {
 
 object PerRequest {
 
-  case class WithActorRef(ctx: RequestContext, target: ActorRef, message: RestMessage)
-    extends PerRequest
+  case class WithActorRef(ctx: RequestContextWrapper, target: ActorRef, message: RestMessage)
+      extends PerRequest
 
-  case class WithProps(ctx: RequestContext, props: Props, message: RestMessage) extends PerRequest {
+  case class WithProps(ctx: RequestContextWrapper, props: Props, message: RestMessage) extends PerRequest {
     lazy val target: ActorRef = context.actorOf(props)
   }
 
   final class RequestContextWrapper(ctx: RequestContext, promise: Promise[RouteResult]) {
     private implicit val ec = ctx.executionContext
 
-    def complete(response: ToResponseMarshallable): Unit = ctx.complete(response).onComplete(promise.complete)
+    def complete(response: ToResponseMarshallable): Unit =
+      ctx.complete(response).onComplete(promise.complete)
 
     def fail(error: Throwable): Unit = ctx.fail(error).onComplete(promise.complete)
   }
@@ -99,9 +100,9 @@ trait PerRequestCreator {
 
   def context: ActorRefFactory
 
-  def perRequest(ctx: RequestContext, target: ActorRef, message: RestMessage): ActorRef =
+  def perRequest(ctx: RequestContextWrapper, target: ActorRef, message: RestMessage): ActorRef =
     context.actorOf(Props(WithActorRef(ctx, target, message)))
 
-  def perRequest(ctx: RequestContext, props: Props, message: RestMessage): ActorRef =
+  def perRequest(ctx: RequestContextWrapper, props: Props, message: RestMessage): ActorRef =
     context.actorOf(Props(WithProps(ctx, props, message)))
 }

@@ -137,14 +137,17 @@ trait BootedCore
 
   implicit val timeout: Timeout = Timeout(5.seconds)
 
+   Http().setDefaultServerHttpContext(https)
+
   // start a new HTTP server on port 8080 with our service actor as the handler
-  val binding = Http().bindAndHandle(rootService, interface = app.interface, port = app.port)
+  val binding = Http().bindAndHandle(rootService, interface = app.interface, port = app.port, connectionContext = https)
 
   /**
     * Ensure that the constructed ActorSystem is shut down when the JVM shuts down
     */
-  sys.addShutdownHook{
-    binding.flatMap(_.unbind())
+  sys.addShutdownHook {
+    binding
+      .flatMap(_.unbind())
       .onComplete(_ => system.terminate())
   }
 

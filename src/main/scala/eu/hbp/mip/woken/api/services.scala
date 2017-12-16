@@ -17,7 +17,10 @@
 package eu.hbp.mip.woken.api
 
 import util.control.NonFatal
-import akka.actor.{ Actor, ActorContext, ActorLogging }
+import akka.actor.{Actor, ActorContext, ActorLogging}
+import akka.http.scaladsl.server.{ExceptionHandler, Route}
+import org.apache.http.protocol.HttpService
+
 
 /**
   * Holds potential error response with the HTTP status and optional body
@@ -25,8 +28,8 @@ import akka.actor.{ Actor, ActorContext, ActorLogging }
   * @param responseStatus the status code
   * @param response the optional body
   */
-case class ErrorResponseException(responseStatus: StatusCode, response: Option[HttpEntity])
-    extends Exception
+//case class ErrorResponseException(responseStatus: StatusCode, response: Option[HttpEntity])
+  //  extends Exception
 
 /**
   * Provides a hook to catch exceptions and rejections from routes, allowing custom
@@ -35,7 +38,7 @@ case class ErrorResponseException(responseStatus: StatusCode, response: Option[H
   * Note that this is not marshalled, but it is possible to do so allowing for a fully
   * JSON API (e.g. see how Foursquare do it).
   */
-trait FailureHandling {
+/*trait FailureHandling {
   this: HttpService =>
 
   // For Spray > 1.1-M7 use routeRouteResponse
@@ -79,7 +82,7 @@ trait FailureHandling {
   }
 
 }
-
+*/
 /**
   * Allows you to construct Spray ``HttpService`` from a concatenation of routes; and wires in the error handler.
   * It also logs all internal server errors using ``SprayActorLogging``.
