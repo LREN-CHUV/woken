@@ -19,16 +19,16 @@ package eu.hbp.mip.woken.core
 import java.time.OffsetDateTime
 import java.util.UUID
 
-import akka.actor.{ Actor, ActorLogging, ActorRef, ActorSelection, LoggingFSM, Props }
+import akka.actor.{ Actor, ActorLogging, ActorRef, ActorSelection, FSM, LoggingFSM, Props }
 import akka.pattern.ask
 import akka.util
 import akka.util.Timeout
 import com.github.levkhomich.akka.tracing.ActorTracing
-import eu.hbp.mip.woken.api._
 import eu.hbp.mip.woken.backends.{ DockerJob, QueryOffset }
-import eu.hbp.mip.woken.config.WokenConfig.defaultSettings.{ dockerImage, isPredictive }
+import eu.hbp.mip.woken.config.AlgorithmDefinition
 import eu.hbp.mip.woken.core.model.{ ErrorJobResult, PfaExperimentJobResult, PfaJobResult }
 import eu.hbp.mip.woken.core.validation.{ KFoldCrossValidation, ValidationPoolManager }
+import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import eu.hbp.mip.woken.messages.external.{
   Algorithm,
   ExperimentQuery,
@@ -65,8 +65,9 @@ object ExperimentActor {
   // TODO: Left(ErrorJobResult) is never used, maybe we should better report errors...
   case class Response(job: Job, result: Either[ErrorJobResult, PfaExperimentJobResult])
 
-  def props(coordinatorConfig: CoordinatorConfig): Props =
-    Props(new ExperimentActor(coordinatorConfig))
+  def props(coordinatorConfig: CoordinatorConfig,
+            algorithmLookup: String => Validation[AlgorithmDefinition]): Props =
+    Props(new ExperimentActor(coordinatorConfig, algorithmLookup))
 
 }
 
@@ -87,6 +88,7 @@ private[core] object ExperimentStates {
     def initiator: ActorRef
   }
 
+  @SuppressWarnings(Array("org.wartremover.warts.Throw"))
   case object Uninitialized extends ExperimentData {
     def initiator = throw new IllegalAccessException()
   }
@@ -124,7 +126,8 @@ private[core] object ExperimentStates {
   * the results before responding
   *
   */
-class ExperimentActor(val coordinatorConfig: CoordinatorConfig)
+class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
+                      algorithmLookup: String => Validation[AlgorithmDefinition])
     extends Actor
     with ActorLogging
     with ActorTracing
@@ -142,6 +145,7 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig)
       val initiator   = sender()
       val algorithms  = job.query.algorithms
       val validations = job.query.validations
+      var results     = Map[Algorithm, Either[ErrorJobResult, PfaJobResult]]()
 
       log.info("Start new experiment job")
       log.info(s"List of algorithms: ${algorithms.mkString(",")}")
@@ -156,20 +160,42 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig)
           filters = job.query.filters,
           algorithm = a
         )
-        val subJob = AlgorithmActor.Job(jobId,
-                                        job.inputDb,
-                                        job.inputTable,
-                                        miningQuery,
-                                        job.metadata,
-                                        validations)
-        val worker = context.actorOf(
-          AlgorithmActor.props(coordinatorConfig),
-          AlgorithmActor.actorName(subJob)
+        algorithmLookup(a.code).fold(
+          errorMessage => {
+            results = results + (a -> Left(
+              ErrorJobResult(jobId,
+                             "",
+                             OffsetDateTime.now(),
+                             a.code,
+                             errorMessage.reduceLeft(_ + ", " + _))
+            ))
+          },
+          algorithmDefinition => {
+            val subJob = AlgorithmActor.Job(jobId,
+                                            job.inputDb,
+                                            job.inputTable,
+                                            miningQuery,
+                                            job.metadata,
+                                            validations,
+                                            algorithmDefinition)
+            val worker = context.actorOf(
+              AlgorithmActor.props(coordinatorConfig),
+              AlgorithmActor.actorName(subJob)
+            )
+            worker ! AlgorithmActor.Start(subJob)
+          }
         )
-        worker ! AlgorithmActor.Start(subJob)
+
       }
 
-      goto(WaitForWorkers) using PartialExperimentData(initiator, job, Map.empty, algorithms)
+      if (results.size == algorithms.size) {
+        val msg = "Experiment contains no algorithms or only invalid algorithms"
+        initiator ! Response(job,
+                             Left(ErrorJobResult("", "", OffsetDateTime.now(), "experiment", msg)))
+        stop(FSM.Failure(msg))
+      } else {
+        goto(WaitForWorkers) using PartialExperimentData(initiator, job, results, algorithms)
+      }
   }
 
   when(WaitForWorkers) {
@@ -270,7 +296,11 @@ object AlgorithmActor {
                  inputTable: String,
                  query: MiningQuery,
                  metadata: JsObject,
-                 validations: List[ApiValidation])
+                 validations: List[ApiValidation],
+                 algorithmDefinition: AlgorithmDefinition) {
+    // Invariants
+    assert(query.algorithm.code == algorithmDefinition.code)
+  }
 
   // Incoming messages
   case class Start(job: Job)
@@ -305,6 +335,7 @@ private[core] object AlgorithmStates {
     def initiator: ActorRef
   }
 
+  @SuppressWarnings(Array("org.wartremover.warts.Throw"))
   case object Uninitialized extends AlgorithmData {
     def initiator = throw new IllegalAccessException()
   }
@@ -336,7 +367,7 @@ private[core] object AlgorithmStates {
   }
 }
 
-class AlgorithmActor(val coordinatorConfig: CoordinatorConfig)
+class AlgorithmActor(coordinatorConfig: CoordinatorConfig)
     extends Actor
     with ActorLogging
     with LoggingFSM[AlgorithmStates.State, AlgorithmStates.AlgorithmData] {
@@ -350,7 +381,7 @@ class AlgorithmActor(val coordinatorConfig: CoordinatorConfig)
     case Event(Start(job), _) =>
       val initiator   = sender()
       val algorithm   = job.query.algorithm
-      val validations = if (isPredictive(algorithm.code)) job.validations else Nil
+      val validations = if (job.algorithmDefinition.predictive) job.validations else Nil
 
       log.info(s"Start job for algorithm ${algorithm.code}")
       log.info(s"List of validations: ${validations.size}")
@@ -360,7 +391,7 @@ class AlgorithmActor(val coordinatorConfig: CoordinatorConfig)
         val jobId = UUID.randomUUID().toString
         val subJob =
           DockerJob(jobId,
-                    dockerImage(algorithm.code),
+                    job.algorithmDefinition.dockerImage,
                     job.inputDb,
                     job.inputTable,
                     job.query,
@@ -376,7 +407,13 @@ class AlgorithmActor(val coordinatorConfig: CoordinatorConfig)
       for (v <- validations) {
         val jobId = UUID.randomUUID().toString
         val subJob =
-          CrossValidationActor.Job(jobId, job.inputDb, job.inputTable, job.query, job.metadata, v)
+          CrossValidationActor.Job(jobId,
+                                   job.inputDb,
+                                   job.inputTable,
+                                   job.query,
+                                   job.metadata,
+                                   v,
+                                   job.algorithmDefinition)
         val validationWorker = context.actorOf(
           CrossValidationActor.props(coordinatorConfig),
           CrossValidationActor.actorName(subJob)
@@ -495,7 +532,8 @@ object CrossValidationActor {
       inputTable: String,
       query: MiningQuery,
       metadata: JsObject,
-      validation: ApiValidation
+      validation: ApiValidation,
+      algorithmDefinition: AlgorithmDefinition
   )
 
   // Incoming messages
@@ -536,6 +574,7 @@ private[core] object CrossValidationStates {
     def job: Job
   }
 
+  @SuppressWarnings(Array("org.wartremover.warts.Throw"))
   case object Uninitialized extends StateData {
     def job = throw new IllegalAccessException()
   }
@@ -601,7 +640,7 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
           val jobId = UUID.randomUUID().toString
           val subJob = DockerJob(
             jobId = jobId,
-            dockerImage = dockerImage(algorithm.code),
+            dockerImage = job.algorithmDefinition.dockerImage,
             inputDb = job.inputDb,
             inputTable = job.inputTable,
             query = job.query,
@@ -620,7 +659,7 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
       }
 
       // TODO: move this code in a better place, test it
-      import FunctionsInOut._
+      import eu.hbp.mip.woken.core.model.Queries._
       import MetaDataProtocol._
       val targetMetaData: VariableMetaData = job.metadata
         .convertTo[Map[String, VariableMetaData]]

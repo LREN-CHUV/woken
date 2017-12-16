@@ -16,7 +16,7 @@
 
 package eu.hbp.mip.woken.core.validation
 
-import eu.hbp.mip.woken.api.FunctionsInOut
+import eu.hbp.mip.woken.core.model.Queries._
 import eu.hbp.mip.woken.backends.FeaturesHelper
 import eu.hbp.mip.woken.core.CrossValidationActor
 import eu.hbp.mip.woken.dao.FeaturesDAL
@@ -78,7 +78,6 @@ object KFoldCrossValidation {
   def apply(job: CrossValidationActor.Job,
             foldCount: Int,
             featuresDAL: FeaturesDAL): KFoldCrossValidation = {
-    import FunctionsInOut._
 
     val query = job.query
     // TODO: shouldn't cross validation exclude here a portion of the feature dataset?

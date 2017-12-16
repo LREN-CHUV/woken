@@ -16,7 +16,7 @@
 
 package eu.hbp.mip.woken.backends.chronos
 
-import akka.actor.{ Actor, ActorLogging, ActorSystem, Props, Status }
+import akka.actor.{ Actor, ActorLogging, Props, Status }
 import akka.pattern.{ AskTimeoutException, pipe }
 import akka.util.Timeout
 import com.github.levkhomich.akka.tracing.ActorTracing

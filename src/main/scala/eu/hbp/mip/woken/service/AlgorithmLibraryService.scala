@@ -18,6 +18,8 @@ package eu.hbp.mip.woken.service
 
 import spray.json._
 
+// TODO: merge/provide with AlgorithmLookup ?
+
 class AlgorithmLibraryService {
   // TODO Gather this information from all the containers
   private val methods_mock =
@@ -86,7 +88,7 @@ class AlgorithmLibraryService {
                 "code": "anova",
                 "label": "Anova",
                 "type": ["statistics"],
-                "docker_image": "hbpmip/python-anova:0.3.1",
+                "docker_image": "hbpmip/python-anova:0.3.5",
                 "environment": "Python",
                 "description": "ANOVA...",
                 "parameters": [{
@@ -208,10 +210,11 @@ class AlgorithmLibraryService {
             {
                 "code": "tSNE",
                 "label": "tSNE",
-                "disable": true,
+                "disable": false,
                 "type": ["features_extraction"],
-                "docker_image": "hbpmip/r-tsne:latest",
-                "environment": "R",
+                "maturity": "experimental",
+                "docker_image": "hbpmip/python-tsne:latest",
+                "environment": "Python",
                 "description": "tSNE...",
                 "parameters": [],
                 "constraints": {
@@ -230,6 +233,34 @@ class AlgorithmLibraryService {
                         "max_count": null
                     },
                     "mixed": false
+                }
+            },
+            {
+                "code": "ggparci",
+                "label": "ggparci",
+                "disable": false,
+                "type": ["dataset_exploration"],
+                "maturity": "experimental",
+                "docker_image": "hbpmip/r-ggparci:latest",
+                "environment": "R",
+                "description": "Parallel coordinate plot with added confidence interval bands",
+                "parameters": [],
+                "constraints": {
+                    "variable": {
+                      "real": true,
+                      "integer": true,
+                      "binominal": true,
+                      "polynominal": true
+                    },
+                    "groupings": {
+                        "min_count": 0,
+                        "max_count": 0
+                    },
+                    "covariables": {
+                        "min_count": 1,
+                        "max_count": null
+                    },
+                    "mixed": true
                 }
             }
             ],

@@ -35,23 +35,27 @@ final case class JobsConfiguration(
     owner: String,
     chronosServerUrl: String,
     featuresDb: String,
-    resultDb: String
+    featuresTable: String,
+    resultDb: String,
+    metaDb: String
 )
 
 object JobsConfiguration {
 
-  def read(config: Config, path: Seq[String] = List("jobs")): Validation[JobsConfiguration] = {
-    val jobsConfig = path.foldLeft(config) { (c, s) =>
-      c.getConfig(s)
+  def read(config: Config, path: List[String] = List("jobs")): Validation[JobsConfiguration] = {
+    val jobsConfig = config.validateConfig(path.mkString("."))
+
+    jobsConfig.andThen { jobs =>
+      val node             = jobs.validateString("node")
+      val owner            = jobs.validateString("owner")
+      val chronosServerUrl = jobs.validateString("chronosServerUrl")
+      val featuresDb       = jobs.validateString("featuresDb")
+      val featuresTable    = jobs.validateString("featuresTable")
+      val resultDb         = jobs.validateString("resultDb")
+      val metaDb           = jobs.validateString("metaDb")
+
+      (node, owner, chronosServerUrl, featuresDb, featuresTable, resultDb, metaDb) mapN JobsConfiguration.apply
     }
-
-    val node             = jobsConfig.validateString("node")
-    val owner            = jobsConfig.validateString("owner")
-    val chronosServerUrl = jobsConfig.validateString("chronosServerUrl")
-    val featuresDb       = jobsConfig.validateString("featuresDb")
-    val resultDb         = jobsConfig.validateString("resultDb")
-
-    (node, owner, chronosServerUrl, featuresDb, resultDb) mapN JobsConfiguration.apply
   }
 
 }

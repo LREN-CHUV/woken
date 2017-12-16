@@ -62,6 +62,8 @@ object ConfigUtil {
 
   private val validationLogger = LoggerFactory.getLogger("ConfigurationValidation")
 
+  def lift[A](v: A): Validation[A] = v.validNel[String]
+
   implicit class EnhancedConfig(val config: Config) extends AnyVal {
     def keys: Set[String] = config.entrySet().asScala.toSet map {
       v: java.util.Map.Entry[String, ConfigValue] =>
@@ -92,6 +94,32 @@ object ConfigUtil {
         config.getString(key).validNel
       } catch {
         case _: ConfigException.Missing => s"Could not find key: $key".invalidNel
+      }
+
+    def validateOptionalString(key: String): Validation[Option[String]] =
+      try {
+        config.getString(key).validNel.map(Some(_))
+      } catch {
+        case _: ConfigException.Missing => None.validNel
+        case _: ConfigException         => s"Invalid value for key: $key".invalidNel
+      }
+
+    def validateInt(key: String): Validation[Int] =
+      try {
+        config.getInt(key).validNel
+      } catch {
+        case _: ConfigException.Missing => s"Could not find key: $key".invalidNel
+        case _: ConfigException.WrongType =>
+          s"Invalid type for key: $key, expected an integer value".invalidNel
+      }
+
+    def validateBoolean(key: String): Validation[Boolean] =
+      try {
+        config.getBoolean(key).validNel
+      } catch {
+        case _: ConfigException.Missing => s"Could not find key: $key".invalidNel
+        case _: ConfigException.WrongType =>
+          s"Invalid type for key: $key, expected an integer value".invalidNel
       }
 
     def validateConfig(key: String): Validation[Config] =

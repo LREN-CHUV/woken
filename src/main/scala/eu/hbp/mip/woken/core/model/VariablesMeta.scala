@@ -16,8 +16,9 @@
 
 package eu.hbp.mip.woken.core.model
 
+import eu.hbp.mip.woken.cromwell.core.ConfigUtil._
+import cats.implicits._
 import spray.json._
-import spray.json.DefaultJsonProtocol._
 
 // TODO: defaultHistogramGroupings: List[String]
 case class VariablesMeta(id: Int,
@@ -26,60 +27,58 @@ case class VariablesMeta(id: Int,
                          targetFeaturesTable: String,
                          defaultHistogramGroupings: String) {
 
-  def getMetaData(variables: Seq[String]): JsObject = {
+  def selectVariablesMeta(variables: List[String]): Validation[JsObject] = {
+
+    def scanVariables(variable: String, groups: JsObject): Option[JsObject] =
+      if (groups.fields.contains("variables")) {
+        groups.fields("variables") match {
+          case a: JsArray =>
+            a.elements.toStream
+              .map(_.asJsObject)
+              .find(
+                v =>
+                  v.fields.get("code") match {
+                    case Some(JsString(code)) if code == variable => true
+                    case _                                        => false
+                }
+              )
+          case _ =>
+            deserializationError("JsArray expected")
+            None
+        }
+      } else None
+
+    def scanGroups(variable: String, groups: JsObject): Option[JsObject] =
+      if (groups.fields.contains("groups")) {
+        groups.fields("groups") match {
+          case a: JsArray =>
+            a.elements
+              .map(g => getVariableMetaData(variable, g.asJsObject))
+              .collectFirst { case Some(varMeta) => varMeta }
+          case _ =>
+            deserializationError("JsArray expected")
+            None
+        }
+      } else None
 
     /**
       * Parse the tree of groups to find the variables meta data!
       * Temporary... We need to separate groups from variable meta!
       * @return
       */
-    def getVariableMetaData(variable: String, groups: JsObject): Option[JsObject] = {
+    def getVariableMetaData(variable: String, groups: JsObject): Option[JsObject] =
+      scanVariables(variable, groups).fold(
+        scanGroups(variable, groups)
+      )(
+        Option(_)
+      )
 
-      if (groups.fields.contains("variables")) {
-        groups.fields("variables") match {
-          case a: JsArray =>
-            a.elements.find(
-              v =>
-                v.asJsObject.fields.get("code") match {
-                  case Some(stringValue) => stringValue.convertTo[String] == variable
-                  case None              => false
-              }
-            ) match {
-              case Some(value) => return Some(value.asJsObject)
-              case None        => None
-            }
-          case _ => deserializationError("JsArray expected")
-        }
-      }
-
-      if (groups.fields.contains("groups")) {
-        groups.fields("groups") match {
-          case a: JsArray =>
-            return a.elements.toStream
-              .map(g => getVariableMetaData(variable, g.asJsObject))
-              .find(o => o.isDefined) match {
-              case Some(variable: Option[JsObject]) => variable
-              case None                             => None
-            }
-          case _ => deserializationError("JsArray expected")
-        }
-      }
-
-      None
-    }
-
-    new JsObject(
-      variables
-        .map(
-          v =>
-            v -> (getVariableMetaData(v, hierarchy) match {
-              case Some(m) => m
-              case None =>
-                JsObject("error" -> JsString(s"Cannot not find metadata for $v"))
-            })
-        )
-        .toMap
-    )
+    val results = variables.map(v => v -> getVariableMetaData(v, hierarchy))
+    if (results.exists(p => p._2.isEmpty)) {
+      val variablesNotFound = results.collect { case (v, None) => v }
+      s"Cannot not find metadata for ${variablesNotFound.mkString(", ")}".invalidNel
+    } else
+      lift(JsObject(results.map { case (v, m) => (v, m.get) }.toMap))
   }
 
 }

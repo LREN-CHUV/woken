@@ -28,24 +28,32 @@ import eu.hbp.mip.woken.cromwell.core.ConfigUtil._
 
 import scala.language.higherKinds
 
-final case class DatabaseConfiguration(jdbcDriver: String,
+final case class DatabaseConfiguration(dbiDriver: String,
+                                       jdbcDriver: String,
                                        jdbcUrl: String,
+                                       host: String,
+                                       port: Int,
                                        user: String,
                                        password: String)
 
 object DatabaseConfiguration {
 
-  def read(config: Config, path: Seq[String]): Validation[DatabaseConfiguration] = {
-    val jdbcConfig = path.foldLeft(config) { (c, s) =>
-      c.getConfig(s)
+  def read(config: Config, path: List[String]): Validation[DatabaseConfiguration] = {
+    val dbConfig = config.validateConfig(path.mkString("."))
+
+    dbConfig.andThen { db =>
+      val dbiDriver: Validation[String] =
+        db.validateString("dbi_driver").orElse(lift("PostgreSQL"))
+      val jdbcDriver: Validation[String] =
+        db.validateString("jdbc_driver").orElse(lift("org.postgresql.Driver"))
+      val jdbcUrl  = db.validateString("jdbc_url")
+      val host     = db.validateString("host")
+      val port     = db.validateInt("port")
+      val user     = db.validateString("user")
+      val password = db.validateString("password")
+
+      (dbiDriver, jdbcDriver, jdbcUrl, host, port, user, password) mapN DatabaseConfiguration.apply
     }
-
-    val jdbcDriver   = jdbcConfig.validateString("jdbc_driver")
-    val jdbcUrl      = jdbcConfig.validateString("jdbc_url")
-    val jdbcUser     = jdbcConfig.validateString("user")
-    val jdbcPassword = jdbcConfig.validateString("password")
-
-    (jdbcDriver, jdbcUrl, jdbcUser, jdbcPassword) mapN DatabaseConfiguration.apply
   }
 
   def factory(config: Config): String => Validation[DatabaseConfiguration] =

@@ -31,7 +31,7 @@ object formats {
       case JsNumber(x) =>
         OffsetDateTime.of(LocalDateTime.ofEpochSecond(x.toLong, 0, ZoneOffset.UTC), ZoneOffset.UTC)
       case unknown =>
-        deserializationError("Expected OffsetDateTime as JsNumber, but got " + unknown)
+        deserializationError(s"Expected OffsetDateTime as JsNumber, but got $unknown")
     }
   }
 

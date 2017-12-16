@@ -31,14 +31,6 @@ import eu.hbp.mip.woken.core.{ Core, CoreActors }
   */
 trait Api extends CoreActors with Core {
 
-  protected implicit val system: ActorSystem
-
-  def config: Config
-
-  private lazy val jobsConf = JobsConfiguration
-    .read(config)
-    .getOrElse(throw new IllegalStateException("Invalid configuration"))
-
   // TODO: refactor
   //  private lazy val defaults = WokenConfig.defaultSettings
   //  lazy val mining_service =

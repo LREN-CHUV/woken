@@ -16,16 +16,16 @@
 
 package eu.hbp.mip.woken.api
 
-import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem }
+import akka.actor.{ActorRef, ActorRefFactory, ActorSystem}
 import akka.http.scaladsl.server.Route
 import com.typesafe.config.ConfigFactory
 import eu.hbp.mip.woken.api.swagger.MiningServiceApi
 import eu.hbp.mip.woken.authentication.BasicAuthentication
-import eu.hbp.mip.woken.config.{ DatabaseConfiguration, JobsConfiguration, WokenConfig }
+import eu.hbp.mip.woken.config.{AppConfiguration, DatabaseConfiguration, JobsConfiguration}
 import eu.hbp.mip.woken.messages.external._
 import eu.hbp.mip.woken.core._
 import eu.hbp.mip.woken.dao.FeaturesDAL
-import eu.hbp.mip.woken.service.{ JobResultService, VariablesMetaService }
+import eu.hbp.mip.woken.service.{JobResultService, VariablesMetaService}
 
 object MiningService {}
 
@@ -34,6 +34,7 @@ class MiningService(val chronosService: ActorRef,
                     val featuresDatabase: FeaturesDAL,
                     val jobResultService: JobResultService,
                     val variablesMetaService: VariablesMetaService,
+                    override val appConfiguration: AppConfiguration,
                     val jobsConf: JobsConfiguration,
                     val defaultFeaturesTable: String)(implicit system: ActorSystem)
     extends MiningServiceApi

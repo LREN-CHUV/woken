@@ -16,7 +16,7 @@
 
 package eu.hbp.mip.woken.backends
 
-import eu.hbp.mip.woken.api.FunctionsInOut
+import eu.hbp.mip.woken.core.model.Queries._
 import eu.hbp.mip.woken.messages.external.MiningQuery
 import spray.json.JsObject
 
@@ -44,9 +44,7 @@ case class DockerJob(
     (dockerImage.replaceAll("^.*?/", "").takeWhile(_ != ':') + "_" + jobId)
       .replaceAll("[/.-]", "_")
 
-  def dockerParameters: Map[String, String] = {
-    import FunctionsInOut._
-
+  def dockerParameters: Map[String, String] =
     Map[String, String](
       "PARAM_query"       -> FeaturesHelper.buildQueryFeaturesSql(inputTable, query, shadowOffset),
       "PARAM_variables"   -> query.dbVariables.mkString(","),
@@ -54,7 +52,6 @@ case class DockerJob(
       "PARAM_grouping"    -> query.dbGrouping.mkString(","),
       "PARAM_meta"        -> metadata.compactPrint
     ) ++ algoParameters
-  }
 
   private[this] def algoParameters: Map[String, String] = {
     val parameters = query.algorithm.parameters

@@ -23,22 +23,21 @@ import akka.testkit.{ ImplicitSender, TestKit }
 import eu.hbp.mip.woken.api.MasterRouter.{ QueuesSize, RequestQueuesSize }
 import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.config._
-import eu.hbp.mip.woken.core.ExperimentActor.Start
 import eu.hbp.mip.woken.core.{
   CoordinatorConfig,
   ExperimentActor,
   FakeCoordinatorActor,
   FakeExperimentActor
 }
+import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import eu.hbp.mip.woken.dao.FeaturesDAL
-import eu.hbp.mip.woken.messages.external._
+import eu.hbp.mip.woken.messages.external.{ ExperimentQuery, MiningQuery, QueryResult }
 import com.typesafe.config.{ Config, ConfigFactory }
 import eu.hbp.mip.woken.service.AlgorithmLibraryService
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import spray.json.JsObject
-import cats.data.Validated._
-import eu.hbp.mip.woken.core.model.ErrorJobResult
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil
+import cats.data.Validated._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -58,32 +57,49 @@ class MasterRouterTest
   import eu.hbp.mip.woken.service.TestServices._
 
   val noDbConfig =
-    DatabaseConfiguration(jdbcDriver = "java.lang.String", jdbcUrl = "", user = "", password = "")
-  val noJobsConf = JobsConfiguration("none", "noone", "http://nowhere", "features", "results")
+    DatabaseConfiguration(dbiDriver = "DBI",
+                          jdbcDriver = "java.lang.String",
+                          jdbcUrl = "",
+                          host = "",
+                          port = 0,
+                          user = "",
+                          password = "")
+  val noJobsConf =
+    JobsConfiguration("none", "noone", "http://nowhere", "features", "features", "results", "meta")
 
   val fakeFeaturesDAL = FeaturesDAL(noDbConfig)
 
-  def experimentQuery2job(query: ExperimentQuery) = ExperimentActor.Job(
-    jobId = UUID.randomUUID().toString,
-    inputDb = "",
-    inputTable = "",
-    query = query,
-    metadata = JsObject.empty
-  )
+  def experimentQuery2job(query: ExperimentQuery): Validation[ExperimentActor.Job] =
+    ConfigUtil.lift(
+      ExperimentActor.Job(
+        jobId = UUID.randomUUID().toString,
+        inputDb = "",
+        inputTable = "",
+        query = query,
+        metadata = JsObject.empty
+      )
+    )
 
-  def miningQuery2job(query: MiningQuery): DockerJob = DockerJob(
-    jobId = UUID.randomUUID().toString,
-    dockerImage = "",
-    inputDb = "",
-    inputTable = "",
-    query = query,
-    metadata = JsObject.empty
-  )
+  def miningQuery2job(query: MiningQuery): Validation[DockerJob] =
+    ConfigUtil.lift(
+      DockerJob(
+        jobId = UUID.randomUUID().toString,
+        dockerImage = "",
+        inputDb = "",
+        inputTable = "",
+        query = query,
+        metadata = JsObject.empty
+      )
+    )
 
-  class MasterRouterUnderTest(coordinatorConfig: CoordinatorConfig,
-                              algorithmLibraryService: AlgorithmLibraryService)
-      extends MasterRouter(coordinatorConfig,
+  class MasterRouterUnderTest(appConfiguration: AppConfiguration,
+                              coordinatorConfig: CoordinatorConfig,
+                              algorithmLibraryService: AlgorithmLibraryService,
+                              algorithmLookup: String => Validation[AlgorithmDefinition])
+      extends MasterRouter(appConfiguration,
+                           coordinatorConfig,
                            algorithmLibraryService,
+                           algorithmLookup,
                            experimentQuery2job,
                            miningQuery2job) {
 
@@ -95,7 +111,11 @@ class MasterRouterTest
 
   }
 
-  val config: Config                                                      = ConfigFactory.load()
+  val config: Config = ConfigFactory.load()
+  val appConfig: AppConfiguration = AppConfiguration
+    .read(config)
+    .getOrElse(throw new IllegalStateException("Invalid configuration"))
+
   val jdbcConfigs: String => ConfigUtil.Validation[DatabaseConfiguration] = _ => Valid(noDbConfig)
 
   val coordinatorConfig: CoordinatorConfig = CoordinatorConfig(
@@ -111,12 +131,17 @@ class MasterRouterTest
 
     val router =
       system.actorOf(
-        Props(new MasterRouterUnderTest(coordinatorConfig, algorithmLibraryService))
+        Props(
+          new MasterRouterUnderTest(appConfig,
+                                    coordinatorConfig,
+                                    algorithmLibraryService,
+                                    AlgorithmsConfiguration.factory(config))
+        )
       )
 
     "starts new experiments" in {
 
-      val limit = WokenConfig.app.masterRouterConfig.experimentActorsLimit
+      val limit = appConfig.masterRouterConfig.experimentActorsLimit
 
       (1 to limit).foreach { _ =>
         router ! ExperimentQuery(variables = Nil,
@@ -142,7 +167,7 @@ class MasterRouterTest
 
     "not start new experiments over the limit of concurrent experiments, then recover" in {
 
-      val limit    = WokenConfig.app.masterRouterConfig.experimentActorsLimit
+      val limit    = appConfig.masterRouterConfig.experimentActorsLimit
       val overflow = limit * 2
 
       (1 to overflow).foreach { _ =>
