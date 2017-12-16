@@ -61,8 +61,8 @@ trait BootedCore
   /**
     * Construct the ActorSystem we will use in our application
     */
-  override lazy val system: ActorSystem              = ActorSystem(app.systemName)
-  override lazy val actorRefFactory: ActorRefFactory = system
+  override lazy implicit val system: ActorSystem = ActorSystem(app.systemName)
+  lazy val actorRefFactory: ActorRefFactory      = system
 
   override lazy val config: Config = ConfigFactory.load()
   private lazy val resultsDbConfig = DatabaseConfiguration
@@ -106,8 +106,10 @@ trait BootedCore
   /**
     * Create and start our service actor
     */
-  val rootService: ActorRef =
-    system.actorOf(Props(new RoutedHttpService(routes ~ staticResources)), app.jobServiceName)
+//  val rootService: ActorRef =
+//    system.actorOf(Props(new RoutedHttpService(routes ~ staticResources)), app.jobServiceName)
+
+  val allRoutes = routes ~ staticResources
 
   private lazy val jobsConf = JobsConfiguration
     .read(config)
@@ -137,10 +139,13 @@ trait BootedCore
 
   implicit val timeout: Timeout = Timeout(5.seconds)
 
-   Http().setDefaultServerHttpContext(https)
+  Http().setDefaultServerHttpContext(https)
 
   // start a new HTTP server on port 8080 with our service actor as the handler
-  val binding = Http().bindAndHandle(rootService, interface = app.interface, port = app.port, connectionContext = https)
+  val binding = Http().bindAndHandle(allRoutes,
+                                     interface = app.interface,
+                                     port = app.port,
+                                     connectionContext = https)
 
   /**
     * Ensure that the constructed ActorSystem is shut down when the JVM shuts down

@@ -73,7 +73,8 @@ object PerRequest {
   case class WithActorRef(ctx: RequestContextWrapper, target: ActorRef, message: RestMessage)
       extends PerRequest
 
-  case class WithProps(ctx: RequestContextWrapper, props: Props, message: RestMessage) extends PerRequest {
+  case class WithProps(ctx: RequestContextWrapper, props: Props, message: RestMessage)
+      extends PerRequest {
     lazy val target: ActorRef = context.actorOf(props)
   }
 

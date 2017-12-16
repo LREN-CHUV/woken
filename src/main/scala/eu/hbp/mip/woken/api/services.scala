@@ -17,19 +17,22 @@
 package eu.hbp.mip.woken.api
 
 import util.control.NonFatal
-import akka.actor.{Actor, ActorContext, ActorLogging}
-import akka.http.scaladsl.server.{ExceptionHandler, Route}
+import akka.actor.{ Actor, ActorContext, ActorLogging }
+import akka.event.LoggingReceive
+import akka.http.scaladsl.model.{ HttpEntity, StatusCode, StatusCodes }
+import akka.http.scaladsl.server.{ ExceptionHandler, RejectionHandler, RequestContext, Route }
+import akka.http.scaladsl.settings.RoutingSettings
 import org.apache.http.protocol.HttpService
-
+import StatusCodes._
 
 /**
   * Holds potential error response with the HTTP status and optional body
   *
   * @param responseStatus the status code
-  * @param response the optional body
+  * @param response       the optional body
   */
-//case class ErrorResponseException(responseStatus: StatusCode, response: Option[HttpEntity])
-  //  extends Exception
+case class ErrorResponseException(responseStatus: StatusCode, response: Option[HttpEntity])
+    extends Exception
 
 /**
   * Provides a hook to catch exceptions and rejections from routes, allowing custom
@@ -38,14 +41,11 @@ import org.apache.http.protocol.HttpService
   * Note that this is not marshalled, but it is possible to do so allowing for a fully
   * JSON API (e.g. see how Foursquare do it).
   */
-/*trait FailureHandling {
-  this: HttpService =>
+trait FailureHandling {
 
-  // For Spray > 1.1-M7 use routeRouteResponse
-  // see https://groups.google.com/d/topic/spray-user/zA_KR4OBs1I/discussion
-  def rejectionHandler: RejectionHandler = RejectionHandler.Default
+  implicit def rejectionHandler: RejectionHandler = RejectionHandler.default
 
-  def exceptionHandler(implicit log: LoggingContext) = ExceptionHandler {
+  implicit def exceptionHandler: ExceptionHandler = ExceptionHandler {
 
     case e: IllegalArgumentException =>
       ctx =>
@@ -53,7 +53,7 @@ import org.apache.http.protocol.HttpService
           ctx,
           e,
           message = "The server was asked a question that didn't make sense: " + e.getMessage,
-          error = NotAcceptable
+          error = StatusCodes.NotAcceptable
         )
 
     case e: NoSuchElementException =>
@@ -75,25 +75,20 @@ import org.apache.http.protocol.HttpService
       ctx: RequestContext,
       thrown: Throwable,
       message: String = "The server is having problems.",
-      error: StatusCode = InternalServerError
-  )(implicit log: LoggingContext): Unit = {
-    log.error(thrown, ctx.request.toString)
+      error: StatusCode = StatusCodes.InternalServerError
+  ) =
+    //log.error(thrown, ctx.request.toString)
     ctx.complete((error, message))
-  }
 
 }
-*/
+
 /**
   * Allows you to construct Spray ``HttpService`` from a concatenation of routes; and wires in the error handler.
   * It also logs all internal server errors using ``SprayActorLogging``.
   *
   * @param route the (concatenated) route
   */
-class RoutedHttpService(route: Route)
-    extends Actor
-    with HttpService
-    with ActorLogging
-    with PerRequestCreator {
+class RoutedHttpService(route: Route) extends Actor with ActorLogging with PerRequestCreator {
 
   implicit def actorRefFactory: ActorContext = context
 
@@ -105,17 +100,17 @@ class RoutedHttpService(route: Route)
     case NonFatal(e) =>
       ctx =>
         {
-          log.error(e, InternalServerError.defaultMessage)
-          ctx.complete(InternalServerError)
+          log.error(e, StatusCodes.InternalServerError.defaultMessage)
+          ctx.complete(StatusCodes.InternalServerError)
         }
   }
 
-  def receive: Receive = LoggingReceive {
-    runRoute(route)(handler,
-                    RejectionHandler.Default,
-                    context,
-                    RoutingSettings.default,
-                    LoggingContext.fromActorRefFactory)
-  }
+  //  def receive: Receive = LoggingReceive {
+  //    runRoute(route)(handler,
+  //                    RejectionHandler.Default,
+  //                    context,
+  //                    RoutingSettings.default,
+  //                    LoggingContext.fromActorRefFactory)
+  //  }
 
 }

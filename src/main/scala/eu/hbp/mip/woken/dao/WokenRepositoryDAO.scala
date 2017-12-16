@@ -107,7 +107,7 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F]) extends JobResu
           INSERT INTO job_result (job_id, node, timestamp, shape, function, data, error)
                  VALUES ($jobId, $node, $timestamp, $errorShape, $pfa_experiment_json, ${models.compactPrint}, NULL)
           """.update
-      case e => throw new IllegalArgumentException("Unsupported type of JobResult: $e")
+      case e => throw new IllegalArgumentException(s"Unsupported type of JobResult: $e")
     }
     update
       .withUniqueGeneratedKeys[JobResult]("job_id",
