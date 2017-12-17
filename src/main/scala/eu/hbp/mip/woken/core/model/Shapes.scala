@@ -83,4 +83,19 @@ object Shapes {
     val values = Set(visjs, js, mime)
   }
 
+  object plotly extends Shape {
+    val plotly = "plotly"
+    val json   = "plotly_json"
+    val mime   = "application/plotly+json"
+    val values = Set(plotly, json, mime)
+  }
+
+  val visualisationJson: Set[Shape] = Set(highcharts, plotly)
+  def getVisualisationJson(s: String): Option[Shape] =
+    visualisationJson.find(_.contains(s))
+
+  val visualisationOther: Set[Shape] = Set(html, svg, png, visjs)
+  def getVisualisationOther(s: String): Option[Shape] =
+    visualisationOther.find(_.contains(s))
+
 }

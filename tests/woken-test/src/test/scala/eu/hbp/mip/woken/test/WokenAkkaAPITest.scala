@@ -50,7 +50,9 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
 
     val end = System.currentTimeMillis()
 
-    println("List of methods query complete in " + Duration(end - start, TimeUnit.MILLISECONDS))
+    println(
+      "List of methods query complete in " + Duration(end - start,
+                                                      TimeUnit.MILLISECONDS))
 
     if (!result.isSuccess) {
       println(result)
@@ -79,7 +81,9 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
 
     val end = System.currentTimeMillis()
 
-    println("Data mining query complete in " + Duration(end - start, TimeUnit.MILLISECONDS))
+    println(
+      "Data mining query complete in " + Duration(end - start,
+                                                  TimeUnit.MILLISECONDS))
 
     if (!result.isSuccess) {
       println(result)
@@ -89,6 +93,40 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
 
     val json = result.success.value.data.get.parseJson
     val expected = loadJson("/knn_data_mining.json")
+
+    assertResult(approximate(expected))(approximate(json))
+  }
+
+  "Woken" should "respond to a data mining query with visualisation" in {
+    val api =
+      system.actorSelection("akka.tcp://woken@woken:8088/user/entrypoint")
+    val start = System.currentTimeMillis()
+
+    val future = api ? MiningQuery(
+      List(VariableId("cognitive_task2")),
+      List("score_math_course1", "score_math_course2").map(VariableId),
+      Nil,
+      "",
+      Algorithm("histograms", "Histograms", Map())
+    )
+
+    val result = waitFor[QueryResult](future)
+
+    val end = System.currentTimeMillis()
+
+    println(
+      "Data mining query with visualisation complete in " + Duration(
+        end - start,
+        TimeUnit.MILLISECONDS))
+
+    if (!result.isSuccess) {
+      println(result)
+    }
+
+    result.success.value.data should not be empty
+
+    val json = result.success.value.data.get.parseJson
+    val expected = loadJson("/histograms.json")
 
     assertResult(approximate(expected))(approximate(json))
   }
@@ -107,7 +145,9 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
 
     val end = System.currentTimeMillis()
 
-    println("Experiment query complete in " + Duration(end - start, TimeUnit.MILLISECONDS))
+    println(
+      "Experiment query complete in " + Duration(end - start,
+                                                 TimeUnit.MILLISECONDS))
 
     if (!result.isSuccess) {
       println(result)
@@ -117,14 +157,14 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
 
     data should not be empty
 
-    val json =  data.get.parseJson
+    val json = data.get.parseJson
     val expected = loadJson("/knn_experiment.json")
 
     assertResult(approximate(expected))(approximate(json))
   }
 
   // Test resiliency
-  "Woken" should "recover from multiple failed experiments" taggedAs Slow in {
+  ignore should "recover from multiple failed experiments" taggedAs Slow in {
     val api =
       system.actorSelection("akka.tcp://woken@woken:8088/user/entrypoint")
 
@@ -176,7 +216,8 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
       List(Validation("kfold", "kfold", Map("k" -> "2")))
     )
 
-  private def waitFor[T](future: Future[Any])(implicit timeout: Timeout): Try[T] = {
+  private def waitFor[T](future: Future[Any])(
+      implicit timeout: Timeout): Try[T] = {
     Try {
       Await.result(future, timeout.duration).asInstanceOf[T]
     }
@@ -195,16 +236,19 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
 
   class ApproximatePrinter extends SortedPrinter {
 
-    override protected def printObject(members: Map[String, JsValue], sb: java.lang.StringBuilder, indent: Int): Unit = {
+    override protected def printObject(members: Map[String, JsValue],
+                                       sb: java.lang.StringBuilder,
+                                       indent: Int): Unit = {
       val filteredMembers = members.map {
-        case ("jobId", _) => "jobId" -> JsString("*")
+        case ("jobId", _)     => "jobId" -> JsString("*")
         case ("timestamp", _) => "timestamp" -> JsNumber(0.0)
-        case (k, v) => k -> v
+        case (k, v)           => k -> v
       }
       super.printObject(filteredMembers, sb, indent)
     }
 
-    override protected def printLeaf(j: JsValue, sb: java.lang.StringBuilder): Unit =
+    override protected def printLeaf(j: JsValue,
+                                     sb: java.lang.StringBuilder): Unit =
       j match {
         case JsNull      => sb.append("null")
         case JsTrue      => sb.append("true")

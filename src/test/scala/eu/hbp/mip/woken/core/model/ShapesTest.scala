@@ -18,12 +18,22 @@ package eu.hbp.mip.woken.core.model
 
 import org.scalatest.{ Matchers, WordSpec }
 
+import Shapes._
+
 class ShapesTest extends WordSpec with Matchers {
 
   "Shapes" should {
     "identify highcharts results" in {
-      Shapes.highcharts.contains("application/highcharts+json") shouldBe true
-      Shapes.highcharts.contains("unknown") shouldBe false
+      highcharts.contains("application/highcharts+json") shouldBe true
+      highcharts.contains("unknown") shouldBe false
+    }
+
+    "categorize an html result as visualisation" in {
+      getVisualisationOther("html") shouldBe Some(html)
+    }
+
+    "return the mime type " in {
+      getVisualisationOther("html") shouldBe Some(html)
     }
   }
 }

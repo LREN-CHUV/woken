@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory
 import spray.json._
 
 import scala.language.higherKinds
+import scala.util.Try
 
 class WokenRepositoryDAO[F[_]: Monad](val xa: Transactor[F]) extends WokenRepository[F] {
 
@@ -60,32 +61,54 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F]) extends JobResu
       ErrorJobResult(jobId, node, timestamp, function, errorMessage)
     case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
         if pfa.contains(shape) =>
-      PfaJobResult(jobId, node, timestamp, function, data.parseJson.asJsObject)
+      Try(
+        PfaJobResult(jobId, node, timestamp, function, data.parseJson.asJsObject)
+      ).getOrElse {
+        val msg = s"Data for job $jobId produced by $function is not a valid Json object"
+        logger.warn(msg)
+        ErrorJobResult(jobId, node, timestamp, function, msg)
+      }
     case (jobId, node, timestamp, shape, _, Some(data), None) if pfaExperiment.contains(shape) =>
-      PfaExperimentJobResult(jobId, node, timestamp, data.parseJson.asInstanceOf[JsArray])
+      Try(
+        PfaExperimentJobResult(jobId, node, timestamp, data.parseJson.asInstanceOf[JsArray])
+      ).getOrElse {
+        val msg = s"Data for job $jobId for a PFA experiment is not a valid Json array"
+        logger.warn(msg)
+        ErrorJobResult(jobId, node, timestamp, "experiment", msg)
+      }
     case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
         if pfaYaml.contains(shape) =>
       PfaJobResult(jobId, node, timestamp, function, yaml.yaml2Json(Yaml(data)).asJsObject)
     case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
-        if highcharts.contains(shape) =>
-      val json = data.parseJson
-      JsonDataJobResult(jobId, node, timestamp, highcharts.mime, function, json)
+        if getVisualisationJson(shape).isDefined =>
+      Try {
+        val json = data.parseJson
+        JsonDataJobResult(jobId,
+                          node,
+                          timestamp,
+                          getVisualisationJson(shape).get.mime,
+                          function,
+                          json)
+      }.getOrElse(
+        ErrorJobResult(jobId,
+                       node,
+                       timestamp,
+                       function,
+                       s"Data for job $jobId produced by $function is not a valid Json document")
+      )
     case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
-        if visjs.contains(shape) =>
-      OtherDataJobResult(jobId, node, timestamp, visjs.mime, function, data)
-    case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
-        if html.contains(shape) =>
-      OtherDataJobResult(jobId, node, timestamp, html.mime, function, data)
-    case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
-        if svg.contains(shape) =>
-      OtherDataJobResult(jobId, node, timestamp, svg.mime, function, data)
-    case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
-        if png.contains(shape) =>
-      OtherDataJobResult(jobId, node, timestamp, png.mime, function, data)
-    case (_, _, _, shape, function, _, _) =>
-      val msg = s"Cannot handle job results of shape $shape produced by function $function"
+        if getVisualisationOther(shape).isDefined =>
+      OtherDataJobResult(jobId,
+                         node,
+                         timestamp,
+                         getVisualisationOther(shape).get.mime,
+                         function,
+                         data)
+    case (jobId, node, timestamp, shape, function, data, error) =>
+      val msg =
+        s"Cannot handle job results of shape $shape produced by function $function with data $data, error $error"
       logger.warn(msg)
-      throw new IllegalArgumentException(msg)
+      ErrorJobResult(jobId, node, timestamp, function, msg)
   }
 
   private val jobResultToColumns: JobResult => JobResultColumns = {

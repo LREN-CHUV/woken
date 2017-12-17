@@ -223,10 +223,11 @@ services:
       - "8087:8087"
       - "8088:8088"
     hostname: woken
+    links:
+      - zipkin
     depends_on:
       - chronos
       - db
-      - zipkin
 
   woken_validation:
     image: hbpmip/woken-validation:2.1.0
@@ -235,9 +236,10 @@ services:
     ports:
       - "8082:8082"
     hostname: woken-validation
+    links:
+      - zipkin
     depends_on:
       - woken
-      - zipkin
 
   wait_woken:
     image: "waisbrot/wait"
