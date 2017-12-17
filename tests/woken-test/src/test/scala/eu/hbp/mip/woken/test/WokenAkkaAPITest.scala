@@ -164,7 +164,7 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
   }
 
   // Test resiliency
-  ignore should "recover from multiple failed experiments" taggedAs Slow in {
+  "Woken" should "recover from multiple failed experiments" taggedAs Slow in {
     val api =
       system.actorSelection("akka.tcp://woken@woken:8088/user/entrypoint")
 
