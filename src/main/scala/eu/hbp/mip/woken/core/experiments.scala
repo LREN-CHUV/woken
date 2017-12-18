@@ -244,9 +244,10 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
     case Event(Done, experimentData: CompletedExperimentData) =>
       log.info("Experiment - build final response")
 
-      //TODO WP3 Save the results in results DB
+      val results = experimentData.results
 
-      experimentData.initiator ! Response(experimentData.job, Right(experimentData.results))
+      coordinatorConfig.jobResultService.put(results)
+      experimentData.initiator ! Response(experimentData.job, Right(results))
 
       log.info("Stopping...")
       stop
