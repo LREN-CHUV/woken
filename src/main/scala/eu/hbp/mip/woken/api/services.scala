@@ -16,13 +16,8 @@
 
 package eu.hbp.mip.woken.api
 
-import util.control.NonFatal
-import akka.actor.{ Actor, ActorContext, ActorLogging }
-import akka.event.LoggingReceive
 import akka.http.scaladsl.model.{ HttpEntity, StatusCode, StatusCodes }
-import akka.http.scaladsl.server.{ ExceptionHandler, RejectionHandler, RequestContext, Route }
-import akka.http.scaladsl.settings.RoutingSettings
-import org.apache.http.protocol.HttpService
+import akka.http.scaladsl.server.{ ExceptionHandler, RejectionHandler, RequestContext }
 import StatusCodes._
 
 /**
@@ -79,38 +74,5 @@ trait FailureHandling {
   ) =
     //log.error(thrown, ctx.request.toString)
     ctx.complete((error, message))
-
-}
-
-/**
-  * Allows you to construct Spray ``HttpService`` from a concatenation of routes; and wires in the error handler.
-  * It also logs all internal server errors using ``SprayActorLogging``.
-  *
-  * @param route the (concatenated) route
-  */
-class RoutedHttpService(route: Route) extends Actor with ActorLogging with PerRequestCreator {
-
-  implicit def actorRefFactory: ActorContext = context
-
-  implicit val handler: ExceptionHandler = ExceptionHandler {
-    case NonFatal(ErrorResponseException(statusCode, entity)) =>
-      ctx =>
-        ctx.complete((statusCode, entity))
-
-    case NonFatal(e) =>
-      ctx =>
-        {
-          log.error(e, StatusCodes.InternalServerError.defaultMessage)
-          ctx.complete(StatusCodes.InternalServerError)
-        }
-  }
-
-  //  def receive: Receive = LoggingReceive {
-  //    runRoute(route)(handler,
-  //                    RejectionHandler.Default,
-  //                    context,
-  //                    RoutingSettings.default,
-  //                    LoggingContext.fromActorRefFactory)
-  //  }
 
 }

@@ -19,7 +19,7 @@ package eu.hbp.mip.woken.authentication
 import akka.http.scaladsl.server.directives.Credentials
 import eu.hbp.mip.woken.config.AppConfiguration
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 
 /**
   * Simple support for basic authentication.
@@ -29,10 +29,10 @@ trait BasicAuthentication {
   def appConfiguration: AppConfiguration
 
   def basicAuthenticator(
-                          credentials: Credentials
-                        )(implicit executionContext: ExecutionContext): Future[Option[String]] =
+      credentials: Credentials
+  )(implicit executionContext: ExecutionContext): Future[Option[String]] =
     credentials match {
-      case cred@Credentials.Provided(id) =>
+      case cred @ Credentials.Provided(id) =>
         Future {
           if (cred.verify(appConfiguration.basicAuth.password)) Some(id) else None
         }

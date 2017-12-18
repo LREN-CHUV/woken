@@ -16,16 +16,24 @@
 
 package eu.hbp.mip.woken.api
 
-import akka.actor.{ActorRef, ActorRefFactory, ActorSystem}
+import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem }
 import akka.http.scaladsl.server.Route
 import com.typesafe.config.ConfigFactory
 import eu.hbp.mip.woken.api.swagger.MiningServiceApi
 import eu.hbp.mip.woken.authentication.BasicAuthentication
-import eu.hbp.mip.woken.config.{AppConfiguration, DatabaseConfiguration, JobsConfiguration}
+import eu.hbp.mip.woken.config.{
+  AlgorithmDefinition,
+  AppConfiguration,
+  DatabaseConfiguration,
+  JobsConfiguration
+}
 import eu.hbp.mip.woken.messages.external._
 import eu.hbp.mip.woken.core._
 import eu.hbp.mip.woken.dao.FeaturesDAL
-import eu.hbp.mip.woken.service.{JobResultService, VariablesMetaService}
+import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, JobResultService, VariablesMetaService }
+import akka.http.scaladsl.server.Directives._
+import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
+import MiningQueries._
 
 object MiningService {}
 
@@ -55,18 +63,17 @@ class MiningService(val chronosService: ActorRef,
   // TODO: improve passing configuration around
   private lazy val config = ConfigFactory.load()
   private lazy val coordinatorConfig = CoordinatorConfig(chronosService,
+                                                         appConfiguration.dockerBridgeNetwork,
                                                          featuresDatabase,
-                                                         resultDatabase,
-                                                         WokenConfig.app.dockerBridgeNetwork,
+                                                         jobResultService,
                                                          jobsConf,
                                                          DatabaseConfiguration.factory(config))
 
   override def listMethods: Route = path("mining" / "list-methods") {
     authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { user =>
       import spray.json._
-
       get {
-        complete(MiningService.methods_mock.parseJson.compactPrint)
+        complete(AlgorithmLibraryService().algorithms())
       }
     }
 
@@ -74,8 +81,6 @@ class MiningService(val chronosService: ActorRef,
 
   override def mining: Route = path("mining" / "job") {
     authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { user =>
-      import FunctionsInOut._
-
       post {
         entity(as[MiningQuery]) {
           case MiningQuery(variables, covariables, groups, filters, Algorithm(c, n, p))
@@ -90,7 +95,8 @@ class MiningService(val chronosService: ActorRef,
               }
 
           case query: MiningQuery =>
-            val job = miningQuery2job(metaDbConfig)(query)
+            //TODO: metaDbConfig => VaraiblesMetaService
+            val job = miningQuery2job(variablesMetaService, jobsConf, ???)(query)
             miningJob(coordinatorConfig) {
               Start(job)
             }
@@ -102,13 +108,12 @@ class MiningService(val chronosService: ActorRef,
 
   override def experiment: Route = path("mining" / "experiment") {
     authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { user =>
-      import FunctionsInOut._
-
       post {
         entity(as[ExperimentQuery]) { query: ExperimentQuery =>
           {
-            val job = experimentQuery2job(metaDbConfig)(query)
-            experimentJob(coordinatorConfig) {
+            //TODO: metaDbConfig => VaraiblesMetaService
+            val job = experimentQuery2job(variablesMetaService, jobsConf)(query)
+            experimentJob(coordinatorConfig, ???) {
               ExperimentActor.Start(job)
             }
           }
@@ -121,8 +126,11 @@ class MiningService(val chronosService: ActorRef,
   private def newCoordinatorActor(coordinatorConfig: CoordinatorConfig): ActorRef =
     context.actorOf(CoordinatorActor.props(coordinatorConfig))
 
-  private def newExperimentActor(coordinatorConfig: CoordinatorConfig): ActorRef =
-    context.actorOf(ExperimentActor.props(coordinatorConfig))
+  private def newExperimentActor(
+      coordinatorConfig: CoordinatorConfig,
+      algorithmLookup: String => Validation[AlgorithmDefinition]
+  ): ActorRef =
+    context.actorOf(ExperimentActor.props(coordinatorConfig, algorithmLookup))
 
   import PerRequest._
 
@@ -131,9 +139,12 @@ class MiningService(val chronosService: ActorRef,
       perRequest(ctx, newCoordinatorActor(coordinatorConfig), message)
     }
 
-  def experimentJob(coordinatorConfig: CoordinatorConfig)(message: RestMessage): Route =
+  def experimentJob(
+      coordinatorConfig: CoordinatorConfig,
+      algorithmLookup: String => Validation[AlgorithmDefinition]
+  )(message: RestMessage): Route =
     asyncComplete { ctx =>
-      perRequest(ctx, newExperimentActor(coordinatorConfig), message)
+      perRequest(ctx, newExperimentActor(coordinatorConfig, algorithmLookup), message)
     }
 
 }

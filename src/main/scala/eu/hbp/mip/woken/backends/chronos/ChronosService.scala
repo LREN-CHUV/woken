@@ -17,12 +17,13 @@
 package eu.hbp.mip.woken.backends.chronos
 
 import akka.actor.{ Actor, ActorLogging, Props, Status }
+import akka.http.scaladsl.model._
+import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.pattern.{ AskTimeoutException, pipe }
 import akka.util.Timeout
 import com.github.levkhomich.akka.tracing.ActorTracing
+import eu.hbp.mip.woken.backends.HttpClient
 import eu.hbp.mip.woken.config.JobsConfiguration
-import spray.http.{ HttpRequest, HttpResponse, StatusCode, StatusCodes }
-import spray.client.pipelining._
 import spray.json.PrettyPrinter
 
 import scala.concurrent.duration._
@@ -67,11 +68,9 @@ class ChronosService(jobsConfig: JobsConfiguration)
 
     case Schedule(job) =>
       import ChronosJob._
-      import spray.httpx.SprayJsonSupport._
       implicit val executionContext: ExecutionContextExecutor = context.dispatcher
       implicit val timeout: Timeout                           = Timeout(30.seconds)
-      val pipeline: HttpRequest => Future[HttpResponse]       = sendReceive
-
+      implicit val actorSystem                                = context.system
       if (System.currentTimeMillis() - lastRequest < 250) {
         Thread.sleep(250)
       }
@@ -79,21 +78,21 @@ class ChronosService(jobsConfig: JobsConfiguration)
 
       val originalSender             = sender()
       val url                        = jobsConfig.chronosServerUrl + "/v1/scheduler/iso8601"
-      val chronosResponse: Future[_] = pipeline(Post(url, job))
+      val chronosResponse: Future[_] = HttpClient.Post(url, job)
 
       lastRequest = System.currentTimeMillis()
 
       chronosResponse
         .map {
 
-          case HttpResponse(statusCode: StatusCode, entity, _, _) =>
+          case HttpResponse(statusCode: StatusCode, _, entity, _) =>
             statusCode match {
               case _: StatusCodes.Success => Ok
               case _ =>
                 log.warning(
-                  s"Post schedule to Chronos on $url returned error $statusCode: ${entity.asString}"
+                  s"Post schedule to Chronos on $url returned error $statusCode: ${entity}"
                 )
-                Error(s"Error $statusCode: ${entity.asString}")
+                Error(s"Error $statusCode: ${entity}")
             }
 
           case f: Status.Failure =>
@@ -117,7 +116,8 @@ class ChronosService(jobsConfig: JobsConfiguration)
     case Check(jobId, job) =>
       implicit val executionContext: ExecutionContextExecutor = context.dispatcher
       implicit val timeout: Timeout                           = Timeout(10.seconds)
-      val pipeline: HttpRequest => Future[HttpResponse]       = sendReceive
+      implicit val actorSystem                                = context.system
+      val pipeline: HttpRequest => Future[HttpResponse]       = HttpClient.sendReceive
 
       if (System.currentTimeMillis() - lastRequest < 200) {
         Thread.sleep(200)
@@ -125,20 +125,21 @@ class ChronosService(jobsConfig: JobsConfiguration)
 
       val originalSender             = sender()
       val url                        = s"${jobsConfig.chronosServerUrl}/v1/scheduler/jobs/search?name=${job.name}"
-      val chronosResponse: Future[_] = pipeline(Get(url))
+      val chronosResponse: Future[_] = pipeline(HttpClient.Get(url))
 
       lastRequest = System.currentTimeMillis()
 
       chronosResponse
         .map {
 
-          case HttpResponse(statusCode: StatusCode, entity, _, _) =>
+          case HttpResponse(statusCode: StatusCode, _, entity, _) =>
             statusCode match {
               case _: StatusCodes.Success =>
                 import ChronosJobLiveliness._
                 import spray.json._
                 import DefaultJsonProtocol._
-                val response = entity.asString.parseJson
+                val response = HttpClient.unmarshalChronosResponse(entity)
+
                 // TODO: parse json, find if job executed, on error...
                 val liveliness = response.convertTo[List[ChronosJobLiveliness]].headOption
 
@@ -158,9 +159,9 @@ class ChronosService(jobsConfig: JobsConfiguration)
 
               case _ =>
                 log.warning(
-                  s"Post search to Chronos on $url returned error $statusCode: ${entity.asString}"
+                  s"Post search to Chronos on $url returned error $statusCode: ${entity.toString}"
                 )
-                ChronosUnresponsive(jobId, s"Error $statusCode: ${entity.asString}")
+                ChronosUnresponsive(jobId, s"Error $statusCode: ${entity.toString}")
             }
 
           case f: Status.Failure =>
@@ -184,14 +185,15 @@ class ChronosService(jobsConfig: JobsConfiguration)
     case Cleanup(job) =>
       implicit val executionContext: ExecutionContextExecutor = context.dispatcher
       implicit val timeout: Timeout                           = Timeout(10.seconds)
-      val pipeline: HttpRequest => Future[HttpResponse]       = sendReceive
+      implicit val actorSystem                                = context.system
+      val pipeline: HttpRequest => Future[HttpResponse]       = HttpClient.sendReceive
 
       if (System.currentTimeMillis() - lastRequest < 100) {
         Thread.sleep(100)
       }
 
       val url                        = s"${jobsConfig.chronosServerUrl}/v1/scheduler/job/${job.name}"
-      val chronosResponse: Future[_] = pipeline(Delete(url))
+      val chronosResponse: Future[_] = pipeline(HttpClient.Delete(url))
 
       lastRequest = System.currentTimeMillis()
 
@@ -202,4 +204,5 @@ class ChronosService(jobsConfig: JobsConfiguration)
 
     case e => log.error(s"Unhandled message: $e")
   }
+
 }

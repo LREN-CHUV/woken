@@ -31,19 +31,21 @@ import akka.util.Timeout
 import akka.cluster.Cluster
 import akka.http.scaladsl.Http
 import cats.effect.IO
-import com.typesafe.config.{ Config, ConfigFactory }
-import eu.hbp.mip.woken.api.{ Api, MasterRouter, RoutedHttpService }
+import eu.hbp.mip.woken.api.{ Api, MasterRouter }
 import eu.hbp.mip.woken.config.{ AlgorithmsConfiguration, AppConfiguration, DatabaseConfiguration }
 import eu.hbp.mip.woken.core.{ CoordinatorConfig, Core, CoreActors }
 import eu.hbp.mip.woken.core.validation.ValidationPoolManager
 import eu.hbp.mip.woken.dao.{ FeaturesDAL, MetadataRepositoryDAO, WokenRepositoryDAO }
 import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, JobResultService, VariablesMetaService }
 import eu.hbp.mip.woken.ssl.WokenSSLConfiguration
+import akka.http.scaladsl.server.Directives._
+import akka.stream.ActorMaterializer
 
 class RemoteAddressExtensionImpl(system: ExtendedActorSystem) extends Extension {
   def getAddress: Address =
     system.provider.getDefaultAddress
 }
+
 object RemoteAddressExtension extends ExtensionKey[RemoteAddressExtensionImpl]
 
 /**
@@ -65,9 +67,10 @@ trait BootedCore
   /**
     * Construct the ActorSystem we will use in our application
     */
-
-  override lazy implicit val system: ActorSystem = ActorSystem(app.systemName)
-  lazy val actorRefFactory: ActorRefFactory      = system
+  override lazy implicit val system: ActorSystem    = ActorSystem(appConfig.systemName)
+  lazy val actorRefFactory: ActorRefFactory         = system
+  implicit val actorMaterializer: ActorMaterializer = ActorMaterializer()
+  implicit val executionContext                     = system.dispatcher
 
   private lazy val resultsDbConfig = DatabaseConfiguration
     .factory(config)("woken")
@@ -107,11 +110,6 @@ trait BootedCore
   //Cluster(system).join(RemoteAddressExtension(system).getAddress())
   lazy val cluster = Cluster(system)
 
-  /**
-    * Create and start our service actor
-    */
-  val allRoutes = routes ~ staticResources
-
   private lazy val coordinatorConfig = CoordinatorConfig(
     chronosHttp,
     appConfig.dockerBridgeNetwork,
@@ -144,10 +142,11 @@ trait BootedCore
   Http().setDefaultServerHttpContext(https)
 
   // start a new HTTP server on port 8080 with our service actor as the handler
-  val binding = Http().bindAndHandle(allRoutes,
-                                     interface = app.interface,
-                                     port = app.port,
+  val binding = Http().bindAndHandle(routes,
+                                     interface = appConfig.networkInterface,
+                                     port = appConfig.webServicesPort,
                                      connectionContext = https)
+
   /**
     * Ensure that the constructed ActorSystem is shut down when the JVM shuts down
     */
