@@ -59,7 +59,8 @@ class VariablesMetaTest extends WordSpec with Matchers with JsonUtils {
              "cerebellarvermallobulesviiix",
              "leftmorgmedialorbitalgyrus",
              "agegroup",
-             "alzheimerbroadcategory")
+             "alzheimerbroadcategory",
+             "subjectageyears")
       )
 
       val expected =
@@ -69,7 +70,8 @@ class VariablesMetaTest extends WordSpec with Matchers with JsonUtils {
         |  "cerebellarvermallobulesviiix":{"description":"","methodology":"lren-nmm-volumes","label":"Cerebellar Vermal Lobules VIII-X","code":"cerebellarvermallobulesviiix","units":"cm3","type":"real"},
         |  "agegroup":{"enumerations":[{"code":"-50y","label":"-50y"},{"code":"50-59y","label":"50-59y"},{"code":"60-69y","label":"60-69y"},{"code":"70-79y","label":"70-79y"},{"code":"+80y","label":"+80y"}],"description":"Age Group","methodology":"mip-cde","label":"Age Group","code":"agegroup","type":"polynominal"},
         |  "alzheimerbroadcategory":{"enumerations":[{"code":"AD","label":"Alzheimer''s disease"},{"code":"CN","label":"Cognitively Normal"},{"code":"Other","label":"Other"}],"description":"There will be two broad categories taken into account. Alzheimer''s disease (AD) in which the diagnostic is 100% certain and \"Other\" comprising the rest of Alzheimer''s related categories. The \"Other\" category refers to Alzheime''s related diagnosis which origin can be traced to other pathology eg. vascular. In this category MCI diagnosis can also be found. In summary, all Alzheimer''s related diagnosis that are not pure.","methodology":"mip-cde","label":"Alzheimer Broad Category","code":"alzheimerbroadcategory","type":"polynominal"},
-        |  "rs610932_a":{"sql_type":"int","enumerations":[{"code":0,"label":0},{"code":1,"label":1},{"code":2,"label":2}],"description":"","methodology":"lren-nmm-volumes","label":"rs610932_A","code":"rs610932_a","type":"polynominal"}
+        |  "rs610932_a":{"sql_type":"int","enumerations":[{"code":0,"label":0},{"code":1,"label":1},{"code":2,"label":2}],"description":"","methodology":"lren-nmm-volumes","label":"rs610932_A","code":"rs610932_a","type":"polynominal"},
+        |  "subjectageyears":{"description":"Subject age in years.","methodology":"mip-cde","label":"Age Years","minValue":0,"code":"subjectageyears","units":"years","length":3,"maxValue":130,"type":"integer"}
         |}
       """.stripMargin.parseJson
 

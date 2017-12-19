@@ -25,9 +25,11 @@ import eu.hbp.mip.woken.core.model.Shapes.{ error => errorShape, _ }
 import eu.hbp.mip.woken.core.model._
 import eu.hbp.mip.woken.json.yaml
 import eu.hbp.mip.woken.json.yaml.Yaml
+import org.slf4j.LoggerFactory
 import spray.json._
 
 import scala.language.higherKinds
+import scala.util.Try
 
 class WokenRepositoryDAO[F[_]: Monad](val xa: Transactor[F]) extends WokenRepository[F] {
 
@@ -40,6 +42,8 @@ class WokenRepositoryDAO[F[_]: Monad](val xa: Transactor[F]) extends WokenReposi
   */
 class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F]) extends JobResultRepository[F] {
 
+  private val logger = LoggerFactory.getLogger("JobResultRepositoryDAO")
+
   private implicit val DateTimeMeta: Meta[OffsetDateTime] =
     Meta[java.sql.Timestamp].xmap(ts => OffsetDateTime.of(ts.toLocalDateTime, ZoneOffset.UTC),
                                   dt => java.sql.Timestamp.valueOf(dt.toLocalDateTime))
@@ -49,32 +53,72 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F]) extends JobResu
     (String, String, OffsetDateTime, String, String, Option[String], Option[String])
 
   private val unsafeFromColumns: JobResultColumns => JobResult = {
-    case (jobId, node, timestamp, _, function, _, Some(errorMessage)) =>
+    case (jobId, node, timestamp, shape, function, _, Some(errorMessage))
+        if errorShape.contains(shape) =>
       ErrorJobResult(jobId, node, timestamp, function, errorMessage)
-    case (jobId, node, timestamp, shape, function, Some(data), None) if shape == pfa_json =>
-      PfaJobResult(jobId, node, timestamp, function, data.parseJson.asJsObject)
-    case (jobId, node, timestamp, shape, _, Some(data), None) if shape == pfa_experiment_json =>
-      PfaExperimentJobResult(jobId, node, timestamp, data.parseJson.asInstanceOf[JsArray])
-    case (jobId, node, timestamp, shape, function, Some(data), None) if shape == pfa_yaml =>
+    case (jobId, node, timestamp, _, function, data, Some(errorMessage))
+        if data.isEmpty && errorMessage.trim.nonEmpty =>
+      ErrorJobResult(jobId, node, timestamp, function, errorMessage)
+    case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
+        if pfa.contains(shape) =>
+      Try(
+        PfaJobResult(jobId, node, timestamp, function, data.parseJson.asJsObject)
+      ).getOrElse {
+        val msg = s"Data for job $jobId produced by $function is not a valid Json object"
+        logger.warn(msg)
+        ErrorJobResult(jobId, node, timestamp, function, msg)
+      }
+    case (jobId, node, timestamp, shape, _, Some(data), None) if pfaExperiment.contains(shape) =>
+      Try(
+        PfaExperimentJobResult(jobId, node, timestamp, data.parseJson.asInstanceOf[JsArray])
+      ).getOrElse {
+        val msg = s"Data for job $jobId for a PFA experiment is not a valid Json array"
+        logger.warn(msg)
+        ErrorJobResult(jobId, node, timestamp, "experiment", msg)
+      }
+    case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
+        if pfaYaml.contains(shape) =>
       PfaJobResult(jobId, node, timestamp, function, yaml.yaml2Json(Yaml(data)).asJsObject)
-    case (jobId, node, timestamp, shape, function, Some(data), None) if shape == highcharts =>
-      JsonDataJobResult(jobId, node, timestamp, shape, function, data.parseJson.asJsObject)
-    case (jobId, node, timestamp, shape, function, Some(data), None)
-        if shape == svg || shape == html =>
-      OtherDataJobResult(jobId, node, timestamp, shape, function, data)
-    case (_, _, _, shape, _, _, _) =>
-      throw new IllegalArgumentException(s"Cannot handle job results of shape $shape")
+    case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
+        if getVisualisationJson(shape).isDefined =>
+      Try {
+        val json = data.parseJson
+        JsonDataJobResult(jobId,
+                          node,
+                          timestamp,
+                          getVisualisationJson(shape).get.mime,
+                          function,
+                          json)
+      }.getOrElse(
+        ErrorJobResult(jobId,
+                       node,
+                       timestamp,
+                       function,
+                       s"Data for job $jobId produced by $function is not a valid Json document")
+      )
+    case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
+        if getVisualisationOther(shape).isDefined =>
+      OtherDataJobResult(jobId,
+                         node,
+                         timestamp,
+                         getVisualisationOther(shape).get.mime,
+                         function,
+                         data)
+    case (jobId, node, timestamp, shape, function, data, error) =>
+      val msg =
+        s"Cannot handle job results of shape $shape produced by function $function with data $data, error $error"
+      logger.warn(msg)
+      ErrorJobResult(jobId, node, timestamp, function, msg)
   }
 
   private val jobResultToColumns: JobResult => JobResultColumns = {
     case j: PfaJobResult =>
-      (j.jobId, j.node, j.timestamp, pfa_json, j.function, Some(j.model.compactPrint), None)
-    case j: PfaExperimentJobResult => {
+      (j.jobId, j.node, j.timestamp, pfa.mime, j.function, Some(j.model.compactPrint), None)
+    case j: PfaExperimentJobResult =>
       val pfa = j.models.compactPrint
-      (j.jobId, j.node, j.timestamp, pfa_experiment_json, j.function, Some(pfa), None)
-    }
+      (j.jobId, j.node, j.timestamp, pfaExperiment.mime, j.function, Some(pfa), None)
     case j: ErrorJobResult =>
-      (j.jobId, j.node, j.timestamp, pfa_json, j.function, None, Some(j.error))
+      (j.jobId, j.node, j.timestamp, errorShape.mime, j.function, None, Some(j.error))
     case j: JsonDataJobResult =>
       (j.jobId, j.node, j.timestamp, j.shape, j.function, Some(j.data.compactPrint), None)
     case j: OtherDataJobResult =>
@@ -95,17 +139,17 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F]) extends JobResu
       case ErrorJobResult(jobId, node, timestamp, function, error) =>
         sql"""
           INSERT INTO job_result (job_id, node, timestamp, shape, function, data, error)
-                 VALUES ($jobId, $node, $timestamp, $errorShape, $function, NULL, $error)
+                 VALUES ($jobId, $node, $timestamp, ${errorShape.mime}, $function, NULL, $error)
           """.update
       case PfaJobResult(jobId, node, timestamp, function, model) =>
         sql"""
           INSERT INTO job_result (job_id, node, timestamp, shape, function, data, error)
-                 VALUES ($jobId, $node, $timestamp, $errorShape, $function, ${model.compactPrint}, NULL)
+                 VALUES ($jobId, $node, $timestamp, ${pfa.mime}, $function, ${model.compactPrint}, NULL)
           """.update
       case PfaExperimentJobResult(jobId, node, timestamp, models) =>
         sql"""
           INSERT INTO job_result (job_id, node, timestamp, shape, function, data, error)
-                 VALUES ($jobId, $node, $timestamp, $errorShape, $pfa_experiment_json, ${models.compactPrint}, NULL)
+                 VALUES ($jobId, $node, $timestamp, ${pfaExperiment.mime}, "experiment", ${models.compactPrint}, NULL)
           """.update
       case e => throw new IllegalArgumentException(s"Unsupported type of JobResult: $e")
     }

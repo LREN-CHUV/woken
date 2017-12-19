@@ -25,10 +25,10 @@ jobs:
           name: "Build the project"
           command: |
             PATH=$PATH:/$HOME/.captain/bin/ ./build.sh
-      #- run:
-      #    name: "Test the project"
-      #    command: |
-      #      PATH=$PATH:/$HOME/.captain/bin/ ./tests/test.sh
+      - run:
+          name: "Test the project"
+          command: |
+            PATH=$PATH:/$HOME/.captain/bin/ ./tests/test.sh
     notify:
       webhooks:
       - url: 'https://webhook.atomist.com/atomist/circle'

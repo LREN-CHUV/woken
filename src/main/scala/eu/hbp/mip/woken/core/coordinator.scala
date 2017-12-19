@@ -91,6 +91,7 @@ private[core] object CoordinatorStates {
     def job: DockerJob
   }
 
+  @SuppressWarnings(Array("org.wartremover.warts.Throw"))
   case object Uninitialized extends StateData {
     def initiator = throw new IllegalAccessException()
     def job       = throw new IllegalAccessException()
@@ -156,6 +157,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
       chronosJob.fold[State](
         { err =>
           val msg = err.toList.mkString
+          log.error(msg)
           initiator ! errorResponse(job, msg)
           stop(Failure(msg))
         }, { cj =>
@@ -164,11 +166,11 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
             s"Wait for Chronos to fulfill job ${job.jobId}, Coordinator will reply to $initiator"
           )
           goto(SubmittedJobToChronos) using PartialLocalData(
-            initiator,
-            job,
+            initiator = initiator,
+            job = job,
             chronosJob = cj,
-            0,
-            System.currentTimeMillis + 1.day.toMillis
+            pollDbCount = 0,
+            timeoutTime = System.currentTimeMillis + 1.day.toMillis
           )
         }
       )
@@ -218,10 +220,6 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
 
     // Check the database for the job result; prepare the next tick or send back the response if the job completed
     case Event(CheckDb, data: PartialLocalData) =>
-      // conf <- PetStoreConfig.load[F]
-      //xa <- DatabaseConfig.dbTransactor(conf.db)
-      //_ <- DatabaseConfig.initializeDb(conf.db, xa)
-
       val results = coordinatorConfig.jobResultService.get(data.job.jobId)
       if (results.nonEmpty) {
         log.info(s"Received results for job ${data.job.jobId}")
@@ -259,12 +257,14 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
         log.info("Stopping...")
         stop(Normal)
       } else {
+        // Use a short timeout here as Chronos reported completion of the job, we should just wait for results to
+        // appear in the JobResult database. Otherwise, the algorithm was not well coded and did not return any result.
         goto(ExpectFinalResult) using ExpectedLocalData(
-          data.initiator,
-          data.job,
-          data.chronosJob,
-          0,
-          System.currentTimeMillis + 1.minute.toMillis
+          initiator = data.initiator,
+          job = data.job,
+          chronosJob = data.chronosJob,
+          pollDbCount = 0,
+          timeoutTime = System.currentTimeMillis + 1.minute.toMillis
         )
       }
 
@@ -321,7 +321,8 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
     case Event(StateTimeout, data: ExpectedLocalData) =>
       if (System.currentTimeMillis > data.timeoutTime) {
         val msg =
-          s"Cannot complete job ${data.job.jobId} using ${data.job.dockerImage}, time out while waiting for job results"
+          s"Cannot complete job ${data.job.jobId} using ${data.job.dockerImage}, timeout while waiting for job results.\n" +
+            "Does the algorithm store its results or errors in the output database?"
         log.error(msg)
         data.initiator ! errorResponse(data.job, msg)
         stop(Failure(msg))

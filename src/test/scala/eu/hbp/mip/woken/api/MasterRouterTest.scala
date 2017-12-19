@@ -38,6 +38,7 @@ import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import spray.json.JsObject
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil
 import cats.data.Validated._
+import org.scalatest.tagobjects.Slow
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -165,7 +166,7 @@ class MasterRouterTest
       waitForEmptyQueue(router, limit)
     }
 
-    "not start new experiments over the limit of concurrent experiments, then recover" in {
+    "not start new experiments over the limit of concurrent experiments, then recover" taggedAs Slow in {
 
       val limit    = appConfig.masterRouterConfig.experimentActorsLimit
       val overflow = limit * 2
