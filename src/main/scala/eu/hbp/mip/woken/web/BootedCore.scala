@@ -67,8 +67,7 @@ trait BootedCore
   /**
     * Construct the ActorSystem we will use in our application
     */
-
-  override lazy implicit val system: ActorSystem    = ActorSystem(appConfig.systemName)
+  override lazy implicit val system: ActorSystem    = ActorSystem(appConfig.clusterSystemName)
   lazy val actorRefFactory: ActorRefFactory         = system
   implicit val actorMaterializer: ActorMaterializer = ActorMaterializer()
   implicit val executionContext                     = system.dispatcher
