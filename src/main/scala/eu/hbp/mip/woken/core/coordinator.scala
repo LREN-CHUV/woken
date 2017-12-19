@@ -27,6 +27,7 @@ import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.backends.chronos.ChronosService
 import eu.hbp.mip.woken.backends.chronos.{ ChronosJob, JobToChronos }
 import eu.hbp.mip.woken.config.{ DatabaseConfiguration, JobsConfiguration }
+import eu.hbp.mip.woken.core.commands.JobCommands.StartCoordinatorJob
 import eu.hbp.mip.woken.core.model.{ ErrorJobResult, JobResult }
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import eu.hbp.mip.woken.dao.FeaturesDAL
@@ -47,9 +48,6 @@ case class CoordinatorConfig(chronosService: ActorRef,
   * receives.
   */
 object CoordinatorActor {
-
-  // Incoming messages
-  case class Start(job: DockerJob)
 
   // Internal messages
   case object CheckDb
@@ -145,7 +143,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
   log.info("Local coordinator actor started...")
 
   when(WaitForNewJob) {
-    case Event(Start(job), Uninitialized) =>
+    case Event(StartCoordinatorJob(job), Uninitialized) =>
       val initiator = sender()
 
       import ChronosService._

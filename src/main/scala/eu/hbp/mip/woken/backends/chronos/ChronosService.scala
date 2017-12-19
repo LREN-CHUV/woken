@@ -20,6 +20,7 @@ import akka.actor.{ Actor, ActorLogging, Props, Status }
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.pattern.{ AskTimeoutException, pipe }
+import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import com.github.levkhomich.akka.tracing.ActorTracing
 import eu.hbp.mip.woken.backends.HttpClient
@@ -135,27 +136,27 @@ class ChronosService(jobsConfig: JobsConfiguration)
           case HttpResponse(statusCode: StatusCode, _, entity, _) =>
             statusCode match {
               case _: StatusCodes.Success =>
-                import ChronosJobLiveliness._
-                import spray.json._
-                import DefaultJsonProtocol._
-                val response = HttpClient.unmarshalChronosResponse(entity)
+                val response: Future[List[ChronosJobLiveliness]] =
+                  HttpClient.unmarshalChronosResponse(entity)
 
                 // TODO: parse json, find if job executed, on error...
-                val liveliness = response.convertTo[List[ChronosJobLiveliness]].headOption
+                response.map { resp =>
+                  val liveliness = resp.headOption
 
-                val status: JobLivelinessResponse = liveliness match {
-                  case None => JobNotFound(jobId)
-                  case Some(ChronosJobLiveliness(_, successCount, _, _, _, _, _, true))
-                      if successCount > 0 =>
-                    JobComplete(jobId, success = true)
-                  case Some(
-                      ChronosJobLiveliness(_, successCount, errorCount, _, _, softError, _, _)
-                      ) if successCount == 0 && (errorCount > 0 || softError) =>
-                    JobComplete(jobId, success = false)
-                  case Some(ChronosJobLiveliness(_, _, _, _, _, _, _, false)) => JobQueued(jobId)
-                  case Some(l: ChronosJobLiveliness)                          => JobUnknownStatus(jobId, l.toString)
+                  val status: JobLivelinessResponse = liveliness match {
+                    case None => JobNotFound(jobId)
+                    case Some(ChronosJobLiveliness(_, successCount, _, _, _, _, _, true))
+                        if successCount > 0 =>
+                      JobComplete(jobId, success = true)
+                    case Some(
+                        ChronosJobLiveliness(_, successCount, errorCount, _, _, softError, _, _)
+                        ) if successCount == 0 && (errorCount > 0 || softError) =>
+                      JobComplete(jobId, success = false)
+                    case Some(ChronosJobLiveliness(_, _, _, _, _, _, _, false)) => JobQueued(jobId)
+                    case Some(l: ChronosJobLiveliness)                          => JobUnknownStatus(jobId, l.toString)
+                  }
+                  status
                 }
-                status
 
               case _ =>
                 log.warning(

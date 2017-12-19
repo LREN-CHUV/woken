@@ -22,9 +22,11 @@ import akka.actor.OneForOneStrategy
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server.{ RequestContext, Route, RouteResult }
+import eu.hbp.mip.woken.api.PerRequest.RequestContextWrapper
 
 import scala.concurrent.duration._
 import eu.hbp.mip.woken.core._
+import eu.hbp.mip.woken.core.commands.JobCommands.Command
 import eu.hbp.mip.woken.messages.Error
 
 import scala.concurrent.Promise
@@ -34,20 +36,19 @@ trait PerRequest extends Actor with ActorLogging {
   import context._
   import DefaultMarshallers._
 
-  def ctx: RequestContext
+  def ctx: RequestContextWrapper
 
   def target: ActorRef
 
-  def message: RestMessage
+  def command: Command
 
   setReceiveTimeout(180.seconds) // TODO: make configurable, align with spray.can.timeout
-  target ! message
+  target ! command
 
   // TODO: status code parameter redundant
 
   def receive: PartialFunction[Any, Unit] = {
     case res: RestMessage =>
-      // TODO: add the json marshaller for RestMessage
       // r.complete(res)
       ctx.complete(OK)
     case v: Error =>
@@ -70,10 +71,10 @@ trait PerRequest extends Actor with ActorLogging {
 
 object PerRequest {
 
-  case class WithActorRef(ctx: RequestContextWrapper, target: ActorRef, message: RestMessage)
+  case class WithActorRef(ctx: RequestContextWrapper, target: ActorRef, command: Command)
       extends PerRequest
 
-  case class WithProps(ctx: RequestContextWrapper, props: Props, message: RestMessage)
+  case class WithProps(ctx: RequestContextWrapper, props: Props, command: Command)
       extends PerRequest {
     lazy val target: ActorRef = context.actorOf(props)
   }
@@ -101,9 +102,9 @@ trait PerRequestCreator {
 
   def context: ActorRefFactory
 
-  def perRequest(ctx: RequestContextWrapper, target: ActorRef, message: RestMessage): ActorRef =
-    context.actorOf(Props(WithActorRef(ctx, target, message)))
+  def perRequest(ctx: RequestContextWrapper, target: ActorRef, command: Command): ActorRef =
+    context.actorOf(Props(WithActorRef(ctx, target, command)))
 
-  def perRequest(ctx: RequestContextWrapper, props: Props, message: RestMessage): ActorRef =
-    context.actorOf(Props(WithProps(ctx, props, message)))
+  def perRequest(ctx: RequestContextWrapper, props: Props, command: Command): ActorRef =
+    context.actorOf(Props(WithProps(ctx, props, command)))
 }

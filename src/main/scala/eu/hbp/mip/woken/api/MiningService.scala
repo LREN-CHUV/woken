@@ -31,9 +31,13 @@ import eu.hbp.mip.woken.messages.external._
 import eu.hbp.mip.woken.core._
 import eu.hbp.mip.woken.dao.FeaturesDAL
 import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, JobResultService, VariablesMetaService }
-import akka.http.scaladsl.server.Directives._
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import MiningQueries._
+import eu.hbp.mip.woken.core.commands.JobCommands.{
+  Command,
+  StartCoordinatorJob,
+  StartExperimentJob
+}
 
 object MiningService {}
 
@@ -58,7 +62,6 @@ class MiningService(val chronosService: ActorRef,
   val routes: Route = mining ~ experiment ~ listMethods
 
   import ApiJsonSupport._
-  import CoordinatorActor._
 
   // TODO: improve passing configuration around
   private lazy val config = ConfigFactory.load()
@@ -95,11 +98,15 @@ class MiningService(val chronosService: ActorRef,
               }
 
           case query: MiningQuery =>
-            //TODO: metaDbConfig => VaraiblesMetaService
             val job = miningQuery2job(variablesMetaService, jobsConf, ???)(query)
-            miningJob(coordinatorConfig) {
-              Start(job)
-            }
+            job.fold(
+              errors => ???,
+              dockerJob =>
+                miningJob(coordinatorConfig) {
+                  StartCoordinatorJob(dockerJob)
+              }
+            )
+
         }
       }
     }
@@ -111,11 +118,14 @@ class MiningService(val chronosService: ActorRef,
       post {
         entity(as[ExperimentQuery]) { query: ExperimentQuery =>
           {
-            //TODO: metaDbConfig => VaraiblesMetaService
             val job = experimentQuery2job(variablesMetaService, jobsConf)(query)
-            experimentJob(coordinatorConfig, ???) {
-              ExperimentActor.Start(job)
-            }
+            job.fold(
+              errors => ???,
+              experimentActorJob =>
+                experimentJob(coordinatorConfig, ???) {
+                  StartExperimentJob(experimentActorJob)
+              }
+            )
           }
         }
       }
@@ -134,17 +144,17 @@ class MiningService(val chronosService: ActorRef,
 
   import PerRequest._
 
-  def miningJob(coordinatorConfig: CoordinatorConfig)(message: RestMessage): Route =
+  def miningJob(coordinatorConfig: CoordinatorConfig)(command: Command): Route =
     asyncComplete { ctx =>
-      perRequest(ctx, newCoordinatorActor(coordinatorConfig), message)
+      perRequest(ctx, newCoordinatorActor(coordinatorConfig), command)
     }
 
   def experimentJob(
       coordinatorConfig: CoordinatorConfig,
       algorithmLookup: String => Validation[AlgorithmDefinition]
-  )(message: RestMessage): Route =
+  )(command: Command): Route =
     asyncComplete { ctx =>
-      perRequest(ctx, newExperimentActor(coordinatorConfig, algorithmLookup), message)
+      perRequest(ctx, newExperimentActor(coordinatorConfig, algorithmLookup), command)
     }
 
 }

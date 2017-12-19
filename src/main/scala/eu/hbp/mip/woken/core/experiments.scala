@@ -26,6 +26,7 @@ import akka.util.Timeout
 import com.github.levkhomich.akka.tracing.ActorTracing
 import eu.hbp.mip.woken.backends.{ DockerJob, QueryOffset }
 import eu.hbp.mip.woken.config.AlgorithmDefinition
+import eu.hbp.mip.woken.core.commands.JobCommands.{ StartCoordinatorJob, StartExperimentJob }
 import eu.hbp.mip.woken.core.model.{ ErrorJobResult, PfaExperimentJobResult, PfaJobResult }
 import eu.hbp.mip.woken.core.validation.{ KFoldCrossValidation, ValidationPoolManager }
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
@@ -55,8 +56,6 @@ object ExperimentActor {
       query: ExperimentQuery,
       metadata: JsObject
   )
-
-  case class Start(job: Job)
 
   case object Done
 
@@ -141,7 +140,7 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
   startWith(WaitForNewJob, Uninitialized)
 
   when(WaitForNewJob) {
-    case Event(Start(job), _) if job.query.algorithms.nonEmpty =>
+    case Event(StartExperimentJob(job), _) if job.query.algorithms.nonEmpty =>
       val initiator   = sender()
       val algorithms  = job.query.algorithms
       val validations = job.query.validations
@@ -400,7 +399,7 @@ class AlgorithmActor(coordinatorConfig: CoordinatorConfig)
           CoordinatorActor.props(coordinatorConfig),
           CoordinatorActor.actorName(subJob)
         )
-        worker ! CoordinatorActor.Start(subJob)
+        worker ! StartCoordinatorJob(subJob)
       }
 
       // Spawn a CrossValidationActor for every validation
@@ -653,7 +652,7 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
           )
           //workers(worker) = fold
 
-          worker ! CoordinatorActor.Start(subJob)
+          worker ! StartCoordinatorJob(subJob)
 
           (worker, fold)
       }

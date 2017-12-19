@@ -28,6 +28,7 @@ import eu.hbp.mip.woken.core.model.{ ErrorJobResult, JobResult }
 import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, VariablesMetaService }
 import MiningQueries._
 import eu.hbp.mip.woken.config.{ AlgorithmDefinition, AppConfiguration }
+import eu.hbp.mip.woken.core.commands.JobCommands.{ StartCoordinatorJob, StartExperimentJob }
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 
 object MasterRouter {
@@ -104,7 +105,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
             sender() ! JobResult.asQueryResult(error)
           },
           job => {
-            miningActorRef ! CoordinatorActor.Start(job)
+            miningActorRef ! StartCoordinatorJob(job)
             context watch miningActorRef
             miningActiveActors += miningActorRef
             miningJobsInFlight += (job -> sender())
@@ -140,7 +141,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
             sender() ! JobResult.asQueryResult(error)
           },
           job => {
-            experimentActorRef ! ExperimentActor.Start(job)
+            experimentActorRef ! StartExperimentJob(job)
             context watch experimentActorRef
             experimentActiveActors += experimentActorRef
             experimentJobsInFlight += (job -> sender())

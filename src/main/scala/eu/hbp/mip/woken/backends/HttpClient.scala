@@ -22,6 +22,7 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.Unmarshal
+import akka.stream.{ ActorMaterializer, Materializer }
 import eu.hbp.mip.woken.api.DefaultJsonFormats
 import eu.hbp.mip.woken.backends.chronos.{ ChronosJob, ChronosJobLiveliness }
 
@@ -56,9 +57,12 @@ object HttpClient extends DefaultJsonFormats with SprayJsonSupport {
     }
   }
 
-  def unmarshalChronosResponse(entity: HttpEntity) = {
+  def unmarshalChronosResponse(
+      entity: HttpEntity
+  )(implicit actorSystem: ActorSystem): Future[List[ChronosJobLiveliness]] = {
+    implicit val materializer = ActorMaterializer()
     import ChronosJobLiveliness._
-    Unmarshal(entity)
+    Unmarshal(entity).to[List[ChronosJobLiveliness]]
   }
 
 }
