@@ -38,7 +38,6 @@ import eu.hbp.mip.woken.core.validation.ValidationPoolManager
 import eu.hbp.mip.woken.dao.{ FeaturesDAL, MetadataRepositoryDAO, WokenRepositoryDAO }
 import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, JobResultService, VariablesMetaService }
 import eu.hbp.mip.woken.ssl.WokenSSLConfiguration
-import akka.http.scaladsl.server.Directives._
 import akka.stream.ActorMaterializer
 
 class RemoteAddressExtensionImpl(system: ExtendedActorSystem) extends Extension {
