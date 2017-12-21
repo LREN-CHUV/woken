@@ -14,21 +14,16 @@
  * limitations under the License.
  */
 
-package eu.hbp.mip.woken.api
+package eu.hbp.mip.woken.api.swagger
 
-import akka.actor.ActorRefFactory
-import com.gettyimages.spray.swagger.SwaggerHttpService
-import com.wordnik.swagger.model.ApiInfo
+import com.github.swagger.akka.SwaggerHttpService
 
-import scala.reflect.runtime.universe._
+object SwaggerService extends SwaggerHttpService {
 
-class SwaggerService(implicit override val actorRefFactory: ActorRefFactory)
-    extends SwaggerHttpService {
-
-  override def apiTypes   = Seq(typeOf[MiningServiceApi])
-  override def apiVersion = "0.2"
-  override def baseUrl    = "/" // let swagger-ui determine the host and port
-  override def docsPath   = "api-docs"
-  override def apiInfo    = Some(new ApiInfo("Api users", "", "", "", "", ""))
-
+  //  override def apiTypes   = Seq(typeOf[MiningServiceApi])
+  //  override def apiVersion = "0.2"
+  //  override def baseUrl    = "/" // let swagger-ui determine the host and port
+  //  override def docsPath   = "api-docs"
+  //  override def apiInfo    = Some(new ApiInfo("Api users", "", "", "", "", ""))
+  override def apiClasses: Set[Class[_]] = Set(classOf[MiningServiceApi])
 }

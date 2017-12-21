@@ -16,10 +16,11 @@
 
 package eu.hbp.mip.woken.web
 
-import spray.routing.{ HttpService, Route }
-import spray.http.StatusCodes
+import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.server.Directives._
 
-trait StaticResources extends HttpService {
+trait StaticResources {
 
   val staticResources: Route =
     get {
@@ -34,7 +35,7 @@ trait StaticResources extends HttpService {
       path("favicon.ico") {
         complete(StatusCodes.NotFound)
       } ~
-      path(Rest) { path =>
+      path(Remaining) { path =>
         getFromResource("root/%s" format path)
       }
     }

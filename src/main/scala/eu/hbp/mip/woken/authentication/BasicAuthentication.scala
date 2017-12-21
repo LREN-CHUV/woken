@@ -16,9 +16,8 @@
 
 package eu.hbp.mip.woken.authentication
 
+import akka.http.scaladsl.server.directives.Credentials
 import eu.hbp.mip.woken.config.AppConfiguration
-import spray.routing.authentication.{ BasicAuth, UserPass }
-import spray.routing.directives.AuthMagnet
 
 import scala.concurrent.{ ExecutionContext, Future }
 
@@ -29,20 +28,14 @@ trait BasicAuthentication {
 
   def appConfiguration: AppConfiguration
 
-  def basicAuthenticator(implicit executionContext: ExecutionContext): AuthMagnet[String] = {
-    val expectedUsername = appConfiguration.basicAuth.username
-    val expectedPassword = appConfiguration.basicAuth.password
-
-    def validateUser(userPass: Option[UserPass]): Option[String] =
-      userPass
-        .filter(up => up.user == expectedUsername && up.pass == expectedPassword)
-        .map(_.user)
-
-    def wokenUserPassAuthenticator(userPass: Option[UserPass]): Future[Option[String]] = Future {
-      validateUser(userPass)
+  def basicAuthenticator(
+      credentials: Credentials
+  )(implicit executionContext: ExecutionContext): Future[Option[String]] =
+    credentials match {
+      case cred @ Credentials.Provided(id) =>
+        Future {
+          if (cred.verify(appConfiguration.basicAuth.password)) Some(id) else None
+        }
+      case _ => Future.successful(None)
     }
-
-    BasicAuth(wokenUserPassAuthenticator _, realm = "Woken Private API")
-  }
-
 }
