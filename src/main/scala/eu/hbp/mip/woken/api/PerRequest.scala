@@ -18,61 +18,82 @@ package eu.hbp.mip.woken.api
 
 import akka.actor._
 import akka.actor.SupervisorStrategy.Stop
-import spray.http.StatusCodes._
-import spray.httpx.marshalling.ToResponseMarshaller
-import spray.routing.RequestContext
 import akka.actor.OneForOneStrategy
+import akka.http.scaladsl.marshalling.ToResponseMarshallable
+import akka.http.scaladsl.model.StatusCodes._
+import akka.http.scaladsl.server.{ RequestContext, Route, RouteResult }
+import eu.hbp.mip.woken.api.PerRequest.RequestContextWrapper
 
 import scala.concurrent.duration._
-import spray.http.StatusCode
 import eu.hbp.mip.woken.core._
+import eu.hbp.mip.woken.core.commands.JobCommands.Command
 import eu.hbp.mip.woken.messages.Error
+
+import scala.concurrent.Promise
 
 trait PerRequest extends Actor with ActorLogging {
 
   import context._
   import DefaultMarshallers._
 
-  def r: RequestContext
+  def ctx: RequestContextWrapper
+
   def target: ActorRef
-  def message: RestMessage
+
+  def command: Command
 
   setReceiveTimeout(180.seconds) // TODO: make configurable, align with spray.can.timeout
-  target ! message
+  target ! command
 
   // TODO: status code parameter redundant
 
   def receive: PartialFunction[Any, Unit] = {
     case res: RestMessage =>
-      complete(OK, res)(res.marshaller.asInstanceOf[ToResponseMarshaller[RestMessage]])
-// TODO    case v: Error       => complete(BadRequest, v)
-    // TODO    case ReceiveTimeout => complete(GatewayTimeout, Error("Request timeout"))
-    case e: Any => log.error(s"Unhandled message: $e")
-  }
-
-  def complete[T <: AnyRef](status: StatusCode,
-                            obj: T)(implicit marshaller: ToResponseMarshaller[T]) = {
-    r.complete(obj)(marshaller)
-    stop(self)
+      // r.complete(res)
+      ctx.complete(OK)
+    case v: Error =>
+      ctx.complete((BadRequest, v.message))
+    case ReceiveTimeout =>
+      ctx.complete((GatewayTimeout, "Request timeout"))
+    case e: Any =>
+      log.error(s"Unhandled message: $e")
+      ctx.complete(BadRequest)
   }
 
   override val supervisorStrategy: SupervisorStrategy =
     OneForOneStrategy() {
       case e => {
-        // TODO: was Error(e.getMessage)
-        complete(InternalServerError, e.getMessage)
+        ctx.complete((InternalServerError, e.getMessage))
         Stop
       }
     }
 }
 
 object PerRequest {
-  case class WithActorRef(r: RequestContext, target: ActorRef, message: RestMessage)
+
+  case class WithActorRef(ctx: RequestContextWrapper, target: ActorRef, command: Command)
       extends PerRequest
 
-  case class WithProps(r: RequestContext, props: Props, message: RestMessage) extends PerRequest {
+  case class WithProps(ctx: RequestContextWrapper, props: Props, command: Command)
+      extends PerRequest {
     lazy val target: ActorRef = context.actorOf(props)
   }
+
+  final class RequestContextWrapper(ctx: RequestContext, promise: Promise[RouteResult]) {
+    private implicit val ec = ctx.executionContext
+
+    def complete(response: ToResponseMarshallable): Unit =
+      ctx.complete(response).onComplete(promise.complete)
+
+    def fail(error: Throwable): Unit = ctx.fail(error).onComplete(promise.complete)
+  }
+
+  def asyncComplete(inner: RequestContextWrapper => Unit): Route = { ctx: RequestContext =>
+    val p = Promise[RouteResult]()
+    inner(new RequestContextWrapper(ctx, p))
+    p.future
+  }
+
 }
 
 trait PerRequestCreator {
@@ -81,9 +102,9 @@ trait PerRequestCreator {
 
   def context: ActorRefFactory
 
-  def perRequest(r: RequestContext, target: ActorRef, message: RestMessage): ActorRef =
-    context.actorOf(Props(WithActorRef(r, target, message)))
+  def perRequest(ctx: RequestContextWrapper, target: ActorRef, command: Command): ActorRef =
+    context.actorOf(Props(WithActorRef(ctx, target, command)))
 
-  def perRequest(r: RequestContext, props: Props, message: RestMessage): ActorRef =
-    context.actorOf(Props(WithProps(r, props, message)))
+  def perRequest(ctx: RequestContextWrapper, props: Props, command: Command): ActorRef =
+    context.actorOf(Props(WithProps(ctx, props, command)))
 }

@@ -29,20 +29,22 @@ import akka.actor.{
 }
 import akka.util.Timeout
 import akka.cluster.Cluster
+import akka.http.scaladsl.Http
 import cats.effect.IO
-import spray.can.Http
-import eu.hbp.mip.woken.api.{ Api, MasterRouter, RoutedHttpService }
+import eu.hbp.mip.woken.api.{ Api, MasterRouter }
 import eu.hbp.mip.woken.config.{ AlgorithmsConfiguration, AppConfiguration, DatabaseConfiguration }
 import eu.hbp.mip.woken.core.{ CoordinatorConfig, Core, CoreActors }
 import eu.hbp.mip.woken.core.validation.ValidationPoolManager
 import eu.hbp.mip.woken.dao.{ FeaturesDAL, MetadataRepositoryDAO, WokenRepositoryDAO }
 import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, JobResultService, VariablesMetaService }
 import eu.hbp.mip.woken.ssl.WokenSSLConfiguration
+import akka.stream.ActorMaterializer
 
 class RemoteAddressExtensionImpl(system: ExtendedActorSystem) extends Extension {
   def getAddress: Address =
     system.provider.getDefaultAddress
 }
+
 object RemoteAddressExtension extends ExtensionKey[RemoteAddressExtensionImpl]
 
 /**
@@ -57,15 +59,17 @@ trait BootedCore
     with StaticResources
     with WokenSSLConfiguration {
 
-  private lazy val appConfig = AppConfiguration
+  lazy val appConfig = AppConfiguration
     .read(config)
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
 
   /**
     * Construct the ActorSystem we will use in our application
     */
-  override lazy val system: ActorSystem              = ActorSystem(appConfig.clusterSystemName)
-  override lazy val actorRefFactory: ActorRefFactory = system
+  override lazy implicit val system: ActorSystem    = ActorSystem(appConfig.clusterSystemName)
+  lazy val actorRefFactory: ActorRefFactory         = system
+  implicit val actorMaterializer: ActorMaterializer = ActorMaterializer()
+  implicit val executionContext                     = system.dispatcher
 
   private lazy val resultsDbConfig = DatabaseConfiguration
     .factory(config)("woken")
@@ -75,7 +79,7 @@ trait BootedCore
     .factory(config)(jobsConf.featuresDb)
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
 
-  private lazy val featuresDAL = FeaturesDAL(featuresDbConnection)
+  lazy val featuresDAL = FeaturesDAL(featuresDbConnection)
 
   private lazy val jrsIO: IO[JobResultService] = for {
     xa <- DatabaseConfiguration.dbTransactor(resultsDbConfig)
@@ -84,7 +88,7 @@ trait BootedCore
   } yield {
     JobResultService(wokenDb.jobResults)
   }
-  private lazy val jobResultService: JobResultService = jrsIO.unsafeRunSync()
+  lazy val jobResultService: JobResultService = jrsIO.unsafeRunSync()
 
   private lazy val metaDbConfig = DatabaseConfiguration
     .factory(config)(jobsConf.metaDb)
@@ -98,18 +102,12 @@ trait BootedCore
     VariablesMetaService(metaDb.variablesMeta)
   }
 
-  private lazy val variablesMetaService: VariablesMetaService = vmsIO.unsafeRunSync()
+  lazy val variablesMetaService: VariablesMetaService = vmsIO.unsafeRunSync()
 
   private lazy val algorithmLibraryService: AlgorithmLibraryService = AlgorithmLibraryService()
 
   //Cluster(system).join(RemoteAddressExtension(system).getAddress())
   lazy val cluster = Cluster(system)
-
-  /**
-    * Create and start our service actor
-    */
-  val rootService: ActorRef =
-    system.actorOf(Props(new RoutedHttpService(routes ~ staticResources)), appConfig.jobServiceName)
 
   private lazy val coordinatorConfig = CoordinatorConfig(
     chronosHttp,
@@ -140,14 +138,21 @@ trait BootedCore
 
   implicit val timeout: Timeout = Timeout(5.seconds)
 
+  Http().setDefaultServerHttpContext(https)
+
   // start a new HTTP server on port 8080 with our service actor as the handler
-  akka.io.IO(Http)(system) ! Http.Bind(rootService,
-                                       interface = appConfig.networkInterface,
-                                       port = appConfig.webServicesPort)
+  val binding = Http().bindAndHandle(routes,
+                                     interface = appConfig.networkInterface,
+                                     port = appConfig.webServicesPort,
+                                     connectionContext = https)
 
   /**
     * Ensure that the constructed ActorSystem is shut down when the JVM shuts down
     */
-  val _ = sys.addShutdownHook(system.shutdown())
+  sys.addShutdownHook {
+    binding
+      .flatMap(_.unbind())
+      .onComplete(_ => system.terminate())
+  }
 
 }

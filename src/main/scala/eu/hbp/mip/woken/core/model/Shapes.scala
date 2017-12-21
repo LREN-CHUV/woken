@@ -92,9 +92,9 @@ object Shapes {
 
   // Generic Json, for other types of visualisations
   object json extends Shape {
-    val json = "json"
-    val mime       = "application/json"
-    val values     = Set(json, mime)
+    val json   = "json"
+    val mime   = "application/json"
+    val values = Set(json, mime)
   }
 
   val visualisationJson: Set[Shape] = Set(highcharts, plotly, json)

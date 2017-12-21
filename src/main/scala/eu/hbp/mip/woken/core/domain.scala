@@ -17,32 +17,25 @@
 package eu.hbp.mip.woken.core
 
 import akka.actor.ReceiveTimeout
-import spray.http.StatusCodes
-import spray.httpx.marshalling.ToResponseMarshaller
 import spray.json.{ DefaultJsonProtocol, JsString, JsValue, RootJsonFormat }
 
 // TODO: move to json.rest?
 
 // Messages
 
-trait RestMessage {
-  def marshaller: ToResponseMarshaller[this.type]
-}
+trait RestMessage {}
 
 // Exceptions
 
 object DefaultMarshallers extends DefaultJsonProtocol {
 
-  import spray.httpx.SprayJsonSupport._
-
   implicit object ReceiveTimeoutFormat extends RootJsonFormat[ReceiveTimeout] {
     override def write(r: ReceiveTimeout) = JsString("ReceiveTimeoutFormat")
+
     override def read(json: JsValue): ReceiveTimeout = json match {
       case JsString("ReceiveTimeoutFormat") => ReceiveTimeout
       case _                                => throw new IllegalArgumentException("Expected 'ReceiveTimeoutFormat'")
     }
   }
-  implicit val ReceiveTimeoutMarshaller: ToResponseMarshaller[ReceiveTimeout] =
-    ToResponseMarshaller.fromMarshaller(StatusCodes.BadRequest)
 
 }

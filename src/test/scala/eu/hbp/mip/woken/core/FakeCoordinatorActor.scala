@@ -22,11 +22,12 @@ import akka.actor.{ Actor, PoisonPill }
 import eu.hbp.mip.woken.core.model.PfaJobResult
 import spray.json._
 import CoordinatorActor._
+import eu.hbp.mip.woken.core.commands.JobCommands
 
 class FakeCoordinatorActor() extends Actor {
 
   override def receive: PartialFunction[Any, Unit] = {
-    case Start(job) =>
+    case JobCommands.StartCoordinatorJob(job) =>
       val pfa =
         """
            {

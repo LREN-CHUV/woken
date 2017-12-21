@@ -1,29 +1,40 @@
+/*
+ * Copyright 2017 Human Brain Project MIP by LREN CHUV
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package eu.hbp.mip.woken.core
 
-import akka.actor.{Actor, ActorLogging, ActorRef, LoggingFSM, Props}
+import akka.actor.{ Actor, ActorLogging, ActorRef, LoggingFSM }
 import com.github.levkhomich.akka.tracing.ActorTracing
 import eu.hbp.mip.woken.api.ApiJsonSupport
-import eu.hbp.mip.woken.backends.woken.WokenService
-import eu.hbp.mip.woken.backends.{DockerJob, QueryOffset}
-import spray.http.StatusCodes
-import spray.httpx.marshalling.ToResponseMarshaller
+import eu.hbp.mip.woken.backends.{ DockerJob, QueryOffset }
 import spray.json.RootJsonFormat
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object FederationCoordinatorActor {
-    val repeatDuration: FiniteDuration = 1 minute
+  val repeatDuration: FiniteDuration = 1 minute
 
   // Incoming messages
   // TODO: define a new job type for distributed job
   case class Start(job: DockerJob) extends RestMessage {
     import ApiJsonSupport._
-    import spray.httpx.SprayJsonSupport._
     implicit val queryOffsetFormat: RootJsonFormat[QueryOffset] = jsonFormat2(QueryOffset.apply)
     implicit val jobFormat: RootJsonFormat[DockerJob]           = jsonFormat7(DockerJob.apply)
-    override def marshaller: ToResponseMarshaller[Start] =
-      ToResponseMarshaller.fromMarshaller(StatusCodes.OK)(jsonFormat1(Start))
+    implicit val startMessageFormat: RootJsonFormat[Start]      = jsonFormat1(Start)
   }
 }
 
@@ -63,15 +74,17 @@ object FederationCoordinatorStates {
                               replyTo: ActorRef,
                               remainingNodes: Set[String] = Set(),
                               totalNodeCount: Int)
-    extends StateData
+      extends StateData
 
   case class PartialLocalData(job: DockerJob, replyTo: ActorRef) extends StateData
 
 }
 
-class FederationCoordinatorActor() extends Actor with ActorLogging
-  with ActorTracing
-  with LoggingFSM[FederationCoordinatorStates.State, FederationCoordinatorStates.StateData] {
+class FederationCoordinatorActor()
+    extends Actor
+    with ActorLogging
+    with ActorTracing
+    with LoggingFSM[FederationCoordinatorStates.State, FederationCoordinatorStates.StateData] {
   {
 
     import FederationCoordinatorActor._
@@ -96,8 +109,8 @@ class FederationCoordinatorActor() extends Actor with ActorLogging
         } else {
           goto(PostJobToChronos) using PartialLocalData(job, replyTo)
         }
-        */
-      stop()
+         */
+        stop()
     }
 
     // TODO: implement a reconciliation algorithm: http://mesos.apache.org/documentation/latest/reconciliation/
@@ -140,8 +153,8 @@ class FederationCoordinatorActor() extends Actor with ActorLogging
         } else {
           stay() forMax repeatDuration
         }
-        */
-      stop()
+         */
+        stop()
     }
 
     initialize()

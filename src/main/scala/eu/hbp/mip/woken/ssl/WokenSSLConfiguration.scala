@@ -19,11 +19,16 @@ package eu.hbp.mip.woken.ssl
 import java.security.{ KeyStore, SecureRandom }
 import javax.net.ssl.{ KeyManagerFactory, SSLContext, TrustManagerFactory }
 
-import spray.io.ServerSSLEngineProvider
+import akka.actor.ActorSystem
+import akka.http.scaladsl.{ ConnectionContext, HttpsConnectionContext }
+import com.typesafe.sslconfig.akka.AkkaSSLConfig
 
 trait WokenSSLConfiguration {
 
-  implicit val wokenSSLContext: SSLContext = {
+  implicit val system: ActorSystem
+  val sslConfig = AkkaSSLConfig()
+
+  val wokenSSLContext: SSLContext = {
     val keyStoreRes = "/woken-keystore.jks"
     val password    = "password"
 
@@ -42,11 +47,5 @@ trait WokenSSLConfiguration {
     context
   }
 
-  implicit val wokenSLLEngineProvider: ServerSSLEngineProvider =
-    ServerSSLEngineProvider { engine =>
-      engine.setEnabledCipherSuites(engine.getSupportedCipherSuites)
-      engine.setEnabledProtocols(Array("SSLv3", "TLSv1.2"))
-      engine
-    }
-
+  val https: HttpsConnectionContext = ConnectionContext.https(wokenSSLContext)
 }

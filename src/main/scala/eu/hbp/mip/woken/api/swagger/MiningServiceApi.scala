@@ -14,30 +14,29 @@
  * limitations under the License.
  */
 
-package eu.hbp.mip.woken.api
+package eu.hbp.mip.woken.api.swagger
 
 import javax.ws.rs.Path
 
-import com.wordnik.swagger.annotations.{ Api => SwaggerApi, _ }
-import spray.routing._
-//import eu.hbp.mip.woken.core.CoordinatorActor.Result
-//import eu.hbp.mip.woken.core.CoordinatorActor.{ Result => ExperimentResult }
+import akka.http.scaladsl.server.{ Directives, Route }
+import eu.hbp.mip.woken.core.model.JobResult
+import io.swagger.annotations._
 
 /**
   * Document the API, try not to pollute the code with annotations
   */
-@SwaggerApi(value = "/mining",
-            description = "Operations for data mining.",
-            consumes = "application/json",
-            produces = "application/json")
+@Api(value = "/mining",
+     description = "Operations for data mining.",
+     consumes = "application/json",
+     produces = "application/json")
 trait MiningServiceApi extends Directives {
-  /*
+
   @ApiOperation(
     value = "Run a data mining job",
     notes = "Run a data mining job and return id",
     httpMethod = "POST",
     consumes = "application/json",
-    response = classOf[Result]
+    response = classOf[JobResult]
   )
   @ApiImplicitParams(
     Array(
@@ -50,7 +49,9 @@ trait MiningServiceApi extends Directives {
   )
   @ApiResponses(
     Array(
-      new ApiResponse(code = 201, message = "Mining job initialized", response = classOf[Result]),
+      new ApiResponse(code = 201,
+                      message = "Mining job initialized",
+                      response = classOf[JobResult]),
       new ApiResponse(code = 401, message = "Authentication required.", response = classOf[String]),
       new ApiResponse(code = 403, message = "Authentication failed.", response = classOf[String]),
       new ApiResponse(code = 405, message = "Invalid mining job", response = classOf[String]),
@@ -66,7 +67,7 @@ trait MiningServiceApi extends Directives {
     notes = "Run a data mining experiment and return id",
     httpMethod = "POST",
     consumes = "application/json",
-    response = classOf[Result]
+    response = classOf[JobResult]
   )
   @ApiImplicitParams(
     Array(
@@ -81,7 +82,7 @@ trait MiningServiceApi extends Directives {
     Array(
       new ApiResponse(code = 201,
                       message = "Experiment initialized",
-                      response = classOf[ExperimentResult]),
+                      response = classOf[JobResult]),
       new ApiResponse(code = 401, message = "Authentication required.", response = classOf[String]),
       new ApiResponse(code = 403, message = "Authentication failed.", response = classOf[String]),
       new ApiResponse(code = 405, message = "Invalid Experiment", response = classOf[String]),
@@ -97,7 +98,7 @@ trait MiningServiceApi extends Directives {
     notes = "Get catalog containing available mining methods",
     httpMethod = "GET",
     consumes = "application/json",
-    response = classOf[Result]
+    response = classOf[JobResult]
   )
   @ApiImplicitParams(Array())
   @ApiResponses(
@@ -114,5 +115,4 @@ trait MiningServiceApi extends Directives {
   @Authorization(value = "BasicAuth")
   def listMethods: Route
 
- */
 }

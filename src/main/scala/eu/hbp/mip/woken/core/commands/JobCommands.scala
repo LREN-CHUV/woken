@@ -14,11 +14,25 @@
  * limitations under the License.
  */
 
-package eu.hbp.mip.woken.backends.exareme
+package eu.hbp.mip.woken.core.commands
 
-import akka.actor.{ Actor, ActorLogging }
-import com.github.levkhomich.akka.tracing.ActorTracing
+import eu.hbp.mip.woken.backends.DockerJob
+import eu.hbp.mip.woken.core.ExperimentActor.Job
 
-class ExaremeService extends Actor with ActorLogging with ActorTracing {
-  override def receive: Receive = ???
+object JobCommands {
+
+  sealed trait Command
+
+  /**
+    * Start mining command.
+    * @param job - docker job
+    */
+  case class StartCoordinatorJob(job: DockerJob) extends Command
+
+  /**
+    * Start a new experiment job.
+    * @param job - experiment job
+    */
+  case class StartExperimentJob(job: Job) extends Command
+
 }
