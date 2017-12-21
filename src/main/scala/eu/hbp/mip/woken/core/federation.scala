@@ -18,9 +18,7 @@ package eu.hbp.mip.woken.core
 
 import akka.actor.{ Actor, ActorLogging, ActorRef, LoggingFSM }
 import com.github.levkhomich.akka.tracing.ActorTracing
-import eu.hbp.mip.woken.api.ApiJsonSupport
-import eu.hbp.mip.woken.backends.{ DockerJob, QueryOffset }
-import spray.json.RootJsonFormat
+import eu.hbp.mip.woken.backends.DockerJob
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -30,12 +28,7 @@ object FederationCoordinatorActor {
 
   // Incoming messages
   // TODO: define a new job type for distributed job
-  case class Start(job: DockerJob) extends RestMessage {
-    import ApiJsonSupport._
-    implicit val queryOffsetFormat: RootJsonFormat[QueryOffset] = jsonFormat2(QueryOffset.apply)
-    implicit val jobFormat: RootJsonFormat[DockerJob]           = jsonFormat7(DockerJob.apply)
-    implicit val startMessageFormat: RootJsonFormat[Start]      = jsonFormat1(Start)
-  }
+  case class Start(job: DockerJob)
 }
 
 object FederationCoordinatorStates {

@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-package eu.hbp.mip.woken.api
+package eu.hbp.mip.woken.json
 
 import java.time.OffsetDateTime
 
-import spray.json._
 import eu.hbp.mip.woken.messages.external.{ Operators, _ }
-import eu.hbp.mip.woken.json.formats
+import spray.json._
 
 object ApiJsonSupport extends DefaultJsonProtocol {
 

@@ -22,13 +22,12 @@ import akka.http.scaladsl.server.{ Directives, Route }
 import eu.hbp.mip.woken.core.model.JobResult
 import io.swagger.annotations._
 
+// This trait documents the API, tries not to pollute the code with annotations
+
 /**
-  * Document the API, try not to pollute the code with annotations
+  * Operations for data mining
   */
-@Api(value = "/mining",
-     description = "Operations for data mining.",
-     consumes = "application/json",
-     produces = "application/json")
+@Api(value = "/mining", consumes = "application/json", produces = "application/json")
 trait MiningServiceApi extends Directives {
 
   @ApiOperation(

@@ -23,7 +23,7 @@ class KFoldCrossValidationTest extends FlatSpec with Matchers {
 
   "An experiment JSON object" should "be readable" in {
 
-    import eu.hbp.mip.woken.api.ApiJsonSupport._
+    import eu.hbp.mip.woken.json.ApiJsonSupport._
     import spray.json._
 
     val source =
@@ -59,7 +59,7 @@ class KFoldCrossValidationTest extends FlatSpec with Matchers {
 
   "A validation JSON object" should "be readable" in {
 
-    import eu.hbp.mip.woken.api.ApiJsonSupport._
+    import eu.hbp.mip.woken.json.ApiJsonSupport._
     import spray.json._
 
     val source =

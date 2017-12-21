@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package eu.hbp.mip.woken.api
+package eu.hbp.mip.woken.json
 
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.marshalling.PredefinedToResponseMarshallers

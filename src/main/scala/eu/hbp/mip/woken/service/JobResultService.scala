@@ -30,10 +30,13 @@ import scala.language.higherKinds
   */
 class JobResultService(repository: JobResultRepository[IO])(implicit E: Effect[IO]) {
 
-  def put(result: JobResult): JobResult = repository.put(result).unsafeRunSync()
+  def putIO(result: JobResult): IO[JobResult] = repository.put(result)
 
-  def get(jobId: String): Option[JobResult] = repository.get(jobId).unsafeRunSync()
+  def put(result: JobResult): JobResult = putIO(result).unsafeRunSync()
 
+  def getIO(jobId: String): IO[Option[JobResult]] = repository.get(jobId)
+
+  def get(jobId: String): Option[JobResult] = getIO(jobId).unsafeRunSync()
 }
 
 object JobResultService {

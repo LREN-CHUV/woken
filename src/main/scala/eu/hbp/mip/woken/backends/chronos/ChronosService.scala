@@ -18,9 +18,7 @@ package eu.hbp.mip.woken.backends.chronos
 
 import akka.actor.{ Actor, ActorLogging, Props, Status }
 import akka.http.scaladsl.model._
-import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.pattern.{ AskTimeoutException, pipe }
-import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import com.github.levkhomich.akka.tracing.ActorTracing
 import eu.hbp.mip.woken.backends.HttpClient
@@ -113,7 +111,7 @@ class ChronosService(jobsConfig: JobsConfiguration)
             Error(e.getMessage)
 
         } pipeTo originalSender
-      // TODO: could use supervisedPipe here: http://pauljamescleary.github.io/futures-in-akka/
+    // TODO: could use supervisedPipe here: http://pauljamescleary.github.io/futures-in-akka/
 
     case Check(jobId, job) =>
       implicit val executionContext: ExecutionContextExecutor = context.dispatcher

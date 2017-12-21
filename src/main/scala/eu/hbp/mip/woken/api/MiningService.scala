@@ -18,37 +18,38 @@ package eu.hbp.mip.woken.api
 
 import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem }
 import akka.http.scaladsl.server.Route
-import com.typesafe.config.ConfigFactory
 import eu.hbp.mip.woken.api.swagger.MiningServiceApi
 import eu.hbp.mip.woken.authentication.BasicAuthentication
-import eu.hbp.mip.woken.config.{
-  AlgorithmDefinition,
-  AppConfiguration,
-  DatabaseConfiguration,
-  JobsConfiguration
-}
+import eu.hbp.mip.woken.config.{ AlgorithmDefinition, AppConfiguration, JobsConfiguration }
 import eu.hbp.mip.woken.messages.external._
 import eu.hbp.mip.woken.core._
 import eu.hbp.mip.woken.dao.FeaturesDAL
 import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, JobResultService, VariablesMetaService }
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import MiningQueries._
+import akka.http.scaladsl.model.StatusCodes
 import eu.hbp.mip.woken.core.commands.JobCommands.{
   Command,
   StartCoordinatorJob,
   StartExperimentJob
 }
+import eu.hbp.mip.woken.json.DefaultJsonFormats
 
-object MiningService {}
+import scala.concurrent.ExecutionContextExecutor
+
+object MiningService
 
 // this trait defines our service behavior independently from the service actor
-class MiningService(val chronosService: ActorRef,
-                    val featuresDatabase: FeaturesDAL,
-                    val jobResultService: JobResultService,
-                    val variablesMetaService: VariablesMetaService,
-                    override val appConfiguration: AppConfiguration,
-                    val jobsConf: JobsConfiguration,
-                    val defaultFeaturesTable: String)(implicit system: ActorSystem)
+class MiningService(
+    val chronosService: ActorRef,
+    val featuresDatabase: FeaturesDAL,
+    val jobResultService: JobResultService,
+    val variablesMetaService: VariablesMetaService,
+    override val appConfiguration: AppConfiguration,
+    val coordinatorConfig: CoordinatorConfig,
+    val jobsConf: JobsConfiguration,
+    val algorithmLookup: String => Validation[AlgorithmDefinition]
+)(implicit system: ActorSystem)
     extends MiningServiceApi
     with FailureHandling
     with PerRequestCreator
@@ -57,24 +58,14 @@ class MiningService(val chronosService: ActorRef,
 
   override def context: ActorRefFactory = system
 
-  implicit val executionContext = context.dispatcher
+  implicit val executionContext: ExecutionContextExecutor = context.dispatcher
 
   val routes: Route = mining ~ experiment ~ listMethods
 
-  import ApiJsonSupport._
-
-  // TODO: improve passing configuration around
-  private lazy val config = ConfigFactory.load()
-  private lazy val coordinatorConfig = CoordinatorConfig(chronosService,
-                                                         appConfiguration.dockerBridgeNetwork,
-                                                         featuresDatabase,
-                                                         jobResultService,
-                                                         jobsConf,
-                                                         DatabaseConfiguration.factory(config))
+  import eu.hbp.mip.woken.json.ApiJsonSupport._
 
   override def listMethods: Route = path("mining" / "list-methods") {
     authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { user =>
-      import spray.json._
       get {
         complete(AlgorithmLibraryService().algorithms())
       }
@@ -91,16 +82,16 @@ class MiningService(val chronosService: ActorRef,
             ctx =>
               {
                 ctx.complete(
-                  featuresDatabase.queryData(defaultFeaturesTable, {
+                  featuresDatabase.queryData(jobsConf.featuresTable, {
                     variables ++ covariables ++ groups
                   }.distinct.map(_.code))
                 )
               }
 
           case query: MiningQuery =>
-            val job = miningQuery2job(variablesMetaService, jobsConf, ???)(query)
+            val job = miningQuery2job(variablesMetaService, jobsConf, algorithmLookup)(query)
             job.fold(
-              errors => ???,
+              errors => complete(StatusCodes.BadRequest -> errors.toList.mkString(", ")),
               dockerJob =>
                 miningJob(coordinatorConfig) {
                   StartCoordinatorJob(dockerJob)
@@ -120,9 +111,9 @@ class MiningService(val chronosService: ActorRef,
           {
             val job = experimentQuery2job(variablesMetaService, jobsConf)(query)
             job.fold(
-              errors => ???,
+              errors => complete(StatusCodes.BadRequest -> errors.toList.mkString(", ")),
               experimentActorJob =>
-                experimentJob(coordinatorConfig, ???) {
+                experimentJob(coordinatorConfig, algorithmLookup) {
                   StartExperimentJob(experimentActorJob)
               }
             )

@@ -30,10 +30,15 @@ import scala.language.higherKinds
   */
 class VariablesMetaService(repository: VariablesMetaRepository[IO])(implicit E: Effect[IO]) {
 
-  def put(meta: VariablesMeta): VariablesMeta = repository.put(meta).unsafeRunSync()
+  def putIO(meta: VariablesMeta): IO[VariablesMeta] = repository.put(meta)
+
+  def put(meta: VariablesMeta): VariablesMeta = putIO(meta).unsafeRunSync()
+
+  def getIO(targetFeaturesTable: String): IO[Option[VariablesMeta]] =
+    repository.get(targetFeaturesTable)
 
   def get(targetFeaturesTable: String): Option[VariablesMeta] =
-    repository.get(targetFeaturesTable).unsafeRunSync()
+    getIO(targetFeaturesTable).unsafeRunSync()
 
 }
 

@@ -40,6 +40,8 @@ import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, JobResultService, Var
 import eu.hbp.mip.woken.ssl.WokenSSLConfiguration
 import akka.stream.ActorMaterializer
 
+import scala.concurrent.{ ExecutionContextExecutor, Future }
+
 class RemoteAddressExtensionImpl(system: ExtendedActorSystem) extends Extension {
   def getAddress: Address =
     system.provider.getDefaultAddress
@@ -59,17 +61,17 @@ trait BootedCore
     with StaticResources
     with WokenSSLConfiguration {
 
-  lazy val appConfig = AppConfiguration
+  override lazy val appConfig: AppConfiguration = AppConfiguration
     .read(config)
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
 
   /**
     * Construct the ActorSystem we will use in our application
     */
-  override lazy implicit val system: ActorSystem    = ActorSystem(appConfig.clusterSystemName)
-  lazy val actorRefFactory: ActorRefFactory         = system
-  implicit val actorMaterializer: ActorMaterializer = ActorMaterializer()
-  implicit val executionContext                     = system.dispatcher
+  override lazy implicit val system: ActorSystem          = ActorSystem(appConfig.clusterSystemName)
+  lazy val actorRefFactory: ActorRefFactory               = system
+  implicit val actorMaterializer: ActorMaterializer       = ActorMaterializer()
+  implicit val executionContext: ExecutionContextExecutor = system.dispatcher
 
   private lazy val resultsDbConfig = DatabaseConfiguration
     .factory(config)("woken")
@@ -79,7 +81,7 @@ trait BootedCore
     .factory(config)(jobsConf.featuresDb)
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
 
-  lazy val featuresDAL = FeaturesDAL(featuresDbConnection)
+  override lazy val featuresDAL = FeaturesDAL(featuresDbConnection)
 
   private lazy val jrsIO: IO[JobResultService] = for {
     xa <- DatabaseConfiguration.dbTransactor(resultsDbConfig)
@@ -88,7 +90,7 @@ trait BootedCore
   } yield {
     JobResultService(wokenDb.jobResults)
   }
-  lazy val jobResultService: JobResultService = jrsIO.unsafeRunSync()
+  override lazy val jobResultService: JobResultService = jrsIO.unsafeRunSync()
 
   private lazy val metaDbConfig = DatabaseConfiguration
     .factory(config)(jobsConf.metaDb)
@@ -102,14 +104,14 @@ trait BootedCore
     VariablesMetaService(metaDb.variablesMeta)
   }
 
-  lazy val variablesMetaService: VariablesMetaService = vmsIO.unsafeRunSync()
+  override lazy val variablesMetaService: VariablesMetaService = vmsIO.unsafeRunSync()
 
   private lazy val algorithmLibraryService: AlgorithmLibraryService = AlgorithmLibraryService()
 
   //Cluster(system).join(RemoteAddressExtension(system).getAddress())
   lazy val cluster = Cluster(system)
 
-  private lazy val coordinatorConfig = CoordinatorConfig(
+  override lazy val coordinatorConfig = CoordinatorConfig(
     chronosHttp,
     appConfig.dockerBridgeNetwork,
     featuresDAL,
@@ -141,10 +143,11 @@ trait BootedCore
   Http().setDefaultServerHttpContext(https)
 
   // start a new HTTP server on port 8080 with our service actor as the handler
-  val binding = Http().bindAndHandle(routes,
-                                     interface = appConfig.networkInterface,
-                                     port = appConfig.webServicesPort,
-                                     connectionContext = https)
+  val binding: Future[Http.ServerBinding] = Http().bindAndHandle(routes,
+                                                                 interface =
+                                                                   appConfig.networkInterface,
+                                                                 port = appConfig.webServicesPort,
+                                                                 connectionContext = https)
 
   /**
     * Ensure that the constructed ActorSystem is shut down when the JVM shuts down

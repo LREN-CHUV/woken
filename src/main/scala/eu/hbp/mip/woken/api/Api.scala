@@ -17,11 +17,12 @@
 package eu.hbp.mip.woken.api
 
 import eu.hbp.mip.woken.api.swagger.SwaggerService
-import eu.hbp.mip.woken.config.AppConfiguration
-import eu.hbp.mip.woken.core.{ Core, CoreActors }
+import eu.hbp.mip.woken.config.{ AlgorithmsConfiguration, AppConfiguration }
+import eu.hbp.mip.woken.core.{ CoordinatorConfig, Core, CoreActors }
 import eu.hbp.mip.woken.dao.FeaturesDAL
 import eu.hbp.mip.woken.service.{ JobResultService, VariablesMetaService }
 import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server.Route
 
 /**
   * The REST API layer. It exposes the REST services, but does not provide any
@@ -35,6 +36,7 @@ trait Api extends CoreActors with Core {
   val jobResultService: JobResultService
   val variablesMetaService: VariablesMetaService
   val appConfig: AppConfiguration
+  val coordinatorConfig: CoordinatorConfig
 
   lazy val miningService =
     new MiningService(
@@ -43,11 +45,13 @@ trait Api extends CoreActors with Core {
       jobResultService,
       variablesMetaService,
       appConfig,
+      coordinatorConfig,
       jobsConf,
-      //FIXME: need to add mainTable name
-      /*defaults.mainTable*/ ""
+      AlgorithmsConfiguration.factory(config)
     )
 
-  val routes = SwaggerService.routes ~ miningService.routes
+  val routes: Route = SwaggerService.routes ~ miningService.routes
 
 }
+
+trait RestMessage

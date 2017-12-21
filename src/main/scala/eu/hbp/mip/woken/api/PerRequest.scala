@@ -29,12 +29,11 @@ import eu.hbp.mip.woken.core._
 import eu.hbp.mip.woken.core.commands.JobCommands.Command
 import eu.hbp.mip.woken.messages.Error
 
-import scala.concurrent.Promise
+import scala.concurrent.{ ExecutionContextExecutor, Promise }
 
 trait PerRequest extends Actor with ActorLogging {
 
   import context._
-  import DefaultMarshallers._
 
   def ctx: RequestContextWrapper
 
@@ -62,10 +61,9 @@ trait PerRequest extends Actor with ActorLogging {
 
   override val supervisorStrategy: SupervisorStrategy =
     OneForOneStrategy() {
-      case e => {
+      case e =>
         ctx.complete((InternalServerError, e.getMessage))
         Stop
-      }
     }
 }
 
@@ -80,7 +78,7 @@ object PerRequest {
   }
 
   final class RequestContextWrapper(ctx: RequestContext, promise: Promise[RouteResult]) {
-    private implicit val ec = ctx.executionContext
+    private implicit val ec: ExecutionContextExecutor = ctx.executionContext
 
     def complete(response: ToResponseMarshallable): Unit =
       ctx.complete(response).onComplete(promise.complete)

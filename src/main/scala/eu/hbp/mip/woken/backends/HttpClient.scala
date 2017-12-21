@@ -22,11 +22,11 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.{ ActorMaterializer, Materializer }
-import eu.hbp.mip.woken.api.DefaultJsonFormats
+import akka.stream.ActorMaterializer
 import eu.hbp.mip.woken.backends.chronos.{ ChronosJob, ChronosJobLiveliness }
+import eu.hbp.mip.woken.json.DefaultJsonFormats
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ ExecutionContextExecutor, Future }
 
 object HttpClient extends DefaultJsonFormats with SprayJsonSupport {
 
@@ -45,7 +45,7 @@ object HttpClient extends DefaultJsonFormats with SprayJsonSupport {
 
   def Post(url: String, job: ChronosJob)(implicit actorSystem: ActorSystem): Future[HttpResponse] = {
     import ChronosJob._
-    implicit val executionContext = actorSystem.dispatcher
+    implicit val executionContext: ExecutionContextExecutor = actorSystem.dispatcher
     Marshal(job).to[RequestEntity].flatMap { entity =>
       sendReceive(
         HttpRequest(
@@ -60,7 +60,7 @@ object HttpClient extends DefaultJsonFormats with SprayJsonSupport {
   def unmarshalChronosResponse(
       entity: HttpEntity
   )(implicit actorSystem: ActorSystem): Future[List[ChronosJobLiveliness]] = {
-    implicit val materializer = ActorMaterializer()
+    implicit val materializer: ActorMaterializer = ActorMaterializer()
     import ChronosJobLiveliness._
     Unmarshal(entity).to[List[ChronosJobLiveliness]]
   }
