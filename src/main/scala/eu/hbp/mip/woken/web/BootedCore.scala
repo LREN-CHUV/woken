@@ -60,7 +60,7 @@ trait BootedCore
     with StaticResources
     with WokenSSLConfiguration {
 
-  private lazy val appConfig = AppConfiguration
+  lazy val appConfig = AppConfiguration
     .read(config)
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
 
@@ -80,7 +80,7 @@ trait BootedCore
     .factory(config)(jobsConf.featuresDb)
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
 
-  private lazy val featuresDAL = FeaturesDAL(featuresDbConnection)
+  lazy val featuresDAL = FeaturesDAL(featuresDbConnection)
 
   private lazy val jrsIO: IO[JobResultService] = for {
     xa <- DatabaseConfiguration.dbTransactor(resultsDbConfig)
@@ -89,7 +89,7 @@ trait BootedCore
   } yield {
     JobResultService(wokenDb.jobResults)
   }
-  private lazy val jobResultService: JobResultService = jrsIO.unsafeRunSync()
+  lazy val jobResultService: JobResultService = jrsIO.unsafeRunSync()
 
   private lazy val metaDbConfig = DatabaseConfiguration
     .factory(config)(jobsConf.metaDb)
@@ -103,7 +103,7 @@ trait BootedCore
     VariablesMetaService(metaDb.variablesMeta)
   }
 
-  private lazy val variablesMetaService: VariablesMetaService = vmsIO.unsafeRunSync()
+  lazy val variablesMetaService: VariablesMetaService = vmsIO.unsafeRunSync()
 
   private lazy val algorithmLibraryService: AlgorithmLibraryService = AlgorithmLibraryService()
 

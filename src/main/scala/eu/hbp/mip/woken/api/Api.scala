@@ -31,18 +31,18 @@ import akka.http.scaladsl.server.Directives._
   */
 trait Api extends CoreActors with Core {
 
-  val featuresDatabase: FeaturesDAL
+  val featuresDAL: FeaturesDAL
   val jobResultService: JobResultService
   val variablesMetaService: VariablesMetaService
-  val appConfiguration: AppConfiguration
+  val appConfig: AppConfiguration
 
   lazy val miningService =
     new MiningService(
       chronosHttp,
-      featuresDatabase,
+      featuresDAL,
       jobResultService,
       variablesMetaService,
-      appConfiguration,
+      appConfig,
       jobsConf,
       //FIXME: need to add mainTable name
       /*defaults.mainTable*/ ""
