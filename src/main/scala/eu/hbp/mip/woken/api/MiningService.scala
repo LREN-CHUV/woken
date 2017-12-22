@@ -64,8 +64,8 @@ class MiningService(
 
   import eu.hbp.mip.woken.json.ApiJsonSupport._
 
-  override def listMethods: Route = path("mining" / "list-methods") {
-    authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { user =>
+  override def listMethods: Route = path("mining" / "methods") {
+    authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { _ =>
       get {
         complete(AlgorithmLibraryService().algorithms())
       }

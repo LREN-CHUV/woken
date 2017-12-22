@@ -140,7 +140,6 @@ lazy val commonSettings =
     unmanagedSourceDirectories.in(Compile) := Seq(scalaSource.in(Compile).value),
     unmanagedSourceDirectories.in(Test) := Seq(scalaSource.in(Test).value),
     wartremoverWarnings in (Compile, compile) ++= Warts.unsafe,
-    mainClass in Runtime := Some("eu.hbp.mip.woken.validation.Main"),
     fork in run := true,
     test in assembly := {},
     fork in Test := false,

@@ -91,7 +91,7 @@ trait MiningServiceApi extends Directives {
   @Authorization(value = "BasicAuth")
   def experiment: Route
 
-  @Path("/list-methods")
+  @Path("/methods")
   @ApiOperation(
     value = "Get mining method complete catalog",
     notes = "Get catalog containing available mining methods",
