@@ -53,7 +53,7 @@ object RemoteAddressExtension extends ExtensionKey[RemoteAddressExtensionImpl]
   * This trait implements ``Core`` by starting the required ``ActorSystem`` and registering the
   * termination handler to stop the system when the JVM exits.
   */
-@SuppressWarnings(Array("org.wartremover.warts.Throw"))
+@SuppressWarnings(Array("org.wartremover.warts.Throw", "org.wartremover.warts.NonUnitStatements"))
 trait BootedCore
     extends Core
     with CoreActors
@@ -140,14 +140,13 @@ trait BootedCore
 
   implicit val timeout: Timeout = Timeout(5.seconds)
 
-  Http().setDefaultServerHttpContext(https)
+  if (appConfig.webServicesHttps) Http().setDefaultServerHttpContext(https)
 
   // start a new HTTP server on port 8080 with our service actor as the handler
   val binding: Future[Http.ServerBinding] = Http().bindAndHandle(routes,
                                                                  interface =
                                                                    appConfig.networkInterface,
-                                                                 port = appConfig.webServicesPort,
-                                                                 connectionContext = https)
+                                                                 port = appConfig.webServicesPort)
 
   /**
     * Ensure that the constructed ActorSystem is shut down when the JVM shuts down
