@@ -149,7 +149,7 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F]) extends JobResu
       case PfaExperimentJobResult(jobId, node, timestamp, models) =>
         sql"""
           INSERT INTO job_result (job_id, node, timestamp, shape, function, data, error)
-                 VALUES ($jobId, $node, $timestamp, ${pfaExperiment.mime}, "experiment", ${models.compactPrint}, NULL)
+                 VALUES ($jobId, $node, $timestamp, ${pfaExperiment.mime}, 'experiment', ${models.compactPrint}, NULL)
           """.update
       case e => throw new IllegalArgumentException(s"Unsupported type of JobResult: $e")
     }
