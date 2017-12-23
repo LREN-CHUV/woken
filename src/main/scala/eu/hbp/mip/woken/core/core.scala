@@ -16,8 +16,11 @@
 
 package eu.hbp.mip.woken.core
 
+import akka.NotUsed
 import akka.actor.{ ActorRef, ActorSystem, Props }
 import akka.contrib.throttle.{ Throttler, TimerBasedThrottler }
+import akka.stream.{ ActorMaterializer, OverflowStrategy, ThrottleMode }
+import akka.stream.scaladsl.{ Sink, Source }
 import com.typesafe.config.{ Config, ConfigFactory }
 import eu.hbp.mip.woken.backends.chronos.ChronosService
 import eu.hbp.mip.woken.config.JobsConfiguration
@@ -49,16 +52,14 @@ trait CoreActors {
     .read(config)
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
 
+  private implicit val materializer = ActorMaterializer()
+
   private val chronosActor: ActorRef = system.actorOf(ChronosService.props(jobsConf), "chronos")
 
-  import Throttler._
-  // The throttler for this example, setting the rate
-  val chronosHttp: ActorRef = system.actorOf(
-    Props(classOf[TimerBasedThrottler], 1 msgsPer 300.millisecond),
-    "rateLimit.chronos"
-  )
-
-  // Set the target
-  chronosHttp ! SetTarget(Some(chronosActor))
+  val chronosHttp = Source
+    .actorRef(10, OverflowStrategy.dropNew)
+    .throttle(1, 300.milli, 10, ThrottleMode.shaping)
+    .to(Sink.actorRef(chronosActor, NotUsed))
+    .run()
 
 }

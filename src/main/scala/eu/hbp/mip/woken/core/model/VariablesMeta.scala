@@ -18,6 +18,7 @@ package eu.hbp.mip.woken.core.model
 
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil._
 import cats.implicits._
+import org.slf4j.{ Logger, LoggerFactory }
 import spray.json._
 
 // TODO: defaultHistogramGroupings: List[String]
@@ -26,6 +27,8 @@ case class VariablesMeta(id: Int,
                          hierarchy: JsObject,
                          targetFeaturesTable: String,
                          defaultHistogramGroupings: String) {
+
+  val log: Logger = LoggerFactory.getLogger(getClass)
 
   def selectVariablesMeta(variables: List[String]): Validation[JsObject] = {
 
@@ -43,7 +46,7 @@ case class VariablesMeta(id: Int,
                 }
               )
           case _ =>
-            deserializationError("JsArray expected")
+            log.error("JsArray expected")
             None
         }
       } else None
@@ -56,7 +59,7 @@ case class VariablesMeta(id: Int,
               .map(g => getVariableMetaData(variable, g.asJsObject))
               .collectFirst { case Some(varMeta) => varMeta }
           case _ =>
-            deserializationError("JsArray expected")
+            log.error("JsArray expected")
             None
         }
       } else None

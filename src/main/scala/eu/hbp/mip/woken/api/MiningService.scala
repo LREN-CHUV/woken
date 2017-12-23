@@ -138,6 +138,7 @@ class MiningService(
   def miningJob(coordinatorConfig: CoordinatorConfig)(command: Command): Route =
     asyncComplete { ctx =>
       perRequest(ctx, newCoordinatorActor(coordinatorConfig), command)
+      ()
     }
 
   def experimentJob(
@@ -146,6 +147,7 @@ class MiningService(
   )(command: Command): Route =
     asyncComplete { ctx =>
       perRequest(ctx, newExperimentActor(coordinatorConfig, algorithmLookup), command)
+      ()
     }
 
 }
