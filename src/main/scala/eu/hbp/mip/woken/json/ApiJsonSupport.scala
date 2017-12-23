@@ -109,5 +109,6 @@ object ApiJsonSupport extends DefaultJsonProtocol {
   implicit val experimentQueryJsonFormat: RootJsonFormat[ExperimentQuery] = jsonFormat6(
     ExperimentQuery
   )
+  implicit val queryResultFormat: RootJsonFormat[QueryResult]  = jsonFormat7(QueryResult)
 
 }
