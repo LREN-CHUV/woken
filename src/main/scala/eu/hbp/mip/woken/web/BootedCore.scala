@@ -24,6 +24,8 @@ import akka.actor.{
   Address,
   ExtendedActorSystem,
   Extension,
+  ExtensionId,
+  ExtensionIdProvider,
   ExtensionKey,
   Props
 }
@@ -47,7 +49,14 @@ class RemoteAddressExtensionImpl(system: ExtendedActorSystem) extends Extension 
     system.provider.getDefaultAddress
 }
 
-object RemoteAddressExtension extends ExtensionKey[RemoteAddressExtensionImpl]
+object RemoteAddressExtension
+    extends ExtensionId[RemoteAddressExtensionImpl]
+    with ExtensionIdProvider {
+  override def createExtension(system: ExtendedActorSystem): RemoteAddressExtensionImpl =
+    new RemoteAddressExtensionImpl(system)
+
+  override def lookup() = RemoteAddressExtension
+}
 
 /**
   * This trait implements ``Core`` by starting the required ``ActorSystem`` and registering the
