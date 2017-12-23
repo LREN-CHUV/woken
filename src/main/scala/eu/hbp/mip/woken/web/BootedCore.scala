@@ -161,10 +161,13 @@ trait BootedCore
   /**
     * Ensure that the constructed ActorSystem is shut down when the JVM shuts down
     */
-  sys.addShutdownHook {
+  val shutdownHook = sys.addShutdownHook {
     binding
       .flatMap(_.unbind())
-      .onComplete(_ => system.terminate())
+      .flatMap(_ => system.terminate())
+      .onComplete(_ => ())
+
   }
+  ()
 
 }
