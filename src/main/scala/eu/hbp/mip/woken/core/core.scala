@@ -57,7 +57,7 @@ trait CoreActors {
   private val chronosActor: ActorRef = system.actorOf(ChronosService.props(jobsConf), "chronos")
 
   val chronosHttp = Source
-    .actorRef(10, OverflowStrategy.backpressure)
+    .actorRef(10, OverflowStrategy.dropNew)
     .throttle(1, 300.milli, 10, ThrottleMode.shaping)
     .to(Sink.actorRef(chronosActor, NotUsed))
     .run()
