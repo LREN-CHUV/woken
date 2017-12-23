@@ -166,7 +166,6 @@ trait BootedCore
       .flatMap(_.unbind())
       .flatMap(_ => system.terminate())
       .onComplete(_ => ())
-
   }
   ()
 
