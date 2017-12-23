@@ -25,8 +25,11 @@ import spray.json._
 
 sealed trait JobResult extends Product with Serializable {
   def jobId: String
+
   def node: String
+
   def timestamp: OffsetDateTime
+
   def function: String
 }
 
@@ -116,6 +119,13 @@ object PfaExperimentJobResult {
                   "node"      -> JsString(node),
                   "timestamp" -> timestamp.toJson,
                   "data"      -> JsString(data)
+                )
+              case PfaExperimentJobResult(jobId, node, timestamp, models) =>
+                JsObject(
+                  "jobId"     -> JsString(jobId),
+                  "node"      -> JsString(node),
+                  "timestamp" -> timestamp.toJson,
+                  "models"    -> models
                 )
             }
           }
