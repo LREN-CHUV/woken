@@ -98,7 +98,7 @@ case class FeaturesDAL(featuresDbConnection: DatabaseConfiguration) extends DAL 
     */
   def rowToObj(rs: ResultSet)(implicit cols: List[ColumnMeta]): JsObject = {
     val fields = for {
-      ColumnMeta(index, label, datatype) <- cols
+      ColumnMeta(index: Int, label: String, datatype: String) <- cols
       clazz = Class.forName(datatype)
       value = columnValueGetter(datatype, index, rs)
     } yield label -> value

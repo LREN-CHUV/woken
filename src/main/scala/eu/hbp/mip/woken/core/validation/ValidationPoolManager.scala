@@ -47,7 +47,7 @@ class ValidationPoolManager extends Actor with ActorLogging {
   def receive: PartialFunction[Any, Unit] = {
     case MemberUp(member) =>
       if (member.hasRole("validation")) {
-        log.info("New validation node in pool: " + member)
+        log.info("New validation node in pool: {}", member)
         ValidationPoolManager.validationPool += RootActorPath(member.address) / "user" / "validation"
       }
     case UnreachableMember(member) => Unit
