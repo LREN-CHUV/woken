@@ -17,52 +17,28 @@
 package eu.hbp.mip.woken.web
 
 import scala.concurrent.duration._
-import akka.actor.{
-  ActorRef,
-  ActorRefFactory,
-  ActorSystem,
-  Address,
-  ExtendedActorSystem,
-  Extension,
-  ExtensionId,
-  ExtensionIdProvider,
-  ExtensionKey,
-  Props
-}
+import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, Props}
 import akka.util.Timeout
 import akka.cluster.Cluster
 import akka.http.scaladsl.Http
 import cats.effect.IO
-import eu.hbp.mip.woken.api.{ Api, MasterRouter }
-import eu.hbp.mip.woken.config.{ AlgorithmsConfiguration, AppConfiguration, DatabaseConfiguration }
-import eu.hbp.mip.woken.core.{ CoordinatorConfig, Core, CoreActors }
+import eu.hbp.mip.woken.api.{Api, MasterRouter}
+import eu.hbp.mip.woken.config.{AlgorithmsConfiguration, AppConfiguration, DatabaseConfiguration}
+import eu.hbp.mip.woken.core.{CoordinatorConfig, Core, CoreActors}
 import eu.hbp.mip.woken.core.validation.ValidationPoolManager
-import eu.hbp.mip.woken.dao.{ FeaturesDAL, MetadataRepositoryDAO, WokenRepositoryDAO }
-import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, JobResultService, VariablesMetaService }
+import eu.hbp.mip.woken.dao.{FeaturesDAL, MetadataRepositoryDAO, WokenRepositoryDAO}
+import eu.hbp.mip.woken.service.{AlgorithmLibraryService, JobResultService, VariablesMetaService}
 import eu.hbp.mip.woken.ssl.WokenSSLConfiguration
 import akka.stream.ActorMaterializer
 
-import scala.concurrent.{ ExecutionContextExecutor, Future }
-
-class RemoteAddressExtensionImpl(system: ExtendedActorSystem) extends Extension {
-  def getAddress: Address =
-    system.provider.getDefaultAddress
-}
-
-object RemoteAddressExtension
-    extends ExtensionId[RemoteAddressExtensionImpl]
-    with ExtensionIdProvider {
-  override def createExtension(system: ExtendedActorSystem): RemoteAddressExtensionImpl =
-    new RemoteAddressExtensionImpl(system)
-
-  override def lookup() = RemoteAddressExtension
-}
+import scala.concurrent.{ExecutionContextExecutor, Future}
+import scala.sys.ShutdownHookThread
 
 /**
   * This trait implements ``Core`` by starting the required ``ActorSystem`` and registering the
   * termination handler to stop the system when the JVM exits.
   */
-@SuppressWarnings(Array("org.wartremover.warts.Throw"))
+@SuppressWarnings(Array("org.wartremover.warts.Throw", "org.wartremover.warts.NonUnitStatements"))
 trait BootedCore
     extends Core
     with CoreActors
@@ -149,19 +125,18 @@ trait BootedCore
 
   implicit val timeout: Timeout = Timeout(5.seconds)
 
-  Http().setDefaultServerHttpContext(https)
+  if (appConfig.webServicesHttps) Http().setDefaultServerHttpContext(https)
 
   // start a new HTTP server on port 8080 with our service actor as the handler
   val binding: Future[Http.ServerBinding] = Http().bindAndHandle(routes,
                                                                  interface =
                                                                    appConfig.networkInterface,
-                                                                 port = appConfig.webServicesPort,
-                                                                 connectionContext = https)
+                                                                 port = appConfig.webServicesPort)
 
   /**
     * Ensure that the constructed ActorSystem is shut down when the JVM shuts down
     */
-  val shutdownHook = sys.addShutdownHook {
+  val shutdownHook: ShutdownHookThread = sys.addShutdownHook {
     binding
       .flatMap(_.unbind())
       .flatMap(_ => system.terminate())

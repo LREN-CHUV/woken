@@ -302,7 +302,7 @@ services:
       - portalbackend
 
   frontend:
-    image: hbpmip/portal-frontend:2.4.0
+    image: hbpmip/portal-frontend:2.5.1
     depends_on:
       - portalbackend
     ports:

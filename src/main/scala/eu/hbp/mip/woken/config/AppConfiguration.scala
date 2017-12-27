@@ -30,6 +30,7 @@ case class AppConfiguration(
     dockerBridgeNetwork: Option[String],
     networkInterface: String,
     webServicesPort: Int,
+    webServicesHttps: Boolean,
     jobServiceName: String,
     basicAuth: BasicAuthentication,
     masterRouterConfig: MasterRouterConfig
@@ -46,6 +47,8 @@ object AppConfiguration {
       val networkInterface    = app.validateString("networkInterface")
       val port                = app.validateInt("webServicesPort")
       val jobServiceName      = app.validateString("jobServiceName")
+
+      val https: Validation[Boolean] = app.validateBoolean("webServicesHttps").orElse(lift(true))
 
       val basicAuth: Validation[BasicAuthentication] = app.validateConfig("basicAuth").andThen {
         c =>
@@ -65,6 +68,7 @@ object AppConfiguration {
        dockerBridgeNetwork,
        networkInterface,
        port,
+       https,
        jobServiceName,
        basicAuth,
        masterRouterConfig) mapN AppConfiguration.apply
