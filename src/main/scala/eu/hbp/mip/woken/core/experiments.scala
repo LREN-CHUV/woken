@@ -19,33 +19,23 @@ package eu.hbp.mip.woken.core
 import java.time.OffsetDateTime
 import java.util.UUID
 
-import akka.actor.{ Actor, ActorLogging, ActorRef, ActorSelection, FSM, LoggingFSM, Props }
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSelection, FSM, LoggingFSM, Props}
 import akka.pattern.ask
 import akka.util
 import akka.util.Timeout
 import com.github.levkhomich.akka.tracing.ActorTracing
-import eu.hbp.mip.woken.backends.{ DockerJob, QueryOffset }
-import eu.hbp.mip.woken.core.commands.JobCommands.{ StartCoordinatorJob, StartExperimentJob }
-import eu.hbp.mip.woken.config.{ AlgorithmDefinition, JobsConfiguration }
-import eu.hbp.mip.woken.core.model.{
-  ErrorJobResult,
-  JobResult,
-  PfaExperimentJobResult,
-  PfaJobResult
-}
-import eu.hbp.mip.woken.core.validation.{ KFoldCrossValidation, ValidationPoolManager }
+import eu.hbp.mip.woken.backends.{DockerJob, QueryOffset}
+import eu.hbp.mip.woken.core.commands.JobCommands.{StartCoordinatorJob, StartExperimentJob}
+import eu.hbp.mip.woken.config.{AlgorithmDefinition, JobsConfiguration}
+import eu.hbp.mip.woken.core.model.{ErrorJobResult, JobResult, PfaExperimentJobResult, PfaJobResult}
+import eu.hbp.mip.woken.core.validation.{KFoldCrossValidation, ValidationPoolManager}
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
-import eu.hbp.mip.woken.messages.external.{
-  Algorithm,
-  ExperimentQuery,
-  MiningQuery,
-  Validation => ApiValidation
-}
+import eu.hbp.mip.woken.messages.external.{Algorithm, ExperimentQuery, MiningQuery, ValidationSpec, Validation => ApiValidation}
 import eu.hbp.mip.woken.messages.validation._
-import eu.hbp.mip.woken.meta.{ MetaDataProtocol, VariableMetaData }
-import spray.json.{ JsString, _ }
+import eu.hbp.mip.woken.meta.{VariableMetaData, VariableMetaDataProtocol}
+import spray.json.{JsString, _}
 
-import scala.concurrent.{ Await, Future }
+import scala.concurrent.{Await, Future}
 import scala.util.Random
 
 /**
@@ -277,7 +267,7 @@ object AlgorithmActor {
                  inputTable: String,
                  query: MiningQuery,
                  metadata: JsObject,
-                 validations: List[ApiValidation],
+                 validations: List[ValidationSpec],
                  algorithmDefinition: AlgorithmDefinition) {
     // Invariants
     assert(query.algorithm.code == algorithmDefinition.code)
@@ -324,7 +314,7 @@ private[core] object AlgorithmStates {
   case class PartialAlgorithmData(initiator: ActorRef,
                                   job: Job,
                                   model: Option[JobResult],
-                                  incomingValidations: Map[ApiValidation, Either[String, JsObject]],
+                                  incomingValidations: Map[ValidationSpec, Either[String, JsObject]],
                                   expectedValidationCount: Int)
       extends AlgorithmData {
 
@@ -336,7 +326,7 @@ private[core] object AlgorithmStates {
   case class CompleteAlgorithmData(initiator: ActorRef,
                                    job: Job,
                                    model: JobResult,
-                                   validations: Map[ApiValidation, Either[String, JsObject]])
+                                   validations: Map[ValidationSpec, Either[String, JsObject]])
       extends AlgorithmData
 
   object CompleteAlgorithmData {
@@ -531,7 +521,7 @@ object CrossValidationActor {
       inputTable: String,
       query: MiningQuery,
       metadata: JsObject,
-      validation: ApiValidation,
+      validation: ValidationSpec,
       algorithmDefinition: AlgorithmDefinition
   )
 
@@ -539,8 +529,8 @@ object CrossValidationActor {
   case class Start(job: Job)
 
   // Output Messages
-  case class ResultResponse(validation: ApiValidation, data: JsObject)
-  case class ErrorResponse(validation: ApiValidation, message: String)
+  case class ResultResponse(validation: ValidationSpec, data: JsObject)
+  case class ErrorResponse(validation: ValidationSpec, message: String)
 
   def props(coordinatorConfig: CoordinatorConfig): Props =
     Props(new CrossValidationActor(coordinatorConfig))

@@ -70,14 +70,13 @@ class MiningService(
         complete(AlgorithmLibraryService().algorithms())
       }
     }
-
   }
 
   override def mining: Route = path("mining" / "job") {
     authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { user =>
       post {
         entity(as[MiningQuery]) {
-          case MiningQuery(variables, covariables, groups, filters, Algorithm(c, n, p))
+          case MiningQuery(variables, covariables, groups, filters, AlgorithmSpec(c, p))
               if c == "" || c == "data" =>
             ctx =>
               {
@@ -101,7 +100,6 @@ class MiningService(
         }
       }
     }
-
   }
 
   override def experiment: Route = path("mining" / "experiment") {
@@ -121,7 +119,6 @@ class MiningService(
         }
       }
     }
-
   }
 
   private def newCoordinatorActor(coordinatorConfig: CoordinatorConfig): ActorRef =

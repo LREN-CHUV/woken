@@ -17,21 +17,21 @@
 package eu.hbp.mip.woken.web
 
 import scala.concurrent.duration._
-import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, Props}
+import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem, Props }
 import akka.util.Timeout
 import akka.cluster.Cluster
 import akka.http.scaladsl.Http
 import cats.effect.IO
-import eu.hbp.mip.woken.api.{Api, MasterRouter}
-import eu.hbp.mip.woken.config.{AlgorithmsConfiguration, AppConfiguration, DatabaseConfiguration}
-import eu.hbp.mip.woken.core.{CoordinatorConfig, Core, CoreActors}
+import eu.hbp.mip.woken.api.{ Api, MasterRouter }
+import eu.hbp.mip.woken.config.{ AlgorithmsConfiguration, AppConfiguration, DatabaseConfiguration }
+import eu.hbp.mip.woken.core.{ CoordinatorConfig, Core, CoreActors }
 import eu.hbp.mip.woken.core.validation.ValidationPoolManager
-import eu.hbp.mip.woken.dao.{FeaturesDAL, MetadataRepositoryDAO, WokenRepositoryDAO}
-import eu.hbp.mip.woken.service.{AlgorithmLibraryService, JobResultService, VariablesMetaService}
+import eu.hbp.mip.woken.dao.{ FeaturesDAL, MetadataRepositoryDAO, WokenRepositoryDAO }
+import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, JobResultService, VariablesMetaService }
 import eu.hbp.mip.woken.ssl.WokenSSLConfiguration
 import akka.stream.ActorMaterializer
 
-import scala.concurrent.{ExecutionContextExecutor, Future}
+import scala.concurrent.{ ExecutionContextExecutor, Future }
 import scala.sys.ShutdownHookThread
 
 /**

@@ -82,10 +82,10 @@ case class MasterRouter(appConfiguration: AppConfiguration,
   def receive: PartialFunction[Any, Unit] = {
 
     // TODO: MethodsQuery should be case object
-    case _: MethodsQuery =>
-      sender ! Methods(algorithmLibraryService.algorithms().compactPrint)
+    case MethodsQuery =>
+      sender ! MethodsResponse(algorithmLibraryService.algorithms().compactPrint)
 
-    case MiningQuery(variables, covariables, groups, _, Algorithm(c, n, p))
+    case MiningQuery(variables, covariables, groups, _, AlgorithmSpec(c, p))
         if c == "" || c == "data" =>
     // TODO To be implemented
 
