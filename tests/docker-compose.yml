@@ -232,11 +232,11 @@ services:
 
   woken_validation:
     image: hbpmip/woken-validation:2.1.2
-    shm_size: 200m
+    shm_size: 300m
     volumes:
       - ./woken-validation/config/application.conf:/opt/woken-validation/config/application.conf
     ports:
-      - "2551:8082"
+      - "2552:8082"
     hostname: woken-validation
     links:
       - zipkin
@@ -257,9 +257,9 @@ services:
     build:
       context: ./woken-test
       dockerfile: Dockerfile
-    shm_size: 200m
+    shm_size: 300m
     ports:
-      - "2551:8097"
+      - "2557:8097"
     depends_on:
       - woken
 
@@ -267,7 +267,7 @@ services:
     image: "hbpmip/portal-backend:2.5.1"
     container_name: "backend-test"
     restart: "no"
-    shm_size: 200m
+    shm_size: 300m
     ports:
       - "65440:8080"
     environment:
