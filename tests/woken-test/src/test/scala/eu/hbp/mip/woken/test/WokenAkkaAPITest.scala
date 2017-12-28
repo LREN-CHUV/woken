@@ -44,9 +44,9 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
       system.actorSelection("akka.tcp://woken@woken:8088/user/entrypoint")
     val start = System.currentTimeMillis()
 
-    val future = api ? MethodsQuery()
+    val future = api ? MethodsQuery
 
-    val result = waitFor[Methods](future)
+    val result = waitFor[MethodsResponse](future)
 
     val end = System.currentTimeMillis()
 
@@ -72,9 +72,8 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
       List(VariableId("score_math_course1")),
       Nil,
       "",
-      Algorithm("knn",
-                "K-nearest neighbors with k=5",
-                Map[String, String]("k" -> "5"))
+      AlgorithmSpec("knn",
+                List(CodeValue("k", "5")))
     )
 
     val result = waitFor[QueryResult](future)
@@ -107,7 +106,7 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
       List("score_math_course1", "score_math_course2").map(VariableId),
       Nil,
       "",
-      Algorithm("histograms", "Histograms", Map())
+      AlgorithmSpec("histograms", Nil)
     )
 
     val result = waitFor[QueryResult](future)
@@ -138,8 +137,7 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
     val start = System.currentTimeMillis()
 
     val future = api ? experimentQuery("knn",
-                                       "K-nearest neighbors with k=5",
-                                       Map("k" -> "5"))
+                                       List(CodeValue("k", "5")))
 
     val result = waitFor[QueryResult](future)
 
@@ -175,7 +173,7 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
                         "invalid_pfa_semantics")
 
     val futures = failures.map(failure =>
-      api ? experimentQuery("chaos", "Failure", Map("failure" -> failure)))
+      api ? experimentQuery("chaos", List(CodeValue("failure", failure))))
 
     futures.foreach { f =>
       println("Waiting for result from chaos algorithm...")
@@ -184,8 +182,7 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
     }
 
     val successfulFuture = api ? experimentQuery("knn",
-                                                 "K-nearest neighbors with k=5",
-                                                 Map("k" -> "5"))
+                                                 List(CodeValue("k", "5")))
 
     val result = waitFor[QueryResult](successfulFuture)
 
@@ -205,15 +202,14 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
   }
 
   private def experimentQuery(algorithm: String,
-                              description: String,
-                              parameters: Map[String, String]) =
+                              parameters: List[CodeValue]) =
     ExperimentQuery(
       List(VariableId("cognitive_task2")),
       List(VariableId("score_test1"), VariableId("college_math")),
       Nil,
       "",
-      List(Algorithm(algorithm, description, parameters)),
-      List(Validation("kfold", "kfold", Map("k" -> "2")))
+      List(AlgorithmSpec(algorithm, parameters)),
+      List(ValidationSpec("kfold", List(CodeValue("k", "2"))))
     )
 
   private def waitFor[T](future: Future[Any])(
