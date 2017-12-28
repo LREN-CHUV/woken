@@ -14,6 +14,7 @@ lazy val `woken-test` =
           library.akkaActor,
           library.akkaRemote,
           library.akkaCluster,
+          library.akkaClusterTools,
           library.akkaSlf4j,
           library.sprayJson,
           library.slf4j,
@@ -48,19 +49,20 @@ lazy val library =
       val config        = "1.2.1"
       val wokenMessages = "2.1.6"
     }
-    val scalaCheck: ModuleID   = "org.scalacheck"    %% "scalacheck"   % Version.scalaCheck
-    val scalaTest: ModuleID    = "org.scalatest"     %% "scalatest"    % Version.scalaTest
-    val akkaActor: ModuleID    = "com.typesafe.akka" %% "akka-actor"   % Version.akka
-    val akkaRemote: ModuleID   = "com.typesafe.akka" %% "akka-remote"  % Version.akka
-    val akkaCluster: ModuleID  = "com.typesafe.akka" %% "akka-cluster" % Version.akka
-    val akkaSlf4j: ModuleID    = "com.typesafe.akka" %% "akka-slf4j"   % Version.akka
-    val akkaTestkit: ModuleID  = "com.typesafe.akka" %% "akka-testkit" % Version.akka
-    val sprayJson: ModuleID    = "io.spray"          %% "spray-json"   % Version.sprayJson
-    val slf4j: ModuleID        = "org.slf4j"          % "slf4j-api"    % Version.slf4j
-    val log4jSlf4j: ModuleID   = "org.apache.logging.log4j" % "log4j-slf4j-impl" % Version.log4j
-    val disruptor: ModuleID    = "com.lmax"           % "disruptor"    % Version.disruptor
-    val config: ModuleID       = "com.typesafe"       % "config"       % Version.config
-    val wokenMessages: ModuleID = "eu.humanbrainproject.mip" %% "woken-messages" % Version.wokenMessages
+    val scalaCheck: ModuleID       = "org.scalacheck"    %% "scalacheck"   % Version.scalaCheck
+    val scalaTest: ModuleID        = "org.scalatest"     %% "scalatest"    % Version.scalaTest
+    val akkaActor: ModuleID        = "com.typesafe.akka" %% "akka-actor"   % Version.akka
+    val akkaRemote: ModuleID       = "com.typesafe.akka" %% "akka-remote"  % Version.akka
+    val akkaCluster: ModuleID      = "com.typesafe.akka" %% "akka-cluster" % Version.akka
+    val akkaClusterTools: ModuleID = "com.typesafe.akka" %% "akka-cluster-tools" % Version.akka
+    val akkaSlf4j: ModuleID        = "com.typesafe.akka" %% "akka-slf4j"   % Version.akka
+    val akkaTestkit: ModuleID      = "com.typesafe.akka" %% "akka-testkit" % Version.akka
+    val sprayJson: ModuleID        = "io.spray"          %% "spray-json"   % Version.sprayJson
+    val slf4j: ModuleID            = "org.slf4j"          % "slf4j-api"    % Version.slf4j
+    val log4jSlf4j: ModuleID       = "org.apache.logging.log4j" % "log4j-slf4j-impl" % Version.log4j
+    val disruptor: ModuleID        = "com.lmax"           % "disruptor"    % Version.disruptor
+    val config: ModuleID           = "com.typesafe"       % "config"       % Version.config
+    val wokenMessages: ModuleID    = "eu.humanbrainproject.mip" %% "woken-messages" % Version.wokenMessages
   }
 
 resolvers += "opendatagroup maven" at "http://repository.opendatagroup.com/maven"

@@ -20,6 +20,7 @@ import scala.concurrent.duration._
 import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem, Props }
 import akka.util.Timeout
 import akka.cluster.Cluster
+import akka.cluster.client.ClusterClientReceptionist
 import akka.http.scaladsl.Http
 import cats.effect.IO
 import eu.hbp.mip.woken.api.{ Api, MasterRouter }
@@ -117,6 +118,8 @@ trait BootedCore
                          AlgorithmsConfiguration.factory(config)),
       name = "entrypoint"
     )
+
+  ClusterClientReceptionist(system).registerService(mainRouter)
 
   /**
     * Create and start actor responsible to register validation node

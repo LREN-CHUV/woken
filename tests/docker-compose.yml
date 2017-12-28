@@ -1,7 +1,7 @@
 # Configuration taken from https://github.com/meltwater/docker-mesos
 # https://github.com/containous/traefik/blob/master/examples/compose-marathon.yml
 
-version: '3'
+version: '3.0'
 
 services:
   zookeeper:
@@ -217,11 +217,12 @@ services:
 
   woken:
     image: hbpmip/woken
+    shm_size: 300m
     volumes:
       - ./woken/config:/opt/woken/config
     ports:
       - "8087:8087"
-      - "8088:8088"
+      - "2551:8088"
     hostname: woken
     links:
       - zipkin
@@ -231,10 +232,11 @@ services:
 
   woken_validation:
     image: hbpmip/woken-validation:2.1.2
+    shm_size: 200m
     volumes:
       - ./woken-validation/config/application.conf:/opt/woken-validation/config/application.conf
     ports:
-      - "8082:8082"
+      - "2551:8082"
     hostname: woken-validation
     links:
       - zipkin
@@ -255,6 +257,9 @@ services:
     build:
       context: ./woken-test
       dockerfile: Dockerfile
+    shm_size: 200m
+    ports:
+      - "2551:8097"
     depends_on:
       - woken
 
@@ -262,6 +267,7 @@ services:
     image: "hbpmip/portal-backend:2.5.1"
     container_name: "backend-test"
     restart: "no"
+    shm_size: 200m
     ports:
       - "65440:8080"
     environment:
