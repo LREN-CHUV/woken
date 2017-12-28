@@ -16,7 +16,7 @@
 
 package eu.hbp.mip.woken.core.validation
 
-import eu.hbp.mip.woken.messages.external.{ Algorithm, ExperimentQuery, Validation, VariableId }
+import eu.hbp.mip.woken.messages.external._
 import org.scalatest._
 
 class KFoldCrossValidationTest extends FlatSpec with Matchers {
@@ -50,8 +50,8 @@ class KFoldCrossValidationTest extends FlatSpec with Matchers {
       covariables = List(VariableId("AGE")),
       grouping = List(VariableId("COLPROT")),
       filters = "",
-      algorithms = List(Algorithm("linearRegression", "linearRegression", Map())),
-      validations = List(Validation("kfold", "kfold", Map("k" -> "2")))
+      algorithms = List(AlgorithmSpec("linearRegression", List())),
+      validations = List(ValidationSpec("kfold", List(CodeValue("k", "2"))))
     )
 
     experimentQuery shouldBe expected
@@ -59,7 +59,7 @@ class KFoldCrossValidationTest extends FlatSpec with Matchers {
 
   "A validation JSON object" should "be readable" in {
 
-    import eu.hbp.mip.woken.json.ApiJsonSupport._
+    import eu.hbp.mip.woken.messages.external.ExternalAPIProtocol._
     import spray.json._
 
     val source =
@@ -72,9 +72,9 @@ class KFoldCrossValidationTest extends FlatSpec with Matchers {
         |
         |""".stripMargin
     val jsonAst    = source.parseJson
-    val validation = jsonAst.convertTo[Validation]
+    val validation = jsonAst.convertTo[ValidationSpec]
 
-    val expected = Validation("kfold", "kfold", Map("k" -> "2"))
+    val expected = ValidationSpec("kfold", List(CodeValue("k", "2")))
 
     validation shouldBe expected
   }

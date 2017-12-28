@@ -20,7 +20,7 @@ import java.time.OffsetDateTime
 
 import eu.hbp.mip.woken.core.model.Shapes.{ pfa => pfaShape, _ }
 import eu.hbp.mip.woken.json.formats
-import eu.hbp.mip.woken.messages.external.{ Algorithm, QueryResult }
+import eu.hbp.mip.woken.messages.external.{ AlgorithmSpec, QueryResult }
 import spray.json._
 
 sealed trait JobResult extends Product with Serializable {
@@ -61,8 +61,8 @@ case class PfaExperimentJobResult(jobId: String,
 
 object PfaExperimentJobResult {
 
-  def apply(algorithms: List[Algorithm],
-            results: Map[Algorithm, JobResult],
+  def apply(algorithms: List[AlgorithmSpec],
+            results: Map[AlgorithmSpec, JobResult],
             experimentJobId: String,
             experimentNode: String): PfaExperimentJobResult = {
 
@@ -81,7 +81,6 @@ object PfaExperimentJobResult {
                   "type"      -> JsString(pfaShape.mime),
                   "function"  -> JsString(function),
                   "code"      -> JsString(a.code),
-                  "name"      -> JsString(a.name),
                   "jobId"     -> JsString(jobId),
                   "node"      -> JsString(node),
                   "timestamp" -> timestamp.toJson,
@@ -92,7 +91,6 @@ object PfaExperimentJobResult {
                   "type"      -> JsString(error.mime),
                   "function"  -> JsString(function),
                   "code"      -> JsString(a.code),
-                  "name"      -> JsString(a.name),
                   "jobId"     -> JsString(jobId),
                   "node"      -> JsString(node),
                   "timestamp" -> timestamp.toJson,
@@ -103,7 +101,6 @@ object PfaExperimentJobResult {
                   "type"      -> JsString(shape),
                   "function"  -> JsString(function),
                   "code"      -> JsString(a.code),
-                  "name"      -> JsString(a.name),
                   "jobId"     -> JsString(jobId),
                   "node"      -> JsString(node),
                   "timestamp" -> timestamp.toJson,
@@ -114,7 +111,6 @@ object PfaExperimentJobResult {
                   "type"      -> JsString(shape),
                   "function"  -> JsString(function),
                   "code"      -> JsString(a.code),
-                  "name"      -> JsString(a.name),
                   "jobId"     -> JsString(jobId),
                   "node"      -> JsString(node),
                   "timestamp" -> timestamp.toJson,

@@ -20,6 +20,7 @@ import java.time.{ LocalDateTime, OffsetDateTime, ZoneOffset }
 
 import spray.json.{ JsNumber, JsValue, RootJsonFormat, deserializationError }
 
+// TODO: delete, now in ExternalAPIProtocol
 object formats {
 
   implicit object OffsetDateTimeJsonFormat extends RootJsonFormat[OffsetDateTime] {

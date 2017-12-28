@@ -16,52 +16,42 @@
 
 package eu.hbp.mip.woken.api
 
-import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem }
+import akka.actor.{ActorRef, ActorSystem}
+import akka.pattern.ask
 import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.model.StatusCodes._
 import eu.hbp.mip.woken.api.swagger.MiningServiceApi
 import eu.hbp.mip.woken.authentication.BasicAuthentication
-import eu.hbp.mip.woken.config.{ AlgorithmDefinition, AppConfiguration, JobsConfiguration }
+import eu.hbp.mip.woken.config.{AppConfiguration, JobsConfiguration}
 import eu.hbp.mip.woken.messages.external._
-import eu.hbp.mip.woken.core._
 import eu.hbp.mip.woken.dao.FeaturesDAL
-import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, JobResultService, VariablesMetaService }
-import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
-import MiningQueries._
-import akka.http.scaladsl.model.StatusCodes
-import eu.hbp.mip.woken.core.commands.JobCommands.{
-  Command,
-  StartCoordinatorJob,
-  StartExperimentJob
-}
+import eu.hbp.mip.woken.service.AlgorithmLibraryService
+import akka.util.Timeout
 import eu.hbp.mip.woken.json.DefaultJsonFormats
 
-import scala.concurrent.ExecutionContextExecutor
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext
 
 object MiningService
 
 // this trait defines our service behavior independently from the service actor
 class MiningService(
-    val chronosService: ActorRef,
+    val masterRouter: ActorRef,
     val featuresDatabase: FeaturesDAL,
-    val jobResultService: JobResultService,
-    val variablesMetaService: VariablesMetaService,
     override val appConfiguration: AppConfiguration,
-    val coordinatorConfig: CoordinatorConfig,
     val jobsConf: JobsConfiguration,
-    val algorithmLookup: String => Validation[AlgorithmDefinition]
 )(implicit system: ActorSystem)
     extends MiningServiceApi
     with FailureHandling
-    with PerRequestCreator
     with DefaultJsonFormats
     with BasicAuthentication {
 
-  override def context: ActorRefFactory = system
-
-  implicit val executionContext: ExecutionContextExecutor = context.dispatcher
+  implicit val executionContext: ExecutionContext = system.dispatcher
+  implicit val timeout: Timeout = Timeout(180.seconds)
 
   val routes: Route = mining ~ experiment ~ listMethods
 
+  import spray.json._
   import eu.hbp.mip.woken.json.ApiJsonSupport._
 
   override def listMethods: Route = path("mining" / "methods") {
@@ -88,15 +78,12 @@ class MiningService(
               }
 
           case query: MiningQuery =>
-            val job = miningQuery2job(variablesMetaService, jobsConf, algorithmLookup)(query)
-            job.fold(
-              errors => complete(StatusCodes.BadRequest -> errors.toList.mkString(", ")),
-              dockerJob =>
-                miningJob(coordinatorConfig) {
-                  StartCoordinatorJob(dockerJob)
+            ctx => ctx.complete {
+              { masterRouter ? query }.mapTo[QueryResult].map {
+                case qr @ QueryResult(_, _, _, _, _, Some(data), None) => OK -> qr.toJson
+                case qr @ QueryResult(_, _, _, _, _, _, Some(error)) => BadRequest -> qr.toJson
               }
-            )
-
+            }
         }
       }
     }
@@ -106,45 +93,15 @@ class MiningService(
     authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { user =>
       post {
         entity(as[ExperimentQuery]) { query: ExperimentQuery =>
-          {
-            val job = experimentQuery2job(variablesMetaService, jobsConf)(query)
-            job.fold(
-              errors => complete(StatusCodes.BadRequest -> errors.toList.mkString(", ")),
-              experimentActorJob =>
-                experimentJob(coordinatorConfig, algorithmLookup) {
-                  StartExperimentJob(experimentActorJob)
-              }
-            )
+          complete {
+            { masterRouter ? query }.mapTo[QueryResult].map {
+              case qr @ QueryResult(_, _, _, _, _, Some(data), None) => OK -> qr.toJson
+              case qr @ QueryResult(_, _, _, _, _, _, Some(error)) => BadRequest -> qr.toJson
+            }
           }
         }
       }
     }
   }
-
-  private def newCoordinatorActor(coordinatorConfig: CoordinatorConfig): ActorRef =
-    context.actorOf(CoordinatorActor.props(coordinatorConfig))
-
-  private def newExperimentActor(
-      coordinatorConfig: CoordinatorConfig,
-      algorithmLookup: String => Validation[AlgorithmDefinition]
-  ): ActorRef =
-    context.actorOf(ExperimentActor.props(coordinatorConfig, algorithmLookup))
-
-  import PerRequest._
-
-  def miningJob(coordinatorConfig: CoordinatorConfig)(command: Command): Route =
-    asyncComplete { ctx =>
-      perRequest(ctx, newCoordinatorActor(coordinatorConfig), command)
-      ()
-    }
-
-  def experimentJob(
-      coordinatorConfig: CoordinatorConfig,
-      algorithmLookup: String => Validation[AlgorithmDefinition]
-  )(command: Command): Route =
-    asyncComplete { ctx =>
-      perRequest(ctx, newExperimentActor(coordinatorConfig, algorithmLookup), command)
-      ()
-    }
 
 }

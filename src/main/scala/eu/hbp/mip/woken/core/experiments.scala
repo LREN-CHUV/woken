@@ -19,23 +19,33 @@ package eu.hbp.mip.woken.core
 import java.time.OffsetDateTime
 import java.util.UUID
 
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSelection, FSM, LoggingFSM, Props}
+import akka.actor.{ Actor, ActorLogging, ActorRef, ActorSelection, FSM, LoggingFSM, Props }
 import akka.pattern.ask
 import akka.util
 import akka.util.Timeout
 import com.github.levkhomich.akka.tracing.ActorTracing
-import eu.hbp.mip.woken.backends.{DockerJob, QueryOffset}
-import eu.hbp.mip.woken.core.commands.JobCommands.{StartCoordinatorJob, StartExperimentJob}
-import eu.hbp.mip.woken.config.{AlgorithmDefinition, JobsConfiguration}
-import eu.hbp.mip.woken.core.model.{ErrorJobResult, JobResult, PfaExperimentJobResult, PfaJobResult}
-import eu.hbp.mip.woken.core.validation.{KFoldCrossValidation, ValidationPoolManager}
+import eu.hbp.mip.woken.backends.{ DockerJob, QueryOffset }
+import eu.hbp.mip.woken.core.commands.JobCommands.{ StartCoordinatorJob, StartExperimentJob }
+import eu.hbp.mip.woken.config.{ AlgorithmDefinition, JobsConfiguration }
+import eu.hbp.mip.woken.core.model.{
+  ErrorJobResult,
+  JobResult,
+  PfaExperimentJobResult,
+  PfaJobResult
+}
+import eu.hbp.mip.woken.core.validation.{ KFoldCrossValidation, ValidationPoolManager }
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
-import eu.hbp.mip.woken.messages.external.{Algorithm, ExperimentQuery, MiningQuery, ValidationSpec, Validation => ApiValidation}
+import eu.hbp.mip.woken.messages.external.{
+  AlgorithmSpec,
+  ExperimentQuery,
+  MiningQuery,
+  ValidationSpec
+}
 import eu.hbp.mip.woken.messages.validation._
-import eu.hbp.mip.woken.meta.{VariableMetaData, VariableMetaDataProtocol}
-import spray.json.{JsString, _}
+import eu.hbp.mip.woken.meta.{ VariableMetaData, VariableMetaDataProtocol }
+import spray.json.{ JsString, _ }
 
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{ Await, Future }
 import scala.util.Random
 
 /**
@@ -89,8 +99,8 @@ private[core] object ExperimentStates {
   case class PartialExperimentData(
       initiator: ActorRef,
       job: Job,
-      results: Map[Algorithm, JobResult],
-      algorithms: List[Algorithm]
+      results: Map[AlgorithmSpec, JobResult],
+      algorithms: List[AlgorithmSpec]
   ) extends ExperimentData {
     def isComplete: Boolean = results.size == algorithms.length
   }
@@ -145,8 +155,8 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
       log.info(s"List of algorithms: ${algorithms.mkString(",")}")
 
       // Spawn an AlgorithmActor for every algorithm
-      val noResults = Map[Algorithm, JobResult]()
-      val results: Map[Algorithm, JobResult] = algorithms.foldLeft(noResults) { (res, a) =>
+      val noResults = Map[AlgorithmSpec, JobResult]()
+      val results: Map[AlgorithmSpec, JobResult] = algorithms.foldLeft(noResults) { (res, a) =>
         val jobId = UUID.randomUUID().toString
         val miningQuery = MiningQuery(
           variables = job.query.variables,
@@ -155,7 +165,7 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
           filters = job.query.filters,
           algorithm = a
         )
-        algorithmLookup(a.code).fold[Map[Algorithm, JobResult]](
+        algorithmLookup(a.code).fold[Map[AlgorithmSpec, JobResult]](
           errorMessage => {
             res + (a -> ErrorJobResult(jobId,
                                        coordinatorConfig.jobsConf.node,
@@ -277,8 +287,8 @@ object AlgorithmActor {
   case class Start(job: Job)
 
   // Output messages
-  case class ResultResponse(algorithm: Algorithm, model: JobResult)
-  case class ErrorResponse(algorithm: Algorithm, error: ErrorJobResult)
+  case class ResultResponse(algorithm: AlgorithmSpec, model: JobResult)
+  case class ErrorResponse(algorithm: AlgorithmSpec, error: ErrorJobResult)
 
   def props(coordinatorConfig: CoordinatorConfig): Props =
     Props(new AlgorithmActor(coordinatorConfig))
@@ -311,12 +321,13 @@ private[core] object AlgorithmStates {
     def initiator = throw new IllegalAccessException()
   }
 
-  case class PartialAlgorithmData(initiator: ActorRef,
-                                  job: Job,
-                                  model: Option[JobResult],
-                                  incomingValidations: Map[ValidationSpec, Either[String, JsObject]],
-                                  expectedValidationCount: Int)
-      extends AlgorithmData {
+  case class PartialAlgorithmData(
+      initiator: ActorRef,
+      job: Job,
+      model: Option[JobResult],
+      incomingValidations: Map[ValidationSpec, Either[String, JsObject]],
+      expectedValidationCount: Int
+  ) extends AlgorithmData {
 
     def isComplete: Boolean =
       (incomingValidations.size == expectedValidationCount) && model.isDefined
@@ -472,11 +483,9 @@ class AlgorithmActor(coordinatorConfig: CoordinatorConfig)
         data.validations
           .map({
             case (key, Right(value)) =>
-              JsObject("code" -> JsString(key.code), "name" -> JsString(key.name), "data" -> value)
+              JsObject("code" -> JsString(key.code), "data" -> value)
             case (key, Left(message)) =>
-              JsObject("code"  -> JsString(key.code),
-                       "name"  -> JsString(key.name),
-                       "error" -> JsString(message))
+              JsObject("code" -> JsString(key.code), "error" -> JsString(message))
           })
           .toVector
       )
@@ -610,12 +619,11 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
 
   when(WaitForNewJob) {
     case Event(Start(job), _) =>
-      val algorithm  = job.query.algorithm
       val validation = job.validation
 
       log.info(s"List of folds: ${validation.parameters("k")}")
 
-      val foldCount = validation.parameters("k").toInt
+      val foldCount = validation.parametersAsMap("k").toInt
 
       // TODO For now only kfold cross-validation
       val crossValidation = KFoldCrossValidation(job, foldCount, coordinatorConfig.featuresDatabase)
@@ -649,7 +657,7 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
 
       // TODO: move this code in a better place, test it
       import eu.hbp.mip.woken.core.model.Queries._
-      import MetaDataProtocol._
+      import VariableMetaDataProtocol._
       val targetMetaData: VariableMetaData = job.metadata
         .convertTo[Map[String, VariableMetaData]]
         .get(job.query.dbVariables.head) match {
@@ -674,7 +682,7 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
     case Event(CoordinatorActor.Response(_, List(pfa: PfaJobResult)), data: WaitForWorkersState) =>
       // Validate the results
       log.info("Received result from local method.")
-      val model    = pfa.model.toString()
+      val model    = pfa.model
       val fold     = data.workers(sender)
       val testData = data.validation.getTestSet(fold)._1.map(d => d.compactPrint)
 

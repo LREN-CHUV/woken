@@ -37,6 +37,7 @@ trait Core {
 
   protected def config: Config
   protected def jobsConf: JobsConfiguration
+  protected def mainRouter: ActorRef
 
 }
 

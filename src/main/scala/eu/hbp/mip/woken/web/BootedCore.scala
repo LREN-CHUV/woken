@@ -108,7 +108,7 @@ trait BootedCore
   /**
     * Create and start actor that acts as akka entry-point
     */
-  val mainRouter: ActorRef =
+  override val mainRouter: ActorRef =
     system.actorOf(
       MasterRouter.props(appConfig,
                          coordinatorConfig,
