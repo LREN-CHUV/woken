@@ -16,13 +16,13 @@
 
 package eu.hbp.mip.woken.api
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.{ ActorRef, ActorSystem }
 import akka.pattern.ask
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.model.StatusCodes._
 import eu.hbp.mip.woken.api.swagger.MiningServiceApi
 import eu.hbp.mip.woken.authentication.BasicAuthentication
-import eu.hbp.mip.woken.config.{AppConfiguration, JobsConfiguration}
+import eu.hbp.mip.woken.config.{ AppConfiguration, JobsConfiguration }
 import eu.hbp.mip.woken.messages.external._
 import eu.hbp.mip.woken.dao.FeaturesDAL
 import eu.hbp.mip.woken.service.AlgorithmLibraryService
@@ -39,7 +39,7 @@ class MiningService(
     val masterRouter: ActorRef,
     val featuresDatabase: FeaturesDAL,
     override val appConfiguration: AppConfiguration,
-    val jobsConf: JobsConfiguration,
+    val jobsConf: JobsConfiguration
 )(implicit system: ActorSystem)
     extends MiningServiceApi
     with FailureHandling
@@ -47,12 +47,12 @@ class MiningService(
     with BasicAuthentication {
 
   implicit val executionContext: ExecutionContext = system.dispatcher
-  implicit val timeout: Timeout = Timeout(180.seconds)
+  implicit val timeout: Timeout                   = Timeout(180.seconds)
 
   val routes: Route = mining ~ experiment ~ listMethods
 
   import spray.json._
-  import eu.hbp.mip.woken.json.ApiJsonSupport._
+  import ExternalAPIProtocol._
 
   override def listMethods: Route = path("mining" / "methods") {
     authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { _ =>
@@ -78,12 +78,13 @@ class MiningService(
               }
 
           case query: MiningQuery =>
-            ctx => ctx.complete {
-              { masterRouter ? query }.mapTo[QueryResult].map {
-                case qr @ QueryResult(_, _, _, _, _, Some(data), None) => OK -> qr.toJson
-                case qr @ QueryResult(_, _, _, _, _, _, Some(error)) => BadRequest -> qr.toJson
+            ctx =>
+              ctx.complete {
+                { masterRouter ? query }.mapTo[QueryResult].map {
+                  case qr @ QueryResult(_, _, _, _, _, Some(data), None) => OK         -> qr.toJson
+                  case qr @ QueryResult(_, _, _, _, _, _, Some(error))   => BadRequest -> qr.toJson
+                }
               }
-            }
         }
       }
     }
@@ -95,8 +96,8 @@ class MiningService(
         entity(as[ExperimentQuery]) { query: ExperimentQuery =>
           complete {
             { masterRouter ? query }.mapTo[QueryResult].map {
-              case qr @ QueryResult(_, _, _, _, _, Some(data), None) => OK -> qr.toJson
-              case qr @ QueryResult(_, _, _, _, _, _, Some(error)) => BadRequest -> qr.toJson
+              case qr @ QueryResult(_, _, _, _, _, Some(data), None) => OK         -> qr.toJson
+              case qr @ QueryResult(_, _, _, _, _, _, Some(error))   => BadRequest -> qr.toJson
             }
           }
         }

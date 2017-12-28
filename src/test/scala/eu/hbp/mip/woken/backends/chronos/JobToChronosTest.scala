@@ -18,9 +18,9 @@ package eu.hbp.mip.woken.backends.chronos
 
 import cats.data.ValidatedNel
 import eu.hbp.mip.woken.backends.DockerJob
-import eu.hbp.mip.woken.config.{DatabaseConfiguration, JobsConfiguration}
-import eu.hbp.mip.woken.messages.external.{AlgorithmSpec, CodeValue, MiningQuery, VariableId}
-import org.scalatest.{FlatSpec, Matchers}
+import eu.hbp.mip.woken.config.{ DatabaseConfiguration, JobsConfiguration }
+import eu.hbp.mip.woken.messages.external.{ AlgorithmSpec, CodeValue, MiningQuery, VariableId }
+import org.scalatest.{ FlatSpec, Matchers }
 import spray.json._
 import cats.syntax.validated._
 

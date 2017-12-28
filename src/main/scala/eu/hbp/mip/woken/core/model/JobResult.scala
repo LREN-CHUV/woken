@@ -19,8 +19,7 @@ package eu.hbp.mip.woken.core.model
 import java.time.OffsetDateTime
 
 import eu.hbp.mip.woken.core.model.Shapes.{ pfa => pfaShape, _ }
-import eu.hbp.mip.woken.json.formats
-import eu.hbp.mip.woken.messages.external.{ AlgorithmSpec, QueryResult }
+import eu.hbp.mip.woken.messages.external.{ AlgorithmSpec, ExternalAPIProtocol, QueryResult }
 import spray.json._
 
 sealed trait JobResult extends Product with Serializable {
@@ -67,7 +66,7 @@ object PfaExperimentJobResult {
             experimentNode: String): PfaExperimentJobResult = {
 
     implicit val offsetDateTimeJsonFormat: RootJsonFormat[OffsetDateTime] =
-      formats.OffsetDateTimeJsonFormat
+      ExternalAPIProtocol.OffsetDateTimeJsonFormat
 
     // Concatenate results while respecting received algorithms order
     val output = JsArray(

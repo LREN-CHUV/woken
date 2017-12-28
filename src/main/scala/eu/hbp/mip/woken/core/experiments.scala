@@ -620,10 +620,9 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
   when(WaitForNewJob) {
     case Event(Start(job), _) =>
       val validation = job.validation
+      val foldCount  = validation.parametersAsMap("k").toInt
 
-      log.info(s"List of folds: ${validation.parameters("k")}")
-
-      val foldCount = validation.parametersAsMap("k").toInt
+      log.info(s"List of folds: $foldCount")
 
       // TODO For now only kfold cross-validation
       val crossValidation = KFoldCrossValidation(job, foldCount, coordinatorConfig.featuresDatabase)
