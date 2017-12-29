@@ -56,15 +56,6 @@ trait CoreActors {
 
   private implicit val materializer: ActorMaterializer = ActorMaterializer()
 
-//  val chronosActor: ActorRef = system.actorOf(ChronosService.props(jobsConf), "chronos")
-//
-//  val chronosHttp: ActorRef = Source
-//    .actorRef(10, OverflowStrategy.dropNew)
-//    .throttle(1, 300.milli, 10, ThrottleMode.shaping)
-//    .to(Sink.actorRef(chronosActor, NotUsed))
-//    .withAttributes(ActorAttributes.supervisionStrategy(Supervision.resumingDecider))
-//    .run()
-
   private val supervisor = BackoffSupervisor.props(
     Backoff.onFailure(
       ChronosService.props(jobsConf),
