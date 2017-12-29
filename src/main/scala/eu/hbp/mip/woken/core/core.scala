@@ -17,11 +17,10 @@
 package eu.hbp.mip.woken.core
 
 import akka.NotUsed
-import akka.actor.{ ActorRef, ActorSystem, Props }
-import akka.contrib.throttle.{ Throttler, TimerBasedThrottler }
-import akka.stream.{ ActorMaterializer, OverflowStrategy, ThrottleMode }
-import akka.stream.scaladsl.{ Sink, Source }
-import com.typesafe.config.{ Config, ConfigFactory }
+import akka.actor.{ActorRef, ActorSystem}
+import akka.stream._
+import akka.stream.scaladsl.{Sink, Source}
+import com.typesafe.config.{Config, ConfigFactory}
 import eu.hbp.mip.woken.backends.chronos.ChronosService
 import eu.hbp.mip.woken.config.JobsConfiguration
 
@@ -36,6 +35,7 @@ trait Core {
   protected implicit def system: ActorSystem
 
   protected def config: Config
+
   protected def jobsConf: JobsConfiguration
 
 }
@@ -60,6 +60,7 @@ trait CoreActors {
     .actorRef(10, OverflowStrategy.dropNew)
     .throttle(1, 300.milli, 10, ThrottleMode.shaping)
     .to(Sink.actorRef(chronosActor, NotUsed))
+    .withAttributes(ActorAttributes.supervisionStrategy(Supervision.resumingDecider))
     .run()
 
 }

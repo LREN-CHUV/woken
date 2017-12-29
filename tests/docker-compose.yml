@@ -230,7 +230,7 @@ services:
       - db
 
   woken_validation:
-    image: hbpmip/woken-validation:2.1.0
+    image: hbpmip/woken-validation:clustering-support
     volumes:
       - ./woken-validation/config/application.conf:/opt/woken-validation/config/application.conf
     ports:
