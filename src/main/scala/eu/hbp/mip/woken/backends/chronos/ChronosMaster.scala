@@ -17,7 +17,8 @@
 package eu.hbp.mip.woken.backends.chronos
 
 import akka.NotUsed
-import akka.actor.{ Actor, ActorLogging, Props }
+import akka.actor.{ Actor, ActorLogging, ActorRef, Props, Terminated }
+import akka.dispatch.sysmsg.Terminate
 import akka.stream._
 import akka.stream.scaladsl.{ Sink, Source }
 import eu.hbp.mip.woken.backends.chronos.ChronosMaster.{ Check, Schedule }
@@ -40,14 +41,24 @@ class ChronosMaster(jobsConfig: JobsConfiguration, implicit val materializer: Ma
     extends Actor
     with ActorLogging {
 
-  private val chronosWorker = context.actorOf(ChronosService.props(jobsConfig), "chronos")
+  private var throttler: ActorRef = _
 
-  private val throttler = Source
-    .actorRef(10, OverflowStrategy.fail)
-    .throttle(1, 1.second, 1, ThrottleMode.shaping)
-    .to(Sink.actorRef(chronosWorker, NotUsed))
-    .withAttributes(ActorAttributes.supervisionStrategy(Supervision.resumingDecider))
-    .run()
+  override def preStart(): Unit = {
+    val chronosWorker = context.actorOf(ChronosService.props(jobsConfig), "chronos")
+    throttler = Source
+      .actorRef(10, OverflowStrategy.fail)
+      .throttle(1, 1.second, 1, ThrottleMode.shaping)
+      .to(Sink.actorRef(chronosWorker, NotUsed))
+      .withAttributes(ActorAttributes.supervisionStrategy(Supervision.resumingDecider))
+      .run()
+    context.watch(throttler)
+
+  }
+
+  override def postRestart(reason: Throwable): Unit = ()
+
+  override def preRestart(reason: Throwable, message: Option[Any]): Unit =
+    postStop()
 
   override def receive: Receive = {
     case schedule: Schedule =>
@@ -58,6 +69,9 @@ class ChronosMaster(jobsConfig: JobsConfiguration, implicit val materializer: Ma
       throttler ! ChronosService.Check(check.jobId, check.job, originator)
     case cleanup: ChronosService.Cleanup =>
       throttler ! cleanup
+    case Terminated(ref) =>
+      log.debug("Terminating ChronosMaster as child is terminated: {}", ref)
+      context.stop(self)
     case e => log.error("Unknown msg received: {}", e)
   }
 }
