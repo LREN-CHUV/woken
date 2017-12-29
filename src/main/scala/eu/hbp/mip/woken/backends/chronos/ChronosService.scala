@@ -27,25 +27,35 @@ import spray.json.PrettyPrinter
 
 import scala.concurrent.duration._
 import scala.concurrent.{ Await, ExecutionContextExecutor, Future }
-import scala.util.Try
+import scala.util.{ Failure, Success, Try }
 
 object ChronosService {
+
   // Requests
   case class Schedule(job: ChronosJob)
+
   case class Check(jobId: String, job: ChronosJob)
+
   case class Cleanup(job: ChronosJob)
 
   // Responses for Schedule
   sealed trait ScheduleResponse
-  object Ok                         extends ScheduleResponse
+
+  case object Ok extends ScheduleResponse
+
   case class Error(message: String) extends ScheduleResponse
 
   // Responses for Check
   sealed trait JobLivelinessResponse
-  case class JobNotFound(jobId: String)                        extends JobLivelinessResponse
-  case class JobComplete(jobId: String, success: Boolean)      extends JobLivelinessResponse
-  case class JobQueued(jobId: String)                          extends JobLivelinessResponse
-  case class JobUnknownStatus(jobId: String, status: String)   extends JobLivelinessResponse
+
+  case class JobNotFound(jobId: String) extends JobLivelinessResponse
+
+  case class JobComplete(jobId: String, success: Boolean) extends JobLivelinessResponse
+
+  case class JobQueued(jobId: String) extends JobLivelinessResponse
+
+  case class JobUnknownStatus(jobId: String, status: String) extends JobLivelinessResponse
+
   case class ChronosUnresponsive(jobId: String, error: String) extends JobLivelinessResponse
 
   def props(jobsConfig: JobsConfiguration): Props =
@@ -53,15 +63,12 @@ object ChronosService {
 
 }
 
-//TODO: need to use akka http client
 class ChronosService(jobsConfig: JobsConfiguration)
     extends Actor
     with ActorLogging
     /*with ActorTracing*/ {
 
   import ChronosService._
-
-  var lastRequest: Long = 0
 
   def receive: PartialFunction[Any, Unit] = {
 
@@ -70,16 +77,11 @@ class ChronosService(jobsConfig: JobsConfiguration)
       implicit val executionContext: ExecutionContextExecutor = context.dispatcher
       implicit val timeout: Timeout                           = Timeout(30.seconds)
       implicit val actorSystem                                = context.system
-      if (System.currentTimeMillis() - lastRequest < 250) {
-        Thread.sleep(250)
-      }
       log.info(s"Send job to Chronos: ${PrettyPrinter(chronosJobFormat.write(job))}")
 
       val originalSender             = sender()
       val url                        = jobsConfig.chronosServerUrl + "/v1/scheduler/iso8601"
       val chronosResponse: Future[_] = HttpClient.Post(url, job)
-
-      lastRequest = System.currentTimeMillis()
 
       chronosResponse
         .map {
@@ -119,15 +121,9 @@ class ChronosService(jobsConfig: JobsConfiguration)
       implicit val actorSystem                                = context.system
       val pipeline: HttpRequest => Future[HttpResponse]       = HttpClient.sendReceive
 
-      if (System.currentTimeMillis() - lastRequest < 200) {
-        Thread.sleep(200)
-      }
-
       val originalSender             = sender()
       val url                        = s"${jobsConfig.chronosServerUrl}/v1/scheduler/jobs/search?name=${job.name}"
       val chronosResponse: Future[_] = pipeline(HttpClient.Get(url))
-
-      lastRequest = System.currentTimeMillis()
 
       chronosResponse
         .map {
@@ -188,18 +184,13 @@ class ChronosService(jobsConfig: JobsConfiguration)
       implicit val actorSystem                                = context.system
       val pipeline: HttpRequest => Future[HttpResponse]       = HttpClient.sendReceive
 
-      if (System.currentTimeMillis() - lastRequest < 100) {
-        Thread.sleep(100)
-      }
-
       val url                        = s"${jobsConfig.chronosServerUrl}/v1/scheduler/job/${job.name}"
       val chronosResponse: Future[_] = pipeline(HttpClient.Delete(url))
+      chronosResponse.onComplete {
+        case Success(_)   =>
+        case Failure(err) => log.error("Chronos Cleanup job response error.", err)
+      }
 
-      lastRequest = System.currentTimeMillis()
-
-      Try(
-        Await.ready(chronosResponse, 1.seconds)
-      )
     // We don't care about the response
 
     case e => log.error(s"Unhandled message: $e")

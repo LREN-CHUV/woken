@@ -17,10 +17,11 @@
 package eu.hbp.mip.woken.core
 
 import akka.NotUsed
-import akka.actor.{ ActorRef, ActorSystem }
-import akka.stream.{ ActorMaterializer, OverflowStrategy, ThrottleMode }
-import akka.stream.scaladsl.{ Sink, Source }
-import com.typesafe.config.{ Config, ConfigFactory }
+import akka.actor.{ActorRef, ActorSystem}
+import akka.pattern.{Backoff, BackoffSupervisor}
+import akka.stream._
+import akka.stream.scaladsl.{Sink, Source}
+import com.typesafe.config.{Config, ConfigFactory}
 import eu.hbp.mip.woken.backends.chronos.ChronosService
 import eu.hbp.mip.woken.config.JobsConfiguration
 
@@ -35,6 +36,7 @@ trait Core {
   protected implicit def system: ActorSystem
 
   protected def config: Config
+
   protected def jobsConf: JobsConfiguration
   protected def mainRouter: ActorRef
 
@@ -54,12 +56,16 @@ trait CoreActors {
 
   private implicit val materializer: ActorMaterializer = ActorMaterializer()
 
-  private val chronosActor: ActorRef = system.actorOf(ChronosService.props(jobsConf), "chronos")
+  private val supervisor = BackoffSupervisor.props(
+    Backoff.onFailure(
+      ChronosService.props(jobsConf),
+      childName = "chronos",
+      minBackoff = 1 second,
+      maxBackoff = 30 seconds,
+      randomFactor = 0.2
+    ))
 
-  val chronosHttp: ActorRef = Source
-    .actorRef(10, OverflowStrategy.dropNew)
-    .throttle(1, 300.milli, 10, ThrottleMode.shaping)
-    .to(Sink.actorRef(chronosActor, NotUsed))
-    .run()
+
+  val chronosHttp: ActorRef = system.actorOf(supervisor)
 
 }
