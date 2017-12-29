@@ -222,7 +222,7 @@ services:
       - ./woken/config:/opt/woken/config
     ports:
       - "8087:8087"
-      - "8088:8088"
+      - "8088:8088/udp"
     environment:
       CLUSTER_PORT: 8088
       CLUSTER_IP: woken
@@ -239,7 +239,7 @@ services:
     volumes:
       - ./woken-validation/config/application.conf:/opt/woken-validation/config/application.conf
     ports:
-      - "8082:8082"
+      - "8082:8082/udp"
     environment:
       CLUSTER_PORT: 8082
       CLUSTER_IP: wokenvalidation
@@ -265,7 +265,7 @@ services:
       dockerfile: Dockerfile
     shm_size: 300m
     ports:
-      - "8097:8097"
+      - "8097:8097/udp"
     environment:
       CLUSTER_PORT: 8097
       CLUSTER_IP: wokentest
