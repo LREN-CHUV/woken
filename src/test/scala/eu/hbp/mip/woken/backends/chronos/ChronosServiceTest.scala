@@ -65,9 +65,10 @@ class ChronosServiceTest
     "Schedule a new job" in {
       chronosHttp ! Schedule(job)
 
-//      within(40 seconds) {
-//        expectMsgType[Error](5 seconds)
-//      }
+      within(40 seconds) {
+        val msg = expectMsgType[Error](5 seconds)
+        println(msg)
+      }
     }
 
   }
