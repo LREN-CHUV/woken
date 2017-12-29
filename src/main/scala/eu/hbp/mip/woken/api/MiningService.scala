@@ -16,13 +16,14 @@
 
 package eu.hbp.mip.woken.api
 
-import akka.actor.{ ActorRef, ActorSystem }
+import akka.actor.{ActorRef, ActorSystem}
+import akka.http.scaladsl.marshalling.ToResponseMarshallable
 import akka.pattern.ask
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.model.StatusCodes._
 import eu.hbp.mip.woken.api.swagger.MiningServiceApi
 import eu.hbp.mip.woken.authentication.BasicAuthentication
-import eu.hbp.mip.woken.config.{ AppConfiguration, JobsConfiguration }
+import eu.hbp.mip.woken.config.{AppConfiguration, JobsConfiguration}
 import eu.hbp.mip.woken.messages.external._
 import eu.hbp.mip.woken.dao.FeaturesDAL
 import eu.hbp.mip.woken.service.AlgorithmLibraryService
@@ -83,7 +84,7 @@ class MiningService(
                 { masterRouter ? query }.mapTo[QueryResult].map {
                   case qr @ QueryResult(_, _, _, _, _, Some(data), None) => OK         -> qr.toJson
                   case qr @ QueryResult(_, _, _, _, _, _, Some(error))   => BadRequest -> qr.toJson
-                }
+                }.mapTo[ToResponseMarshallable]
               }
         }
       }
@@ -98,7 +99,7 @@ class MiningService(
             { masterRouter ? query }.mapTo[QueryResult].map {
               case qr @ QueryResult(_, _, _, _, _, Some(data), None) => OK         -> qr.toJson
               case qr @ QueryResult(_, _, _, _, _, _, Some(error))   => BadRequest -> qr.toJson
-            }
+            }.mapTo[ToResponseMarshallable]
           }
         }
       }

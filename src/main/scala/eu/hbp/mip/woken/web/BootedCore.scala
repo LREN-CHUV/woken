@@ -31,6 +31,7 @@ import eu.hbp.mip.woken.dao.{ FeaturesDAL, MetadataRepositoryDAO, WokenRepositor
 import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, JobResultService, VariablesMetaService }
 import eu.hbp.mip.woken.ssl.WokenSSLConfiguration
 import akka.stream.ActorMaterializer
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.{ ExecutionContextExecutor, Future }
 import scala.sys.ShutdownHookThread
@@ -47,14 +48,18 @@ trait BootedCore
     with StaticResources
     with WokenSSLConfiguration {
 
+  private val logger = LoggerFactory.getLogger("BootedCore")
+
   override lazy val appConfig: AppConfiguration = AppConfiguration
     .read(config)
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
 
+  logger.info(s"Starting actor system ${appConfig.clusterSystemName}")
+
   /**
     * Construct the ActorSystem we will use in our application
     */
-  override lazy implicit val system: ActorSystem          = ActorSystem(appConfig.clusterSystemName)
+  override lazy implicit val system: ActorSystem          = ActorSystem(appConfig.clusterSystemName, config)
   lazy val actorRefFactory: ActorRefFactory               = system
   implicit val actorMaterializer: ActorMaterializer       = ActorMaterializer()
   implicit val executionContext: ExecutionContextExecutor = system.dispatcher
@@ -145,6 +150,9 @@ trait BootedCore
       .flatMap(_ => system.terminate())
       .onComplete(_ => ())
   }
+
+  logger.info("Woken startup complete")
+
   ()
 
 }

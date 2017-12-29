@@ -39,7 +39,7 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
 
   implicit val timeout: Timeout = Timeout(200 seconds)
   val configuration = ConfigFactory.load()
-  val system = ActorSystem("woken", configuration)
+  val system = ActorSystem(configuration.getString("clustering.cluster.name"), configuration)
   val client: ActorRef =
     system.actorOf(ClusterClient.props(ClusterClientSettings(system)), "client")
   val entryPoint = "/user/entrypoint"
