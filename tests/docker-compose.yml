@@ -217,12 +217,11 @@ services:
 
   woken:
     image: hbpmip/woken
-    shm_size: 300m
     volumes:
       - ./woken/config:/opt/woken/config
     ports:
       - "8087:8087"
-      - "8088:8088/udp"
+      - "8088:8088"
     environment:
       CLUSTER_PORT: 8088
       CLUSTER_IP: woken
@@ -235,11 +234,10 @@ services:
 
   wokenvalidation:
     image: hbpmip/woken-validation
-    shm_size: 400m
     volumes:
       - ./woken-validation/config/application.conf:/opt/woken-validation/config/application.conf
     ports:
-      - "8082:8082/udp"
+      - "8082:8082"
     environment:
       CLUSTER_PORT: 8082
       CLUSTER_IP: wokenvalidation
@@ -263,10 +261,9 @@ services:
     build:
       context: ./woken-test
       dockerfile: Dockerfile
-    shm_size: 300m
     hostname: "wokentest"
     ports:
-      - "8097:8097/udp"
+      - "8097:8097"
     environment:
       CLUSTER_PORT: 8097
       CLUSTER_IP: wokentest
@@ -278,7 +275,6 @@ services:
     image: "hbpmip/portal-backend:2.5.1"
     container_name: "backend-test"
     restart: "no"
-    shm_size: 300m
     ports:
       - "65440:8080"
     environment:
