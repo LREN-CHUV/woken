@@ -1,0 +1,43 @@
+{
+  "arguments": [],
+  "command": "compute",
+  "container": {
+    "forcePullImage": false,
+    "image": "hbpmip/somealgo",
+    "network": "BRIDGE",
+    "networkInfos": [],
+    "parameters": [
+      {
+        "key": "network",
+        "value": "bridge1"
+      }
+    ],
+    "type": "DOCKER",
+    "volumes": []
+  },
+  "cpus": 0.5,
+  "disabled": false,
+  "environmentVariables": [
+    {
+      "name": "JOB_ID",
+      "value": "12345"
+    },
+    {
+      "name": "NODE",
+      "value": "local"
+    },
+    {
+      "name": "DOCKER_IMAGE",
+      "value": "hbpmip/somealgo"
+    }
+  ],
+  "epsilon": "PT5M",
+  "highPriority": false,
+  "mem": 512.0,
+  "name": "hbpmip_somealgo_1",
+  "owner": "mip@chuv.ch",
+  "retries": 0,
+  "runAsUser": "root",
+  "schedule": "R1//PT24H",
+  "shell": false
+}

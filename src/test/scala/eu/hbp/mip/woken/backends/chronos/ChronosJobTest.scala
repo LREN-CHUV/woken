@@ -17,9 +17,10 @@
 package eu.hbp.mip.woken.backends.chronos
 
 import eu.hbp.mip.woken.backends.chronos.{ EnvironmentVariable => EV, Parameter => P }
+import eu.hbp.mip.woken.util.JsonUtils
 import org.scalatest._
 
-class ChronosJobTest extends FlatSpec with Matchers {
+class ChronosJobTest extends FlatSpec with Matchers with JsonUtils {
 
   "A Chronos job" should "be serializable and compatible with Chronos REST API" in {
 
@@ -49,46 +50,7 @@ class ChronosJobTest extends FlatSpec with Matchers {
     import ChronosJob._
     import spray.json._
 
-    val expected =
-      """
-        |{
-        |  "arguments": [],
-        |  "command": "compute",
-        |  "container": {
-        |    "forcePullImage": false,
-        |    "image": "hbpmip/somealgo",
-        |    "network": "BRIDGE",
-        |    "networkInfos":[],
-        |    "parameters": [{
-        |      "key": "network",
-        |      "value": "bridge1"
-        |    }],
-        |    "type": "DOCKER",
-        |    "volumes": []
-        |  },
-        |  "cpus": 0.5,
-        |  "disabled": false,
-        |  "environmentVariables": [{
-        |    "name": "JOB_ID",
-        |    "value": "12345"
-        |  }, {
-        |    "name": "NODE",
-        |    "value": "local"
-        |  }, {
-        |    "name": "DOCKER_IMAGE",
-        |    "value": "hbpmip/somealgo"
-        |  }],
-        |  "epsilon": "PT5M",
-        |  "highPriority": false,
-        |  "mem": 512.0,
-        |  "name": "hbpmip_somealgo_1",
-        |  "owner": "mip@chuv.ch",
-        |  "runAsUser": "root",
-        |  "retries": 0,
-        |  "schedule": "R1//PT24H",
-        |  "shell": false
-        |}
-      """.stripMargin.parseJson
+    val expected = loadJson("/backends/chronos/chronos-job.json")
 
     job.toJson shouldBe expected
 

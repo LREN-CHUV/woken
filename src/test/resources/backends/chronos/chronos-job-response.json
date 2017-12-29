@@ -1,0 +1,114 @@
+[
+  {
+    "arguments": [],
+    "command": "compute",
+    "concurrent": false,
+    "constraints": [],
+    "container": {
+      "forcePullImage": false,
+      "image": "hbpmip/java-rapidminer-knn:0.2.1",
+      "network": "BRIDGE",
+      "networkInfos": [],
+      "parameters": [
+        {
+          "key": "network",
+          "value": "devtests_default"
+        }
+      ],
+      "type": "DOCKER",
+      "volumes": []
+    },
+    "cpus": 0.5,
+    "dataProcessingJobType": false,
+    "description": "",
+    "disabled": true,
+    "disk": 256.0,
+    "environmentVariables": [
+      {
+        "name": "JOB_ID",
+        "value": "78be29d9-bc05-4db2-a2e0-c3de218960bc"
+      },
+      {
+        "name": "NODE",
+        "value": "federation"
+      },
+      {
+        "name": "DOCKER_IMAGE",
+        "value": "hbpmip/java-rapidminer-knn:0.2.1"
+      },
+      {
+        "name": "PARAM_variables",
+        "value": "cognitive_task2"
+      },
+      {
+        "name": "PARAM_query",
+        "value": "select cognitive_task2,score_test1,college_math from sample_data where cognitive_task2 is not null and score_test1 is not null and college_math is not null  EXCEPT ALL (select cognitive_task2,score_test1,college_math from sample_data where cognitive_task2 is not null and score_test1 is not null and college_math is not null  OFFSET 0 LIMIT 75)"
+      },
+      {
+        "name": "PARAM_grouping",
+        "value": ""
+      },
+      {
+        "name": "PARAM_meta",
+        "value": "{\"cognitive_task2\":{\"description\":\"\",\"methodology\":\"test\",\"label\":\"Cognitive Task 2\",\"code\":\"cognitive_task2\",\"type\":\"real\"},\"score_test1\":{\"description\":\"\",\"methodology\":\"test\",\"label\":\"Score Test 1\",\"code\":\"score_test1\",\"type\":\"real\"},\"college_math\":{\"description\":\"\",\"methodology\":\"test\",\"label\":\"College Math\",\"code\":\"college_math\",\"type\":\"real\"}}"
+      },
+      {
+        "name": "PARAM_covariables",
+        "value": "score_test1,college_math"
+      },
+      {
+        "name": "IN_JDBC_DRIVER",
+        "value": "org.postgresql.Driver"
+      },
+      {
+        "name": "IN_JDBC_URL",
+        "value": "jdbc:postgresql://db:5432/features"
+      },
+      {
+        "name": "IN_JDBC_USER",
+        "value": "postgres"
+      },
+      {
+        "name": "IN_JDBC_PASSWORD",
+        "value": "test"
+      },
+      {
+        "name": "OUT_JDBC_DRIVER",
+        "value": "org.postgresql.Driver"
+      },
+      {
+        "name": "OUT_JDBC_URL",
+        "value": "jdbc:postgresql://db:5432/woken"
+      },
+      {
+        "name": "OUT_JDBC_USER",
+        "value": "postgres"
+      },
+      {
+        "name": "OUT_JDBC_PASSWORD",
+        "value": "test"
+      }
+    ],
+    "errorCount": 0,
+    "errorsSinceLastSuccess": 0,
+    "executor": "",
+    "executorFlags": "",
+    "fetch": [],
+    "highPriority": false,
+    "lastError": "",
+    "lastSuccess": "2017-11-29T23:13:01.724Z",
+    "mem": 512.0,
+    "name": "java_rapidminer_knn_78be29d9_bc05_4db2_a2e0_c3de218960bc",
+    "owner": "admin@mip.chuv.ch",
+    "ownerName": "",
+    "retries": 2,
+    "runAsUser": "root",
+    "schedule": "R0/2017-11-29T23:13:40.989Z/PT1M",
+    "scheduleTimeZone": "",
+    "shell": false,
+    "softError": false,
+    "successCount": 1,
+    "taskInfoData": "",
+    "uris": []
+  }
+]
