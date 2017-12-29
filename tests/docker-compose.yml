@@ -264,6 +264,7 @@ services:
       context: ./woken-test
       dockerfile: Dockerfile
     shm_size: 300m
+    hostname: "wokentest"
     ports:
       - "8097:8097"
     environment:

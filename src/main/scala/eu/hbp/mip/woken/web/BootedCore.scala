@@ -54,7 +54,7 @@ trait BootedCore
     .read(config)
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
 
-  logger.info("Starting actor system ", appConfig.clusterSystemName)
+  logger.info(s"Starting actor system ${appConfig.clusterSystemName}")
 
   /**
     * Construct the ActorSystem we will use in our application
