@@ -17,10 +17,10 @@
 package eu.hbp.mip.woken.core
 
 import akka.NotUsed
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.{ ActorRef, ActorSystem }
 import akka.stream._
-import akka.stream.scaladsl.{Sink, Source}
-import com.typesafe.config.{Config, ConfigFactory}
+import akka.stream.scaladsl.{ Sink, Source }
+import com.typesafe.config.{ Config, ConfigFactory }
 import eu.hbp.mip.woken.backends.chronos.ChronosService
 import eu.hbp.mip.woken.config.JobsConfiguration
 

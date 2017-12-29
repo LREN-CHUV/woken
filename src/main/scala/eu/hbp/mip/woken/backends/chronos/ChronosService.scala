@@ -16,9 +16,9 @@
 
 package eu.hbp.mip.woken.backends.chronos
 
-import akka.actor.{Actor, ActorLogging, Props, Status}
+import akka.actor.{ Actor, ActorLogging, Props, Status }
 import akka.http.scaladsl.model._
-import akka.pattern.{AskTimeoutException, pipe}
+import akka.pattern.{ AskTimeoutException, pipe }
 import akka.util.Timeout
 //import com.github.levkhomich.akka.tracing.ActorTracing
 import eu.hbp.mip.woken.backends.HttpClient
@@ -26,8 +26,8 @@ import eu.hbp.mip.woken.config.JobsConfiguration
 import spray.json.PrettyPrinter
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContextExecutor, Future}
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.{ Await, ExecutionContextExecutor, Future }
+import scala.util.{ Failure, Success, Try }
 
 object ChronosService {
 
@@ -64,7 +64,7 @@ object ChronosService {
 }
 
 class ChronosService(jobsConfig: JobsConfiguration)
-  extends Actor
+    extends Actor
     with ActorLogging
     /*with ActorTracing*/ {
 
@@ -75,12 +75,12 @@ class ChronosService(jobsConfig: JobsConfiguration)
     case Schedule(job) =>
       import ChronosJob._
       implicit val executionContext: ExecutionContextExecutor = context.dispatcher
-      implicit val timeout: Timeout = Timeout(30.seconds)
-      implicit val actorSystem = context.system
+      implicit val timeout: Timeout                           = Timeout(30.seconds)
+      implicit val actorSystem                                = context.system
       log.info(s"Send job to Chronos: ${PrettyPrinter(chronosJobFormat.write(job))}")
 
-      val originalSender = sender()
-      val url = jobsConfig.chronosServerUrl + "/v1/scheduler/iso8601"
+      val originalSender             = sender()
+      val url                        = jobsConfig.chronosServerUrl + "/v1/scheduler/iso8601"
       val chronosResponse: Future[_] = HttpClient.Post(url, job)
 
       chronosResponse
@@ -117,14 +117,13 @@ class ChronosService(jobsConfig: JobsConfiguration)
 
     case Check(jobId, job) =>
       implicit val executionContext: ExecutionContextExecutor = context.dispatcher
-      implicit val timeout: Timeout = Timeout(10.seconds)
-      implicit val actorSystem = context.system
-      val pipeline: HttpRequest => Future[HttpResponse] = HttpClient.sendReceive
+      implicit val timeout: Timeout                           = Timeout(10.seconds)
+      implicit val actorSystem                                = context.system
+      val pipeline: HttpRequest => Future[HttpResponse]       = HttpClient.sendReceive
 
-      val originalSender = sender()
-      val url = s"${jobsConfig.chronosServerUrl}/v1/scheduler/jobs/search?name=${job.name}"
+      val originalSender             = sender()
+      val url                        = s"${jobsConfig.chronosServerUrl}/v1/scheduler/jobs/search?name=${job.name}"
       val chronosResponse: Future[_] = pipeline(HttpClient.Get(url))
-
 
       chronosResponse
         .map {
@@ -142,14 +141,14 @@ class ChronosService(jobsConfig: JobsConfiguration)
                   val status: JobLivelinessResponse = liveliness match {
                     case None => JobNotFound(jobId)
                     case Some(ChronosJobLiveliness(_, successCount, _, _, _, _, _, true))
-                      if successCount > 0 =>
+                        if successCount > 0 =>
                       JobComplete(jobId, success = true)
                     case Some(
-                    ChronosJobLiveliness(_, successCount, errorCount, _, _, softError, _, _)
-                    ) if successCount == 0 && (errorCount > 0 || softError) =>
+                        ChronosJobLiveliness(_, successCount, errorCount, _, _, softError, _, _)
+                        ) if successCount == 0 && (errorCount > 0 || softError) =>
                       JobComplete(jobId, success = false)
                     case Some(ChronosJobLiveliness(_, _, _, _, _, _, _, false)) => JobQueued(jobId)
-                    case Some(l: ChronosJobLiveliness) => JobUnknownStatus(jobId, l.toString)
+                    case Some(l: ChronosJobLiveliness)                          => JobUnknownStatus(jobId, l.toString)
                   }
                   status
                 }
@@ -181,16 +180,16 @@ class ChronosService(jobsConfig: JobsConfiguration)
 
     case Cleanup(job) =>
       implicit val executionContext: ExecutionContextExecutor = context.dispatcher
-      implicit val timeout: Timeout = Timeout(10.seconds)
-      implicit val actorSystem = context.system
-      val pipeline: HttpRequest => Future[HttpResponse] = HttpClient.sendReceive
+      implicit val timeout: Timeout                           = Timeout(10.seconds)
+      implicit val actorSystem                                = context.system
+      val pipeline: HttpRequest => Future[HttpResponse]       = HttpClient.sendReceive
 
-      val url = s"${jobsConfig.chronosServerUrl}/v1/scheduler/job/${job.name}"
+      val url                        = s"${jobsConfig.chronosServerUrl}/v1/scheduler/job/${job.name}"
       val chronosResponse: Future[_] = pipeline(HttpClient.Delete(url))
       chronosResponse.onComplete {
-          case Success(_) =>
-          case Failure(err) => log.error("Chronos Cleanup job response error.", err)
-        }
+        case Success(_)   =>
+        case Failure(err) => log.error("Chronos Cleanup job response error.", err)
+      }
 
     // We don't care about the response
 
