@@ -1,8 +1,8 @@
 package eu.hbp.mip.woken.backends.chronos
 
-import akka.actor.ActorSystem
-import akka.testkit.{ImplicitSender, TestKit}
-import eu.hbp.mip.woken.backends.chronos.ChronosService.{Error,  Schedule}
+import akka.actor.{ActorRef, ActorSystem}
+import akka.testkit.{ImplicitSender, TestKit, TestProbe}
+import eu.hbp.mip.woken.backends.chronos.ChronosService.{Error, Schedule}
 import eu.hbp.mip.woken.core.{Core, CoreActors}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import eu.hbp.mip.woken.backends.chronos.{EnvironmentVariable => EV, Parameter => P}
@@ -57,6 +57,5 @@ class ChronosServiceTest extends TestKit(ActorSystem("ChronosServiceSpec"))
 
   }
 
-
-
+  override protected def mainRouter: ActorRef = ???
 }
