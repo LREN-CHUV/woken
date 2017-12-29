@@ -56,6 +56,6 @@ LABEL org.label-schema.build-date=$BUILD_DATE \
       org.label-schema.schema-version="1.0"
 
 EXPOSE 8087
-EXPOSE 8088
+EXPOSE 8088/udp
 
 CMD ["/run.sh"]
