@@ -68,7 +68,7 @@ lazy val library =
       val doobie          = "0.5.0-M9"
       val snakeyaml       = "1.17"
       val hadrian         = "0.8.5"
-      val wokenMessages   = "2.1.6"
+      val wokenMessages   = "2.1.7"
       val scalaCache      = "0.21.0"
     }
     val scalaCheck: ModuleID   = "org.scalacheck"    %% "scalacheck"   % Version.scalaCheck
