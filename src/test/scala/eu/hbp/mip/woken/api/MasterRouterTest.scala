@@ -160,7 +160,7 @@ class MasterRouterTest
           expectMsgType[QueryResult](5 seconds)
         }
 
-        expectNoMsg()
+        expectNoMessage(1 seconds)
       }
 
       waitForEmptyQueue(router, limit)
@@ -193,7 +193,7 @@ class MasterRouterTest
           }
         }
 
-        expectNoMsg()
+        expectNoMessage(1 seconds)
         Thread.sleep(100)
       }
 
@@ -221,7 +221,7 @@ class MasterRouterTest
           expectMsgType[QueryResult](5 seconds)
         }
 
-        expectNoMsg()
+        expectNoMessage(1 seconds)
       }
 
       waitForEmptyQueue(router, limit)

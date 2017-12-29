@@ -18,8 +18,8 @@ package eu.hbp.mip.woken.api.swagger
 
 import javax.ws.rs.Path
 
-import akka.http.scaladsl.server.{Directives, Route}
-import eu.hbp.mip.woken.messages.external.{Methods, QueryResult}
+import akka.http.scaladsl.server.{ Directives, Route }
+import eu.hbp.mip.woken.messages.external.{ MethodsResponse, QueryResult }
 import io.swagger.annotations._
 
 // This trait documents the API, tries not to pollute the code with annotations
@@ -97,7 +97,7 @@ trait MiningServiceApi extends Directives {
     notes = "Get catalog containing available mining methods",
     httpMethod = "GET",
     consumes = "application/json",
-    response = classOf[Methods]
+    response = classOf[MethodsResponse]
   )
   @ApiImplicitParams(Array())
   @ApiResponses(

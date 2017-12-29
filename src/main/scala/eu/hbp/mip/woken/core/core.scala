@@ -37,6 +37,7 @@ trait Core {
   protected def config: Config
 
   protected def jobsConf: JobsConfiguration
+  protected def mainRouter: ActorRef
 
 }
 
@@ -52,11 +53,11 @@ trait CoreActors {
     .read(config)
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
 
-  private implicit val materializer = ActorMaterializer()
+  private implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   private val chronosActor: ActorRef = system.actorOf(ChronosService.props(jobsConf), "chronos")
 
-  val chronosHttp = Source
+  val chronosHttp: ActorRef = Source
     .actorRef(10, OverflowStrategy.dropNew)
     .throttle(1, 300.milli, 10, ThrottleMode.shaping)
     .to(Sink.actorRef(chronosActor, NotUsed))

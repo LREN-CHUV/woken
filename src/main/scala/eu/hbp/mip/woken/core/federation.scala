@@ -17,7 +17,7 @@
 package eu.hbp.mip.woken.core
 
 import akka.actor.{ Actor, ActorLogging, ActorRef, LoggingFSM }
-import com.github.levkhomich.akka.tracing.ActorTracing
+//import com.github.levkhomich.akka.tracing.ActorTracing
 import eu.hbp.mip.woken.backends.DockerJob
 
 import scala.concurrent.duration._
@@ -76,7 +76,7 @@ object FederationCoordinatorStates {
 class FederationCoordinatorActor()
     extends Actor
     with ActorLogging
-    with ActorTracing
+    /*with ActorTracing*/
     with LoggingFSM[FederationCoordinatorStates.State, FederationCoordinatorStates.StateData] {
   {
 

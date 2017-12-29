@@ -17,21 +17,22 @@
 package eu.hbp.mip.woken.web
 
 import scala.concurrent.duration._
-import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, Props}
+import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem, Props }
 import akka.util.Timeout
 import akka.cluster.Cluster
+import akka.cluster.client.ClusterClientReceptionist
 import akka.http.scaladsl.Http
 import cats.effect.IO
-import eu.hbp.mip.woken.api.{Api, MasterRouter}
-import eu.hbp.mip.woken.config.{AlgorithmsConfiguration, AppConfiguration, DatabaseConfiguration}
-import eu.hbp.mip.woken.core.{CoordinatorConfig, Core, CoreActors}
+import eu.hbp.mip.woken.api.{ Api, MasterRouter }
+import eu.hbp.mip.woken.config.{ AlgorithmsConfiguration, AppConfiguration, DatabaseConfiguration }
+import eu.hbp.mip.woken.core.{ CoordinatorConfig, Core, CoreActors }
 import eu.hbp.mip.woken.core.validation.ValidationPoolManager
-import eu.hbp.mip.woken.dao.{FeaturesDAL, MetadataRepositoryDAO, WokenRepositoryDAO}
-import eu.hbp.mip.woken.service.{AlgorithmLibraryService, JobResultService, VariablesMetaService}
+import eu.hbp.mip.woken.dao.{ FeaturesDAL, MetadataRepositoryDAO, WokenRepositoryDAO }
+import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, JobResultService, VariablesMetaService }
 import eu.hbp.mip.woken.ssl.WokenSSLConfiguration
 import akka.stream.ActorMaterializer
 
-import scala.concurrent.{ExecutionContextExecutor, Future}
+import scala.concurrent.{ ExecutionContextExecutor, Future }
 import scala.sys.ShutdownHookThread
 
 /**
@@ -108,7 +109,7 @@ trait BootedCore
   /**
     * Create and start actor that acts as akka entry-point
     */
-  val mainRouter: ActorRef =
+  override val mainRouter: ActorRef =
     system.actorOf(
       MasterRouter.props(appConfig,
                          coordinatorConfig,
@@ -117,6 +118,8 @@ trait BootedCore
                          AlgorithmsConfiguration.factory(config)),
       name = "entrypoint"
     )
+
+  ClusterClientReceptionist(system).registerService(mainRouter)
 
   /**
     * Create and start actor responsible to register validation node

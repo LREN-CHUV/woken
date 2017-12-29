@@ -23,7 +23,7 @@ import akka.actor.{ Actor, ActorLogging, ActorRef, ActorSelection, FSM, LoggingF
 import akka.pattern.ask
 import akka.util
 import akka.util.Timeout
-import com.github.levkhomich.akka.tracing.ActorTracing
+//import com.github.levkhomich.akka.tracing.ActorTracing
 import eu.hbp.mip.woken.backends.{ DockerJob, QueryOffset }
 import eu.hbp.mip.woken.core.commands.JobCommands.{ StartCoordinatorJob, StartExperimentJob }
 import eu.hbp.mip.woken.config.{ AlgorithmDefinition, JobsConfiguration }
@@ -36,13 +36,13 @@ import eu.hbp.mip.woken.core.model.{
 import eu.hbp.mip.woken.core.validation.{ KFoldCrossValidation, ValidationPoolManager }
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import eu.hbp.mip.woken.messages.external.{
-  Algorithm,
+  AlgorithmSpec,
   ExperimentQuery,
   MiningQuery,
-  Validation => ApiValidation
+  ValidationSpec
 }
 import eu.hbp.mip.woken.messages.validation._
-import eu.hbp.mip.woken.meta.{ MetaDataProtocol, VariableMetaData }
+import eu.hbp.mip.woken.meta.{ VariableMetaData, VariableMetaDataProtocol }
 import spray.json.{ JsString, _ }
 
 import scala.concurrent.{ Await, Future }
@@ -99,8 +99,8 @@ private[core] object ExperimentStates {
   case class PartialExperimentData(
       initiator: ActorRef,
       job: Job,
-      results: Map[Algorithm, JobResult],
-      algorithms: List[Algorithm]
+      results: Map[AlgorithmSpec, JobResult],
+      algorithms: List[AlgorithmSpec]
   ) extends ExperimentData {
     def isComplete: Boolean = results.size == algorithms.length
   }
@@ -135,7 +135,7 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
                       algorithmLookup: String => Validation[AlgorithmDefinition])
     extends Actor
     with ActorLogging
-    with ActorTracing
+    /*with ActorTracing*/
     with LoggingFSM[ExperimentStates.State, ExperimentStates.ExperimentData] {
 
   import ExperimentActor._
@@ -155,8 +155,8 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
       log.info(s"List of algorithms: ${algorithms.mkString(",")}")
 
       // Spawn an AlgorithmActor for every algorithm
-      val noResults = Map[Algorithm, JobResult]()
-      val results: Map[Algorithm, JobResult] = algorithms.foldLeft(noResults) { (res, a) =>
+      val noResults = Map[AlgorithmSpec, JobResult]()
+      val results: Map[AlgorithmSpec, JobResult] = algorithms.foldLeft(noResults) { (res, a) =>
         val jobId = UUID.randomUUID().toString
         val miningQuery = MiningQuery(
           variables = job.query.variables,
@@ -165,7 +165,7 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
           filters = job.query.filters,
           algorithm = a
         )
-        algorithmLookup(a.code).fold[Map[Algorithm, JobResult]](
+        algorithmLookup(a.code).fold[Map[AlgorithmSpec, JobResult]](
           errorMessage => {
             res + (a -> ErrorJobResult(jobId,
                                        coordinatorConfig.jobsConf.node,
@@ -277,7 +277,7 @@ object AlgorithmActor {
                  inputTable: String,
                  query: MiningQuery,
                  metadata: JsObject,
-                 validations: List[ApiValidation],
+                 validations: List[ValidationSpec],
                  algorithmDefinition: AlgorithmDefinition) {
     // Invariants
     assert(query.algorithm.code == algorithmDefinition.code)
@@ -287,8 +287,8 @@ object AlgorithmActor {
   case class Start(job: Job)
 
   // Output messages
-  case class ResultResponse(algorithm: Algorithm, model: JobResult)
-  case class ErrorResponse(algorithm: Algorithm, error: ErrorJobResult)
+  case class ResultResponse(algorithm: AlgorithmSpec, model: JobResult)
+  case class ErrorResponse(algorithm: AlgorithmSpec, error: ErrorJobResult)
 
   def props(coordinatorConfig: CoordinatorConfig): Props =
     Props(new AlgorithmActor(coordinatorConfig))
@@ -321,12 +321,13 @@ private[core] object AlgorithmStates {
     def initiator = throw new IllegalAccessException()
   }
 
-  case class PartialAlgorithmData(initiator: ActorRef,
-                                  job: Job,
-                                  model: Option[JobResult],
-                                  incomingValidations: Map[ApiValidation, Either[String, JsObject]],
-                                  expectedValidationCount: Int)
-      extends AlgorithmData {
+  case class PartialAlgorithmData(
+      initiator: ActorRef,
+      job: Job,
+      model: Option[JobResult],
+      incomingValidations: Map[ValidationSpec, Either[String, JsObject]],
+      expectedValidationCount: Int
+  ) extends AlgorithmData {
 
     def isComplete: Boolean =
       (incomingValidations.size == expectedValidationCount) && model.isDefined
@@ -336,7 +337,7 @@ private[core] object AlgorithmStates {
   case class CompleteAlgorithmData(initiator: ActorRef,
                                    job: Job,
                                    model: JobResult,
-                                   validations: Map[ApiValidation, Either[String, JsObject]])
+                                   validations: Map[ValidationSpec, Either[String, JsObject]])
       extends AlgorithmData
 
   object CompleteAlgorithmData {
@@ -482,11 +483,9 @@ class AlgorithmActor(coordinatorConfig: CoordinatorConfig)
         data.validations
           .map({
             case (key, Right(value)) =>
-              JsObject("code" -> JsString(key.code), "name" -> JsString(key.name), "data" -> value)
+              JsObject("code" -> JsString(key.code), "data" -> value)
             case (key, Left(message)) =>
-              JsObject("code"  -> JsString(key.code),
-                       "name"  -> JsString(key.name),
-                       "error" -> JsString(message))
+              JsObject("code" -> JsString(key.code), "error" -> JsString(message))
           })
           .toVector
       )
@@ -531,7 +530,7 @@ object CrossValidationActor {
       inputTable: String,
       query: MiningQuery,
       metadata: JsObject,
-      validation: ApiValidation,
+      validation: ValidationSpec,
       algorithmDefinition: AlgorithmDefinition
   )
 
@@ -539,8 +538,8 @@ object CrossValidationActor {
   case class Start(job: Job)
 
   // Output Messages
-  case class ResultResponse(validation: ApiValidation, data: JsObject)
-  case class ErrorResponse(validation: ApiValidation, message: String)
+  case class ResultResponse(validation: ValidationSpec, data: JsObject)
+  case class ErrorResponse(validation: ValidationSpec, message: String)
 
   def props(coordinatorConfig: CoordinatorConfig): Props =
     Props(new CrossValidationActor(coordinatorConfig))
@@ -620,12 +619,10 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
 
   when(WaitForNewJob) {
     case Event(Start(job), _) =>
-      val algorithm  = job.query.algorithm
       val validation = job.validation
+      val foldCount  = validation.parametersAsMap("k").toInt
 
-      log.info(s"List of folds: ${validation.parameters("k")}")
-
-      val foldCount = validation.parameters("k").toInt
+      log.info(s"List of folds: $foldCount")
 
       // TODO For now only kfold cross-validation
       val crossValidation = KFoldCrossValidation(job, foldCount, coordinatorConfig.featuresDatabase)
@@ -659,7 +656,7 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
 
       // TODO: move this code in a better place, test it
       import eu.hbp.mip.woken.core.model.Queries._
-      import MetaDataProtocol._
+      import VariableMetaDataProtocol._
       val targetMetaData: VariableMetaData = job.metadata
         .convertTo[Map[String, VariableMetaData]]
         .get(job.query.dbVariables.head) match {
@@ -684,7 +681,7 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
     case Event(CoordinatorActor.Response(_, List(pfa: PfaJobResult)), data: WaitForWorkersState) =>
       // Validate the results
       log.info("Received result from local method.")
-      val model    = pfa.model.toString()
+      val model    = pfa.model
       val fold     = data.workers(sender)
       val testData = data.validation.getTestSet(fold)._1.map(d => d.compactPrint)
 
