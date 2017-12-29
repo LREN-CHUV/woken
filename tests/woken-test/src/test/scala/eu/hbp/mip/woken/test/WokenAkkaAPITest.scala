@@ -22,6 +22,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.cluster.client.{ClusterClient, ClusterClientSettings}
 import akka.pattern.ask
 import akka.util.Timeout
+import com.typesafe.config.ConfigFactory
 import eu.hbp.mip.woken.messages.external._
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.TryValues._
@@ -37,7 +38,8 @@ import scala.util.Try
 class WokenAkkaAPITest extends FlatSpec with Matchers {
 
   implicit val timeout: Timeout = Timeout(200 seconds)
-  val system = ActorSystem("woken-test")
+  val configuration = ConfigFactory.load()
+  val system = ActorSystem("woken", configuration)
   val client: ActorRef =
     system.actorOf(ClusterClient.props(ClusterClientSettings(system)), "client")
   val entryPoint = "/user/entrypoint"
