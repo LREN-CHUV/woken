@@ -17,8 +17,7 @@
 package eu.hbp.mip.woken.core
 
 import akka.NotUsed
-import akka.actor.{ ActorRef, ActorSystem, Props }
-import akka.contrib.throttle.{ Throttler, TimerBasedThrottler }
+import akka.actor.{ ActorRef, ActorSystem }
 import akka.stream.{ ActorMaterializer, OverflowStrategy, ThrottleMode }
 import akka.stream.scaladsl.{ Sink, Source }
 import com.typesafe.config.{ Config, ConfigFactory }
@@ -53,11 +52,11 @@ trait CoreActors {
     .read(config)
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
 
-  private implicit val materializer = ActorMaterializer()
+  private implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   private val chronosActor: ActorRef = system.actorOf(ChronosService.props(jobsConf), "chronos")
 
-  val chronosHttp = Source
+  val chronosHttp: ActorRef = Source
     .actorRef(10, OverflowStrategy.dropNew)
     .throttle(1, 300.milli, 10, ThrottleMode.shaping)
     .to(Sink.actorRef(chronosActor, NotUsed))

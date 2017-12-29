@@ -20,7 +20,7 @@ import java.time.OffsetDateTime
 
 import akka.actor.FSM.{ Failure, Normal }
 import akka.actor._
-import com.github.levkhomich.akka.tracing.ActorTracing
+//import com.github.levkhomich.akka.tracing.ActorTracing
 
 import scala.concurrent.duration._
 import eu.hbp.mip.woken.backends.DockerJob
@@ -131,7 +131,7 @@ private[core] object CoordinatorStates {
 class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
     extends Actor
     with ActorLogging
-    with ActorTracing
+    /*with ActorTracing*/
     with LoggingFSM[CoordinatorStates.State, CoordinatorStates.StateData] {
 
   import CoordinatorActor._

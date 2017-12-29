@@ -21,7 +21,7 @@ import java.time.OffsetDateTime
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props, Terminated }
 import eu.hbp.mip.woken.messages.external._
 import eu.hbp.mip.woken.core.{ CoordinatorActor, CoordinatorConfig, ExperimentActor }
-import com.github.levkhomich.akka.tracing.ActorTracing
+//import com.github.levkhomich.akka.tracing.ActorTracing
 import eu.hbp.mip.woken.api.MasterRouter.QueuesSize
 import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.core.model.{ ErrorJobResult, JobResult }
@@ -66,7 +66,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
                         query2jobF: ExperimentQuery => Validation[ExperimentActor.Job],
                         query2jobFM: MiningQuery => Validation[DockerJob])
     extends Actor
-    with ActorTracing
+    /*with ActorTracing*/
     with ActorLogging {
 
   import MasterRouter.RequestQueuesSize

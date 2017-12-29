@@ -23,7 +23,7 @@ import akka.actor.{ Actor, ActorLogging, ActorRef, ActorSelection, FSM, LoggingF
 import akka.pattern.ask
 import akka.util
 import akka.util.Timeout
-import com.github.levkhomich.akka.tracing.ActorTracing
+//import com.github.levkhomich.akka.tracing.ActorTracing
 import eu.hbp.mip.woken.backends.{ DockerJob, QueryOffset }
 import eu.hbp.mip.woken.core.commands.JobCommands.{ StartCoordinatorJob, StartExperimentJob }
 import eu.hbp.mip.woken.config.{ AlgorithmDefinition, JobsConfiguration }
@@ -135,7 +135,7 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
                       algorithmLookup: String => Validation[AlgorithmDefinition])
     extends Actor
     with ActorLogging
-    with ActorTracing
+    /*with ActorTracing*/
     with LoggingFSM[ExperimentStates.State, ExperimentStates.ExperimentData] {
 
   import ExperimentActor._

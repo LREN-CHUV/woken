@@ -20,7 +20,7 @@ import akka.actor.{ Actor, ActorLogging, Props, Status }
 import akka.http.scaladsl.model._
 import akka.pattern.{ AskTimeoutException, pipe }
 import akka.util.Timeout
-import com.github.levkhomich.akka.tracing.ActorTracing
+//import com.github.levkhomich.akka.tracing.ActorTracing
 import eu.hbp.mip.woken.backends.HttpClient
 import eu.hbp.mip.woken.config.JobsConfiguration
 import spray.json.PrettyPrinter
@@ -57,7 +57,7 @@ object ChronosService {
 class ChronosService(jobsConfig: JobsConfiguration)
     extends Actor
     with ActorLogging
-    with ActorTracing {
+    /*with ActorTracing*/ {
 
   import ChronosService._
 
