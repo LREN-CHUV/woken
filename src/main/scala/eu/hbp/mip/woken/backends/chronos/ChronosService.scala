@@ -16,7 +16,7 @@
 
 package eu.hbp.mip.woken.backends.chronos
 
-import akka.actor.{ Actor, ActorLogging, Props, Status }
+import akka.actor.{ Actor, ActorLogging, ActorRef, Props, Status }
 import akka.http.scaladsl.model._
 import akka.pattern.{ AskTimeoutException, pipe }
 import akka.util.Timeout
@@ -32,9 +32,9 @@ import scala.util.{ Failure, Success, Try }
 object ChronosService {
 
   // Requests
-  case class Schedule(job: ChronosJob)
+  case class Schedule(job: ChronosJob, originator: ActorRef)
 
-  case class Check(jobId: String, job: ChronosJob)
+  case class Check(jobId: String, job: ChronosJob, originator: ActorRef)
 
   case class Cleanup(job: ChronosJob)
 
@@ -72,14 +72,14 @@ class ChronosService(jobsConfig: JobsConfiguration)
 
   def receive: PartialFunction[Any, Unit] = {
 
-    case Schedule(job) =>
+    case Schedule(job, originator) =>
       import ChronosJob._
       implicit val executionContext: ExecutionContextExecutor = context.dispatcher
       implicit val timeout: Timeout                           = Timeout(30.seconds)
       implicit val actorSystem                                = context.system
       log.info(s"Send job to Chronos: ${PrettyPrinter(chronosJobFormat.write(job))}")
 
-      val originalSender             = sender()
+      val originalSender             = originator
       val url                        = jobsConfig.chronosServerUrl + "/v1/scheduler/iso8601"
       val chronosResponse: Future[_] = HttpClient.Post(url, job)
 
@@ -115,13 +115,13 @@ class ChronosService(jobsConfig: JobsConfiguration)
         } pipeTo originalSender
     // TODO: could use supervisedPipe here: http://pauljamescleary.github.io/futures-in-akka/
 
-    case Check(jobId, job) =>
+    case Check(jobId, job, originator) =>
       implicit val executionContext: ExecutionContextExecutor = context.dispatcher
       implicit val timeout: Timeout                           = Timeout(10.seconds)
       implicit val actorSystem                                = context.system
       val pipeline: HttpRequest => Future[HttpResponse]       = HttpClient.sendReceive
 
-      val originalSender             = sender()
+      val originalSender             = originator
       val url                        = s"${jobsConfig.chronosServerUrl}/v1/scheduler/jobs/search?name=${job.name}"
       val chronosResponse: Future[_] = pipeline(HttpClient.Get(url))
 
