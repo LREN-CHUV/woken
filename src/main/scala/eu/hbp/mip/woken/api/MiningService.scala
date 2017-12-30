@@ -17,7 +17,7 @@
 package eu.hbp.mip.woken.api
 
 import akka.actor.{ ActorRef, ActorSystem }
-import akka.http.scaladsl.marshalling.ToResponseMarshallable
+import akka.cluster.client.{ ClusterClient, ClusterClientSettings }
 import akka.pattern.ask
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.model.StatusCodes._
@@ -37,7 +37,6 @@ object MiningService
 
 // this trait defines our service behavior independently from the service actor
 class MiningService(
-    val masterRouter: ActorRef,
     val featuresDatabase: FeaturesDAL,
     override val appConfiguration: AppConfiguration,
     val jobsConf: JobsConfiguration
@@ -51,6 +50,10 @@ class MiningService(
   implicit val timeout: Timeout                   = Timeout(180.seconds)
 
   val routes: Route = mining ~ experiment ~ listMethods
+
+  val masterRouter: ActorRef =
+    system.actorOf(ClusterClient.props(ClusterClientSettings(system)), "client")
+  val entryPoint = "/user/entrypoint"
 
   import spray.json._
   import ExternalAPIProtocol._
@@ -81,13 +84,12 @@ class MiningService(
           case query: MiningQuery =>
             ctx =>
               ctx.complete {
-                { masterRouter ? query }
+                (masterRouter ? ClusterClient.Send(entryPoint, query, localAffinity = true))
                   .mapTo[QueryResult]
                   .map {
-                    case qr @ QueryResult(_, _, _, _, _, Some(data), None) => OK         -> qr.toJson
-                    case qr @ QueryResult(_, _, _, _, _, _, Some(error))   => BadRequest -> qr.toJson
+                    case qr @ QueryResult(_, _, _, _, _, Some(data), None) => qr.toJson
+                    case qr @ QueryResult(_, _, _, _, _, _, Some(error))   => qr.toJson
                   }
-                  .mapTo[ToResponseMarshallable]
               }
         }
       }
@@ -99,13 +101,12 @@ class MiningService(
       post {
         entity(as[ExperimentQuery]) { query: ExperimentQuery =>
           complete {
-            { masterRouter ? query }
+            (masterRouter ? ClusterClient.Send(entryPoint, query, localAffinity = true))
               .mapTo[QueryResult]
               .map {
-                case qr @ QueryResult(_, _, _, _, _, Some(data), None) => OK         -> qr.toJson
-                case qr @ QueryResult(_, _, _, _, _, _, Some(error))   => BadRequest -> qr.toJson
+                case qr @ QueryResult(_, _, _, _, _, Some(data), None) => qr.toJson
+                case qr @ QueryResult(_, _, _, _, _, _, Some(error))   => qr.toJson
               }
-              .mapTo[ToResponseMarshallable]
           }
         }
       }
