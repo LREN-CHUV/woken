@@ -18,7 +18,6 @@ package eu.hbp.mip.woken.api
 
 import akka.actor.{ ActorRef, ActorSystem }
 import akka.cluster.client.{ ClusterClient, ClusterClientSettings }
-import akka.http.scaladsl.marshalling.ToResponseMarshallable
 import akka.pattern.ask
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.model.StatusCodes._
@@ -88,10 +87,9 @@ class MiningService(
                 (masterRouter ? ClusterClient.Send(entryPoint, query, localAffinity = true))
                   .mapTo[QueryResult]
                   .map {
-                    case qr @ QueryResult(_, _, _, _, _, Some(data), None) => OK         -> qr.toJson
-                    case qr @ QueryResult(_, _, _, _, _, _, Some(error))   => BadRequest -> qr.toJson
+                    case qr @ QueryResult(_, _, _, _, _, Some(data), None) => qr.toJson
+                    case qr @ QueryResult(_, _, _, _, _, _, Some(error))   => qr.toJson
                   }
-                  .mapTo[ToResponseMarshallable]
               }
         }
       }
@@ -106,10 +104,9 @@ class MiningService(
             (masterRouter ? ClusterClient.Send(entryPoint, query, localAffinity = true))
               .mapTo[QueryResult]
               .map {
-                case qr @ QueryResult(_, _, _, _, _, Some(data), None) => OK         -> qr.toJson
-                case qr @ QueryResult(_, _, _, _, _, _, Some(error))   => BadRequest -> qr.toJson
+                case qr @ QueryResult(_, _, _, _, _, Some(data), None) => qr.toJson
+                case qr @ QueryResult(_, _, _, _, _, _, Some(error))   => qr.toJson
               }
-              .mapTo[ToResponseMarshallable]
           }
         }
       }

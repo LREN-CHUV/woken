@@ -16,12 +16,12 @@
 
 package eu.hbp.mip.woken.backends.chronos
 
-import akka.actor.{ ActorRef, ActorSystem }
-import akka.testkit.{ ImplicitSender, TestKit }
-import eu.hbp.mip.woken.backends.chronos.ChronosService.Error
-import eu.hbp.mip.woken.core.{ Core, CoreActors }
-import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
-import eu.hbp.mip.woken.backends.chronos.{ EnvironmentVariable => EV, Parameter => P }
+import akka.actor.{ActorRef, ActorSystem}
+import akka.testkit.{ImplicitSender, TestKit}
+import eu.hbp.mip.woken.backends.chronos.ChronosService.Ok
+import eu.hbp.mip.woken.core.{Core, CoreActors}
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import eu.hbp.mip.woken.backends.chronos.{EnvironmentVariable => EV, Parameter => P}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -66,7 +66,7 @@ class ChronosServiceTest
       chronosHttp ! ChronosMaster.Schedule(job)
 
       within(40 seconds) {
-        val msg = expectMsgType[Error](5 seconds)
+        val msg = expectMsgType[Ok](5 seconds)
         println(msg)
       }
     }
