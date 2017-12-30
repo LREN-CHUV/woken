@@ -24,6 +24,7 @@ import akka.actor._
 
 import scala.concurrent.duration._
 import eu.hbp.mip.woken.backends.DockerJob
+import eu.hbp.mip.woken.backends.chronos.ChronosMaster
 import eu.hbp.mip.woken.backends.chronos.ChronosService
 import eu.hbp.mip.woken.backends.chronos.{ ChronosJob, JobToChronos }
 import eu.hbp.mip.woken.config.{ DatabaseConfiguration, JobsConfiguration }
@@ -147,7 +148,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
     case Event(StartCoordinatorJob(job), Uninitialized) =>
       val initiator = sender()
 
-      import ChronosService._
+      import ChronosMaster._
       val chronosJob: Validation[ChronosJob] =
         JobToChronos(job,
                      coordinatorConfig.dockerBridgeNetwork,
@@ -232,7 +233,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
 
     // Check Chronos for the job status; prepare the next tick
     case Event(CheckChronos, data: PartialLocalData) =>
-      coordinatorConfig.chronosService ! ChronosService.Check(data.job.jobId, data.chronosJob)
+      coordinatorConfig.chronosService ! ChronosMaster.Check(data.job.jobId, data.chronosJob)
       stay() forMax repeatDuration
 
     // Handle Chronos responses

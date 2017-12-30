@@ -17,8 +17,8 @@
 package eu.hbp.mip.woken.backends.chronos
 
 import akka.actor.{ ActorRef, ActorSystem }
-import akka.testkit.{ ImplicitSender, TestKit, TestProbe }
-import eu.hbp.mip.woken.backends.chronos.ChronosService.{ Error, Schedule }
+import akka.testkit.{ ImplicitSender, TestKit }
+import eu.hbp.mip.woken.backends.chronos.ChronosService.Error
 import eu.hbp.mip.woken.core.{ Core, CoreActors }
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import eu.hbp.mip.woken.backends.chronos.{ EnvironmentVariable => EV, Parameter => P }
@@ -63,7 +63,7 @@ class ChronosServiceTest
     )
 
     "Schedule a new job" in {
-      chronosHttp ! Schedule(job)
+      chronosHttp ! ChronosMaster.Schedule(job)
 
       within(40 seconds) {
         val msg = expectMsgType[Error](5 seconds)

@@ -16,13 +16,11 @@
 
 package eu.hbp.mip.woken.core
 
-import akka.NotUsed
-import akka.actor.{ActorRef, ActorSystem}
-import akka.pattern.{Backoff, BackoffSupervisor}
+import akka.actor.{ ActorRef, ActorSystem }
+import akka.pattern.{ Backoff, BackoffSupervisor }
 import akka.stream._
-import akka.stream.scaladsl.{Sink, Source}
-import com.typesafe.config.{Config, ConfigFactory}
-import eu.hbp.mip.woken.backends.chronos.ChronosService
+import com.typesafe.config.{ Config, ConfigFactory }
+import eu.hbp.mip.woken.backends.chronos.ChronosMaster
 import eu.hbp.mip.woken.config.JobsConfiguration
 
 import scala.concurrent.duration._
@@ -58,13 +56,13 @@ trait CoreActors {
 
   private val supervisor = BackoffSupervisor.props(
     Backoff.onFailure(
-      ChronosService.props(jobsConf),
-      childName = "chronos",
+      ChronosMaster.props(jobsConf),
+      childName = "chronosMaster",
       minBackoff = 1 second,
       maxBackoff = 30 seconds,
       randomFactor = 0.2
-    ))
-
+    )
+  )
 
   val chronosHttp: ActorRef = system.actorOf(supervisor)
 
