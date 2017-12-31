@@ -19,6 +19,7 @@ package eu.hbp.mip.woken.api
 import java.time.OffsetDateTime
 
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props, Terminated }
+import akka.routing.FromConfig
 import eu.hbp.mip.woken.messages.external._
 import eu.hbp.mip.woken.core.{ CoordinatorActor, CoordinatorConfig, ExperimentActor }
 //import com.github.levkhomich.akka.tracing.ActorTracing
@@ -70,6 +71,10 @@ case class MasterRouter(appConfiguration: AppConfiguration,
     with ActorLogging {
 
   import MasterRouter.RequestQueuesSize
+
+  val validationWorker: ActorRef = initValidationWorker
+
+  val scoringWorker: ActorRef = initScoringWorker
 
   var experimentActiveActors: Set[ActorRef]                      = Set.empty
   val experimentActiveActorsLimit: Int                           = appConfiguration.masterRouterConfig.miningActorsLimit
@@ -192,4 +197,11 @@ case class MasterRouter(appConfiguration: AppConfiguration,
 
   private[api] def newCoordinatorActor: ActorRef =
     context.actorOf(CoordinatorActor.props(coordinatorConfig))
+
+  private[api] def initValidationWorker: ActorRef =
+    context.actorOf(FromConfig.props(Props.empty), "validationWorker")
+
+  private[api] def initScoringWorker: ActorRef =
+    context.actorOf(FromConfig.props(Props.empty), "scoringWorker")
+
 }

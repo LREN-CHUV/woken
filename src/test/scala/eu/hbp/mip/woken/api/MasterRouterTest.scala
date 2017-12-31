@@ -19,6 +19,7 @@ package eu.hbp.mip.woken.api
 import java.util.UUID
 
 import akka.actor.{ ActorRef, ActorSystem, Props }
+import akka.routing.FromConfig
 import akka.testkit.{ ImplicitSender, TestKit }
 import eu.hbp.mip.woken.api.MasterRouter.{ QueuesSize, RequestQueuesSize }
 import eu.hbp.mip.woken.backends.DockerJob
@@ -109,6 +110,12 @@ class MasterRouterTest
 
     override def newCoordinatorActor: ActorRef =
       system.actorOf(Props(new FakeCoordinatorActor()))
+
+    override def initValidationWorker: ActorRef =
+      context.actorOf(FakeActor.echoActorProps)
+
+    override def initScoringWorker: ActorRef =
+      context.actorOf(FakeActor.echoActorProps)
 
   }
 

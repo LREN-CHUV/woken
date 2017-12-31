@@ -51,7 +51,7 @@ class MiningService(
 
   val routes: Route = mining ~ experiment ~ listMethods
 
-  val masterRouter: ActorRef =
+  val cluster: ActorRef =
     system.actorOf(ClusterClient.props(ClusterClientSettings(system)), "client")
   val entryPoint = "/user/entrypoint"
 
@@ -84,11 +84,11 @@ class MiningService(
           case query: MiningQuery =>
             ctx =>
               ctx.complete {
-                (masterRouter ? ClusterClient.Send(entryPoint, query, localAffinity = true))
+                (cluster ? ClusterClient.Send(entryPoint, query, localAffinity = true))
                   .mapTo[QueryResult]
                   .map {
-                    case qr @ QueryResult(_, _, _, _, _, Some(data), None) => qr.toJson
-                    case qr @ QueryResult(_, _, _, _, _, _, Some(error))   => qr.toJson
+                    case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
+                    case qr if qr.data.nonEmpty  => OK         -> qr.toJson
                   }
               }
         }
@@ -101,11 +101,11 @@ class MiningService(
       post {
         entity(as[ExperimentQuery]) { query: ExperimentQuery =>
           complete {
-            (masterRouter ? ClusterClient.Send(entryPoint, query, localAffinity = true))
+            (cluster ? ClusterClient.Send(entryPoint, query, localAffinity = true))
               .mapTo[QueryResult]
               .map {
-                case qr @ QueryResult(_, _, _, _, _, Some(data), None) => qr.toJson
-                case qr @ QueryResult(_, _, _, _, _, _, Some(error))   => qr.toJson
+                case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
+                case qr if qr.data.nonEmpty  => OK         -> qr.toJson
               }
           }
         }

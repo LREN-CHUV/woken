@@ -17,7 +17,7 @@
 package eu.hbp.mip.woken.web
 
 import scala.concurrent.duration._
-import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem, Props }
+import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem }
 import akka.util.Timeout
 import akka.cluster.Cluster
 import akka.cluster.client.ClusterClientReceptionist
@@ -26,7 +26,6 @@ import cats.effect.IO
 import eu.hbp.mip.woken.api.{ Api, MasterRouter }
 import eu.hbp.mip.woken.config.{ AlgorithmsConfiguration, AppConfiguration, DatabaseConfiguration }
 import eu.hbp.mip.woken.core.{ CoordinatorConfig, Core, CoreActors }
-import eu.hbp.mip.woken.core.validation.ValidationPoolManager
 import eu.hbp.mip.woken.dao.{ FeaturesDAL, MetadataRepositoryDAO, WokenRepositoryDAO }
 import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, JobResultService, VariablesMetaService }
 import eu.hbp.mip.woken.ssl.WokenSSLConfiguration
@@ -125,11 +124,6 @@ trait BootedCore
     )
 
   ClusterClientReceptionist(system).registerService(mainRouter)
-
-  /**
-    * Create and start actor responsible to register validation node
-    */
-  val validationRegisterActor: ActorRef = system.actorOf(Props[ValidationPoolManager])
 
   implicit val timeout: Timeout = Timeout(5.seconds)
 

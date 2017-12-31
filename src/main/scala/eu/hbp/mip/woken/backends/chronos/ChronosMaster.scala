@@ -47,7 +47,7 @@ class ChronosMaster(jobsConfig: JobsConfiguration, implicit val materializer: Ma
     val chronosWorker = context.actorOf(ChronosService.props(jobsConfig), "chronos")
     throttler = Source
       .actorRef(10, OverflowStrategy.fail)
-      .throttle(1, 1.second, 1, ThrottleMode.shaping)
+      .throttle(1, 100.milliseconds, 1, ThrottleMode.shaping)
       .to(Sink.actorRef(chronosWorker, NotUsed))
       .withAttributes(ActorAttributes.supervisionStrategy(Supervision.resumingDecider))
       .run()

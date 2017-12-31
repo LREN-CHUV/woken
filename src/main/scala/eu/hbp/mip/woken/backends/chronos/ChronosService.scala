@@ -16,7 +16,7 @@
 
 package eu.hbp.mip.woken.backends.chronos
 
-import akka.actor.{ Actor, ActorLogging, ActorRef, Props, Status }
+import akka.actor.{ Actor, ActorLogging, ActorRef, ActorSystem, Props, Status }
 import akka.http.scaladsl.model._
 import akka.pattern.{ AskTimeoutException, pipe }
 import akka.util.Timeout
@@ -26,8 +26,8 @@ import eu.hbp.mip.woken.config.JobsConfiguration
 import spray.json.PrettyPrinter
 
 import scala.concurrent.duration._
-import scala.concurrent.{ Await, ExecutionContextExecutor, Future }
-import scala.util.{ Failure, Success, Try }
+import scala.concurrent.{ ExecutionContextExecutor, Future }
+import scala.util.{ Failure, Success }
 
 object ChronosService {
 
@@ -118,7 +118,7 @@ class ChronosService(jobsConfig: JobsConfiguration)
     case Check(jobId, job, originator) =>
       implicit val executionContext: ExecutionContextExecutor = context.dispatcher
       implicit val timeout: Timeout                           = Timeout(10.seconds)
-      implicit val actorSystem                                = context.system
+      implicit val actorSystem: ActorSystem                   = context.system
       val pipeline: HttpRequest => Future[HttpResponse]       = HttpClient.sendReceive
 
       val originalSender             = originator
@@ -181,7 +181,7 @@ class ChronosService(jobsConfig: JobsConfiguration)
     case Cleanup(job) =>
       implicit val executionContext: ExecutionContextExecutor = context.dispatcher
       implicit val timeout: Timeout                           = Timeout(10.seconds)
-      implicit val actorSystem                                = context.system
+      implicit val actorSystem: ActorSystem                   = context.system
       val pipeline: HttpRequest => Future[HttpResponse]       = HttpClient.sendReceive
 
       val url                        = s"${jobsConfig.chronosServerUrl}/v1/scheduler/job/${job.name}"
