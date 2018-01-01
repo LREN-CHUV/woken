@@ -32,21 +32,25 @@ import scala.util.{ Failure, Success }
 object ChronosService {
 
   // Requests
-  case class Schedule(job: ChronosJob, originator: ActorRef)
+  sealed trait Request
 
-  case class Check(jobId: String, job: ChronosJob, originator: ActorRef)
+  case class Schedule(job: ChronosJob, originator: ActorRef) extends Request
 
-  case class Cleanup(job: ChronosJob)
+  case class Check(jobId: String, job: ChronosJob, originator: ActorRef) extends Request
+
+  case class Cleanup(job: ChronosJob) extends Request
+
+  sealed trait Response
 
   // Responses for Schedule
-  sealed trait ScheduleResponse
+  sealed trait ScheduleResponse extends Response
 
   case object Ok extends ScheduleResponse
 
   case class Error(message: String) extends ScheduleResponse
 
   // Responses for Check
-  sealed trait JobLivelinessResponse
+  sealed trait JobLivelinessResponse extends Response
 
   case class JobNotFound(jobId: String) extends JobLivelinessResponse
 

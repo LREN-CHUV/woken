@@ -63,7 +63,7 @@ class ChronosServiceTest
     )
 
     "Schedule a new job" in {
-      chronosHttp ! ChronosMaster.Schedule(job)
+      chronosHttp ! ChronosService.Schedule(job, self)
 
       within(40 seconds) {
         val msg = expectMsgType[Error](5 seconds)

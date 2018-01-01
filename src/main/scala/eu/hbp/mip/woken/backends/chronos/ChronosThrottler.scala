@@ -18,41 +18,46 @@ package eu.hbp.mip.woken.backends.chronos
 
 import akka.NotUsed
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props, Terminated }
-import akka.dispatch.sysmsg.Terminate
 import akka.stream._
 import akka.stream.scaladsl.{ Sink, Source }
-import eu.hbp.mip.woken.backends.chronos.ChronosMaster.{ Check, Schedule }
 import eu.hbp.mip.woken.config.JobsConfiguration
 
 import scala.concurrent.duration._
 
-object ChronosMaster {
+object ChronosThrottler {
 
-  case class Schedule(job: ChronosJob)
-
-  case class Check(jobId: String, job: ChronosJob)
+  // Requests
+  // Incoming messages are simply ChronosService messages to forward to the ChronosService
+  type Request = ChronosService.Request
 
   def props(jobsConfig: JobsConfiguration)(implicit materializer: Materializer): Props =
-    Props(new ChronosMaster(jobsConfig, materializer))
+    Props(new ChronosThrottler(jobsConfig, materializer))
 
 }
 
-class ChronosMaster(jobsConfig: JobsConfiguration, implicit val materializer: Materializer)
+/**
+  * Throttles the rate of messages sent to Chronos as Chronos + Zookeeper doesn't seem to handle gracefully bursts of messages.
+  *
+  * @param jobsConfig Configuration for the jobs, used to setup the connection to Chronos
+  * @param materializer The stream materializer
+  */
+class ChronosThrottler(jobsConfig: JobsConfiguration, implicit val materializer: Materializer)
     extends Actor
     with ActorLogging {
 
-  private var throttler: ActorRef = _
+  private var chronosWorker: ActorRef = _
+  private var throttler: ActorRef     = _
 
   override def preStart(): Unit = {
-    val chronosWorker = context.actorOf(ChronosService.props(jobsConfig), "chronos")
+    chronosWorker = context.actorOf(ChronosService.props(jobsConfig), "chronos")
     throttler = Source
-      .actorRef(10, OverflowStrategy.fail)
+      .actorRef(1000, OverflowStrategy.fail)
       .throttle(1, 100.milliseconds, 1, ThrottleMode.shaping)
       .to(Sink.actorRef(chronosWorker, NotUsed))
       .withAttributes(ActorAttributes.supervisionStrategy(Supervision.resumingDecider))
       .run()
+    context.watch(chronosWorker)
     context.watch(throttler)
-
   }
 
   override def postRestart(reason: Throwable): Unit = ()
@@ -61,16 +66,14 @@ class ChronosMaster(jobsConfig: JobsConfiguration, implicit val materializer: Ma
     postStop()
 
   override def receive: Receive = {
-    case schedule: Schedule =>
-      val originator = sender()
-      throttler ! ChronosService.Schedule(schedule.job, originator)
-    case check: Check =>
-      val originator = sender()
-      throttler ! ChronosService.Check(check.jobId, check.job, originator)
+    // Cleanup requests do not need to be rate-limited
     case cleanup: ChronosService.Cleanup =>
-      throttler ! cleanup
+      chronosWorker ! cleanup
+    // But all other requests should be rate-limited
+    case request: ChronosService.Request =>
+      throttler ! request
     case Terminated(ref) =>
-      log.debug("Terminating ChronosMaster as child is terminated: {}", ref)
+      log.debug("Terminating ChronosThrottler as child is terminated: {}", ref)
       context.stop(self)
     case e => log.error("Unknown msg received: {}", e)
   }

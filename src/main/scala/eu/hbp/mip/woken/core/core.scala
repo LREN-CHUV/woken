@@ -20,10 +20,11 @@ import akka.actor.{ ActorRef, ActorSystem }
 import akka.pattern.{ Backoff, BackoffSupervisor }
 import akka.stream._
 import com.typesafe.config.{ Config, ConfigFactory }
-import eu.hbp.mip.woken.backends.chronos.ChronosMaster
+import eu.hbp.mip.woken.backends.chronos.ChronosThrottler
 import eu.hbp.mip.woken.config.JobsConfiguration
 
 import scala.concurrent.duration._
+import scala.language.postfixOps
 
 /**
   * Core is type containing the ``system: ActorSystem`` member. This enables us to use it in our
@@ -54,16 +55,16 @@ trait CoreActors {
 
   private implicit val materializer: ActorMaterializer = ActorMaterializer()
 
-  private val supervisor = BackoffSupervisor.props(
+  private val chronosSupervisorProps = BackoffSupervisor.props(
     Backoff.onFailure(
-      ChronosMaster.props(jobsConf),
-      childName = "chronosMaster",
+      ChronosThrottler.props(jobsConf),
+      childName = "chronosThrottler",
       minBackoff = 1 second,
       maxBackoff = 30 seconds,
       randomFactor = 0.2
     )
   )
 
-  val chronosHttp: ActorRef = system.actorOf(supervisor)
+  val chronosHttp: ActorRef = system.actorOf(chronosSupervisorProps, "chronosSupervisor")
 
 }

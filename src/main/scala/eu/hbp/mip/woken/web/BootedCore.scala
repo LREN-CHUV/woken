@@ -22,6 +22,7 @@ import akka.util.Timeout
 import akka.cluster.Cluster
 import akka.cluster.client.ClusterClientReceptionist
 import akka.http.scaladsl.Http
+import akka.pattern.{ Backoff, BackoffSupervisor }
 import cats.effect.IO
 import eu.hbp.mip.woken.api.{ Api, MasterRouter }
 import eu.hbp.mip.woken.config.{ AlgorithmsConfiguration, AppConfiguration, DatabaseConfiguration }
@@ -33,6 +34,7 @@ import akka.stream.ActorMaterializer
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.{ ExecutionContextExecutor, Future }
+import scala.language.postfixOps
 import scala.sys.ShutdownHookThread
 
 /**
@@ -110,18 +112,25 @@ trait BootedCore
     DatabaseConfiguration.factory(config)
   )
 
-  /**
-    * Create and start actor that acts as akka entry-point
-    */
-  override val mainRouter: ActorRef =
-    system.actorOf(
+  private val mainRouterSupervisorProps = BackoffSupervisor.props(
+    Backoff.onFailure(
       MasterRouter.props(appConfig,
                          coordinatorConfig,
                          variablesMetaService,
                          algorithmLibraryService,
                          AlgorithmsConfiguration.factory(config)),
-      name = "entrypoint"
+      childName = "mainRouter",
+      minBackoff = 100 milliseconds,
+      maxBackoff = 1 seconds,
+      randomFactor = 0.2
     )
+  )
+
+  /**
+    * Create and start actor that acts as akka entry-point
+    */
+  override lazy val mainRouter: ActorRef =
+    system.actorOf(mainRouterSupervisorProps, name = "entrypoint")
 
   ClusterClientReceptionist(system).registerService(mainRouter)
 
