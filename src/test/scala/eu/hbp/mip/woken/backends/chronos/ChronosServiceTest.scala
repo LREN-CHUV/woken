@@ -16,13 +16,18 @@
 
 package eu.hbp.mip.woken.backends.chronos
 
+import akka.Done
 import akka.actor.{ ActorRef, ActorSystem }
+import akka.http.scaladsl.Http.ServerBinding
+import akka.http.scaladsl.server.{ HttpApp, Route }
 import akka.testkit.{ ImplicitSender, TestKit }
 import eu.hbp.mip.woken.backends.chronos.ChronosService.Error
 import eu.hbp.mip.woken.core.{ Core, CoreActors }
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import eu.hbp.mip.woken.backends.chronos.{ EnvironmentVariable => EV, Parameter => P }
+import eu.hbp.mip.woken.util.FakeActors
 
+import scala.concurrent.{ Await, ExecutionContext, Future, Promise }
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -35,7 +40,51 @@ class ChronosServiceTest
     with Core
     with CoreActors {
 
-  override def afterAll(): Unit = TestKit.shutdownActorSystem(system)
+  import system.dispatcher
+
+  class MockChronosServer extends HttpApp {
+    val shutdownPromise: Promise[Done]         = Promise[Done]()
+    val bindingPromise: Promise[ServerBinding] = Promise[ServerBinding]()
+
+    def shutdownServer(): Unit = shutdownPromise.success(Done)
+
+    override protected def postHttpBinding(binding: ServerBinding): Unit = {
+      super.postHttpBinding(binding)
+      bindingPromise.success(binding)
+    }
+
+    override protected def waitForShutdownSignal(
+        system: ActorSystem
+    )(implicit ec: ExecutionContext): Future[Done] =
+      shutdownPromise.future
+
+    override protected def routes: Route = pathPrefix("/v1/scheduler/iso8601") {
+      post {
+        complete(200 -> "")
+      }
+    }
+  }
+
+  override protected def mainRouter: ActorRef = system.actorOf(FakeActors.echoActorProps)
+
+  var mockChronosServer: MockChronosServer = _
+  var binding: ServerBinding               = _
+
+  override def beforeAll(): Unit = {
+    mockChronosServer = new MockChronosServer()
+
+    Future {
+      mockChronosServer.startServer("localhost", 9999)
+    }
+    binding = Await.result(mockChronosServer.bindingPromise.future, 5 seconds)
+
+    println("Mock Chronos server started...")
+  }
+
+  override def afterAll(): Unit = {
+    mockChronosServer.shutdownServer()
+    TestKit.shutdownActorSystem(system)
+  }
 
   "Chronos Service" must {
 
@@ -73,5 +122,4 @@ class ChronosServiceTest
 
   }
 
-  override protected def mainRouter: ActorRef = ???
 }

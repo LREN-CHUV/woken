@@ -603,8 +603,10 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
   import CrossValidationActor._
   import CrossValidationStates._
 
-  val validationActor: ActorSelection = context.actorSelection("/user/entrypoint/validationWorker")
-  val scoringActor: ActorSelection    = context.actorSelection("/user/entrypoint/scoringWorker")
+  val validationActor: ActorSelection =
+    context.actorSelection("/user/entrypoint/mainRouter/validationWorker")
+  val scoringActor: ActorSelection =
+    context.actorSelection("/user/entrypoint/mainRouter/scoringWorker")
 
   startWith(WaitForNewJob, Uninitialized)
 

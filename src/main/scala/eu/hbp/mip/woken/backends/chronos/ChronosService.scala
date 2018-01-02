@@ -80,8 +80,9 @@ class ChronosService(jobsConfig: JobsConfiguration)
       import ChronosJob._
       implicit val executionContext: ExecutionContextExecutor = context.dispatcher
       implicit val timeout: Timeout                           = Timeout(30.seconds)
-      implicit val actorSystem                                = context.system
-      log.info(s"Send job to Chronos: ${PrettyPrinter(chronosJobFormat.write(job))}")
+      implicit val actorSystem: ActorSystem                   = context.system
+
+      log.info(s"Send job to Chronos: ${chronosJobFormat.write(job).prettyPrint}")
 
       val originalSender             = originator
       val url                        = jobsConfig.chronosServerUrl + "/v1/scheduler/iso8601"
@@ -95,9 +96,9 @@ class ChronosService(jobsConfig: JobsConfiguration)
               case _: StatusCodes.Success => Ok
               case _ =>
                 log.warning(
-                  s"Post schedule to Chronos on $url returned error $statusCode: ${entity}"
+                  s"Post schedule to Chronos on $url returned error $statusCode: $entity"
                 )
-                Error(s"Error $statusCode: ${entity}")
+                Error(s"Error $statusCode: $entity")
             }
 
           case f: Status.Failure =>

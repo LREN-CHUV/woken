@@ -39,6 +39,7 @@ import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import spray.json.JsObject
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil
 import cats.data.Validated._
+import eu.hbp.mip.woken.util.FakeActors
 import org.scalatest.tagobjects.Slow
 
 import scala.concurrent.duration._
@@ -112,10 +113,10 @@ class MasterRouterTest
       system.actorOf(Props(new FakeCoordinatorActor()))
 
     override def initValidationWorker: ActorRef =
-      context.actorOf(FakeActor.echoActorProps)
+      context.actorOf(FakeActors.echoActorProps)
 
     override def initScoringWorker: ActorRef =
-      context.actorOf(FakeActor.echoActorProps)
+      context.actorOf(FakeActors.echoActorProps)
 
   }
 
@@ -127,7 +128,7 @@ class MasterRouterTest
   val jdbcConfigs: String => ConfigUtil.Validation[DatabaseConfiguration] = _ => Valid(noDbConfig)
 
   val coordinatorConfig: CoordinatorConfig = CoordinatorConfig(
-    system.actorOf(FakeActor.echoActorProps),
+    system.actorOf(FakeActors.echoActorProps),
     None,
     fakeFeaturesDAL,
     jobResultService,
