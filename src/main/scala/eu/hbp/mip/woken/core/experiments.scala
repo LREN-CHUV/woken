@@ -19,9 +19,10 @@ package eu.hbp.mip.woken.core
 import java.time.OffsetDateTime
 import java.util.UUID
 
-import akka.actor.{ Actor, ActorLogging, ActorRef, ActorSelection, FSM, LoggingFSM, Props }
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSelection, FSM, LoggingFSM, Props}
 import akka.pattern.ask
-import akka.util
+import akka.stream.scaladsl.Source
+import akka.{NotUsed, util}
 import akka.util.Timeout
 //import com.github.levkhomich.akka.tracing.ActorTracing
 import eu.hbp.mip.woken.backends.{ DockerJob, QueryOffset }
@@ -46,6 +47,8 @@ import eu.hbp.mip.woken.meta.{ VariableMetaData, VariableMetaDataProtocol }
 import spray.json.{ JsString, _ }
 
 import scala.concurrent.{ Await, Future }
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
 /**
   * We use the companion object to hold all the messages that the ``ExperimentActor`` receives.
@@ -595,6 +598,13 @@ private[core] object CrossValidationStates {
 
 }
 
+case class FoldJobResponse(
+                            response: CoordinatorActor.Response,
+                            fold: String,
+                            targetMetaData: VariableMetaData,
+                            validation: KFoldCrossValidation
+                          )
+
 class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
     extends Actor
     with ActorLogging
@@ -623,51 +633,30 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
       assert(crossValidation.partition.size == foldCount)
 
       // For every fold
-      val workers = crossValidation.partition.map {
-        case (fold, (s, n)) =>
-          // Spawn a LocalCoordinatorActor for that one particular fold
-          val jobId = UUID.randomUUID().toString
-          val subJob = DockerJob(
-            jobId = jobId,
-            dockerImage = job.algorithmDefinition.dockerImage,
-            inputDb = job.inputDb,
-            inputTable = job.inputTable,
-            query = job.query,
-            metadata = job.metadata,
-            shadowOffset = Some(QueryOffset(s, n))
-          )
+      val folds: Source[(String, (Int, Int)), NotUsed] = Source(crossValidation.partition.toList)
 
-          val worker = context.actorOf(
-            CoordinatorActor.props(coordinatorConfig)
-          )
-          //workers(worker) = fold
+      folds.mapAsyncUnordered(foldCount){ f =>
+        val (fold, (s, n)) = f
+        localJobForFold(job, s, n).map( response =>
+          FoldJobResponse(response = response, fold = fold, targetMetaData = targetMetadata(job), validation = crossValidation)
+        )
+      }.mapAsync(foldCount) { f =>
+        f.response match {
+          case CoordinatorActor.Response(_, List(pfa: PfaJobResult)) =>
+            // Validate the results
+            log.info("Received result from local method.")
+            val model    = pfa.model
+            val fold = f.fold
+            val testData = f.validation.getTestSet(fold)._1.map(d => d.compactPrint)
 
-          worker ! StartCoordinatorJob(subJob)
-
-          (worker, fold)
+            log.info(
+              s"Send a validation work for fold $fold to validation worker: ${validationActor.pathString}"
+            )
+            (validationActor ? ValidationQuery(fold, model, testData, f.targetMetaData)).mapTo[]
+        }
       }
 
-      // TODO: move this code in a better place, test it
-      import eu.hbp.mip.woken.core.model.Queries._
-      import VariableMetaDataProtocol._
-      val targetMetaData: VariableMetaData = job.metadata
-        .convertTo[Map[String, VariableMetaData]]
-        .get(job.query.dbVariables.head) match {
-        case Some(v: VariableMetaData) => v
-        case None                      => throw new Exception("Problem with variables' meta data!")
-      }
-
-      val initiator = sender()
-      goto(WaitForWorkers) using WaitForWorkersState(
-        initiator = initiator,
-        job = job,
-        validation = crossValidation,
-        workers = workers,
-        targetMetaData = targetMetaData,
-        average = (Nil, Nil),
-        results = Map(),
-        foldCount = foldCount
-      )
+      stop
   }
 
   when(WaitForWorkers) {
@@ -682,7 +671,24 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
         s"Send a validation work for fold $fold to validation worker: ${validationActor.pathString}"
       )
       validationActor ! ValidationQuery(fold, model, testData, data.targetMetaData)
-      stay
+      stay forMax (5 minutes)
+
+    case Event(CoordinatorActor.Response(_, List(error: ErrorJobResult)),
+               data: WaitForWorkersState) =>
+      val message = error.error
+      log.error(s"Error on cross validation job ${error.jobId}: $message")
+      // On training fold fails, we notify supervisor and we stop
+      data.initiator ! CrossValidationActor.ErrorResponse(data.job.validation, message)
+      log.info("Stopping...")
+      stop
+
+    case Event(CoordinatorActor.Response(_, unhandled), data: WaitForWorkersState) =>
+      val message = s"Unhandled response from CoordinatorActor: $unhandled"
+      log.error(s"Error on cross validation job ${data.job.jobId}: $message")
+      // On training fold fails, we notify supervisor and we stop
+      data.initiator ! CrossValidationActor.ErrorResponse(data.job.validation, message)
+      log.info("Stopping...")
+      stop
 
     case Event(ValidationResult(fold, targetMetaData, results), data: WaitForWorkersState) =>
       log.info(s"Received validation results for fold $fold.")
@@ -756,14 +762,9 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
       log.info("Stopping...")
       stop
 
-    case Event(CoordinatorActor.Response(_, List(error: ErrorJobResult)),
-               data: WaitForWorkersState) =>
-      val message = error.error
-      log.error(s"Error on cross validation job ${error.jobId}: $message")
-      // On training fold fails, we notify supervisor and we stop
-      data.initiator ! CrossValidationActor.ErrorResponse(data.job.validation, message)
-      log.info("Stopping...")
+    case Event(StateTimeout, _) =>
       stop
+
   }
 
   when(Reduce) {
@@ -813,4 +814,43 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
   }
 
   initialize()
+
+
+  private def targetMetadata(job: Job) = {
+    // TODO: move this code in a better place, test it
+    import eu.hbp.mip.woken.core.model.Queries._
+    import VariableMetaDataProtocol._
+    val targetMetaData: VariableMetaData = job.metadata
+      .convertTo[Map[String, VariableMetaData]]
+      .get(job.query.dbVariables.head) match {
+      case Some(v: VariableMetaData) => v
+      case None => throw new Exception("Problem with variables' meta data!")
+    }
+    targetMetaData
+  }
+
+  private def localJobForFold(job: Job, s: Int, n: Int): Future[CoordinatorActor.Response] = {
+    // Spawn a LocalCoordinatorActor for that one particular fold
+    val jobId = UUID.randomUUID().toString
+    val subJob = DockerJob(
+      jobId = jobId,
+      dockerImage = job.algorithmDefinition.dockerImage,
+      inputDb = job.inputDb,
+      inputTable = job.inputTable,
+      query = job.query,
+      metadata = job.metadata,
+      shadowOffset = Some(QueryOffset(s, n))
+    )
+
+    val worker = context.actorOf(
+      CoordinatorActor.props(coordinatorConfig)
+    )
+
+    implicit val askTimeout: util.Timeout = Timeout(1 day)
+
+    (worker ? StartCoordinatorJob(subJob))
+      .mapTo[CoordinatorActor.Response]
+  }
+
+
 }

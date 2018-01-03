@@ -15,6 +15,7 @@ lazy val `woken` =
           library.akkaRemote,
           library.akkaCluster,
           library.akkaClusterTools,
+          library.akkaStream,
           library.akkaContrib,
           library.akkaSlf4j,
           //library.akkaTracingCore,
@@ -78,6 +79,7 @@ lazy val library =
     val akkaRemote: ModuleID   = "com.typesafe.akka" %% "akka-remote"  % Version.akka
     val akkaCluster: ModuleID  = "com.typesafe.akka" %% "akka-cluster" % Version.akka
     val akkaClusterTools: ModuleID = "com.typesafe.akka" %% "akka-cluster-tools" % Version.akka
+    val akkaStream: ModuleID   = "com.typesafe.akka" %% "akka-stream"  % Version.akka
     val akkaContrib: ModuleID  = "com.typesafe.akka" %% "akka-contrib" % Version.akka
     val akkaSlf4j: ModuleID    = "com.typesafe.akka" %% "akka-slf4j"   % Version.akka
     val akkaTestkit: ModuleID  = "com.typesafe.akka" %% "akka-testkit" % Version.akka
