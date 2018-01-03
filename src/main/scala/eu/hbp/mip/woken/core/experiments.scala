@@ -19,11 +19,14 @@ package eu.hbp.mip.woken.core
 import java.time.OffsetDateTime
 import java.util.UUID
 
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSelection, FSM, LoggingFSM, Props}
+import akka.actor.{ Actor, ActorLogging, ActorRef, ActorSelection, FSM, LoggingFSM, Props }
 import akka.pattern.ask
 import akka.stream.scaladsl.Source
-import akka.{NotUsed, util}
+import akka.{ NotUsed, util }
 import akka.util.Timeout
+import cats.data.NonEmptyList
+
+import scala.concurrent.ExecutionContext
 //import com.github.levkhomich.akka.tracing.ActorTracing
 import eu.hbp.mip.woken.backends.{ DockerJob, QueryOffset }
 import eu.hbp.mip.woken.core.commands.JobCommands.{ StartCoordinatorJob, StartExperimentJob }
@@ -45,6 +48,7 @@ import eu.hbp.mip.woken.messages.external.{
 import eu.hbp.mip.woken.messages.validation._
 import eu.hbp.mip.woken.meta.{ VariableMetaData, VariableMetaDataProtocol }
 import spray.json.{ JsString, _ }
+import cats.syntax.list._
 
 import scala.concurrent.{ Await, Future }
 import scala.concurrent.duration._
@@ -598,12 +602,20 @@ private[core] object CrossValidationStates {
 
 }
 
-case class FoldJobResponse(
-                            response: CoordinatorActor.Response,
-                            fold: String,
-                            targetMetaData: VariableMetaData,
-                            validation: KFoldCrossValidation
-                          )
+case class FoldContext[R](
+    response: R,
+    fold: String,
+    targetMetaData: VariableMetaData,
+    validation: KFoldCrossValidation
+)
+
+case class FoldResult(
+    scores: ScoringResult,
+    validationResults: List[String],
+    groundTruth: List[String],
+    fold: String,
+    targetMetaData: VariableMetaData
+)
 
 class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
     extends Actor
@@ -635,135 +647,36 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
       // For every fold
       val folds: Source[(String, (Int, Int)), NotUsed] = Source(crossValidation.partition.toList)
 
-      folds.mapAsyncUnordered(foldCount){ f =>
-        val (fold, (s, n)) = f
-        localJobForFold(job, s, n).map( response =>
-          FoldJobResponse(response = response, fold = fold, targetMetaData = targetMetadata(job), validation = crossValidation)
-        )
-      }.mapAsync(foldCount) { f =>
-        f.response match {
-          case CoordinatorActor.Response(_, List(pfa: PfaJobResult)) =>
-            // Validate the results
-            log.info("Received result from local method.")
-            val model    = pfa.model
-            val fold = f.fold
-            val testData = f.validation.getTestSet(fold)._1.map(d => d.compactPrint)
-
-            log.info(
-              s"Send a validation work for fold $fold to validation worker: ${validationActor.pathString}"
-            )
-            (validationActor ? ValidationQuery(fold, model, testData, f.targetMetaData)).mapTo[]
+      folds
+        .mapAsyncUnordered(foldCount) { f =>
+          val (fold, (s, n)) = f
+          localJobForFold(job, s, n, fold, crossValidation)
         }
-      }
+        .mapAsync(foldCount) { jobResponseInContext =>
+          validateFoldJobResponse(job, jobResponseInContext)
+        }
+        .mapAsync(foldCount) { validationResponseInContext =>
+          // Score the results
+          scoreFoldValidationResponse(validationResponseInContext)
+
+        }.grouped(foldCount).map { foldResults =>
+          scoreAll(foldResults.sortBy(_.fold.toInt))
+        }
 
       stop
   }
 
-  when(WaitForWorkers) {
-    case Event(CoordinatorActor.Response(_, List(pfa: PfaJobResult)), data: WaitForWorkersState) =>
-      // Validate the results
-      log.info("Received result from local method.")
-      val model    = pfa.model
-      val fold     = data.workers(sender)
-      val testData = data.validation.getTestSet(fold)._1.map(d => d.compactPrint)
+  private def scoreAll(foldResults: Seq[FoldResult]) = {
+    val validations = foldResults.flatMap(_.validationResults).toList
+    val groundResults = foldResults.flatMap(_.groundTruth).toList
+    val scores = foldResults.map { s => s.fold -> s.scores }
 
-      log.info(
-        s"Send a validation work for fold $fold to validation worker: ${validationActor.pathString}"
-      )
-      validationActor ! ValidationQuery(fold, model, testData, data.targetMetaData)
-      stay forMax (5 minutes)
-
-    case Event(CoordinatorActor.Response(_, List(error: ErrorJobResult)),
-               data: WaitForWorkersState) =>
-      val message = error.error
-      log.error(s"Error on cross validation job ${error.jobId}: $message")
-      // On training fold fails, we notify supervisor and we stop
-      data.initiator ! CrossValidationActor.ErrorResponse(data.job.validation, message)
-      log.info("Stopping...")
-      stop
-
-    case Event(CoordinatorActor.Response(_, unhandled), data: WaitForWorkersState) =>
-      val message = s"Unhandled response from CoordinatorActor: $unhandled"
-      log.error(s"Error on cross validation job ${data.job.jobId}: $message")
-      // On training fold fails, we notify supervisor and we stop
-      data.initiator ! CrossValidationActor.ErrorResponse(data.job.validation, message)
-      log.info("Stopping...")
-      stop
-
-    case Event(ValidationResult(fold, targetMetaData, results), data: WaitForWorkersState) =>
-      log.info(s"Received validation results for fold $fold.")
-      // Score the results
-      val groundTruth = data.validation
-        .getTestSet(fold)
-        ._2
-        .map(x => x.asJsObject.fields.toList.head._2.compactPrint)
-      log.info(s"Ground truth: $groundTruth")
-
-      import cats.syntax.list._
-      import scala.concurrent.duration._
-      import language.postfixOps
-
-      (results.toNel, groundTruth.toNel) match {
-        case (Some(r), Some(gt)) =>
-          implicit val timeout: util.Timeout = Timeout(5 minutes)
-          // TODO: replace ask pattern by 1) sending a ScoringQuery and handling ScoringResult in this state and
-          // 2) start a timer to handle timeouts. A bit tricky as we need to keep track of several ScoringQueries at once
-          val futureScore: Future[ScoringResult] =
-            (scoringActor ? ScoringQuery(r, gt, data.targetMetaData)).mapTo[ScoringResult]
-
-          log.info("Waiting for scoring results...")
-          val scores = Await.result(futureScore, timeout.duration)
-
-          // TODO To be improved with new Spark integration - LC: what was that about?
-          // Update the average score
-          val updatedAverage = (data.average._1 ::: results, data.average._2 ::: groundTruth)
-          val updatedResults = data.results + (fold -> scores)
-
-          // TODO - LC: use updatedAverage in the next step
-          // If we have validated all the fold we finish!
-          if (updatedResults.size == data.foldCount) {
-            log.info("Received the scores for each folds, moving on to final reduce step")
-            goto(Reduce) using ReduceData(initiator = data.initiator,
-                                          job = data.job,
-                                          targetMetaData = data.targetMetaData,
-                                          average = updatedAverage,
-                                          results = updatedResults)
-          } else {
-            log.info(
-              s"Waiting for more scoring results as we have received ${updatedResults.size} scores and there are ${data.foldCount} folds"
-            )
-            stay using data.copy(average = updatedAverage, results = updatedResults)
-          }
-
-        case (Some(_), None) =>
-          val message = s"No results on fold $fold"
-          log.error(message)
-          data.initiator ! CrossValidationActor.ErrorResponse(data.job.validation, message)
-          log.info("Stopping...")
-          stop
-        case (None, Some(_)) =>
-          val message = s"Empty test set on fold $fold"
-          log.error(message)
-          data.initiator ! CrossValidationActor.ErrorResponse(data.job.validation, message)
-          log.info("Stopping...")
-          stop
-        case _ =>
-          val message = s"No data selected during fold $fold"
-          log.error(message)
-          data.initiator ! CrossValidationActor.ErrorResponse(data.job.validation, message)
-          log.info("Stopping...")
-          stop
-      }
-
-    case Event(ValidationError(message), data: WaitForWorkersState) =>
-      log.error(message)
-      // On testing fold fails, we notify supervisor and we stop
-      data.initiator ! CrossValidationActor.ErrorResponse(data.job.validation, message)
-      log.info("Stopping...")
-      stop
-
-    case Event(StateTimeout, _) =>
-      stop
+    (validations.toNel, groundResults.toNel) match {
+      case (Some(r), Some(gt)) =>
+        implicit val askTimeout: util.Timeout = Timeout(5 minutes)
+        val futureScore: Future[ScoringResult] =
+          (scoringActor ? ScoringQuery(r, gt, foldResults.head.targetMetaData)).mapTo[ScoringResult]
+    }
 
   }
 
@@ -815,7 +728,6 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
 
   initialize()
 
-
   private def targetMetadata(job: Job) = {
     // TODO: move this code in a better place, test it
     import eu.hbp.mip.woken.core.model.Queries._
@@ -824,12 +736,18 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
       .convertTo[Map[String, VariableMetaData]]
       .get(job.query.dbVariables.head) match {
       case Some(v: VariableMetaData) => v
-      case None => throw new Exception("Problem with variables' meta data!")
+      case None                      => throw new Exception("Problem with variables' meta data!")
     }
     targetMetaData
   }
 
-  private def localJobForFold(job: Job, s: Int, n: Int): Future[CoordinatorActor.Response] = {
+  private def localJobForFold(
+      job: Job,
+      s: Int,
+      n: Int,
+      fold: String,
+      validation: KFoldCrossValidation
+  )(implicit executionContext: ExecutionContext): Future[FoldContext[CoordinatorActor.Response]] = {
     // Spawn a LocalCoordinatorActor for that one particular fold
     val jobId = UUID.randomUUID().toString
     val subJob = DockerJob(
@@ -850,7 +768,91 @@ class CrossValidationActor(val coordinatorConfig: CoordinatorConfig)
 
     (worker ? StartCoordinatorJob(subJob))
       .mapTo[CoordinatorActor.Response]
+      .map(
+        response =>
+          FoldContext[CoordinatorActor.Response](response = response,
+                                                 fold = fold,
+                                                 targetMetaData = targetMetadata(job),
+                                                 validation = validation)
+      )
   }
 
+  private def validateFoldJobResponse(job: Job, context: FoldContext[CoordinatorActor.Response])(
+      implicit executionContext: ExecutionContext
+  ): Future[FoldContext[ValidationResult]] =
+    (context.response match {
+      case CoordinatorActor.Response(_, List(pfa: PfaJobResult)) =>
+        // Validate the results
+        log.info("Received result from local method.")
+        val model    = pfa.model
+        val fold     = context.fold
+        val testData = context.validation.getTestSet(fold)._1.map(d => d.compactPrint)
+
+        log.info(
+          s"Send a validation work for fold $fold to validation worker: ${validationActor.pathString}"
+        )
+        implicit val askTimeout: util.Timeout = Timeout(5 minutes)
+        (validationActor ? ValidationQuery(fold, model, testData, context.targetMetaData))
+          .mapTo[ValidationResult]
+
+      case CoordinatorActor.Response(_, List(error: ErrorJobResult)) =>
+        val message =
+          s"Error on cross validation job ${error.jobId} during fold ${context.fold} on variable ${context.targetMetaData.code}: ${error.error}"
+        log.error(message)
+        // On training fold fails, we notify supervisor and we stop
+        Future.failed[ValidationResult](new IllegalStateException(message))
+
+      case CoordinatorActor.Response(_, unhandled) =>
+        val message =
+          s"Error on cross validation job ${job.jobId} during fold ${context.fold} on variable ${context.targetMetaData.code}: Unhandled response from CoordinatorActor: $unhandled"
+        log.error(message)
+        // On training fold fails, we notify supervisor and we stop
+        Future.failed[ValidationResult](new IllegalStateException(message))
+    }).map(
+      r =>
+        FoldContext[ValidationResult](response = r,
+                                      fold = context.fold,
+                                      targetMetaData = context.targetMetaData,
+                                      validation = context.validation)
+    )
+
+  private def scoreFoldValidationResponse(
+      context: FoldContext[ValidationResult]
+  )(implicit executionContext: ExecutionContext): Future[FoldResult] = {
+
+    val results = context.response.outputData
+    val groundTruth = context.validation.groundTruth(context.fold)
+    log.info(s"Ground truth: $groundTruth")
+
+    (results.toNel, groundTruth.toNel) match {
+      case (Some(r), Some(gt)) =>
+        implicit val askTimeout: util.Timeout = Timeout(5 minutes)
+        (scoringActor ? ScoringQuery(r, gt, context.targetMetaData))
+          .mapTo[ScoringResult]
+          .map(
+            s =>
+              FoldResult(scores = s,
+                validationResults = results,
+                groundTruth = groundTruth,
+                fold = context.fold,
+                targetMetaData = context.targetMetaData)
+          )
+
+      case (Some(_), None) =>
+        val message = s"No results on fold ${context.fold}"
+        log.error(message)
+        Future.failed[FoldResult](new IllegalStateException(message))
+
+      case (None, Some(_)) =>
+        val message = s"Empty test set on fold ${context.fold}"
+        log.error(message)
+        Future.failed[FoldResult](new IllegalStateException(message))
+
+      case _ =>
+        val message = s"No data selected during fold ${context.fold}"
+        log.error(message)
+        Future.failed[FoldResult](new IllegalStateException(message))
+    }
+  }
 
 }

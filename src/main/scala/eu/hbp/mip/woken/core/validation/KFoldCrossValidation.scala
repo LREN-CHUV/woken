@@ -65,6 +65,10 @@ class KFoldCrossValidation(data: Stream[JsObject], labels: Stream[JsObject], fol
       data.toList.slice(partition(k)._1, partition(k)._1 + partition(k)._2),
       labels.toList.slice(partition(k)._1, partition(k)._1 + partition(k)._2)
     )
+
+  def groundTruth(fold: String): List[String] =
+    getTestSet(fold)._2.map(x => x.asJsObject.fields.toList.head._2.compactPrint)
+
 }
 
 /**
