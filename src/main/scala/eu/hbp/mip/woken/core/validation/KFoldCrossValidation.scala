@@ -18,7 +18,6 @@ package eu.hbp.mip.woken.core.validation
 
 import eu.hbp.mip.woken.core.model.Queries._
 import eu.hbp.mip.woken.backends.FeaturesHelper
-import eu.hbp.mip.woken.core.CrossValidationActor
 import eu.hbp.mip.woken.dao.FeaturesDAL
 import spray.json.{ JsValue, _ }
 
@@ -79,7 +78,7 @@ class KFoldCrossValidation(data: Stream[JsObject], labels: Stream[JsObject], fol
   */
 object KFoldCrossValidation {
 
-  def apply(job: CrossValidationActor.Job,
+  def apply(job: CrossValidationFlow.Job,
             foldCount: Int,
             featuresDAL: FeaturesDAL): KFoldCrossValidation = {
 
