@@ -20,9 +20,12 @@ import java.time.OffsetDateTime
 
 import akka.actor.FSM.{ Failure, Normal }
 import akka.actor._
+import akka.pattern.ask
+import akka.util.Timeout
+
+import scala.concurrent.Future
 //import com.github.levkhomich.akka.tracing.ActorTracing
 
-import scala.concurrent.duration._
 import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.backends.chronos.ChronosService
 import eu.hbp.mip.woken.backends.chronos.{ ChronosJob, JobToChronos }
@@ -33,6 +36,8 @@ import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import eu.hbp.mip.woken.dao.FeaturesDAL
 import eu.hbp.mip.woken.service.JobResultService
 
+import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.language.higherKinds
 
 // TODO: featuresDatabase needed by CrossValidationActor, not by CoordinatorActor
@@ -66,6 +71,19 @@ object CoordinatorActor {
   def actorName(job: DockerJob): String =
     s"LocalCoordinatorActor_job_${job.jobId}_${job.jobName}"
 
+  def future(job: DockerJob,
+             coordinatorConfig: CoordinatorConfig,
+             context: ActorContext): Future[Response] = {
+    val worker = context.actorOf(
+      CoordinatorActor.props(coordinatorConfig)
+    )
+
+    implicit val askTimeout: Timeout = Timeout(1 day)
+
+    (worker ? StartCoordinatorJob(job))
+      .mapTo[CoordinatorActor.Response]
+
+  }
 }
 
 /** FSM States and internal data */

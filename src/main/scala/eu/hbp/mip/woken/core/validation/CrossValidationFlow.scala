@@ -29,7 +29,6 @@ import cats.syntax.list._
 import eu.hbp.mip.woken.backends.{ DockerJob, QueryOffset }
 import eu.hbp.mip.woken.config.AlgorithmDefinition
 import eu.hbp.mip.woken.core.{ CoordinatorActor, CoordinatorConfig }
-import eu.hbp.mip.woken.core.commands.JobCommands.StartCoordinatorJob
 import eu.hbp.mip.woken.core.model.{ ErrorJobResult, PfaJobResult }
 import eu.hbp.mip.woken.messages.external.{ MiningQuery, ValidationSpec }
 import eu.hbp.mip.woken.messages.validation.{
@@ -174,14 +173,8 @@ case class CrossValidationFlow(
       shadowOffset = Some(QueryOffset(s, n))
     )
 
-    val worker = context.actorOf(
-      CoordinatorActor.props(coordinatorConfig)
-    )
-
-    implicit val askTimeout: Timeout = Timeout(1 day)
-
-    (worker ? StartCoordinatorJob(subJob))
-      .mapTo[CoordinatorActor.Response]
+    CoordinatorActor
+      .future(subJob, coordinatorConfig, context)
       .map(
         response =>
           FoldContext[CoordinatorActor.Response](job = job,

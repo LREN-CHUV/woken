@@ -19,29 +19,29 @@ package eu.hbp.mip.woken.core
 import java.time.OffsetDateTime
 import java.util.UUID
 
-import akka.actor.{ Actor, ActorLogging, ActorRef, FSM, LoggingFSM, Props }
-import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{ Sink, Source }
-import eu.hbp.mip.woken.core.validation.CrossValidationFlow
+import akka.NotUsed
+import akka.actor.{Actor, ActorContext, ActorLogging, ActorRef, FSM, LoggingFSM, Props}
+import akka.stream.{ActorMaterializer, Materializer}
+import akka.stream.scaladsl.{Flow, Sink, Source}
+import eu.hbp.mip.woken.core.ExperimentActor.Response
+import eu.hbp.mip.woken.core.ExperimentStates.{PartialExperimentData, WaitForWorkers}
+import eu.hbp.mip.woken.messages.external.ValidationSpec
 
 import scala.concurrent.ExecutionContext
 
 //import com.github.levkhomich.akka.tracing.ActorTracing
-import eu.hbp.mip.woken.backends.DockerJob
-import eu.hbp.mip.woken.core.commands.JobCommands.{ StartCoordinatorJob, StartExperimentJob }
+import eu.hbp.mip.woken.core.commands.JobCommands.StartExperimentJob
 import eu.hbp.mip.woken.config.{ AlgorithmDefinition, JobsConfiguration }
 import eu.hbp.mip.woken.core.model.{
   ErrorJobResult,
   JobResult,
-  PfaExperimentJobResult,
-  PfaJobResult
+  PfaExperimentJobResult
 }
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import eu.hbp.mip.woken.messages.external.{
   AlgorithmSpec,
   ExperimentQuery,
-  MiningQuery,
-  ValidationSpec
+  MiningQuery
 }
 import spray.json._
 
@@ -150,6 +150,18 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
 
       log.info("Start new experiment job")
       log.info(s"List of algorithms: ${algorithms.mkString(",")}")
+
+      if (algorithms.isEmpty) {
+        val msg = "Experiment contains no algorithms"
+        initiator ! Response(job,
+          Left(
+            ErrorJobResult(job.jobId,
+              coordinatorConfig.jobsConf.node,
+              OffsetDateTime.now(),
+              "experiment",
+              msg)
+          ))
+        }
 
       // Spawn an AlgorithmActor for every algorithm
       val noResults = Map[AlgorithmSpec, JobResult]()
@@ -263,238 +275,73 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
   initialize()
 }
 
-/**
-  * We use the companion object to hold all the messages that the ``AlgorithmActor``
-  * receives.
-  */
-object AlgorithmActor {
+object ExperimentFlow {
 
-  case class Job(jobId: String,
-                 inputDb: String,
-                 inputTable: String,
-                 query: MiningQuery,
-                 metadata: JsObject,
-                 validations: List[ValidationSpec],
-                 algorithmDefinition: AlgorithmDefinition) {
-    // Invariants
-    assert(query.algorithm.code == algorithmDefinition.code)
-  }
+  private case class AlgorithmValidationMaybe(algorithmSpec: AlgorithmSpec, algorithmDefinition: Validation[AlgorithmDefinition], validations: List[ValidationSpec])
 
-  // Incoming messages
-  case class Start(job: Job)
+  def flow(coordinatorConfig: CoordinatorConfig, algorithmLookup: String => Validation[AlgorithmDefinition], context: ActorContext)
+          (implicit materializer: Materializer, ec: ExecutionContext): Flow[ExperimentActor.Job, ExperimentActor.Response, NotUsed] =
 
-  // Output messages
-  case class ResultResponse(algorithm: AlgorithmSpec, model: JobResult)
-  case class ErrorResponse(algorithm: AlgorithmSpec, error: ErrorJobResult)
+    Flow[ExperimentActor.Job].map { job =>
+      val algorithms = job.query.algorithms
+      val validations = job.query.validations
 
-  def props(coordinatorConfig: CoordinatorConfig): Props =
-    Props(new AlgorithmActor(coordinatorConfig))
+      algorithms.map(a => AlgorithmValidationMaybe(a, algorithmLookup(a.code), validations))
+    }.mapConcat(identity)
+        .
+    .mapAsync(8) {
 
-  def actorName(job: Job): String =
-    s"AlgorithmActor_job_${job.jobId}_algo_${job.query.algorithm.code}"
+    }
 
-}
-
-/** FSM States and internal data */
-private[core] object AlgorithmStates {
-  import AlgorithmActor.Job
-
-  // Private messages
-  case class Complete(fold: String)
-  case object Done
-
-  // FSM States
-  sealed trait State
-  case object WaitForNewJob  extends State
-  case object WaitForWorkers extends State
-  case object Reduce         extends State
-
-  // FSM Data
-  sealed trait AlgorithmData {
-    def initiator: ActorRef
-  }
-
-  @SuppressWarnings(Array("org.wartremover.warts.Throw"))
-  case object Uninitialized extends AlgorithmData {
-    def initiator = throw new IllegalAccessException()
-  }
-
-  case class PartialAlgorithmData(
-      initiator: ActorRef,
-      job: Job,
-      model: Option[JobResult],
-      incomingValidations: Map[ValidationSpec, Either[String, JsObject]],
-      expectedValidationCount: Int
-  ) extends AlgorithmData {
-
-    def isComplete: Boolean =
-      (incomingValidations.size == expectedValidationCount) && model.isDefined
-    def remainingValidations: Int = expectedValidationCount - incomingValidations.size
-  }
-
-  case class CompleteAlgorithmData(initiator: ActorRef,
-                                   job: Job,
-                                   model: JobResult,
-                                   validations: Map[ValidationSpec, Either[String, JsObject]])
-      extends AlgorithmData
-
-  object CompleteAlgorithmData {
-    def apply(from: PartialAlgorithmData): CompleteAlgorithmData =
-      new CompleteAlgorithmData(initiator = from.initiator,
-                                job = from.job,
-                                model = from.model.get,
-                                validations = from.incomingValidations)
-  }
-}
-
-class AlgorithmActor(coordinatorConfig: CoordinatorConfig)
-    extends Actor
-    with ActorLogging
-    with LoggingFSM[AlgorithmStates.State, AlgorithmStates.AlgorithmData] {
-
-  import AlgorithmActor._
-  import AlgorithmStates._
-
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
-  implicit val ec: ExecutionContext            = context.dispatcher
-
-  startWith(WaitForNewJob, Uninitialized)
-
-  when(WaitForNewJob) {
-    case Event(Start(job), _) =>
-      val initiator   = sender()
-      val algorithm   = job.query.algorithm
-      val validations = if (job.algorithmDefinition.predictive) job.validations else Nil
-
-      log.info(s"Start job for algorithm ${algorithm.code}")
-      log.info(s"List of validations: ${validations.size}")
-
-      // Spawn a CoordinatorActor
-      {
-        val jobId = UUID.randomUUID().toString
-        val subJob =
-          DockerJob(jobId,
-                    job.algorithmDefinition.dockerImage,
-                    job.inputDb,
-                    job.inputTable,
-                    job.query,
-                    job.metadata)
+  // Spawn an AlgorithmActor for every algorithm
+  val noResults = Map[AlgorithmSpec, JobResult]()
+  val results: Map[AlgorithmSpec, JobResult] = algorithms.foldLeft(noResults) { (res, a) =>
+    val jobId = UUID.randomUUID().toString
+    val miningQuery = MiningQuery(
+      variables = job.query.variables,
+      covariables = job.query.covariables,
+      grouping = job.query.grouping,
+      filters = job.query.filters,
+      algorithm = a
+    )
+    algorithmLookup(a.code).fold[Map[AlgorithmSpec, JobResult]](
+      errorMessage => {
+        res + (a -> ErrorJobResult(jobId,
+          coordinatorConfig.jobsConf.node,
+          OffsetDateTime.now(),
+          a.code,
+          errorMessage.reduceLeft(_ + ", " + _)))
+      },
+      algorithmDefinition => {
+        val subJob = AlgorithmActor.Job(jobId,
+          job.inputDb,
+          job.inputTable,
+          miningQuery,
+          job.metadata,
+          validations,
+          algorithmDefinition)
         val worker = context.actorOf(
-          CoordinatorActor.props(coordinatorConfig),
-          CoordinatorActor.actorName(subJob)
+          AlgorithmActor.props(coordinatorConfig),
+          AlgorithmActor.actorName(subJob)
         )
-        worker ! StartCoordinatorJob(subJob)
+        worker ! AlgorithmActor.Start(subJob)
+        res
       }
-
-      val crossValidationFlow = CrossValidationFlow(coordinatorConfig, context)
-      // Spawn a CrossValidationActor for every validation
-      Source(validations)
-        .map { v =>
-          val jobId = UUID.randomUUID().toString
-          CrossValidationFlow.Job(jobId,
-                                  job.inputDb,
-                                  job.inputTable,
-                                  job.query,
-                                  job.metadata,
-                                  v,
-                                  job.algorithmDefinition)
-        }
-        .via(crossValidationFlow.crossValidate(4))
-        .grouped(validations.size)
-        .runWith(Sink.actorRef(self, Complete))
-
-      goto(WaitForWorkers) using PartialAlgorithmData(initiator, job, None, Map(), validations.size)
+    )
   }
 
-  when(WaitForWorkers) {
-    case Event(CoordinatorActor.Response(_, List(model: ErrorJobResult)),
-               previousData: PartialAlgorithmData) =>
-      log.error(
-        s"Execution of algorithm ${algorithmIn(previousData)} failed with message: ${model.error
-          .take(50)}"
-      )
-      // We cannot train the model, we notify the initiator and we stop
-      val initiator = previousData.initiator
-      initiator ! ErrorResponse(previousData.job.query.algorithm, model)
-
-      log.info("Stopping...")
-      stop
-
-    case Event(CoordinatorActor.Response(_, List(model: JobResult)),
-               previousData: PartialAlgorithmData) =>
-      val data = previousData.copy(model = Some(model))
-      if (data.isComplete) {
-        log.info(
-          s"Received job result, processing of algorithm ${algorithmIn(previousData)} complete"
-        )
-        goto(Reduce) using CompleteAlgorithmData(data)
-      } else {
-        log.info(
-          s"Received job result for algorithm algorithm ${algorithmIn(previousData)}, pending ${data.remainingValidations} validations"
-        )
-        stay using data
-      }
-
-    case Event(validations: Seq[(CrossValidationFlow.Job, JsObject)],
-               previousData: PartialAlgorithmData) =>
-      val data = previousData.copy(
-        incomingValidations = validations.map { case (j, r) => j.validation -> Right(r) }.toMap
-      )
-      if (data.isComplete) {
-        log.info(
-          s"Received validation result, processing of algorithm ${algorithmIn(previousData)} complete"
-        )
-        goto(Reduce) using CompleteAlgorithmData(data)
-      } else {
-        log.info(
-          s"Received validation result for algorithm algorithm ${algorithmIn(previousData)}, pending ${data.remainingValidations} validations"
-        )
-        if (data.model.isEmpty)
-          log.info("Waiting for missing PFA model...")
-        stay using data
-      }
-
-    // TODO: case Event(CrossValidationActor.ErrorResponse(validation, message),
-    //           previousData: PartialAlgorithmData) =>
+  if (results.size == algorithms.size) {
+    val msg = "Experiment contains no algorithms or only invalid algorithms"
+    initiator ! Response(job,
+      Left(
+        ErrorJobResult(job.jobId,
+          coordinatorConfig.jobsConf.node,
+          OffsetDateTime.now(),
+          "experiment",
+          msg)
+      ))
+    stop(FSM.Failure(msg))
+  } else {
+    goto(WaitForWorkers) using PartialExperimentData(initiator, job, results, algorithms)
   }
-
-  when(Reduce) {
-    case Event(Done, data: CompleteAlgorithmData) =>
-      val validations = JsArray(
-        data.validations
-          .map({
-            case (key, Right(value)) =>
-              JsObject("code" -> JsString(key.code), "data" -> value)
-            case (key, Left(message)) =>
-              JsObject("code" -> JsString(key.code), "error" -> JsString(message))
-          })
-          .toVector
-      )
-
-      val model = data.model match {
-        case pfa: PfaJobResult => pfa.injectCell("validations", validations)
-        case m                 => m
-      }
-
-      data.initiator ! ResultResponse(data.job.query.algorithm, model)
-      log.info("Stopping...")
-      stop
-  }
-
-  whenUnhandled {
-    case Event(e, s) =>
-      log.warning(s"Received unhandled request $e of type ${e.getClass} in state $stateName/$s")
-      stay
-  }
-
-  onTransition {
-    case _ -> Reduce =>
-      self ! Done
-  }
-
-  initialize()
-
-  private def algorithmIn(data: PartialAlgorithmData) =
-    data.job.query.algorithm.code
-
 }
