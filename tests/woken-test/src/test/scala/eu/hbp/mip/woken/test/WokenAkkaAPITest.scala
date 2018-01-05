@@ -181,7 +181,11 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
     futures.foreach { f =>
       println("Waiting for result from chaos algorithm...")
       val result = waitFor[QueryResult](f)
-      println(s"Chaos algorithm returned ${result.success.value}")
+      if (result.isFailure) {
+        println(s"Chaos algorithm failed with ${result.failed.get}")
+      } else {
+        println(s"Chaos algorithm returned ${result.success.value}")
+      }
     }
 
     val knnQuery = experimentQuery("knn", List(CodeValue("k", "5")))

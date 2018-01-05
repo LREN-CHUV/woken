@@ -20,29 +20,22 @@ import java.time.OffsetDateTime
 import java.util.UUID
 
 import akka.NotUsed
-import akka.actor.{Actor, ActorContext, ActorLogging, ActorRef, FSM, LoggingFSM, Props}
-import akka.stream.{ActorMaterializer, Materializer}
-import akka.stream.scaladsl.{Flow, Sink, Source}
-import eu.hbp.mip.woken.core.ExperimentActor.Response
-import eu.hbp.mip.woken.core.ExperimentStates.{PartialExperimentData, WaitForWorkers}
+import akka.actor.SupervisorStrategy.Stop
+import akka.actor.{ Actor, ActorContext, ActorLogging, Props }
+import akka.stream._
+import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Merge, Partition, Sink, Source, Zip }
+import eu.hbp.mip.woken.core.validation.ValidatedAlgorithmFlow
 import eu.hbp.mip.woken.messages.external.ValidationSpec
 
 import scala.concurrent.ExecutionContext
+import scala.util.{ Failure, Success }
 
 //import com.github.levkhomich.akka.tracing.ActorTracing
 import eu.hbp.mip.woken.core.commands.JobCommands.StartExperimentJob
-import eu.hbp.mip.woken.config.{ AlgorithmDefinition, JobsConfiguration }
-import eu.hbp.mip.woken.core.model.{
-  ErrorJobResult,
-  JobResult,
-  PfaExperimentJobResult
-}
+import eu.hbp.mip.woken.config.AlgorithmDefinition
+import eu.hbp.mip.woken.core.model.{ ErrorJobResult, JobResult, PfaExperimentJobResult }
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
-import eu.hbp.mip.woken.messages.external.{
-  AlgorithmSpec,
-  ExperimentQuery,
-  MiningQuery
-}
+import eu.hbp.mip.woken.messages.external.{ AlgorithmSpec, ExperimentQuery, MiningQuery }
 import spray.json._
 
 /**
@@ -71,56 +64,6 @@ object ExperimentActor {
 
 }
 
-/** FSM States and internal data */
-private[core] object ExperimentStates {
-  import ExperimentActor.Job
-
-  // FSM States
-
-  sealed trait State
-  case object WaitForNewJob  extends State
-  case object WaitForWorkers extends State
-  case object Reduce         extends State
-
-  // FSM state data
-
-  sealed trait ExperimentData {
-    def initiator: ActorRef
-  }
-
-  @SuppressWarnings(Array("org.wartremover.warts.Throw"))
-  case object Uninitialized extends ExperimentData {
-    def initiator = throw new IllegalAccessException()
-  }
-
-  case class PartialExperimentData(
-      initiator: ActorRef,
-      job: Job,
-      results: Map[AlgorithmSpec, JobResult],
-      algorithms: List[AlgorithmSpec]
-  ) extends ExperimentData {
-    def isComplete: Boolean = results.size == algorithms.length
-  }
-
-  case class CompletedExperimentData(
-      initiator: ActorRef,
-      job: Job,
-      results: PfaExperimentJobResult
-  ) extends ExperimentData
-
-  object CompletedExperimentData {
-    def apply(from: PartialExperimentData, jobsConfig: JobsConfiguration): CompletedExperimentData =
-      CompletedExperimentData(
-        initiator = from.initiator,
-        job = from.job,
-        results = PfaExperimentJobResult(experimentJobId = from.job.jobId,
-                                         experimentNode = jobsConfig.node,
-                                         results = from.results,
-                                         algorithms = from.algorithms)
-      )
-  }
-}
-
 /**
   * The job of this Actor in our application core is to service a request to start a job and wait for the result of the calculation.
   *
@@ -132,216 +75,197 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
                       algorithmLookup: String => Validation[AlgorithmDefinition])
     extends Actor
     with ActorLogging
-    /*with ActorTracing*/
-    with LoggingFSM[ExperimentStates.State, ExperimentStates.ExperimentData] {
+    /*with ActorTracing*/ {
 
   import ExperimentActor._
-  import ExperimentStates._
 
-  log.info("Experiment started")
+  implicit val actorMaterializer: ActorMaterializer = ActorMaterializer()
+  implicit val ec: ExecutionContext                 = context.dispatcher
 
-  startWith(WaitForNewJob, Uninitialized)
+  lazy val experimentFlow: Flow[Job, Map[AlgorithmSpec, JobResult], NotUsed] =
+    ExperimentFlow(coordinatorConfig, algorithmLookup, context).flow
 
-  when(WaitForNewJob) {
-    case Event(StartExperimentJob(job), _) if job.query.algorithms.nonEmpty =>
-      val initiator   = sender()
-      val algorithms  = job.query.algorithms
-      val validations = job.query.validations
+  @SuppressWarnings(Array("org.wartremover.warts.Any"))
+  override def receive: PartialFunction[Any, Unit] = {
+    case StartExperimentJob(job) if job.query.algorithms.isEmpty =>
+      val initiator = sender()
+      val msg       = "Experiment contains no algorithms"
+      val result = ErrorJobResult(job.jobId,
+        coordinatorConfig.jobsConf.node,
+        OffsetDateTime.now(),
+        "experiment",
+        msg)
+      coordinatorConfig.jobResultService.put(result)
+      initiator ! Response(job, Left(result))
+
+    case StartExperimentJob(job) if job.query.algorithms.nonEmpty =>
+      val initiator  = sender()
+      val algorithms = job.query.algorithms
 
       log.info("Start new experiment job")
       log.info(s"List of algorithms: ${algorithms.mkString(",")}")
 
-      if (algorithms.isEmpty) {
-        val msg = "Experiment contains no algorithms"
-        initiator ! Response(job,
-          Left(
-            ErrorJobResult(job.jobId,
-              coordinatorConfig.jobsConf.node,
-              OffsetDateTime.now(),
-              "experiment",
-              msg)
-          ))
+      val future = Source
+        .single(job)
+        .via(experimentFlow)
+        .runWith(Sink.head)
+        .map { results =>
+          log.info("Experiment - build final response")
+          log.info(s"Algorithms: $algorithms")
+          log.info(s"Results: $results")
+
+          assert(results.size == algorithms.size, "There should be as many results as algorithms")
+          assert(results.keySet equals algorithms.toSet,
+                 "Algorithms defined in the results should match the incoming list of algorithms")
+
+          val pfa = PfaExperimentJobResult(experimentJobId = job.jobId,
+                                           experimentNode = coordinatorConfig.jobsConf.node,
+                                           results = results)
+
+          Response(job, Right(pfa))
         }
 
-      // Spawn an AlgorithmActor for every algorithm
-      val noResults = Map[AlgorithmSpec, JobResult]()
-      val results: Map[AlgorithmSpec, JobResult] = algorithms.foldLeft(noResults) { (res, a) =>
-        val jobId = UUID.randomUUID().toString
-        val miningQuery = MiningQuery(
-          variables = job.query.variables,
-          covariables = job.query.covariables,
-          grouping = job.query.grouping,
-          filters = job.query.filters,
-          algorithm = a
-        )
-        algorithmLookup(a.code).fold[Map[AlgorithmSpec, JobResult]](
-          errorMessage => {
-            res + (a -> ErrorJobResult(jobId,
-                                       coordinatorConfig.jobsConf.node,
-                                       OffsetDateTime.now(),
-                                       a.code,
-                                       errorMessage.reduceLeft(_ + ", " + _)))
-          },
-          algorithmDefinition => {
-            val subJob = AlgorithmActor.Job(jobId,
-                                            job.inputDb,
-                                            job.inputTable,
-                                            miningQuery,
-                                            job.metadata,
-                                            validations,
-                                            algorithmDefinition)
-            val worker = context.actorOf(
-              AlgorithmActor.props(coordinatorConfig),
-              AlgorithmActor.actorName(subJob)
-            )
-            worker ! AlgorithmActor.Start(subJob)
-            res
-          }
-        )
-      }
-
-      if (results.size == algorithms.size) {
-        val msg = "Experiment contains no algorithms or only invalid algorithms"
-        initiator ! Response(job,
-                             Left(
-                               ErrorJobResult(job.jobId,
-                                              coordinatorConfig.jobsConf.node,
-                                              OffsetDateTime.now(),
-                                              "experiment",
-                                              msg)
-                             ))
-        stop(FSM.Failure(msg))
-      } else {
-        goto(WaitForWorkers) using PartialExperimentData(initiator, job, results, algorithms)
+      future.andThen {
+        case Success(r) =>
+          coordinatorConfig.jobResultService.put(r.result.fold(identity, identity))
+          initiator ! r
+        case Failure(f) =>
+          log.error(f, s"Cannot complete experiment ${job.jobId}: ${f.getMessage}")
+          val result = ErrorJobResult(job.jobId,
+            coordinatorConfig.jobsConf.node,
+            OffsetDateTime.now(),
+            "experiment",
+            f.toString)
+          val response = Response(job, Left(result))
+          coordinatorConfig.jobResultService.put(result)
+          initiator ! response
+      }.onComplete { _ =>
+        log.info("Stopping...")
+        self ! Stop
       }
   }
 
-  when(WaitForWorkers) {
-    case Event(AlgorithmActor.ResultResponse(algorithm, algorithmResults),
-               previousExperimentData: PartialExperimentData) =>
-      log.info(s"Received algorithm result $algorithmResults")
-      val results        = previousExperimentData.results + (algorithm -> algorithmResults)
-      val experimentData = previousExperimentData.copy(results = results)
-      if (experimentData.isComplete) {
-        log.info("All results received")
-        goto(Reduce) using CompletedExperimentData(experimentData, coordinatorConfig.jobsConf)
-      } else {
-        log.info(
-          s"Received ${experimentData.results.size} results out of ${experimentData.algorithms.size}"
-        )
-        stay using experimentData
-      }
-
-    case Event(AlgorithmActor.ErrorResponse(algorithm, error),
-               previousExperimentData: PartialExperimentData) =>
-      log.error(s"Algorithm ${algorithm.code} returned with error ${error.error.take(50)}")
-      val results        = previousExperimentData.results + (algorithm -> error)
-      val experimentData = previousExperimentData.copy(results = results)
-      if (experimentData.isComplete) {
-        log.info("All results received")
-        goto(Reduce) using CompletedExperimentData(experimentData, coordinatorConfig.jobsConf)
-      } else {
-        log.info(
-          s"Received ${experimentData.results.size} results out of ${experimentData.algorithms.size}"
-        )
-        stay using experimentData
-      }
-  }
-
-  when(Reduce) {
-    case Event(Done, experimentData: CompletedExperimentData) =>
-      log.info("Experiment - build final response")
-
-      val results = experimentData.results
-
-      coordinatorConfig.jobResultService.put(results)
-      experimentData.initiator ! Response(experimentData.job, Right(results))
-
-      log.info("Stopping...")
-      stop
-  }
-
-  whenUnhandled {
-    case Event(e, s) =>
-      log.warning(s"Received unhandled request $e of type ${e.getClass} in state $stateName/$s")
-      stay
-  }
-
-  onTransition {
-    case _ -> Reduce =>
-      self ! Done
-  }
-
-  initialize()
 }
 
-object ExperimentFlow {
+case class ExperimentFlow(
+    coordinatorConfig: CoordinatorConfig,
+    algorithmLookup: String => Validation[AlgorithmDefinition],
+    context: ActorContext
+)(implicit materializer: Materializer, ec: ExecutionContext) {
 
-  private case class AlgorithmValidationMaybe(algorithmSpec: AlgorithmSpec, algorithmDefinition: Validation[AlgorithmDefinition], validations: List[ValidationSpec])
+  private case class AlgorithmValidationMaybe(job: ExperimentActor.Job,
+                                              algorithmSpec: AlgorithmSpec,
+                                              algorithmDefinition: Validation[AlgorithmDefinition],
+                                              validations: List[ValidationSpec])
+  private case class AlgorithmValidation(job: ExperimentActor.Job,
+                                         algorithmSpec: AlgorithmSpec,
+                                         subJob: ValidatedAlgorithmFlow.Job)
 
-  def flow(coordinatorConfig: CoordinatorConfig, algorithmLookup: String => Validation[AlgorithmDefinition], context: ActorContext)
-          (implicit materializer: Materializer, ec: ExecutionContext): Flow[ExperimentActor.Job, ExperimentActor.Response, NotUsed] =
+  private val validatedAlgorithmFlow = ValidatedAlgorithmFlow(coordinatorConfig, context)
 
-    Flow[ExperimentActor.Job].map { job =>
-      val algorithms = job.query.algorithms
-      val validations = job.query.validations
+  @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
+  def flow: Flow[ExperimentActor.Job, Map[AlgorithmSpec, JobResult], NotUsed] =
+    Flow
+      .fromGraph(GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
+        import GraphDSL.Implicits._
 
-      algorithms.map(a => AlgorithmValidationMaybe(a, algorithmLookup(a.code), validations))
-    }.mapConcat(identity)
-        .
-    .mapAsync(8) {
-
-    }
-
-  // Spawn an AlgorithmActor for every algorithm
-  val noResults = Map[AlgorithmSpec, JobResult]()
-  val results: Map[AlgorithmSpec, JobResult] = algorithms.foldLeft(noResults) { (res, a) =>
-    val jobId = UUID.randomUUID().toString
-    val miningQuery = MiningQuery(
-      variables = job.query.variables,
-      covariables = job.query.covariables,
-      grouping = job.query.grouping,
-      filters = job.query.filters,
-      algorithm = a
-    )
-    algorithmLookup(a.code).fold[Map[AlgorithmSpec, JobResult]](
-      errorMessage => {
-        res + (a -> ErrorJobResult(jobId,
-          coordinatorConfig.jobsConf.node,
-          OffsetDateTime.now(),
-          a.code,
-          errorMessage.reduceLeft(_ + ", " + _)))
-      },
-      algorithmDefinition => {
-        val subJob = AlgorithmActor.Job(jobId,
-          job.inputDb,
-          job.inputTable,
-          miningQuery,
-          job.metadata,
-          validations,
-          algorithmDefinition)
-        val worker = context.actorOf(
-          AlgorithmActor.props(coordinatorConfig),
-          AlgorithmActor.actorName(subJob)
+        // prepare graph elements
+        val jobSplitter = builder.add(splitJob)
+        val partition = builder.add(
+          Partition[AlgorithmValidationMaybe](2,
+                                              a =>
+                                                if (a.algorithmDefinition.isValid) 0
+                                                else 1)
         )
-        worker ! AlgorithmActor.Start(subJob)
-        res
-      }
-    )
-  }
+        val merge = builder.add(Merge[(AlgorithmSpec, JobResult)](2))
+        val toMap =
+          builder.add(Flow[(AlgorithmSpec, JobResult)].fold[Map[AlgorithmSpec, JobResult]](Map()) {
+            (m, r) =>
+              m + r
+          })
 
-  if (results.size == algorithms.size) {
-    val msg = "Experiment contains no algorithms or only invalid algorithms"
-    initiator ! Response(job,
-      Left(
-        ErrorJobResult(job.jobId,
-          coordinatorConfig.jobsConf.node,
-          OffsetDateTime.now(),
-          "experiment",
-          msg)
-      ))
-    stop(FSM.Failure(msg))
-  } else {
-    goto(WaitForWorkers) using PartialExperimentData(initiator, job, results, algorithms)
-  }
+        // connect the graph
+        jobSplitter ~> partition.in
+        partition.out(0) ~> prepareMiningQuery ~> algorithmWithValidation ~> merge
+        partition.out(1) ~> failJob ~> merge
+        merge ~> toMap
+
+        FlowShape(jobSplitter.in, toMap.out)
+      })
+      .named("run-experiment")
+
+  private def splitJob: Flow[ExperimentActor.Job, AlgorithmValidationMaybe, NotUsed] =
+    Flow[ExperimentActor.Job]
+      .map { job =>
+        val algorithms  = job.query.algorithms
+        val validations = job.query.validations
+
+        algorithms.map(a => AlgorithmValidationMaybe(job, a, algorithmLookup(a.code), validations))
+      }
+      .mapConcat(identity)
+      .named("split-job")
+
+  @SuppressWarnings(Array("org.wartremover.warts.EitherProjectionPartial"))
+  private def failJob: Flow[AlgorithmValidationMaybe, (AlgorithmSpec, JobResult), NotUsed] =
+    Flow[AlgorithmValidationMaybe]
+      .map { a =>
+        val errorMessage = a.algorithmDefinition.toEither.left.get
+        a.algorithmSpec -> ErrorJobResult(UUID.randomUUID().toString,
+                                          coordinatorConfig.jobsConf.node,
+                                          OffsetDateTime.now(),
+                                          a.algorithmSpec.code,
+                                          errorMessage.reduceLeft(_ + ", " + _))
+      }
+      .named("fail-job")
+
+  @SuppressWarnings(Array("org.wartremover.warts.Throw"))
+  private def prepareMiningQuery: Flow[AlgorithmValidationMaybe, AlgorithmValidation, NotUsed] =
+    Flow[AlgorithmValidationMaybe]
+      .map { a =>
+        val job           = a.job
+        val jobId         = UUID.randomUUID().toString
+        val query         = job.query
+        val algorithmSpec = a.algorithmSpec
+        val algorithmDefinition = a.algorithmDefinition.getOrElse(
+          throw new IllegalStateException("Expected a valid definition")
+        )
+        val validations = if (algorithmDefinition.predictive) a.validations else Nil
+        val miningQuery = MiningQuery(
+          variables = query.variables,
+          covariables = query.covariables,
+          grouping = query.grouping,
+          filters = query.filters,
+          algorithm = algorithmSpec
+        )
+        val subJob = ValidatedAlgorithmFlow.Job(jobId,
+                                                job.inputDb,
+                                                job.inputTable,
+                                                miningQuery,
+                                                job.metadata,
+                                                validations,
+                                                algorithmDefinition)
+        AlgorithmValidation(job, algorithmSpec, subJob)
+      }
+      .named("prepare-mining-query")
+
+  private def algorithmWithValidation
+    : Flow[AlgorithmValidation, (AlgorithmSpec, JobResult), NotUsed] =
+    Flow
+      .fromGraph(GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
+        import GraphDSL.Implicits._
+
+        val broadcast               = builder.add(Broadcast[AlgorithmValidation](2))
+        val takeSpec                = Flow[AlgorithmValidation].map(_.algorithmSpec)
+        val takeSubjob              = Flow[AlgorithmValidation].map(_.subJob)
+        val runAlgorithmAndValidate = validatedAlgorithmFlow.runAlgorithmAndValidate(4)
+        val takeModel               = Flow[ValidatedAlgorithmFlow.ResultResponse].map(_.model)
+        val zip                     = builder.add(Zip[AlgorithmSpec, JobResult]())
+
+        broadcast.out(0) ~> takeSpec ~> zip.in0
+        broadcast.out(1) ~> takeSubjob ~> runAlgorithmAndValidate ~> takeModel ~> zip.in1
+
+        FlowShape(broadcast.in, zip.out)
+      })
+      .named("algorithm-with-validation")
+
 }

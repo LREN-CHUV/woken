@@ -18,12 +18,12 @@ package eu.hbp.mip.woken.core
 
 import java.time.OffsetDateTime
 
-import akka.actor.FSM.{ Failure, Normal }
+import akka.actor.FSM.{Failure, Normal}
 import akka.actor._
-import akka.pattern.ask
+import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 //import com.github.levkhomich.akka.tracing.ActorTracing
 
 import eu.hbp.mip.woken.backends.DockerJob
@@ -331,6 +331,11 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
       // TODO: if Chronos is down for too long, enter panic state!
       // Nothing more to do, wait
       stay() forMax repeatDuration
+
+    case Event(f: Future[_], _) =>
+      implicit val ec: ExecutionContext = context.dispatcher
+      f.pipeTo(self)
+      stay() forMax repeatDuration
   }
 
   when(ExpectFinalResult, stateTimeout = repeatDuration) {
@@ -360,6 +365,11 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
       } else {
         stay() using data.copy(pollDbCount = data.pollDbCount + 1) forMax repeatDuration
       }
+
+    case Event(f: Future[_], _) =>
+      implicit val ec: ExecutionContext = context.dispatcher
+      f.pipeTo(self)
+      stay() forMax repeatDuration
 
   }
 

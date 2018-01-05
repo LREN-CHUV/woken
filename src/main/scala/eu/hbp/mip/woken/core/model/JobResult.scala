@@ -60,8 +60,7 @@ case class PfaExperimentJobResult(jobId: String,
 
 object PfaExperimentJobResult {
 
-  def apply(algorithms: List[AlgorithmSpec],
-            results: Map[AlgorithmSpec, JobResult],
+  def apply(results: Map[AlgorithmSpec, JobResult],
             experimentJobId: String,
             experimentNode: String): PfaExperimentJobResult = {
 
@@ -70,61 +69,62 @@ object PfaExperimentJobResult {
 
     // Concatenate results while respecting received algorithms order
     val output = JsArray(
-      algorithms
-        .map(
-          a => {
-            results(a) match {
-              case PfaJobResult(jobId, node, timestamp, function, model) =>
-                // TODO: inform if algorithm is predictive...
-                JsObject(
-                  "type"      -> JsString(pfaShape.mime),
-                  "function"  -> JsString(function),
-                  "code"      -> JsString(a.code),
-                  "jobId"     -> JsString(jobId),
-                  "node"      -> JsString(node),
-                  "timestamp" -> timestamp.toJson,
-                  "data"      -> model
-                )
-              case ErrorJobResult(jobId, node, timestamp, function, errorMsg) =>
-                JsObject(
-                  "type"      -> JsString(error.mime),
-                  "function"  -> JsString(function),
-                  "code"      -> JsString(a.code),
-                  "jobId"     -> JsString(jobId),
-                  "node"      -> JsString(node),
-                  "timestamp" -> timestamp.toJson,
-                  "error"     -> JsString(errorMsg)
-                )
-              case JsonDataJobResult(jobId, node, timestamp, shape, function, data) =>
-                JsObject(
-                  "type"      -> JsString(shape),
-                  "function"  -> JsString(function),
-                  "code"      -> JsString(a.code),
-                  "jobId"     -> JsString(jobId),
-                  "node"      -> JsString(node),
-                  "timestamp" -> timestamp.toJson,
-                  "data"      -> data
-                )
-              case OtherDataJobResult(jobId, node, timestamp, shape, function, data) =>
-                JsObject(
-                  "type"      -> JsString(shape),
-                  "function"  -> JsString(function),
-                  "code"      -> JsString(a.code),
-                  "jobId"     -> JsString(jobId),
-                  "node"      -> JsString(node),
-                  "timestamp" -> timestamp.toJson,
-                  "data"      -> JsString(data)
-                )
-              case PfaExperimentJobResult(jobId, node, timestamp, models) =>
-                JsObject(
-                  "jobId"     -> JsString(jobId),
-                  "node"      -> JsString(node),
-                  "timestamp" -> timestamp.toJson,
-                  "models"    -> models
-                )
-            }
+      results
+        .map(r => {
+          val code = r._1.code
+          r._2 match {
+            case PfaJobResult(jobId, node, timestamp, function, model) =>
+              // TODO: inform if algorithm is predictive...
+              JsObject(
+                "type"      -> JsString(pfaShape.mime),
+                "function"  -> JsString(function),
+                "code"      -> JsString(code),
+                "jobId"     -> JsString(jobId),
+                "node"      -> JsString(node),
+                "timestamp" -> timestamp.toJson,
+                "data"      -> model
+              )
+            case ErrorJobResult(jobId, node, timestamp, function, errorMsg) =>
+              JsObject(
+                "type"      -> JsString(error.mime),
+                "function"  -> JsString(function),
+                "code"      -> JsString(code),
+                "jobId"     -> JsString(jobId),
+                "node"      -> JsString(node),
+                "timestamp" -> timestamp.toJson,
+                "error"     -> JsString(errorMsg)
+              )
+            case JsonDataJobResult(jobId, node, timestamp, shape, function, data) =>
+              JsObject(
+                "type"      -> JsString(shape),
+                "function"  -> JsString(function),
+                "code"      -> JsString(code),
+                "jobId"     -> JsString(jobId),
+                "node"      -> JsString(node),
+                "timestamp" -> timestamp.toJson,
+                "data"      -> data
+              )
+            case OtherDataJobResult(jobId, node, timestamp, shape, function, data) =>
+              JsObject(
+                "type"      -> JsString(shape),
+                "function"  -> JsString(function),
+                "code"      -> JsString(code),
+                "jobId"     -> JsString(jobId),
+                "node"      -> JsString(node),
+                "timestamp" -> timestamp.toJson,
+                "data"      -> JsString(data)
+              )
+            case PfaExperimentJobResult(jobId, node, timestamp, models) =>
+              JsObject(
+                "type"      -> JsString(Shapes.pfaExperiment.mime),
+                "code"      -> JsString("experiment"),
+                "jobId"     -> JsString(jobId),
+                "node"      -> JsString(node),
+                "timestamp" -> timestamp.toJson,
+                "models"    -> models
+              )
           }
-        )
+        })
         .toVector
     )
 

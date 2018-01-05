@@ -16,6 +16,7 @@
 
 package eu.hbp.mip.woken.core.validation
 
+import java.time.OffsetDateTime
 import java.util.UUID
 
 import akka.NotUsed
@@ -25,7 +26,7 @@ import akka.stream.{ FlowShape, Materializer }
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Zip }
 import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.config.AlgorithmDefinition
-import eu.hbp.mip.woken.core.model.{ JobResult, PfaJobResult }
+import eu.hbp.mip.woken.core.model.{ ErrorJobResult, JobResult, PfaJobResult }
 import eu.hbp.mip.woken.core.{ CoordinatorActor, CoordinatorConfig }
 import eu.hbp.mip.woken.messages.external.{ AlgorithmSpec, MiningQuery, ValidationSpec }
 import spray.json._
@@ -44,7 +45,7 @@ object ValidatedAlgorithmFlow {
     // Invariants
     assert(query.algorithm.code == algorithmDefinition.code)
 
-    if (algorithmDefinition.predictive) {
+    if (!algorithmDefinition.predictive) {
       assert(validations.isEmpty)
     }
   }
@@ -66,24 +67,27 @@ case class ValidatedAlgorithmFlow(
 
   private val crossValidationFlow = CrossValidationFlow(coordinatorConfig, context)
 
+  @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
   def runAlgorithmAndValidate(
       parallelism: Int
   ): Flow[ValidatedAlgorithmFlow.Job, ResultResponse, NotUsed] =
-    Flow.fromGraph(GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
-      import GraphDSL.Implicits._
+    Flow
+      .fromGraph(GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
+        import GraphDSL.Implicits._
 
-      // prepare graph elements
-      val broadcast = builder.add(Broadcast[ValidatedAlgorithmFlow.Job](2))
-      val zip       = builder.add(Zip[CoordinatorActor.Response, ValidationResults]())
-      val response  = builder.add(buildResponse)
+        // prepare graph elements
+        val broadcast = builder.add(Broadcast[ValidatedAlgorithmFlow.Job](2))
+        val zip       = builder.add(Zip[CoordinatorActor.Response, ValidationResults]())
+        val response  = builder.add(buildResponse)
 
-      // connect the graph
-      broadcast.out(0) ~> runAlgoInDocker ~> zip.in0
-      broadcast.out(1) ~> crossValidate(parallelism) ~> zip.in1
-      zip.out ~> response
+        // connect the graph
+        broadcast.out(0) ~> runAlgoInDocker ~> zip.in0
+        broadcast.out(1) ~> crossValidate(parallelism) ~> zip.in1
+        zip.out ~> response
 
-      FlowShape(broadcast.in, response.out)
-    }).named("run-algorithm-and-validate")
+        FlowShape(broadcast.in, response.out)
+      })
+      .named("run-algorithm-and-validate")
 
   def runAlgoInDocker: Flow[ValidatedAlgorithmFlow.Job, CoordinatorActor.Response, NotUsed] =
     Flow[ValidatedAlgorithmFlow.Job]
@@ -105,8 +109,9 @@ case class ValidatedAlgorithmFlow(
       }
       .named("learn-from-all-data")
 
-  def crossValidate(parallelism: Int): Flow[ValidatedAlgorithmFlow.Job, ValidationResults, NotUsed] =
-
+  private def crossValidate(
+      parallelism: Int
+  ): Flow[ValidatedAlgorithmFlow.Job, ValidationResults, NotUsed] =
     Flow[ValidatedAlgorithmFlow.Job]
       .map { job =>
         job.validations.map { v =>
@@ -123,29 +128,42 @@ case class ValidatedAlgorithmFlow(
       .mapConcat(identity)
       .via(crossValidationFlow.crossValidate(parallelism))
       .map(t => t._1.validation -> Right(t._2))
-      .scan[Map[ValidationSpec, Either[String, JsObject]]](Map()) { (m, r) =>
+      .fold[Map[ValidationSpec, Either[String, JsObject]]](Map()) { (m, r) =>
         m + r
-      }.named("cross-validate")
+      }
+      .named("cross-validate")
 
-  def buildResponse: Flow[(CoordinatorActor.Response, ValidationResults), ResultResponse, NotUsed] =
-    Flow[(CoordinatorActor.Response, ValidationResults)].map {
-      case (response, validations) =>
-        val validationsJson = JsArray(
-          validations
-            .map({
-              case (key, Right(value)) =>
-                JsObject("code" -> JsString(key.code), "data" -> value)
-              case (key, Left(message)) =>
-                JsObject("code" -> JsString(key.code), "error" -> JsString(message))
-            })
-            .toVector
-        )
+  private def buildResponse
+    : Flow[(CoordinatorActor.Response, ValidationResults), ResultResponse, NotUsed] =
+    Flow[(CoordinatorActor.Response, ValidationResults)]
+      .map {
+        case (response, validations) =>
+          val validationsJson = JsArray(
+            validations
+              .map({
+                case (key, Right(value)) =>
+                  JsObject("code" -> JsString(key.code), "data" -> value)
+                case (key, Left(message)) =>
+                  JsObject("code" -> JsString(key.code), "error" -> JsString(message))
+              })
+              .toVector
+          )
 
-        val model = response.results.headOption match {
-          case Some(pfa: PfaJobResult) => pfa.injectCell("validations", validationsJson)
-          case Some(m)                 => m
-        }
-
-        ResultResponse(response.job.query.algorithm, model)
-    }.named("build-response")
+          val algorithm = response.job.query.algorithm
+          response.results.headOption match {
+            case Some(pfa: PfaJobResult) =>
+              val model = pfa.injectCell("validations", validationsJson)
+              ResultResponse(algorithm, model)
+            case Some(model) =>
+              ResultResponse(algorithm, model)
+            case None =>
+              ResultResponse(algorithm,
+                             ErrorJobResult(response.job.jobId,
+                                            node = "",
+                                            OffsetDateTime.now(),
+                                            algorithm.code,
+                                            "No results"))
+          }
+      }
+      .named("build-response")
 }

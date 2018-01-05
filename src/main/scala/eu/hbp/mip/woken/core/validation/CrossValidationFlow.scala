@@ -122,7 +122,7 @@ case class CrossValidationFlow(
       }
       .mapAsync(parallelism)(validateFoldJobResponse)
       .mapAsync(parallelism)(scoreFoldValidationResponse)
-      .scan[List[FoldResult]](List[FoldResult]()) { (l, r) =>
+      .fold[List[FoldResult]](List[FoldResult]()) { (l, r) =>
         l :+ r
       }
       .mapAsync(1) { foldResults =>
