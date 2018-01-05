@@ -16,56 +16,58 @@
 
 package eu.hbp.mip.woken.api
 
-import akka.NotUsed
-import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, PoisonPill}
-import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.model.ws.{BinaryMessage, TextMessage}
+import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem }
+import akka.cluster.client.{ ClusterClient, ClusterClientSettings }
+import akka.pattern.ask
+import akka.http.scaladsl.model.ws.TextMessage
 import akka.http.scaladsl.model.ws.Message
 import akka.http.scaladsl.server.Route
-import akka.stream.{ActorMaterializer, Materializer, OverflowStrategy}
-import akka.stream.scaladsl.{Flow, Sink, Source}
-import eu.hbp.mip.woken.WokenWSProtocol
-import eu.hbp.mip.woken.api.MiningQueries.experimentQuery2job
+import akka.stream.{ ActorMaterializer, Materializer }
+import akka.stream.scaladsl.Flow
+import akka.util.Timeout
 import eu.hbp.mip.woken.api.swagger.MiningServiceApi
 import eu.hbp.mip.woken.authentication.BasicAuthentication
-import eu.hbp.mip.woken.config.{AlgorithmDefinition, AppConfiguration, JobsConfiguration}
-import eu.hbp.mip.woken.core.{CoordinatorConfig, ExperimentActor}
-import eu.hbp.mip.woken.core.commands.JobCommands.StartExperimentJob
-import eu.hbp.mip.woken.core.model.JobResult
+import eu.hbp.mip.woken.config.{ AlgorithmDefinition, AppConfiguration, JobsConfiguration }
+import eu.hbp.mip.woken.core.CoordinatorConfig
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import eu.hbp.mip.woken.dao.FeaturesDAL
-import eu.hbp.mip.woken.json.DefaultJsonFormats
-import eu.hbp.mip.woken.service.{AlgorithmLibraryService, JobResultService, VariablesMetaService}
-import eu.hbp.mip.woken.json.ApiJsonSupport._
-import eu.hbp.mip.woken.messages.external.{ExperimentQuery, MiningQuery}
+import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, JobResultService, VariablesMetaService }
+import eu.hbp.mip.woken.messages.external.{ ExperimentQuery, MiningQuery, QueryResult }
+import spray.json.DefaultJsonProtocol
 
-import scala.concurrent.ExecutionContextExecutor
+import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.duration._
 
 object MiningServiceWS
 
 class MiningServiceWS(
-                       val chronosService: ActorRef,
-                       val featuresDatabase: FeaturesDAL,
-                       val jobResultService: JobResultService,
-                       val variablesMetaService: VariablesMetaService,
-                       override val appConfiguration: AppConfiguration,
-                       val coordinatorConfig: CoordinatorConfig,
-                       val jobsConf: JobsConfiguration,
-                       val algorithmLookup: String => Validation[AlgorithmDefinition]
-                     )(implicit system: ActorSystem)
-  extends MiningServiceApi
+    val chronosService: ActorRef,
+    val featuresDatabase: FeaturesDAL,
+    val jobResultService: JobResultService,
+    val variablesMetaService: VariablesMetaService,
+    override val appConfiguration: AppConfiguration,
+    val coordinatorConfig: CoordinatorConfig,
+    val jobsConf: JobsConfiguration,
+    val algorithmLookup: String => Validation[AlgorithmDefinition]
+)(implicit system: ActorSystem)
+    extends MiningServiceApi
     with FailureHandling
-    with PerRequestCreator
-    with DefaultJsonFormats
+    with DefaultJsonProtocol
     with BasicAuthentication {
 
-  override def context: ActorRefFactory = system
+  def context: ActorRefFactory = system
 
-  implicit val executionContext: ExecutionContextExecutor = context.dispatcher
+  implicit val timeout: Timeout = Timeout(180.seconds)
+
+  implicit val executionContext: ExecutionContext = context.dispatcher
 
   implicit val materializer: Materializer = ActorMaterializer()
 
   val routes: Route = mining ~ experiment ~ listMethods
+
+  val cluster: ActorRef =
+    system.actorOf(ClusterClient.props(ClusterClientSettings(system)), "client")
+  val entryPoint = "/user/entrypoint"
 
   override def mining: Route = path("mining" / "job") {
     handleWebSocketMessages(miningProc)
@@ -79,47 +81,55 @@ class MiningServiceWS(
     handleWebSocketMessages(listMethodsProc)
   }
 
-  private def listMethodsProc: Flow[Message, Message, Any] = Flow[Message].mapConcat {
-    case tm: TextMessage =>
-      if (tm.getStrictText == WokenWSProtocol.ListMethods.toString)
-        TextMessage(Source.single(AlgorithmLibraryService().algorithms().compactPrint)) :: Nil
-      else {
-        Nil
+  private def listMethodsProc: Flow[Message, Message, Any] =
+    Flow[Message]
+      .collect {
+        case tm: TextMessage =>
+          AlgorithmLibraryService().algorithms()
+      }
+      .map { result =>
+        TextMessage(result.compactPrint)
+      }
+
+  private def experimentProc: Flow[Message, Message, Any] = {
+    import eu.hbp.mip.woken.json.WokenJsonProtocol._
+    import spray.json._
+    Flow[Message]
+      .collect {
+        case TextMessage.Strict(jsonEncodedString) =>
+          jsonEncodedString.parseJson.convertTo[ExperimentQuery]
+      }
+      .mapAsync(1) { query =>
+        (cluster ? ClusterClient.Send(entryPoint, query, localAffinity = true))
+          .mapTo[QueryResult]
+      }
+      .map { result =>
+        TextMessage(result.toJson.compactPrint)
       }
   }
 
-  private def experimentProc: Flow[Message, Message, Any] = Flow[Message].mapConcat {
-
-    val experimentActorJob: ActorRef = ??? //experimentJob(coordinatorConfig, algorithmLookup)
-
-    val incomingMessages: Sink[Message, NotUsed] = Flow[Message].map {
-      case TextMessage.Strict(jsonEncodedString) =>
-        import spray.json._
-        val query: ExperimentQuery = experimentQueryJsonFormat.read(jsonEncodedString.parseJson)
-        experimentQuery2job(variablesMetaService, jobsConf)(query)
-    }.to(Sink.actorRef[Validation[ExperimentActor.Job]](experimentActorJob, PoisonPill))
-
-    val outgoingMessages: Source[Message, NotUsed] = Source.actorRef[JobResultService](10, OverflowStrategy.fail).mapMaterializedValue { out =>
-      experimentActorJob ! StartExperimentJob(???)
-      NoUsed
-    }.map(jobResultService => jobResultService)
-
-    //      job.fold(
-    //        errors => complete(StatusCodes.BadRequest -> errors.toList.mkString(", ")),
-    //        experimentActorJob =>
-    //
-    //      )
-    ???
-  }
-
-  private def miningProc: Flow[Message, Message, Any] = Flow[Message].mapConcat {
-    case tm: TextMessage =>
-      import spray.json._
-      val jsonEncodeStringMsg = tm.getStrictText
-      val query: MiningQuery = SimpleQueryJsonFormat.read(jsonEncodeStringMsg.parseJson)
-      ???
-    case bm: BinaryMessage =>
-      bm.dataStream.runWith(Sink.ignore)
-      Nil
+  private def miningProc: Flow[Message, Message, Any] = {
+    import eu.hbp.mip.woken.json.WokenJsonProtocol._
+    import spray.json._
+    Flow[Message]
+      .collect {
+        case tm: TextMessage =>
+          val jsonEncodeStringMsg = tm.getStrictText
+          jsonEncodeStringMsg.parseJson.convertTo[MiningQuery]
+      }
+      .mapAsync(1) { minQuery: MiningQuery =>
+        if (minQuery.algorithm.code.isEmpty || minQuery.algorithm.code == "data") {
+          Future.successful(featuresDatabase.queryData(jobsConf.featuresTable, {
+            minQuery.variables ++ minQuery.covariables ++ minQuery.grouping
+          }.distinct.map(_.code)))
+        } else {
+          val result = (cluster ? ClusterClient.Send(entryPoint, minQuery, localAffinity = true))
+            .mapTo[QueryResult]
+          result.map(_.toJson)
+        }
+      }
+      .map { result =>
+        TextMessage(result.compactPrint)
+      }
   }
 }

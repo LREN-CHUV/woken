@@ -18,6 +18,8 @@ package eu.hbp.mip.woken.api
 
 import akka.actor.{ ActorRef, ActorSystem }
 import akka.cluster.client.{ ClusterClient, ClusterClientSettings }
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
+import akka.http.scaladsl.marshalling.PredefinedToResponseMarshallers
 import akka.pattern.ask
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.model.StatusCodes._
@@ -28,7 +30,7 @@ import eu.hbp.mip.woken.messages.external._
 import eu.hbp.mip.woken.dao.FeaturesDAL
 import eu.hbp.mip.woken.service.AlgorithmLibraryService
 import akka.util.Timeout
-import eu.hbp.mip.woken.json.DefaultJsonFormats
+import spray.json.DefaultJsonProtocol
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
@@ -43,7 +45,9 @@ class MiningService(
 )(implicit system: ActorSystem)
     extends MiningServiceApi
     with FailureHandling
-    with DefaultJsonFormats
+    with DefaultJsonProtocol
+    with SprayJsonSupport
+    with PredefinedToResponseMarshallers
     with BasicAuthentication {
 
   implicit val executionContext: ExecutionContext = system.dispatcher
