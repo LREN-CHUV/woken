@@ -1,7 +1,7 @@
 # Configuration taken from https://github.com/meltwater/docker-mesos
 # https://github.com/containous/traefik/blob/master/examples/compose-marathon.yml
 
-version: '3'
+version: '3.0'
 
 services:
   zookeeper:
@@ -222,20 +222,26 @@ services:
     ports:
       - "8087:8087"
       - "8088:8088"
-    hostname: woken
+    environment:
+      CLUSTER_PORT: 8088
+      CLUSTER_IP: woken
+      WOKEN_PORT_8088_TCP_ADDR: woken
     links:
       - zipkin
     depends_on:
       - chronos
       - db
 
-  woken_validation:
-    image: hbpmip/woken-validation:2.1.0
-    volumes:
-      - ./woken-validation/config/application.conf:/opt/woken-validation/config/application.conf
+  wokenvalidation:
+    image: hbpmip/woken-validation:2.1.4
     ports:
+      - "8081:8081"
       - "8082:8082"
-    hostname: woken-validation
+    environment:
+      CLUSTER_PORT: 8082
+      CLUSTER_IP: wokenvalidation
+      WOKEN_PORT_8088_TCP_ADDR: woken
+      LOG_LEVEL: DEBUG
     links:
       - zipkin
     depends_on:
@@ -251,10 +257,17 @@ services:
       - woken
       - chronos
 
-  woken_test:
+  wokentest:
     build:
       context: ./woken-test
       dockerfile: Dockerfile
+    hostname: "wokentest"
+    ports:
+      - "8097:8097"
+    environment:
+      CLUSTER_PORT: 8097
+      CLUSTER_IP: wokentest
+      WOKEN_PORT_8088_TCP_ADDR: woken
     depends_on:
       - woken
 
@@ -302,7 +315,7 @@ services:
       - portalbackend
 
   frontend:
-    image: hbpmip/portal-frontend:2.4.0
+    image: hbpmip/portal-frontend:2.5.1
     depends_on:
       - portalbackend
     ports:

@@ -16,13 +16,15 @@
 
 package eu.hbp.mip.woken.core
 
-import akka.actor.{ ActorRef, ActorSystem, Props }
-import akka.contrib.throttle.{ Throttler, TimerBasedThrottler }
+import akka.actor.{ ActorRef, ActorSystem }
+import akka.pattern.{ Backoff, BackoffSupervisor }
+import akka.stream._
 import com.typesafe.config.{ Config, ConfigFactory }
-import eu.hbp.mip.woken.backends.chronos.ChronosService
+import eu.hbp.mip.woken.backends.chronos.ChronosThrottler
 import eu.hbp.mip.woken.config.JobsConfiguration
 
 import scala.concurrent.duration._
+import scala.language.postfixOps
 
 /**
   * Core is type containing the ``system: ActorSystem`` member. This enables us to use it in our
@@ -33,7 +35,9 @@ trait Core {
   protected implicit def system: ActorSystem
 
   protected def config: Config
+
   protected def jobsConf: JobsConfiguration
+  protected def mainRouter: ActorRef
 
 }
 
@@ -49,16 +53,18 @@ trait CoreActors {
     .read(config)
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
 
-  private val chronosActor: ActorRef = system.actorOf(ChronosService.props(jobsConf), "chronos")
+  private implicit val materializer: ActorMaterializer = ActorMaterializer()
 
-  import Throttler._
-  // The throttler for this example, setting the rate
-  val chronosHttp: ActorRef = system.actorOf(
-    Props(classOf[TimerBasedThrottler], 1 msgsPer 300.millisecond),
-    "rateLimit.chronos"
+  private val chronosSupervisorProps = BackoffSupervisor.props(
+    Backoff.onFailure(
+      ChronosThrottler.props(jobsConf),
+      childName = "chronosThrottler",
+      minBackoff = 1 second,
+      maxBackoff = 30 seconds,
+      randomFactor = 0.2
+    )
   )
 
-  // Set the target
-  chronosHttp ! SetTarget(Some(chronosActor))
+  val chronosHttp: ActorRef = system.actorOf(chronosSupervisorProps, "chronosSupervisor")
 
 }

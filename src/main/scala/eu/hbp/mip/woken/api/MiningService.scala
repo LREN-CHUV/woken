@@ -16,68 +16,61 @@
 
 package eu.hbp.mip.woken.api
 
-import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem }
+import akka.actor.{ ActorRef, ActorSystem }
+import akka.cluster.client.{ ClusterClient, ClusterClientSettings }
+import akka.pattern.ask
 import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.model.StatusCodes._
 import eu.hbp.mip.woken.api.swagger.MiningServiceApi
 import eu.hbp.mip.woken.authentication.BasicAuthentication
-import eu.hbp.mip.woken.config.{ AlgorithmDefinition, AppConfiguration, JobsConfiguration }
+import eu.hbp.mip.woken.config.{ AppConfiguration, JobsConfiguration }
 import eu.hbp.mip.woken.messages.external._
-import eu.hbp.mip.woken.core._
 import eu.hbp.mip.woken.dao.FeaturesDAL
-import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, JobResultService, VariablesMetaService }
-import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
-import MiningQueries._
-import akka.http.scaladsl.model.StatusCodes
-import eu.hbp.mip.woken.core.commands.JobCommands.{
-  Command,
-  StartCoordinatorJob,
-  StartExperimentJob
-}
+import eu.hbp.mip.woken.service.AlgorithmLibraryService
+import akka.util.Timeout
 import eu.hbp.mip.woken.json.DefaultJsonFormats
 
-import scala.concurrent.ExecutionContextExecutor
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext
 
 object MiningService
 
 // this trait defines our service behavior independently from the service actor
 class MiningService(
-    val chronosService: ActorRef,
     val featuresDatabase: FeaturesDAL,
-    val jobResultService: JobResultService,
-    val variablesMetaService: VariablesMetaService,
     override val appConfiguration: AppConfiguration,
-    val coordinatorConfig: CoordinatorConfig,
-    val jobsConf: JobsConfiguration,
-    val algorithmLookup: String => Validation[AlgorithmDefinition]
+    val jobsConf: JobsConfiguration
 )(implicit system: ActorSystem)
     extends MiningServiceApi
     with FailureHandling
-    with PerRequestCreator
     with DefaultJsonFormats
     with BasicAuthentication {
 
-  override def context: ActorRefFactory = system
-
-  implicit val executionContext: ExecutionContextExecutor = context.dispatcher
+  implicit val executionContext: ExecutionContext = system.dispatcher
+  implicit val timeout: Timeout                   = Timeout(180.seconds)
 
   val routes: Route = mining ~ experiment ~ listMethods
 
-  import eu.hbp.mip.woken.json.ApiJsonSupport._
+  val cluster: ActorRef =
+    system.actorOf(ClusterClient.props(ClusterClientSettings(system)), "client")
+  val entryPoint = "/user/entrypoint"
 
-  override def listMethods: Route = path("mining" / "list-methods") {
-    authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { user =>
+  import spray.json._
+  import ExternalAPIProtocol._
+
+  override def listMethods: Route = path("mining" / "methods") {
+    authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { _ =>
       get {
         complete(AlgorithmLibraryService().algorithms())
       }
     }
-
   }
 
   override def mining: Route = path("mining" / "job") {
     authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { user =>
       post {
         entity(as[MiningQuery]) {
-          case MiningQuery(variables, covariables, groups, filters, Algorithm(c, n, p))
+          case MiningQuery(variables, covariables, groups, filters, AlgorithmSpec(c, p))
               if c == "" || c == "data" =>
             ctx =>
               {
@@ -89,63 +82,35 @@ class MiningService(
               }
 
           case query: MiningQuery =>
-            val job = miningQuery2job(variablesMetaService, jobsConf, algorithmLookup)(query)
-            job.fold(
-              errors => complete(StatusCodes.BadRequest -> errors.toList.mkString(", ")),
-              dockerJob =>
-                miningJob(coordinatorConfig) {
-                  StartCoordinatorJob(dockerJob)
+            ctx =>
+              ctx.complete {
+                (cluster ? ClusterClient.Send(entryPoint, query, localAffinity = true))
+                  .mapTo[QueryResult]
+                  .map {
+                    case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
+                    case qr if qr.data.nonEmpty  => OK         -> qr.toJson
+                  }
               }
-            )
-
         }
       }
     }
-
   }
 
   override def experiment: Route = path("mining" / "experiment") {
     authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { user =>
       post {
         entity(as[ExperimentQuery]) { query: ExperimentQuery =>
-          {
-            val job = experimentQuery2job(variablesMetaService, jobsConf)(query)
-            job.fold(
-              errors => complete(StatusCodes.BadRequest -> errors.toList.mkString(", ")),
-              experimentActorJob =>
-                experimentJob(coordinatorConfig, algorithmLookup) {
-                  StartExperimentJob(experimentActorJob)
+          complete {
+            (cluster ? ClusterClient.Send(entryPoint, query, localAffinity = true))
+              .mapTo[QueryResult]
+              .map {
+                case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
+                case qr if qr.data.nonEmpty  => OK         -> qr.toJson
               }
-            )
           }
         }
       }
     }
-
   }
-
-  private def newCoordinatorActor(coordinatorConfig: CoordinatorConfig): ActorRef =
-    context.actorOf(CoordinatorActor.props(coordinatorConfig))
-
-  private def newExperimentActor(
-      coordinatorConfig: CoordinatorConfig,
-      algorithmLookup: String => Validation[AlgorithmDefinition]
-  ): ActorRef =
-    context.actorOf(ExperimentActor.props(coordinatorConfig, algorithmLookup))
-
-  import PerRequest._
-
-  def miningJob(coordinatorConfig: CoordinatorConfig)(command: Command): Route =
-    asyncComplete { ctx =>
-      perRequest(ctx, newCoordinatorActor(coordinatorConfig), command)
-    }
-
-  def experimentJob(
-      coordinatorConfig: CoordinatorConfig,
-      algorithmLookup: String => Validation[AlgorithmDefinition]
-  )(command: Command): Route =
-    asyncComplete { ctx =>
-      perRequest(ctx, newExperimentActor(coordinatorConfig, algorithmLookup), command)
-    }
 
 }

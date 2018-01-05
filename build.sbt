@@ -14,17 +14,20 @@ lazy val `woken` =
           library.akkaActor,
           library.akkaRemote,
           library.akkaCluster,
+          library.akkaClusterTools,
           library.akkaContrib,
           library.akkaSlf4j,
-          library.akkaTracingCore,
-          library.akkaTracingAkkaHttp,
+          //library.akkaTracingCore,
+          //library.akkaTracingAkkaHttp,
           library.akkaHttp,
           library.akkaHttpJson,
+          library.akkaHttpSwagger,
+          library.swaggerUI,
+          library.sprayJson,
           library.slf4j,
           library.log4jSlf4j,
           library.disruptor,
           library.catsCore,
-          library.scalaz,
           library.config,
           library.doobieCore,
           library.doobiePostgres,
@@ -32,8 +35,6 @@ lazy val `woken` =
           library.yaml,
           library.hadrian,
           library.wokenMessages,
-          library.akkaHttpSwagger,
-          library.swaggerUI,
           //library.scalaCache,
           library.scalaCheck   % Test,
           library.scalaTest    % Test,
@@ -52,50 +53,51 @@ lazy val `woken` =
 lazy val library =
   new {
     object Version {
-      val scalaCheck    = "1.13.5"
-      val scalaTest     = "3.0.3"
-      val akka          = "2.5.8"
-      val akkaTracing   = "0.6.1"
-      val akkaHttp      = "10.0.11"
-      val slf4j         = "1.7.25"
-      val log4j         = "2.9.1"
-      val disruptor     = "3.3.7"
-      val cats          = "1.0.0-RC1"
-      val scalaz        = "7.2.7"
-      val config        = "1.2.1"
-      val doobie        = "0.5.0-M9"
-      val snakeyaml     = "1.17"
-      val hadrian       = "0.8.5"
-      val wokenMessages = "2.0.11"
-      val akkaHttpSwagger  = "0.11.0"
-      val swaggerUI     = "2.0.12"
-      val scalaCache    = "0.21.0"
+      val scalaCheck      = "1.13.5"
+      val scalaTest       = "3.0.3"
+      val akka            = "2.5.8"
+      val akkaTracing     = "0.6.1"
+      val akkaHttp        = "10.1.0-RC1"
+      val akkaHttpSwagger = "0.11.0"
+      val swaggerUI       = "2.0.12"
+      val sprayJson       = "1.3.4"
+      val slf4j           = "1.7.25"
+      val log4j           = "2.9.1"
+      val disruptor       = "3.3.7"
+      val cats            = "1.0.0-RC1"
+      val config          = "1.2.1"
+      val doobie          = "0.5.0-M9"
+      val snakeyaml       = "1.17"
+      val hadrian         = "0.8.5"
+      val wokenMessages   = "2.1.8"
+      val scalaCache      = "0.21.0"
     }
     val scalaCheck: ModuleID   = "org.scalacheck"    %% "scalacheck"   % Version.scalaCheck
     val scalaTest: ModuleID    = "org.scalatest"     %% "scalatest"    % Version.scalaTest
     val akkaActor: ModuleID    = "com.typesafe.akka" %% "akka-actor"   % Version.akka
     val akkaRemote: ModuleID   = "com.typesafe.akka" %% "akka-remote"  % Version.akka
     val akkaCluster: ModuleID  = "com.typesafe.akka" %% "akka-cluster" % Version.akka
+    val akkaClusterTools: ModuleID = "com.typesafe.akka" %% "akka-cluster-tools" % Version.akka
     val akkaContrib: ModuleID  = "com.typesafe.akka" %% "akka-contrib" % Version.akka
     val akkaSlf4j: ModuleID    = "com.typesafe.akka" %% "akka-slf4j"   % Version.akka
     val akkaTestkit: ModuleID  = "com.typesafe.akka" %% "akka-testkit" % Version.akka
-    val akkaTracingCore: ModuleID  = "com.github.levkhomich" %% "akka-tracing-core" % Version.akkaTracing
-    val akkaTracingAkkaHttp: ModuleID  = "com.github.levkhomich" %% "akka-tracing-http" % Version.akkaTracing
+    val akkaTracingCore: ModuleID     = "com.github.levkhomich" %% "akka-tracing-core" % Version.akkaTracing
+    val akkaTracingAkkaHttp: ModuleID = "com.github.levkhomich" %% "akka-tracing-http" % Version.akkaTracing
     val akkaHttp: ModuleID = "com.typesafe.akka" %% "akka-http" % Version.akkaHttp
     val akkaHttpJson: ModuleID = "com.typesafe.akka" %% "akka-http-spray-json" % Version.akkaHttp
+    val akkaHttpSwagger: ModuleID = "com.github.swagger-akka-http"   %% "swagger-akka-http" % Version.akkaHttpSwagger
+    val swaggerUI: ModuleID    = "org.webjars"        % "swagger-ui"   % Version.swaggerUI
+    val sprayJson: ModuleID    = "io.spray"          %% "spray-json"   % Version.sprayJson
     val slf4j: ModuleID        = "org.slf4j"          % "slf4j-api"    % Version.slf4j
     val log4jSlf4j: ModuleID   = "org.apache.logging.log4j" % "log4j-slf4j-impl" % Version.log4j
     val disruptor: ModuleID    = "com.lmax"           % "disruptor"    % Version.disruptor
     val catsCore: ModuleID     = "org.typelevel"     %% "cats-core"    % Version.cats
-    val scalaz: ModuleID       = "org.scalaz"        %% "scalaz-core"  % Version.scalaz
     val config: ModuleID       = "com.typesafe"       % "config"       % Version.config
     val doobieCore: ModuleID   = "org.tpolecat"      %% "doobie-core"  % Version.doobie
     val doobiePostgres: ModuleID = "org.tpolecat"    %% "doobie-postgres" % Version.doobie
     val doobieHikari: ModuleID = "org.tpolecat"      %% "doobie-hikari" % Version.doobie
     val yaml: ModuleID         = "org.yaml"           % "snakeyaml"    % Version.snakeyaml
-    val hadrian: ModuleID      = "com.opendatagroup" %  "hadrian"       % Version.hadrian
-    val akkaHttpSwagger: ModuleID = "com.github.swagger-akka-http"   %% "swagger-akka-http" % Version.akkaHttpSwagger
-    val swaggerUI: ModuleID    = "org.webjars"        % "swagger-ui"   % Version.swaggerUI
+    val hadrian: ModuleID      = "com.opendatagroup" %  "hadrian"      % Version.hadrian
     val scalaCache: ModuleID   = "com.github.cb372"  %% "scalacache-core" % Version.scalaCache
     val wokenMessages: ModuleID = "eu.humanbrainproject.mip" %% "woken-messages" % Version.wokenMessages
   }
@@ -140,7 +142,6 @@ lazy val commonSettings =
     unmanagedSourceDirectories.in(Compile) := Seq(scalaSource.in(Compile).value),
     unmanagedSourceDirectories.in(Test) := Seq(scalaSource.in(Test).value),
     wartremoverWarnings in (Compile, compile) ++= Warts.unsafe,
-    mainClass in Runtime := Some("eu.hbp.mip.woken.validation.Main"),
     fork in run := true,
     test in assembly := {},
     fork in Test := false,

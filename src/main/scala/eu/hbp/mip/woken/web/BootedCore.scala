@@ -17,43 +17,31 @@
 package eu.hbp.mip.woken.web
 
 import scala.concurrent.duration._
-import akka.actor.{
-  ActorRef,
-  ActorRefFactory,
-  ActorSystem,
-  Address,
-  ExtendedActorSystem,
-  Extension,
-  ExtensionKey,
-  Props
-}
+import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem }
 import akka.util.Timeout
 import akka.cluster.Cluster
+import akka.cluster.client.ClusterClientReceptionist
 import akka.http.scaladsl.Http
+import akka.pattern.{ Backoff, BackoffSupervisor }
 import cats.effect.IO
 import eu.hbp.mip.woken.api.{ Api, MasterRouter }
 import eu.hbp.mip.woken.config.{ AlgorithmsConfiguration, AppConfiguration, DatabaseConfiguration }
 import eu.hbp.mip.woken.core.{ CoordinatorConfig, Core, CoreActors }
-import eu.hbp.mip.woken.core.validation.ValidationPoolManager
 import eu.hbp.mip.woken.dao.{ FeaturesDAL, MetadataRepositoryDAO, WokenRepositoryDAO }
 import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, JobResultService, VariablesMetaService }
 import eu.hbp.mip.woken.ssl.WokenSSLConfiguration
 import akka.stream.ActorMaterializer
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.{ ExecutionContextExecutor, Future }
-
-class RemoteAddressExtensionImpl(system: ExtendedActorSystem) extends Extension {
-  def getAddress: Address =
-    system.provider.getDefaultAddress
-}
-
-object RemoteAddressExtension extends ExtensionKey[RemoteAddressExtensionImpl]
+import scala.language.postfixOps
+import scala.sys.ShutdownHookThread
 
 /**
   * This trait implements ``Core`` by starting the required ``ActorSystem`` and registering the
   * termination handler to stop the system when the JVM exits.
   */
-@SuppressWarnings(Array("org.wartremover.warts.Throw"))
+@SuppressWarnings(Array("org.wartremover.warts.Throw", "org.wartremover.warts.NonUnitStatements"))
 trait BootedCore
     extends Core
     with CoreActors
@@ -61,14 +49,18 @@ trait BootedCore
     with StaticResources
     with WokenSSLConfiguration {
 
+  private val logger = LoggerFactory.getLogger("BootedCore")
+
   override lazy val appConfig: AppConfiguration = AppConfiguration
     .read(config)
     .getOrElse(throw new IllegalStateException("Invalid configuration"))
 
+  logger.info(s"Starting actor system ${appConfig.clusterSystemName}")
+
   /**
     * Construct the ActorSystem we will use in our application
     */
-  override lazy implicit val system: ActorSystem          = ActorSystem(appConfig.clusterSystemName)
+  override lazy implicit val system: ActorSystem          = ActorSystem(appConfig.clusterSystemName, config)
   lazy val actorRefFactory: ActorRefFactory               = system
   implicit val actorMaterializer: ActorMaterializer       = ActorMaterializer()
   implicit val executionContext: ExecutionContextExecutor = system.dispatcher
@@ -120,42 +112,50 @@ trait BootedCore
     DatabaseConfiguration.factory(config)
   )
 
-  /**
-    * Create and start actor that acts as akka entry-point
-    */
-  val mainRouter: ActorRef =
-    system.actorOf(
+  private val mainRouterSupervisorProps = BackoffSupervisor.props(
+    Backoff.onFailure(
       MasterRouter.props(appConfig,
                          coordinatorConfig,
                          variablesMetaService,
                          algorithmLibraryService,
                          AlgorithmsConfiguration.factory(config)),
-      name = "entrypoint"
+      childName = "mainRouter",
+      minBackoff = 100 milliseconds,
+      maxBackoff = 1 seconds,
+      randomFactor = 0.2
     )
+  )
 
   /**
-    * Create and start actor responsible to register validation node
+    * Create and start actor that acts as akka entry-point
     */
-  val validationRegisterActor: ActorRef = system.actorOf(Props[ValidationPoolManager])
+  override lazy val mainRouter: ActorRef =
+    system.actorOf(mainRouterSupervisorProps, name = "entrypoint")
+
+  ClusterClientReceptionist(system).registerService(mainRouter)
 
   implicit val timeout: Timeout = Timeout(5.seconds)
 
-  Http().setDefaultServerHttpContext(https)
+  if (appConfig.webServicesHttps) Http().setDefaultServerHttpContext(https)
 
   // start a new HTTP server on port 8080 with our service actor as the handler
   val binding: Future[Http.ServerBinding] = Http().bindAndHandle(routes,
                                                                  interface =
                                                                    appConfig.networkInterface,
-                                                                 port = appConfig.webServicesPort,
-                                                                 connectionContext = https)
+                                                                 port = appConfig.webServicesPort)
 
   /**
     * Ensure that the constructed ActorSystem is shut down when the JVM shuts down
     */
-  sys.addShutdownHook {
+  val shutdownHook: ShutdownHookThread = sys.addShutdownHook {
     binding
       .flatMap(_.unbind())
-      .onComplete(_ => system.terminate())
+      .flatMap(_ => system.terminate())
+      .onComplete(_ => ())
   }
+
+  logger.info("Woken startup complete")
+
+  ()
 
 }

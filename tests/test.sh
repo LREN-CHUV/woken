@@ -53,7 +53,7 @@ $DOCKER_COMPOSE run wait_zookeeper
 $DOCKER_COMPOSE up -d mesos_master
 $DOCKER_COMPOSE run wait_mesos_master
 $DOCKER_COMPOSE up -d mesos_slave
-$DOCKER_COMPOSE build woken_test
+$DOCKER_COMPOSE build wokentest
 $DOCKER_COMPOSE run wait_dbs
 
 echo "Create databases..."
@@ -77,7 +77,7 @@ for i in 1 2 3 4 5 ; do
   $DOCKER_COMPOSE stop chronos
 done
 
-$DOCKER_COMPOSE up -d woken woken_validation
+$DOCKER_COMPOSE up -d woken wokenvalidation
 
 $DOCKER_COMPOSE run wait_woken
 
@@ -94,7 +94,7 @@ echo "The Algorithm Factory is now running on your system"
 echo
 echo "Testing Akka API..."
 
-$DOCKER_COMPOSE run woken_test
+$DOCKER_COMPOSE run wokentest
 
 echo
 # Cleanup

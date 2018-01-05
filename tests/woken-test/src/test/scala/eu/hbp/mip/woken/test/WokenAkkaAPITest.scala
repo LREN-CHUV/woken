@@ -18,9 +18,11 @@ package eu.hbp.mip.woken.test
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
+import akka.cluster.client.{ClusterClient, ClusterClientSettings}
 import akka.pattern.ask
 import akka.util.Timeout
+import com.typesafe.config.ConfigFactory
 import eu.hbp.mip.woken.messages.external._
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.TryValues._
@@ -36,18 +38,21 @@ import scala.util.Try
 class WokenAkkaAPITest extends FlatSpec with Matchers {
 
   implicit val timeout: Timeout = Timeout(200 seconds)
-  val system = ActorSystem("woken-test")
+  val configuration = ConfigFactory.load()
+  val system = ActorSystem(configuration.getString("clustering.cluster.name"),
+                           configuration)
+  val client: ActorRef =
+    system.actorOf(ClusterClient.props(ClusterClientSettings(system)), "client")
+  val entryPoint = "/user/entrypoint"
 
   // Test methods query
   "Woken" should "respond to a query for the list of methods" in {
-    val api =
-      system.actorSelection("akka.tcp://woken@woken:8088/user/entrypoint")
+
     val start = System.currentTimeMillis()
-
-    val future = api ? MethodsQuery()
-
-    val result = waitFor[Methods](future)
-
+    val future = client ? ClusterClient.Send(entryPoint,
+                                             MethodsQuery,
+                                             localAffinity = true)
+    val result = waitFor[MethodsResponse](future)
     val end = System.currentTimeMillis()
 
     println(
@@ -63,22 +68,20 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
 
   // Test mining query
   "Woken" should "respond to a data mining query" in {
-    val api =
-      system.actorSelection("akka.tcp://woken@woken:8088/user/entrypoint")
-    val start = System.currentTimeMillis()
 
-    val future = api ? MiningQuery(
+    val start = System.currentTimeMillis()
+    val query = MiningQuery(
       List(VariableId("cognitive_task2")),
       List(VariableId("score_math_course1")),
       Nil,
       "",
-      Algorithm("knn",
-                "K-nearest neighbors with k=5",
-                Map[String, String]("k" -> "5"))
+      AlgorithmSpec("knn", List(CodeValue("k", "5")))
     )
 
+    val future = client ? ClusterClient.Send(entryPoint,
+                                             query,
+                                             localAffinity = true)
     val result = waitFor[QueryResult](future)
-
     val end = System.currentTimeMillis()
 
     println(
@@ -98,20 +101,20 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
   }
 
   "Woken" should "respond to a data mining query with visualisation" in {
-    val api =
-      system.actorSelection("akka.tcp://woken@woken:8088/user/entrypoint")
-    val start = System.currentTimeMillis()
 
-    val future = api ? MiningQuery(
+    val start = System.currentTimeMillis()
+    val query = MiningQuery(
       List(VariableId("cognitive_task2")),
       List("score_math_course1", "score_math_course2").map(VariableId),
       Nil,
       "",
-      Algorithm("histograms", "Histograms", Map())
+      AlgorithmSpec("histograms", Nil)
     )
 
+    val future = client ? ClusterClient.Send(entryPoint,
+                                             query,
+                                             localAffinity = true)
     val result = waitFor[QueryResult](future)
-
     val end = System.currentTimeMillis()
 
     println(
@@ -133,16 +136,13 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
 
   // Test experiment query
   "Woken" should "respond to an experiment query" in {
-    val api =
-      system.actorSelection("akka.tcp://woken@woken:8088/user/entrypoint")
+
     val start = System.currentTimeMillis()
-
-    val future = api ? experimentQuery("knn",
-                                       "K-nearest neighbors with k=5",
-                                       Map("k" -> "5"))
-
+    val query = experimentQuery("knn", List(CodeValue("k", "5")))
+    val future = client ? ClusterClient.Send(entryPoint,
+                                             query,
+                                             localAffinity = true)
     val result = waitFor[QueryResult](future)
-
     val end = System.currentTimeMillis()
 
     println(
@@ -165,8 +165,6 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
 
   // Test resiliency
   "Woken" should "recover from multiple failed experiments" taggedAs Slow in {
-    val api =
-      system.actorSelection("akka.tcp://woken@woken:8088/user/entrypoint")
 
     // TODO: add no_results, never_end
     val failures = List("training_fails",
@@ -174,8 +172,11 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
                         "invalid_pfa_syntax",
                         "invalid_pfa_semantics")
 
-    val futures = failures.map(failure =>
-      api ? experimentQuery("chaos", "Failure", Map("failure" -> failure)))
+    val queries = failures.map(failure =>
+      experimentQuery("chaos", List(CodeValue("failure", failure))))
+
+    val futures = queries.map(query =>
+      client ? ClusterClient.Send(entryPoint, query, localAffinity = true))
 
     futures.foreach { f =>
       println("Waiting for result from chaos algorithm...")
@@ -183,10 +184,10 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
       println(s"Chaos algorithm returned ${result.success.value}")
     }
 
-    val successfulFuture = api ? experimentQuery("knn",
-                                                 "K-nearest neighbors with k=5",
-                                                 Map("k" -> "5"))
-
+    val knnQuery = experimentQuery("knn", List(CodeValue("k", "5")))
+    val successfulFuture = client ? ClusterClient.Send(entryPoint,
+                                                       knnQuery,
+                                                       localAffinity = true)
     val result = waitFor[QueryResult](successfulFuture)
 
     if (!result.isSuccess) {
@@ -204,16 +205,14 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
 
   }
 
-  private def experimentQuery(algorithm: String,
-                              description: String,
-                              parameters: Map[String, String]) =
+  private def experimentQuery(algorithm: String, parameters: List[CodeValue]) =
     ExperimentQuery(
       List(VariableId("cognitive_task2")),
       List(VariableId("score_test1"), VariableId("college_math")),
       Nil,
       "",
-      List(Algorithm(algorithm, description, parameters)),
-      List(Validation("kfold", "kfold", Map("k" -> "2")))
+      List(AlgorithmSpec(algorithm, parameters)),
+      List(ValidationSpec("kfold", List(CodeValue("k", "2"))))
     )
 
   private def waitFor[T](future: Future[Any])(

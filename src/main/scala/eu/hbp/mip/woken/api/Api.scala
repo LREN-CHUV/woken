@@ -17,7 +17,7 @@
 package eu.hbp.mip.woken.api
 
 import eu.hbp.mip.woken.api.swagger.SwaggerService
-import eu.hbp.mip.woken.config.{ AlgorithmsConfiguration, AppConfiguration }
+import eu.hbp.mip.woken.config.AppConfiguration
 import eu.hbp.mip.woken.core.{ CoordinatorConfig, Core, CoreActors }
 import eu.hbp.mip.woken.dao.FeaturesDAL
 import eu.hbp.mip.woken.service.{ JobResultService, VariablesMetaService }
@@ -40,17 +40,17 @@ trait Api extends CoreActors with Core {
 
   lazy val miningService =
     new MiningService(
-      chronosHttp,
       featuresDAL,
-      jobResultService,
-      variablesMetaService,
       appConfig,
-      coordinatorConfig,
-      jobsConf,
-      AlgorithmsConfiguration.factory(config)
+      jobsConf
     )
 
-  val routes: Route = SwaggerService.routes ~ miningService.routes
+  val routes: Route = SwaggerService.routes ~ miningService.routes ~
+    pathPrefix("health") {
+      get {
+        complete("OK")
+      }
+    }
 
 }
 

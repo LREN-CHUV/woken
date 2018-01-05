@@ -5,18 +5,29 @@
 #before_install:
 # - docker pull thomastoye/kairosdb-scala-driver-it
 
+sudo: required
+dist: trusty
 language: scala
 
 scala:
- - 2.11.8
+ - 2.11.11
 
 jdk:
   - oraclejdk8
+
+addons:
+  # https://github.com/travis-ci/travis-ci/issues/5227#issuecomment-165131913
+  hosts:
+    - woken
+  hostname: woken
 
 cache:
   directories:
     - $HOME/.ivy2/cache
     - $HOME/.sbt/boot/
+
+before_script:
+  - jdk_switcher use $JDK
 
 script:
   # Your normal script

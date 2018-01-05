@@ -19,6 +19,7 @@ package eu.hbp.mip.woken.api
 import java.util.UUID
 
 import akka.actor.{ ActorRef, ActorSystem, Props }
+import akka.routing.FromConfig
 import akka.testkit.{ ImplicitSender, TestKit }
 import eu.hbp.mip.woken.api.MasterRouter.{ QueuesSize, RequestQueuesSize }
 import eu.hbp.mip.woken.backends.DockerJob
@@ -38,6 +39,7 @@ import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import spray.json.JsObject
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil
 import cats.data.Validated._
+import eu.hbp.mip.woken.util.FakeActors
 import org.scalatest.tagobjects.Slow
 
 import scala.concurrent.duration._
@@ -110,6 +112,12 @@ class MasterRouterTest
     override def newCoordinatorActor: ActorRef =
       system.actorOf(Props(new FakeCoordinatorActor()))
 
+    override def initValidationWorker: ActorRef =
+      context.actorOf(FakeActors.echoActorProps)
+
+    override def initScoringWorker: ActorRef =
+      context.actorOf(FakeActors.echoActorProps)
+
   }
 
   val config: Config = ConfigFactory.load()
@@ -120,7 +128,7 @@ class MasterRouterTest
   val jdbcConfigs: String => ConfigUtil.Validation[DatabaseConfiguration] = _ => Valid(noDbConfig)
 
   val coordinatorConfig: CoordinatorConfig = CoordinatorConfig(
-    system.actorOf(FakeActor.echoActorProps),
+    system.actorOf(FakeActors.echoActorProps),
     None,
     fakeFeaturesDAL,
     jobResultService,
@@ -160,7 +168,7 @@ class MasterRouterTest
           expectMsgType[QueryResult](5 seconds)
         }
 
-        expectNoMsg()
+        expectNoMessage(1 seconds)
       }
 
       waitForEmptyQueue(router, limit)
@@ -193,7 +201,7 @@ class MasterRouterTest
           }
         }
 
-        expectNoMsg()
+        expectNoMessage(1 seconds)
         Thread.sleep(100)
       }
 
@@ -221,7 +229,7 @@ class MasterRouterTest
           expectMsgType[QueryResult](5 seconds)
         }
 
-        expectNoMsg()
+        expectNoMessage(1 seconds)
       }
 
       waitForEmptyQueue(router, limit)

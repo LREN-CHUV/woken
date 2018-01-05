@@ -23,6 +23,8 @@ import spray.json._
 
 import scala.reflect.ClassTag
 
+// TODO: delete ?
+
 /**
   * Contains useful JSON formats: ``j.u.Date``, ``j.u.UUID`` and others; it is useful
   * when creating traits that contain the ``JsonReader`` and ``JsonWriter`` instances

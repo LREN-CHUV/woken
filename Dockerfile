@@ -22,7 +22,7 @@ RUN /check-sources.sh
 
 RUN sbt test assembly
 
-FROM hbpmip/java-base:8u131-2
+FROM hbpmip/java-base:8u151-0
 
 MAINTAINER Ludovic Claude <ludovic.claude@chuv.ch>
 
@@ -55,7 +55,8 @@ LABEL org.label-schema.build-date=$BUILD_DATE \
       org.label-schema.memory-hint="2048" \
       org.label-schema.schema-version="1.0"
 
-EXPOSE 8087
-EXPOSE 8088
+# 8087: Web service API
+# 8088: Akka cluster
+EXPOSE 8087 8088
 
 CMD ["/run.sh"]

@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-package eu.hbp.mip.woken.api
+package eu.hbp.mip.woken.util
 
 import akka.actor.{ Actor, Props }
 
-object FakeActor {
+object FakeActors {
 
   /**
     * EchoActor sends back received messages (unmodified).
     */
   class EchoActor extends Actor {
-    override def receive = {
+    override def receive: PartialFunction[Any, Unit] = {
       case message =>
         Thread.sleep(300)
         sender() ! message
@@ -32,5 +32,5 @@ object FakeActor {
     }
   }
 
-  val echoActorProps = Props[EchoActor]()
+  val echoActorProps: Props = Props[EchoActor]()
 }
