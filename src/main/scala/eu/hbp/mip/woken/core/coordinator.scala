@@ -282,7 +282,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
           job = data.job,
           chronosJob = data.chronosJob,
           pollDbCount = 0,
-          timeoutTime = System.currentTimeMillis + 1.minute.toMillis
+          timeoutTime = System.currentTimeMillis + 30.seconds.toMillis
         )
       }
 
@@ -344,7 +344,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
     case Event(StateTimeout, data: ExpectedLocalData) =>
       if (System.currentTimeMillis > data.timeoutTime) {
         val msg =
-          s"Cannot complete job ${data.job.jobId} using ${data.job.dockerImage}, timeout while waiting for job results.\n" +
+          s"Job ${data.job.jobId} using ${data.job.dockerImage} has completed in Chronos, but encountered timeout while waiting for job results.\n" +
             "Does the algorithm store its results or errors in the output database?"
         log.error(msg)
         data.initiator ! errorResponse(data.job, msg)
@@ -376,7 +376,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
   whenUnhandled {
     case Event(e, s) =>
       log.warning(s"Received unhandled request $e of type ${e.getClass} in state $stateName/$s")
-      stay
+      stay forMax repeatDuration
   }
 
   def transitions: TransitionHandler = {

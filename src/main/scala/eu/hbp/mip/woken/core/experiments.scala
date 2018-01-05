@@ -79,8 +79,14 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
 
   import ExperimentActor._
 
-  implicit val actorMaterializer: ActorMaterializer = ActorMaterializer()
-  implicit val ec: ExecutionContext                 = context.dispatcher
+  val decider: Supervision.Decider = {
+    case _ => Supervision.Stop
+  }
+
+  implicit val materializer: ActorMaterializer = ActorMaterializer(
+    ActorMaterializerSettings(context.system).withSupervisionStrategy(decider)
+  )
+  implicit val ec: ExecutionContext = context.dispatcher
 
   lazy val experimentFlow: Flow[Job, Map[AlgorithmSpec, JobResult], NotUsed] =
     ExperimentFlow(coordinatorConfig, algorithmLookup, context).flow
