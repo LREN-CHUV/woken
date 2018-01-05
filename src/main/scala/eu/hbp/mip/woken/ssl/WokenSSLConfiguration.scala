@@ -29,8 +29,8 @@ trait WokenSSLConfiguration {
   val sslConfig = AkkaSSLConfig()
 
   val wokenSSLContext: SSLContext = {
-    val keyStoreRes = "/woken-keystore.jks"
-    val password    = "password"
+    val keyStoreRes = "/woken.com.jks"
+    val password    = "X9PYRiFaPV"
 
     val keyStore = KeyStore.getInstance("jks")
     keyStore.load(getClass.getResourceAsStream(keyStoreRes), password.toCharArray)
