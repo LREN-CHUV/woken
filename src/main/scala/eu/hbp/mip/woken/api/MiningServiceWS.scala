@@ -61,7 +61,7 @@ class MiningServiceWS(
   val routes: Route = mining ~ experiment ~ listMethods
 
   val cluster: ActorRef =
-    system.actorOf(ClusterClient.props(ClusterClientSettings(system)), "client")
+    system.actorOf(ClusterClient.props(ClusterClientSettings(system)), "clientWS")
   val entryPoint = "/user/entrypoint"
 
   override def mining: Route = path("ws" / "mining" / "job") {

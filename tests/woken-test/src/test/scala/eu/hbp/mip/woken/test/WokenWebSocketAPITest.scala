@@ -18,6 +18,7 @@ class WokenWebSocketAPITest extends FlatSpec with Matchers {
   implicit val system = ActorSystem("WebSocketAPITest")
   implicit val materializer = ActorMaterializer()
 
+  implicit val executionCOntext = system.dispatcher
 
   "Woken" should "respond to a query for the list of methods" in {
 
