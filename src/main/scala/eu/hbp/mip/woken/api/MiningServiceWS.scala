@@ -16,36 +16,36 @@
 
 package eu.hbp.mip.woken.api
 
-import akka.actor.{ActorRef, ActorRefFactory, ActorSystem}
-import akka.cluster.client.{ClusterClient, ClusterClientSettings}
+import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem }
+import akka.cluster.client.{ ClusterClient, ClusterClientSettings }
 import akka.pattern.ask
 import akka.http.scaladsl.model.ws.TextMessage
 import akka.http.scaladsl.model.ws.Message
 import akka.http.scaladsl.server.Route
-import akka.stream.{ActorMaterializer, Materializer}
+import akka.stream.{ ActorMaterializer, Materializer }
 import akka.stream.scaladsl.Flow
 import akka.util.Timeout
 import eu.hbp.mip.woken.api.swagger.MiningServiceApi
 import eu.hbp.mip.woken.authentication.BasicAuthentication
-import eu.hbp.mip.woken.config.{AlgorithmDefinition, AppConfiguration, JobsConfiguration}
+import eu.hbp.mip.woken.config.{ AlgorithmDefinition, AppConfiguration, JobsConfiguration }
 import eu.hbp.mip.woken.core.CoordinatorConfig
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import eu.hbp.mip.woken.dao.FeaturesDAL
-import eu.hbp.mip.woken.service.{AlgorithmLibraryService, JobResultService, VariablesMetaService}
-import eu.hbp.mip.woken.messages.external.{ExperimentQuery, MiningQuery, QueryResult}
+import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, JobResultService, VariablesMetaService }
+import eu.hbp.mip.woken.messages.external.{ ExperimentQuery, MiningQuery, QueryResult }
 import spray.json.DefaultJsonProtocol
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration._
 
 object MiningServiceWS
 
 class MiningServiceWS(
-                       val featuresDatabase: FeaturesDAL,
-                       override val appConfiguration: AppConfiguration,
-                       val jobsConf: JobsConfiguration
-                     )(implicit system: ActorSystem)
-  extends MiningServiceApi
+    val featuresDatabase: FeaturesDAL,
+    override val appConfiguration: AppConfiguration,
+    val jobsConf: JobsConfiguration
+)(implicit system: ActorSystem)
+    extends MiningServiceApi
     with FailureHandling
     with DefaultJsonProtocol
     with BasicAuthentication {
