@@ -76,13 +76,11 @@ case class MasterRouter(appConfiguration: AppConfiguration,
 
   val scoringWorker: ActorRef = initScoringWorker
 
-  var experimentActiveActors: Set[ActorRef]                      = Set.empty
-  val experimentActiveActorsLimit: Int                           = appConfiguration.masterRouterConfig.miningActorsLimit
-  var experimentJobsInFlight: Map[ExperimentActor.Job, ActorRef] = Map()
+  val experimentActiveActorsLimit: Int = appConfiguration.masterRouterConfig.miningActorsLimit
+  val miningActiveActorsLimit: Int     = appConfiguration.masterRouterConfig.experimentActorsLimit
 
-  var miningActiveActors: Set[ActorRef]            = Set.empty
-  val miningActiveActorsLimit: Int                 = appConfiguration.masterRouterConfig.experimentActorsLimit
-  var miningJobsInFlight: Map[DockerJob, ActorRef] = Map()
+  var experimentJobsInFlight: Map[ExperimentActor.Job, (ActorRef, ActorRef)] = Map()
+  var miningJobsInFlight: Map[DockerJob, (ActorRef, ActorRef)]               = Map()
 
   def receive: PartialFunction[Any, Unit] = {
 
@@ -95,7 +93,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
     // TODO To be implemented
 
     case query: MiningQuery =>
-      if (miningActiveActors.size <= miningActiveActorsLimit) {
+      if (miningJobsInFlight.size <= miningActiveActorsLimit) {
         val miningActorRef = newCoordinatorActor
         val jobValidated   = query2jobFM(query)
 
@@ -111,9 +109,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
           },
           job => {
             miningActorRef ! StartCoordinatorJob(job)
-            context watch miningActorRef
-            miningActiveActors += miningActorRef
-            miningJobsInFlight += (job -> sender())
+            miningJobsInFlight += job -> (sender() -> miningActorRef)
           }
         )
       } else {
@@ -124,22 +120,20 @@ case class MasterRouter(appConfiguration: AppConfiguration,
 
     case CoordinatorActor.Response(job, List(errorJob: ErrorJobResult)) =>
       log.warning(s"Received error while mining ${job.query}: $errorJob")
-      val initiator = miningJobsInFlight.get(job)
+      miningJobsInFlight.get(job).foreach(im => im._1 ! JobResult.asQueryResult(errorJob))
       miningJobsInFlight -= job
-      initiator.get ! JobResult.asQueryResult(errorJob)
 
     case CoordinatorActor.Response(job, results) =>
       // TODO: we can only handle one result from the Coordinator handling a mining query.
       // Containerised algorithms that can produce more than one result (e.g. PFA model + images) are ignored
       log.info(s"Received results for mining ${job.query}: $results")
       val jobResult = results.head
-      val initiator = miningJobsInFlight.get(job)
+      miningJobsInFlight.get(job).foreach(im => im._1 ! JobResult.asQueryResult(jobResult))
       miningJobsInFlight -= job
-      initiator.get ! JobResult.asQueryResult(jobResult)
 
     case query: ExperimentQuery =>
       log.debug(s"Received message: $query")
-      if (experimentActiveActors.size <= experimentActiveActorsLimit) {
+      if (experimentJobsInFlight.size <= experimentActiveActorsLimit) {
         val experimentActorRef = newExperimentActor
         val jobValidated       = query2jobF(query)
         jobValidated.fold(
@@ -154,9 +148,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
           },
           job => {
             experimentActorRef ! StartExperimentJob(job)
-            context watch experimentActorRef
-            experimentActiveActors += experimentActorRef
-            experimentJobsInFlight += (job -> sender())
+            experimentJobsInFlight += job -> (sender() -> experimentActorRef)
           }
         )
       } else {
@@ -167,36 +159,43 @@ case class MasterRouter(appConfiguration: AppConfiguration,
 
     case ExperimentActor.Response(job, Left(results)) =>
       log.info(s"Received experiment error response $results")
-      val initiator = experimentJobsInFlight.get(job)
+      experimentJobsInFlight.get(job).foreach(im => im._1 ! JobResult.asQueryResult(results))
       experimentJobsInFlight -= job
-      initiator.get ! JobResult.asQueryResult(results)
 
     case ExperimentActor.Response(job, Right(results)) =>
       log.info(s"Received experiment response $results")
-      val initiator = experimentJobsInFlight.get(job)
+      experimentJobsInFlight.get(job).foreach(im => im._1 ! JobResult.asQueryResult(results))
       experimentJobsInFlight -= job
-      initiator.get ! JobResult.asQueryResult(results)
 
     case RequestQueuesSize =>
-      sender() ! QueuesSize(mining = miningActiveActors.size,
-                            experiments = experimentActiveActors.size)
+      sender() ! QueuesSize(mining = miningJobsInFlight.size,
+                            experiments = experimentJobsInFlight.size)
 
     case Terminated(a) =>
       log.debug(s"Actor terminated: $a")
-      miningActiveActors -= a
-      experimentActiveActors -= a
-      log.debug(s"Experiments active: ${experimentActiveActors.size}")
+      miningJobsInFlight = miningJobsInFlight.filterNot(kv => kv._2._2 == a)
+      experimentJobsInFlight = experimentJobsInFlight.filterNot(kv => kv._2._2 == a)
+      if (miningJobsInFlight.nonEmpty)
+        log.info(s"Mining active: ${miningJobsInFlight.size}")
+      if (experimentJobsInFlight.nonEmpty)
+        log.info(s"Experiments active: ${experimentJobsInFlight.size}")
 
     case e =>
       log.warning(s"Received unhandled request $e of type ${e.getClass}")
 
   }
 
-  private[api] def newExperimentActor: ActorRef =
-    context.actorOf(ExperimentActor.props(coordinatorConfig, algorithmLookup))
+  private[api] def newExperimentActor: ActorRef = {
+    val ref = context.actorOf(ExperimentActor.props(coordinatorConfig, algorithmLookup))
+    context watch ref
+    ref
+  }
 
-  private[api] def newCoordinatorActor: ActorRef =
-    context.actorOf(CoordinatorActor.props(coordinatorConfig))
+  private[api] def newCoordinatorActor: ActorRef = {
+    val ref = context.actorOf(CoordinatorActor.props(coordinatorConfig))
+    context watch ref
+    ref
+  }
 
   private[api] def initValidationWorker: ActorRef =
     context.actorOf(FromConfig.props(Props.empty), "validationWorker")

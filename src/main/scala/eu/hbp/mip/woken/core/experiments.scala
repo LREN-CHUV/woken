@@ -79,8 +79,8 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
 
   import ExperimentActor._
 
-  val decider: Supervision.Decider = {
-    case _ => Supervision.Stop
+  val decider: Supervision.Decider = { _ =>
+    Supervision.Stop
   }
 
   implicit val materializer: ActorMaterializer = ActorMaterializer(
@@ -103,9 +103,11 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
                                   msg)
       coordinatorConfig.jobResultService.put(result)
       initiator ! Response(job, Left(result))
+      context stop self
 
     case StartExperimentJob(job) if job.query.algorithms.nonEmpty =>
       val initiator  = sender()
+      val thisActor  = self
       val algorithms = job.query.algorithms
 
       log.info("Start new experiment job")
@@ -149,8 +151,12 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
         }
         .onComplete { _ =>
           log.info("Stopping...")
-          self ! Stop
+          context stop thisActor
         }
+
+    case e =>
+      log.error(s"Unhandled message: $e")
+      context stop self
   }
 
 }

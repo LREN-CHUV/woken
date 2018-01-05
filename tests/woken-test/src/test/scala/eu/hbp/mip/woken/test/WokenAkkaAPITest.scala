@@ -29,7 +29,7 @@ import org.scalatest.TryValues._
 import org.scalatest.tagobjects.Slow
 import spray.json._
 
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.io.Source
 import scala.language.postfixOps
@@ -41,6 +41,8 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
   val configuration = ConfigFactory.load()
   val system = ActorSystem(configuration.getString("clustering.cluster.name"),
                            configuration)
+  implicit val ec: ExecutionContext = system.dispatcher
+
   val client: ActorRef =
     system.actorOf(ClusterClient.props(ClusterClientSettings(system)), "client")
   val entryPoint = "/user/entrypoint"
