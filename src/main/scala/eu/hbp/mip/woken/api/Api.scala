@@ -45,7 +45,9 @@ trait Api extends CoreActors with Core {
       jobsConf
     )
 
-  val routes: Route = SwaggerService.routes ~ miningService.routes ~
+  lazy val miningServiceWS = new MiningServiceWS(featuresDAL, appConfig, jobsConf)
+
+  val routes: Route = SwaggerService.routes ~ miningService.routes ~ miningServiceWS.routes
     pathPrefix("health") {
       get {
         complete("OK")
