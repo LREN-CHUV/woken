@@ -85,16 +85,16 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
   lazy val experimentFlow: Flow[Job, Map[AlgorithmSpec, JobResult], NotUsed] =
     ExperimentFlow(coordinatorConfig, algorithmLookup, context).flow
 
-  @SuppressWarnings(Array("org.wartremover.warts.Any"))
+  @SuppressWarnings(Array("org.wartremover.warts.Any", "org.wartremover.warts.NonUnitStatements"))
   override def receive: PartialFunction[Any, Unit] = {
     case StartExperimentJob(job) if job.query.algorithms.isEmpty =>
       val initiator = sender()
       val msg       = "Experiment contains no algorithms"
       val result = ErrorJobResult(job.jobId,
-        coordinatorConfig.jobsConf.node,
-        OffsetDateTime.now(),
-        "experiment",
-        msg)
+                                  coordinatorConfig.jobsConf.node,
+                                  OffsetDateTime.now(),
+                                  "experiment",
+                                  msg)
       coordinatorConfig.jobResultService.put(result)
       initiator ! Response(job, Left(result))
 
@@ -125,24 +125,26 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
           Response(job, Right(pfa))
         }
 
-      future.andThen {
-        case Success(r) =>
-          coordinatorConfig.jobResultService.put(r.result.fold(identity, identity))
-          initiator ! r
-        case Failure(f) =>
-          log.error(f, s"Cannot complete experiment ${job.jobId}: ${f.getMessage}")
-          val result = ErrorJobResult(job.jobId,
-            coordinatorConfig.jobsConf.node,
-            OffsetDateTime.now(),
-            "experiment",
-            f.toString)
-          val response = Response(job, Left(result))
-          coordinatorConfig.jobResultService.put(result)
-          initiator ! response
-      }.onComplete { _ =>
-        log.info("Stopping...")
-        self ! Stop
-      }
+      future
+        .andThen {
+          case Success(r) =>
+            coordinatorConfig.jobResultService.put(r.result.fold(identity, identity))
+            initiator ! r
+          case Failure(f) =>
+            log.error(f, s"Cannot complete experiment ${job.jobId}: ${f.getMessage}")
+            val result = ErrorJobResult(job.jobId,
+                                        coordinatorConfig.jobsConf.node,
+                                        OffsetDateTime.now(),
+                                        "experiment",
+                                        f.toString)
+            val response = Response(job, Left(result))
+            coordinatorConfig.jobResultService.put(result)
+            initiator ! response
+        }
+        .onComplete { _ =>
+          log.info("Stopping...")
+          self ! Stop
+        }
   }
 
 }

@@ -18,12 +18,12 @@ package eu.hbp.mip.woken.core
 
 import java.time.OffsetDateTime
 
-import akka.actor.FSM.{Failure, Normal}
+import akka.actor.FSM.{ Failure, Normal }
 import akka.actor._
-import akka.pattern.{ask, pipe}
+import akka.pattern.{ ask, pipe }
 import akka.util.Timeout
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 //import com.github.levkhomich.akka.tracing.ActorTracing
 
 import eu.hbp.mip.woken.backends.DockerJob
