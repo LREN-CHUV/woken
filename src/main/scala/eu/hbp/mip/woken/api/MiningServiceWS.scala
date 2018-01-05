@@ -64,15 +64,15 @@ class MiningServiceWS(
     system.actorOf(ClusterClient.props(ClusterClientSettings(system)), "client")
   val entryPoint = "/user/entrypoint"
 
-  override def mining: Route = path("mining" / "job") {
+  override def mining: Route = path("ws" / "mining" / "job") {
     handleWebSocketMessages(miningProc)
   }
 
-  override def experiment: Route = path("mining" / "experiment") {
+  override def experiment: Route = path("ws" / "mining" / "experiment") {
     handleWebSocketMessages(experimentProc)
   }
 
-  override def listMethods: Route = path("mining" / "list-methods") {
+  override def listMethods: Route = path("ws" / "mining" / "methods") {
     handleWebSocketMessages(listMethodsProc)
   }
 
