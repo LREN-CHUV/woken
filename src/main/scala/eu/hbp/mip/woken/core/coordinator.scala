@@ -20,9 +20,12 @@ import java.time.OffsetDateTime
 
 import akka.actor.FSM.{ Failure, Normal }
 import akka.actor._
+import akka.pattern.{ ask, pipe }
+import akka.util.Timeout
+
+import scala.concurrent.{ ExecutionContext, Future }
 //import com.github.levkhomich.akka.tracing.ActorTracing
 
-import scala.concurrent.duration._
 import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.backends.chronos.ChronosService
 import eu.hbp.mip.woken.backends.chronos.{ ChronosJob, JobToChronos }
@@ -33,6 +36,8 @@ import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import eu.hbp.mip.woken.dao.FeaturesDAL
 import eu.hbp.mip.woken.service.JobResultService
 
+import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.language.higherKinds
 
 // TODO: featuresDatabase needed by CrossValidationActor, not by CoordinatorActor
@@ -66,6 +71,19 @@ object CoordinatorActor {
   def actorName(job: DockerJob): String =
     s"LocalCoordinatorActor_job_${job.jobId}_${job.jobName}"
 
+  def future(job: DockerJob,
+             coordinatorConfig: CoordinatorConfig,
+             context: ActorContext): Future[Response] = {
+    val worker = context.actorOf(
+      CoordinatorActor.props(coordinatorConfig)
+    )
+
+    implicit val askTimeout: Timeout = Timeout(1 day)
+
+    (worker ? StartCoordinatorJob(job))
+      .mapTo[CoordinatorActor.Response]
+
+  }
 }
 
 /** FSM States and internal data */
@@ -264,7 +282,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
           job = data.job,
           chronosJob = data.chronosJob,
           pollDbCount = 0,
-          timeoutTime = System.currentTimeMillis + 1.minute.toMillis
+          timeoutTime = System.currentTimeMillis + 30.seconds.toMillis
         )
       }
 
@@ -313,6 +331,11 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
       // TODO: if Chronos is down for too long, enter panic state!
       // Nothing more to do, wait
       stay() forMax repeatDuration
+
+    case Event(f: Future[_], _) =>
+      implicit val ec: ExecutionContext = context.dispatcher
+      f.pipeTo(self)
+      stay() forMax repeatDuration
   }
 
   when(ExpectFinalResult, stateTimeout = repeatDuration) {
@@ -321,7 +344,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
     case Event(StateTimeout, data: ExpectedLocalData) =>
       if (System.currentTimeMillis > data.timeoutTime) {
         val msg =
-          s"Cannot complete job ${data.job.jobId} using ${data.job.dockerImage}, timeout while waiting for job results.\n" +
+          s"Job ${data.job.jobId} using ${data.job.dockerImage} has completed in Chronos, but encountered timeout while waiting for job results.\n" +
             "Does the algorithm store its results or errors in the output database?"
         log.error(msg)
         data.initiator ! errorResponse(data.job, msg)
@@ -343,12 +366,17 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
         stay() using data.copy(pollDbCount = data.pollDbCount + 1) forMax repeatDuration
       }
 
+    case Event(f: Future[_], _) =>
+      implicit val ec: ExecutionContext = context.dispatcher
+      f.pipeTo(self)
+      stay() forMax repeatDuration
+
   }
 
   whenUnhandled {
     case Event(e, s) =>
       log.warning(s"Received unhandled request $e of type ${e.getClass} in state $stateName/$s")
-      stay
+      stay forMax repeatDuration
   }
 
   def transitions: TransitionHandler = {

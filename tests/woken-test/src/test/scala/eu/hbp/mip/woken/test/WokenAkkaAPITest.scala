@@ -29,7 +29,7 @@ import org.scalatest.TryValues._
 import org.scalatest.tagobjects.Slow
 import spray.json._
 
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Try
@@ -40,6 +40,8 @@ class WokenAkkaAPITest extends FlatSpec with Matchers with Queries {
   val configuration = ConfigFactory.load()
   val system = ActorSystem(configuration.getString("clustering.cluster.name"),
                            configuration)
+  implicit val ec: ExecutionContext = system.dispatcher
+
   val client: ActorRef =
     system.actorOf(ClusterClient.props(ClusterClientSettings(system)), "client")
   val entryPoint = "/user/entrypoint"
@@ -180,7 +182,11 @@ class WokenAkkaAPITest extends FlatSpec with Matchers with Queries {
     futures.foreach { f =>
       println("Waiting for result from chaos algorithm...")
       val result = waitFor[QueryResult](f)
-      println(s"Chaos algorithm returned ${result.success.value}")
+      if (result.isFailure) {
+        println(s"Chaos algorithm failed with ${result.failed.get}")
+      } else {
+        println(s"Chaos algorithm returned ${result.success.value}")
+      }
     }
 
     val knnQuery = experimentQuery("knn", List(CodeValue("k", "5")))

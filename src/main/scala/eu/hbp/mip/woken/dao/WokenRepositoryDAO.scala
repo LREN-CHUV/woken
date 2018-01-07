@@ -113,16 +113,40 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F]) extends JobResu
 
   private val jobResultToColumns: JobResult => JobResultColumns = {
     case j: PfaJobResult =>
-      (j.jobId, j.node, j.timestamp, pfa.mime, j.function, Some(j.model.compactPrint), None)
+      (j.jobId,
+       j.node.take(32),
+       j.timestamp,
+       pfa.mime,
+       j.function.take(255),
+       Some(j.model.compactPrint),
+       None)
     case j: PfaExperimentJobResult =>
       val pfa = j.models.compactPrint
-      (j.jobId, j.node, j.timestamp, pfaExperiment.mime, j.function, Some(pfa), None)
+      (j.jobId,
+       j.node.take(32),
+       j.timestamp,
+       pfaExperiment.mime,
+       j.function.take(255),
+       Some(pfa),
+       None)
     case j: ErrorJobResult =>
-      (j.jobId, j.node, j.timestamp, errorShape.mime, j.function, None, Some(j.error))
+      (j.jobId,
+       j.node.take(32),
+       j.timestamp,
+       errorShape.mime,
+       j.function.take(255),
+       None,
+       Some(j.error.take(255)))
     case j: JsonDataJobResult =>
-      (j.jobId, j.node, j.timestamp, j.shape, j.function, Some(j.data.compactPrint), None)
+      (j.jobId,
+       j.node.take(32),
+       j.timestamp,
+       j.shape,
+       j.function.take(255),
+       Some(j.data.compactPrint),
+       None)
     case j: OtherDataJobResult =>
-      (j.jobId, j.node, j.timestamp, j.shape, j.function, Some(j.data), None)
+      (j.jobId, j.node.take(32), j.timestamp, j.shape, j.function.take(255), Some(j.data), None)
   }
 
   private implicit val JobResultComposite: Composite[JobResult] =
@@ -135,23 +159,15 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F]) extends JobResu
       .transact(xa)
 
   override def put(jobResult: JobResult): F[JobResult] = {
-    val update: Update0 = jobResult match {
-      case ErrorJobResult(jobId, node, timestamp, function, error) =>
-        sql"""
-          INSERT INTO job_result (job_id, node, timestamp, shape, function, data, error)
-                 VALUES ($jobId, $node, $timestamp, ${errorShape.mime}, $function, NULL, $error)
-          """.update
-      case PfaJobResult(jobId, node, timestamp, function, model) =>
-        sql"""
-          INSERT INTO job_result (job_id, node, timestamp, shape, function, data, error)
-                 VALUES ($jobId, $node, $timestamp, ${pfa.mime}, $function, ${model.compactPrint}, NULL)
-          """.update
-      case PfaExperimentJobResult(jobId, node, timestamp, models) =>
-        sql"""
-          INSERT INTO job_result (job_id, node, timestamp, shape, function, data, error)
-                 VALUES ($jobId, $node, $timestamp, ${pfaExperiment.mime}, 'experiment', ${models.compactPrint}, NULL)
-          """.update
-      case e => throw new IllegalArgumentException(s"Unsupported type of JobResult: $e")
+    val update: Update0 = {
+      jobResultToColumns(jobResult) match {
+        case (jobId, node, timestamp, shape, function, data, error) =>
+          sql"""
+            INSERT INTO job_result (job_id, node, timestamp, shape, function, data, error)
+                   VALUES ($jobId, $node, $timestamp, $shape, $function, $data, $error)
+            """.update
+        case e => throw new IllegalArgumentException("Cannot handle $e")
+      }
     }
     update
       .withUniqueGeneratedKeys[JobResult]("job_id",
