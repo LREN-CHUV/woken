@@ -29,17 +29,17 @@ import com.typesafe.config.ConfigFactory
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Minutes, Span}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import spray.json._
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
 class WokenWebSocketAPITest
-    extends FlatSpec
+  extends FlatSpec
     with Matchers
     with Queries
-    with ScalaFutures {
+    with ScalaFutures with BeforeAndAfterAll {
 
   val configuration = ConfigFactory.load()
   implicit val system = ActorSystem("WebSocketAPITest")
@@ -47,30 +47,37 @@ class WokenWebSocketAPITest
 
   implicit val executionContext = system.dispatcher
 
+  override def afterAll = {
+    system.terminate().onComplete { result =>
+      println("Actor system shutdown: " + result)
+    }
+  }
+
+
   "Woken" should "respond to a query for the list of methods using websocket" in {
 
-    executeQuery(None, None, "ws://localhost:8087/mining/methods")
+    executeQuery(None, None, "ws://woken:8087/mining/methods")
 
   }
 
   "Woken" should "respond to a mining query using websocket" in {
 
     executeQuery(Some("/knn_data_mining_query.json"),
-                 Some("/knn_data_mining.json"),
-                 "ws://localhost:8087/mining/job")
+      Some("/knn_data_mining.json"),
+      "ws://woken:8087/mining/job")
 
   }
 
   "Woken" should "respond to an experiment query using websocket" in {
 
     executeQuery(Some("/knn_experiment_query.json"),
-                 Some("/knn_experiment.json"),
-                 "ws://localhost:8087/mining/experiment")
+      Some("/knn_experiment.json"),
+      "ws://Woken:8087/mining/experiment")
 
   }
 
   private def assertionAsSink(
-      expectedResponse: Option[String]): Sink[Message, Future[Done]] = {
+                               expectedResponse: Option[String]): Sink[Message, Future[Done]] = {
     Sink.foreach {
       case message: TextMessage.Strict =>
         message.text.isEmpty shouldBe false
@@ -105,7 +112,7 @@ class WokenWebSocketAPITest
       Flow
         .fromSinkAndSourceMat(assertSink, probeSource)(Keep.left)
         .keepAlive(FiniteDuration(1, TimeUnit.SECONDS),
-                   () => TextMessage.apply("heart beat"))
+          () => TextMessage.apply("heart beat"))
 
     val (upgradeResponse, closed) =
       Http().singleWebSocketRequest(WebSocketRequest(endpointUrl), flow)
