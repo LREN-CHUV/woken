@@ -22,6 +22,7 @@ import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials}
 import akka.http.scaladsl.model.ws.{Message, TextMessage, WebSocketRequest}
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
@@ -34,12 +35,14 @@ import spray.json._
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.collection.immutable.Seq
 
 class WokenWebSocketAPITest
-  extends FlatSpec
+    extends FlatSpec
     with Matchers
     with Queries
-    with ScalaFutures with BeforeAndAfterAll {
+    with ScalaFutures
+    with BeforeAndAfterAll {
 
   val configuration = ConfigFactory.load()
   implicit val system = ActorSystem("WebSocketAPITest")
@@ -53,7 +56,6 @@ class WokenWebSocketAPITest
     }
   }
 
-
   "Woken" should "respond to a query for the list of methods using websocket" in {
 
     executeQuery(None, None, "ws://woken:8087/mining/methods")
@@ -63,21 +65,21 @@ class WokenWebSocketAPITest
   "Woken" should "respond to a mining query using websocket" in {
 
     executeQuery(Some("/knn_data_mining_query.json"),
-      Some("/knn_data_mining.json"),
-      "ws://woken:8087/mining/job")
+                 Some("/knn_data_mining.json"),
+                 "ws://woken:8087/mining/job")
 
   }
 
   "Woken" should "respond to an experiment query using websocket" in {
 
     executeQuery(Some("/knn_experiment_query.json"),
-      Some("/knn_experiment.json"),
-      "ws://Woken:8087/mining/experiment")
+                 Some("/knn_experiment.json"),
+                 "ws://Woken:8087/mining/experiment")
 
   }
 
   private def assertionAsSink(
-                               expectedResponse: Option[String]): Sink[Message, Future[Done]] = {
+      expectedResponse: Option[String]): Sink[Message, Future[Done]] = {
     Sink.foreach {
       case message: TextMessage.Strict =>
         message.text.isEmpty shouldBe false
@@ -112,10 +114,16 @@ class WokenWebSocketAPITest
       Flow
         .fromSinkAndSourceMat(assertSink, probeSource)(Keep.left)
         .keepAlive(FiniteDuration(1, TimeUnit.SECONDS),
-          () => TextMessage.apply("heart beat"))
+                   () => TextMessage.apply("heart beat"))
 
     val (upgradeResponse, closed) =
-      Http().singleWebSocketRequest(WebSocketRequest(endpointUrl), flow)
+      Http().singleWebSocketRequest(
+        WebSocketRequest(
+          endpointUrl,
+          extraHeaders =
+            Seq(Authorization(BasicHttpCredentials("admin", "WoKeN")))),
+        flow
+      )
 
     val connected = upgradeResponse.map { upgrade =>
       if (upgrade.response.status == StatusCodes.SwitchingProtocols) {

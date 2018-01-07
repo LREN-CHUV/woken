@@ -34,12 +34,16 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Try
 
-class WokenAkkaAPITest extends FlatSpec with Matchers with Queries with BeforeAndAfterAll {
+class WokenAkkaAPITest
+    extends FlatSpec
+    with Matchers
+    with Queries
+    with BeforeAndAfterAll {
 
   implicit val timeout: Timeout = Timeout(200 seconds)
   val configuration = ConfigFactory.load()
   val system = ActorSystem(configuration.getString("clustering.cluster.name"),
-    configuration)
+                           configuration)
   implicit val ec: ExecutionContext = system.dispatcher
 
   val client: ActorRef =
@@ -57,14 +61,14 @@ class WokenAkkaAPITest extends FlatSpec with Matchers with Queries with BeforeAn
 
     val start = System.currentTimeMillis()
     val future = client ? ClusterClient.Send(entryPoint,
-      MethodsQuery,
-      localAffinity = true)
+                                             MethodsQuery,
+                                             localAffinity = true)
     val result = waitFor[MethodsResponse](future)
     val end = System.currentTimeMillis()
 
     println(
       "List of methods query complete in " + Duration(end - start,
-        TimeUnit.MILLISECONDS))
+                                                      TimeUnit.MILLISECONDS))
 
     if (!result.isSuccess) {
       println(result)
@@ -86,14 +90,14 @@ class WokenAkkaAPITest extends FlatSpec with Matchers with Queries with BeforeAn
     )
 
     val future = client ? ClusterClient.Send(entryPoint,
-      query,
-      localAffinity = true)
+                                             query,
+                                             localAffinity = true)
     val result = waitFor[QueryResult](future)
     val end = System.currentTimeMillis()
 
     println(
       "Data mining query complete in " + Duration(end - start,
-        TimeUnit.MILLISECONDS))
+                                                  TimeUnit.MILLISECONDS))
 
     if (!result.isSuccess) {
       println(result)
@@ -119,8 +123,8 @@ class WokenAkkaAPITest extends FlatSpec with Matchers with Queries with BeforeAn
     )
 
     val future = client ? ClusterClient.Send(entryPoint,
-      query,
-      localAffinity = true)
+                                             query,
+                                             localAffinity = true)
     val result = waitFor[QueryResult](future)
     val end = System.currentTimeMillis()
 
@@ -147,14 +151,14 @@ class WokenAkkaAPITest extends FlatSpec with Matchers with Queries with BeforeAn
     val start = System.currentTimeMillis()
     val query = experimentQuery("knn", List(CodeValue("k", "5")))
     val future = client ? ClusterClient.Send(entryPoint,
-      query,
-      localAffinity = true)
+                                             query,
+                                             localAffinity = true)
     val result = waitFor[QueryResult](future)
     val end = System.currentTimeMillis()
 
     println(
       "Experiment query complete in " + Duration(end - start,
-        TimeUnit.MILLISECONDS))
+                                                 TimeUnit.MILLISECONDS))
 
     if (!result.isSuccess) {
       println(result)
@@ -217,7 +221,7 @@ class WokenAkkaAPITest extends FlatSpec with Matchers with Queries with BeforeAn
 //  }
 
   private def waitFor[T](future: Future[Any])(
-    implicit timeout: Timeout): Try[T] = {
+      implicit timeout: Timeout): Try[T] = {
     Try {
       Await.result(future, timeout.duration).asInstanceOf[T]
     }
