@@ -166,7 +166,7 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F]) extends JobResu
             INSERT INTO job_result (job_id, node, timestamp, shape, function, data, error)
                    VALUES ($jobId, $node, $timestamp, $shape, $function, $data, $error)
             """.update
-        case e => throw new IllegalArgumentException("Cannot handle $e")
+        case e => throw new IllegalArgumentException(s"Cannot handle $e")
       }
     }
     update

@@ -45,7 +45,7 @@ object Shapes {
 
   object pfaExperiment extends Shape {
     val json   = "pfa_experiment_json"
-    val mime   = "application/vnd.mip.experiment.pfa+json"
+    val mime   = "application/vnd.hbp.mip.experiment.pfa+json"
     val values = Set(json, mime)
   }
 

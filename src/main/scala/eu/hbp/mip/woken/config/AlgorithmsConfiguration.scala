@@ -27,7 +27,7 @@ case class AlgorithmDefinition(code: String, dockerImage: String, predictive: Bo
 
 object AlgorithmsConfiguration {
 
-  def read(config: Config, path: Seq[String]): Validation[AlgorithmDefinition] = {
+  def read(config: Config, path: List[String]): Validation[AlgorithmDefinition] = {
     val algoConfig = config.validateConfig(path.mkString("."))
 
     algoConfig.andThen { c: Config =>

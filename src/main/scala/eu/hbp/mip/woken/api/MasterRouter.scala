@@ -88,8 +88,8 @@ case class MasterRouter(appConfiguration: AppConfiguration,
     case MethodsQuery =>
       sender ! MethodsResponse(algorithmLibraryService.algorithms().compactPrint)
 
-    case MiningQuery(variables, covariables, groups, _, AlgorithmSpec(c, p))
-        if c == "" || c == "data" =>
+    //case MiningQuery(variables, covariables, groups, _, AlgorithmSpec(c, p))
+    //    if c == "" || c == "data" =>
     // TODO To be implemented
 
     case query: MiningQuery =>
