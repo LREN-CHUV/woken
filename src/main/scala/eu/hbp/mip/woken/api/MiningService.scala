@@ -31,10 +31,12 @@ import eu.hbp.mip.woken.messages.external._
 import eu.hbp.mip.woken.dao.FeaturesDAL
 import eu.hbp.mip.woken.service.AlgorithmLibraryService
 import akka.util.Timeout
+import org.slf4j.{ Logger, LoggerFactory }
 import spray.json.DefaultJsonProtocol
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
+import scala.util.Failure
 
 object MiningService
 
@@ -61,13 +63,23 @@ class MiningService(
     system.actorOf(ClusterClient.props(ClusterClientSettings(system)), "client")
   val entryPoint = "/user/entrypoint"
 
+  val logger = LoggerFactory.getLogger(getClass)
+
   import spray.json._
   import ExternalAPIProtocol._
 
   override def listMethods: Route = path("mining" / "methods") {
     authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { _ =>
       optionalHeaderValueByType[UpgradeToWebSocket](()) {
-        case Some(upgrade) => complete(upgrade.handleMessages(listMethodsFlow))
+        case Some(upgrade) =>
+          complete(upgrade.handleMessages(listMethodsFlow.watchTermination() { (_, done) =>
+            done.onComplete {
+              case scala.util.Success(_) =>
+                logger.info("WS get methods completed successfully.")
+              case Failure(ex) =>
+                logger.error(s"WS get methods completed with failure : $ex")
+            }
+          }))
         case None =>
           get {
             complete(AlgorithmLibraryService().algorithms())
@@ -79,7 +91,15 @@ class MiningService(
   override def mining: Route = path("mining" / "job") {
     authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { user =>
       optionalHeaderValueByType[UpgradeToWebSocket](()) {
-        case Some(upgrade) => complete(upgrade.handleMessages(miningFlow))
+        case Some(upgrade) =>
+          complete(upgrade.handleMessages(miningFlow.watchTermination() { (_, done) =>
+            done.onComplete {
+              case scala.util.Success(_) =>
+                logger.info("WS mining job completed successfully.")
+              case Failure(ex) =>
+                logger.error(s"WS mining job completed with failure : $ex")
+            }
+          }))
         case None =>
           post {
             entity(as[MiningQuery]) {
@@ -113,7 +133,15 @@ class MiningService(
   override def experiment: Route = path("mining" / "experiment") {
     authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { user =>
       optionalHeaderValueByType[UpgradeToWebSocket](()) {
-        case Some(upgrade) => complete(upgrade.handleMessages(experimentFlow))
+        case Some(upgrade) =>
+          complete(upgrade.handleMessages(experimentFlow.watchTermination() { (_, done) =>
+            done.onComplete {
+              case scala.util.Success(_) =>
+                logger.info("WS experiment completed successfully.")
+              case Failure(ex) =>
+                logger.error(s"WS experiment completed with failure : $ex")
+            }
+          }))
         case None =>
           post {
             entity(as[ExperimentQuery]) { query: ExperimentQuery =>

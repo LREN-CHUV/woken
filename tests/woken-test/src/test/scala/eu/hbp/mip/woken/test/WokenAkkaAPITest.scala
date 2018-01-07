@@ -174,51 +174,51 @@ class WokenAkkaAPITest
     assertResult(approximate(expected))(approximate(json))
   }
 
-  // Test resiliency
-//  "Woken" should "recover from multiple failed experiments" taggedAs Slow in {
-//
-//    // TODO: add no_results, never_end
-//    val failures = List("training_fails",
-//      "invalid_json",
-//      "invalid_pfa_syntax",
-//      "invalid_pfa_semantics")
-//
-//    val queries = failures.map(failure =>
-//      experimentQuery("chaos", List(CodeValue("failure", failure))))
-//
-//    val futures = queries.map(query =>
-//      client ? ClusterClient.Send(entryPoint, query, localAffinity = true))
-//
-//    futures.foreach { f =>
-//      println("Waiting for result from chaos algorithm...")
-//      val result = waitFor[QueryResult](f)
-//      if (result.isFailure) {
-//        println(s"Chaos algorithm failed with ${result.failed.get}")
-//      } else {
-//        println(s"Chaos algorithm returned ${result.success.value}")
-//      }
-//    }
-//
-//    val knnQuery = experimentQuery("knn", List(CodeValue("k", "5")))
-//    val successfulFuture = client ? ClusterClient.Send(entryPoint,
-//      knnQuery,
-//      localAffinity = true)
-//    val result = waitFor[QueryResult](successfulFuture)
-//
-//    if (!result.isSuccess) {
-//      println(result)
-//    }
-//
-//    val data = result.success.value.data
-//
-//    data should not be empty
-//
-//    val json = data.get.parseJson
-//    val expected = loadJson("/knn_experiment.json")
-//
-//    assertResult(approximate(expected))(approximate(json))
-//
-//  }
+  //Test resiliency
+  "Woken" should "recover from multiple failed experiments" taggedAs Slow in {
+
+    // TODO: add no_results, never_end
+    val failures = List("training_fails",
+                        "invalid_json",
+                        "invalid_pfa_syntax",
+                        "invalid_pfa_semantics")
+
+    val queries = failures.map(failure =>
+      experimentQuery("chaos", List(CodeValue("failure", failure))))
+
+    val futures = queries.map(query =>
+      client ? ClusterClient.Send(entryPoint, query, localAffinity = true))
+
+    futures.foreach { f =>
+      println("Waiting for result from chaos algorithm...")
+      val result = waitFor[QueryResult](f)
+      if (result.isFailure) {
+        println(s"Chaos algorithm failed with ${result.failed.get}")
+      } else {
+        println(s"Chaos algorithm returned ${result.success.value}")
+      }
+    }
+
+    val knnQuery = experimentQuery("knn", List(CodeValue("k", "5")))
+    val successfulFuture = client ? ClusterClient.Send(entryPoint,
+                                                       knnQuery,
+                                                       localAffinity = true)
+    val result = waitFor[QueryResult](successfulFuture)
+
+    if (!result.isSuccess) {
+      println(result)
+    }
+
+    val data = result.success.value.data
+
+    data should not be empty
+
+    val json = data.get.parseJson
+    val expected = loadJson("/knn_experiment.json")
+
+    assertResult(approximate(expected))(approximate(json))
+
+  }
 
   private def waitFor[T](future: Future[Any])(
       implicit timeout: Timeout): Try[T] = {

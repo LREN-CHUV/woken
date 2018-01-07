@@ -66,6 +66,14 @@ class WokenWebSocketAPITest
 
     executeQuery(Some("/knn_data_mining_query.json"),
                  Some("/knn_data_mining.json"),
+                 "ws://localhost:8087/mining/job")
+
+  }
+
+  "Woken" should "respond to a mining query with empty algorithm using websocket" in {
+
+    executeQuery(Some("/knn_data_mining_empty_alg_query.json"),
+                 Some("/knn_data_mining_empty_alg.json"),
                  "ws://woken:8087/mining/job")
 
   }
