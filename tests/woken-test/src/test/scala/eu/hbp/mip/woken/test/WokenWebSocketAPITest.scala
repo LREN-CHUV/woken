@@ -74,7 +74,7 @@ class WokenWebSocketAPITest
 
     executeQuery(Some("/knn_experiment_query.json"),
                  Some("/knn_experiment.json"),
-                 "ws://Woken:8087/mining/experiment")
+                 "ws://woken:8087/mining/experiment")
 
   }
 
