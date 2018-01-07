@@ -23,6 +23,7 @@ import akka.http.scaladsl.marshalling.PredefinedToResponseMarshallers
 import akka.pattern.ask
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.model.StatusCodes._
+import akka.http.scaladsl.model.ws.UpgradeToWebSocket
 import eu.hbp.mip.woken.api.swagger.MiningServiceApi
 import eu.hbp.mip.woken.authentication.BasicAuthentication
 import eu.hbp.mip.woken.config.{ AppConfiguration, JobsConfiguration }
@@ -48,7 +49,8 @@ class MiningService(
     with DefaultJsonProtocol
     with SprayJsonSupport
     with PredefinedToResponseMarshallers
-    with BasicAuthentication {
+    with BasicAuthentication
+    with WebsocketSupport {
 
   implicit val executionContext: ExecutionContext = system.dispatcher
   implicit val timeout: Timeout                   = Timeout(180.seconds)
@@ -64,30 +66,58 @@ class MiningService(
 
   override def listMethods: Route = path("mining" / "methods") {
     authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { _ =>
-      get {
-        complete(AlgorithmLibraryService().algorithms())
+      optionalHeaderValueByType[UpgradeToWebSocket](()) {
+        case Some(upgrade) => complete(upgrade.handleMessages(listMethodsFlow))
+        case None =>
+          get {
+            complete(AlgorithmLibraryService().algorithms())
+          }
       }
     }
   }
 
   override def mining: Route = path("mining" / "job") {
     authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { user =>
-      post {
-        entity(as[MiningQuery]) {
-          case MiningQuery(variables, covariables, groups, filters, AlgorithmSpec(c, p))
-              if c == "" || c == "data" =>
-            ctx =>
-              {
-                ctx.complete(
-                  featuresDatabase.queryData(jobsConf.featuresTable, {
-                    variables ++ covariables ++ groups
-                  }.distinct.map(_.code))
-                )
-              }
+      optionalHeaderValueByType[UpgradeToWebSocket](()) {
+        case Some(upgrade) => complete(upgrade.handleMessages(miningFlow))
+        case None =>
+          post {
+            entity(as[MiningQuery]) {
+              case MiningQuery(variables, covariables, groups, filters, AlgorithmSpec(c, p))
+                  if c == "" || c == "data" =>
+                ctx =>
+                  {
+                    ctx.complete(
+                      featuresDatabase.queryData(jobsConf.featuresTable, {
+                        variables ++ covariables ++ groups
+                      }.distinct.map(_.code))
+                    )
+                  }
 
-          case query: MiningQuery =>
-            ctx =>
-              ctx.complete {
+              case query: MiningQuery =>
+                ctx =>
+                  ctx.complete {
+                    (cluster ? ClusterClient.Send(entryPoint, query, localAffinity = true))
+                      .mapTo[QueryResult]
+                      .map {
+                        case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
+                        case qr if qr.data.nonEmpty  => OK         -> qr.toJson
+                      }
+                  }
+            }
+          }
+      }
+    }
+  }
+
+  override def experiment: Route = path("mining" / "experiment") {
+    authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { user =>
+      optionalHeaderValueByType[UpgradeToWebSocket](()) {
+        case Some(upgrade) => complete(upgrade.handleMessages(experimentFlow))
+        case None =>
+          post {
+            entity(as[ExperimentQuery]) { query: ExperimentQuery =>
+              complete {
                 (cluster ? ClusterClient.Send(entryPoint, query, localAffinity = true))
                   .mapTo[QueryResult]
                   .map {
@@ -95,26 +125,10 @@ class MiningService(
                     case qr if qr.data.nonEmpty  => OK         -> qr.toJson
                   }
               }
-        }
-      }
-    }
-  }
-
-  override def experiment: Route = path("mining" / "experiment") {
-    authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { user =>
-      post {
-        entity(as[ExperimentQuery]) { query: ExperimentQuery =>
-          complete {
-            (cluster ? ClusterClient.Send(entryPoint, query, localAffinity = true))
-              .mapTo[QueryResult]
-              .map {
-                case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
-                case qr if qr.data.nonEmpty  => OK         -> qr.toJson
-              }
+            }
           }
-        }
       }
     }
-  }
 
+  }
 }

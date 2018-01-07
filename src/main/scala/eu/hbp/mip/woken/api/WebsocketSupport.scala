@@ -38,45 +38,17 @@ import spray.json.DefaultJsonProtocol
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration._
 
-object MiningServiceWS
+trait WebsocketSupport {
 
-class MiningServiceWS(
-    val featuresDatabase: FeaturesDAL,
-    override val appConfiguration: AppConfiguration,
-    val jobsConf: JobsConfiguration
-)(implicit system: ActorSystem)
-    extends MiningServiceApi
-    with FailureHandling
-    with DefaultJsonProtocol
-    with BasicAuthentication {
+  val featuresDatabase: FeaturesDAL
+  val appConfiguration: AppConfiguration
+  val jobsConf: JobsConfiguration
+  val cluster: ActorRef
+  val entryPoint: String
+  implicit val timeout: Timeout
+  implicit val executionContext: ExecutionContext
 
-  def context: ActorRefFactory = system
-
-  implicit val timeout: Timeout = Timeout(180.seconds)
-
-  implicit val executionContext: ExecutionContext = context.dispatcher
-
-  implicit val materializer: Materializer = ActorMaterializer()
-
-  val routes: Route = mining ~ experiment ~ listMethods
-
-  val cluster: ActorRef =
-    system.actorOf(ClusterClient.props(ClusterClientSettings(system)), "clientWS")
-  val entryPoint = "/user/entrypoint"
-
-  override def mining: Route = path("ws" / "mining" / "job") {
-    handleWebSocketMessages(miningProc)
-  }
-
-  override def experiment: Route = path("ws" / "mining" / "experiment") {
-    handleWebSocketMessages(experimentProc)
-  }
-
-  override def listMethods: Route = path("ws" / "mining" / "methods") {
-    handleWebSocketMessages(listMethodsProc)
-  }
-
-  private def listMethodsProc: Flow[Message, Message, Any] =
+  def listMethodsFlow: Flow[Message, Message, Any] =
     Flow[Message]
       .collect {
         case tm: TextMessage =>
@@ -86,7 +58,7 @@ class MiningServiceWS(
         TextMessage(result.compactPrint)
       }
 
-  private def experimentProc: Flow[Message, Message, Any] = {
+  def experimentFlow: Flow[Message, Message, Any] = {
     import eu.hbp.mip.woken.json.WokenJsonProtocol._
     import spray.json._
     Flow[Message]
@@ -103,7 +75,7 @@ class MiningServiceWS(
       }
   }
 
-  private def miningProc: Flow[Message, Message, Any] = {
+  def miningFlow: Flow[Message, Message, Any] = {
     import eu.hbp.mip.woken.json.WokenJsonProtocol._
     import spray.json._
     Flow[Message]
