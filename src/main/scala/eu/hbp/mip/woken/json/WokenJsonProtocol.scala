@@ -31,7 +31,7 @@ object WokenJsonProtocol extends DefaultJsonProtocol {
   implicit object CodeValueFormat extends JsonFormat[CodeValue] {
     override def write(obj: CodeValue): JsValue =
       JsObject(
-        "code" -> JsString(obj.code),
+        "code"  -> JsString(obj.code),
         "value" -> JsString(obj.value)
       )
 
