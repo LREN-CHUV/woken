@@ -49,7 +49,7 @@ class WokenWebSocketAPITest
 
   "Woken" should "respond to a query for the list of methods using websocket" in {
 
-    executeQuery(None, None, "ws://localhost:8087/ws/mining/methods")
+    executeQuery(None, None, "ws://localhost:8087/mining/methods")
 
   }
 
@@ -57,7 +57,7 @@ class WokenWebSocketAPITest
 
     executeQuery(Some("/knn_data_mining_query.json"),
                  Some("/knn_data_mining.json"),
-                 "ws://localhost:8087/ws/mining/job")
+                 "ws://localhost:8087/mining/job")
 
   }
 
@@ -65,7 +65,7 @@ class WokenWebSocketAPITest
 
     executeQuery(Some("/knn_experiment_query.json"),
                  Some("/knn_experiment.json"),
-                 "ws://localhost:8087/ws/mining/experiment")
+                 "ws://localhost:8087/mining/experiment")
 
   }
 
