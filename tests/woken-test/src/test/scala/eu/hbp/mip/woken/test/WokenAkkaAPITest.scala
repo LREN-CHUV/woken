@@ -31,11 +31,10 @@ import spray.json._
 
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
-import scala.io.Source
 import scala.language.postfixOps
 import scala.util.Try
 
-class WokenAkkaAPITest extends FlatSpec with Matchers {
+class WokenAkkaAPITest extends FlatSpec with Matchers with Queries {
 
   implicit val timeout: Timeout = Timeout(200 seconds)
   val configuration = ConfigFactory.load()
@@ -205,16 +204,6 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
 
   }
 
-  private def experimentQuery(algorithm: String, parameters: List[CodeValue]) =
-    ExperimentQuery(
-      List(VariableId("cognitive_task2")),
-      List(VariableId("score_test1"), VariableId("college_math")),
-      Nil,
-      "",
-      List(AlgorithmSpec(algorithm, parameters)),
-      List(ValidationSpec("kfold", List(CodeValue("k", "2"))))
-    )
-
   private def waitFor[T](future: Future[Any])(
       implicit timeout: Timeout): Try[T] = {
     Try {
@@ -222,40 +211,4 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
     }
   }
 
-  private def loadJson(path: String): JsValue = {
-    val source = Source.fromURL(getClass.getResource(path))
-    source.mkString.parseJson
-  }
-
-  private def approximate(json: JsValue): String = {
-    val sb = new java.lang.StringBuilder()
-    new ApproximatePrinter().print(json, sb)
-    sb.toString
-  }
-
-  class ApproximatePrinter extends SortedPrinter {
-
-    override protected def printObject(members: Map[String, JsValue],
-                                       sb: java.lang.StringBuilder,
-                                       indent: Int): Unit = {
-      val filteredMembers = members.map {
-        case ("jobId", _)     => "jobId" -> JsString("*")
-        case ("timestamp", _) => "timestamp" -> JsNumber(0.0)
-        case (k, v)           => k -> v
-      }
-      super.printObject(filteredMembers, sb, indent)
-    }
-
-    override protected def printLeaf(j: JsValue,
-                                     sb: java.lang.StringBuilder): Unit =
-      j match {
-        case JsNull      => sb.append("null")
-        case JsTrue      => sb.append("true")
-        case JsFalse     => sb.append("false")
-        case JsNumber(x) => sb.append(f"$x%1.5f")
-        case JsString(x) => printString(x, sb)
-        case _           => throw new IllegalStateException
-      }
-
-  }
 }

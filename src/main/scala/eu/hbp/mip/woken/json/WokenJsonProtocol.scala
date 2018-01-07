@@ -32,7 +32,7 @@ object WokenJsonProtocol extends DefaultJsonProtocol {
     override def write(obj: CodeValue): JsValue =
       JsObject(
         "code" -> JsString(obj.code),
-        "name" -> JsString(obj.value)
+        "value" -> JsString(obj.value)
       )
 
     override def read(json: JsValue): CodeValue =
