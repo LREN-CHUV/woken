@@ -70,7 +70,7 @@ class MiningService(
     authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { user =>
       post {
         entity(as[MiningQuery]) {
-          case MiningQuery(variables, covariables, groups, filters, AlgorithmSpec(c, p))
+          case MiningQuery(userId, variables, covariables, groups, filters, datasets, AlgorithmSpec(c, p))
               if c == "" || c == "data" =>
             ctx =>
               {

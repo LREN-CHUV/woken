@@ -22,6 +22,7 @@ import akka.actor.{ Actor, ActorLogging, ActorRef, Props, Terminated }
 import akka.routing.FromConfig
 import eu.hbp.mip.woken.messages.external._
 import eu.hbp.mip.woken.core.{ CoordinatorActor, CoordinatorConfig, ExperimentActor }
+import eu.hbp.mip.woken.service.DispatcherService
 //import com.github.levkhomich.akka.tracing.ActorTracing
 import eu.hbp.mip.woken.api.MasterRouter.QueuesSize
 import eu.hbp.mip.woken.backends.DockerJob
@@ -45,12 +46,14 @@ object MasterRouter {
   def props(appConfiguration: AppConfiguration,
             coordinatorConfig: CoordinatorConfig,
             variablesMetaService: VariablesMetaService,
+            dispatcherService: DispatcherService,
             algorithmLibraryService: AlgorithmLibraryService,
             algorithmLookup: String => Validation[AlgorithmDefinition]): Props =
     Props(
       new MasterRouter(
         appConfiguration,
         coordinatorConfig,
+        dispatcherService,
         algorithmLibraryService,
         algorithmLookup,
         experimentQuery2job(variablesMetaService, coordinatorConfig.jobsConf),
@@ -62,6 +65,7 @@ object MasterRouter {
 
 case class MasterRouter(appConfiguration: AppConfiguration,
                         coordinatorConfig: CoordinatorConfig,
+                        dispatcherService: DispatcherService,
                         algorithmLibraryService: AlgorithmLibraryService,
                         algorithmLookup: String => Validation[AlgorithmDefinition],
                         query2jobF: ExperimentQuery => Validation[ExperimentActor.Job],
@@ -108,8 +112,16 @@ case class MasterRouter(appConfiguration: AppConfiguration,
             sender() ! JobResult.asQueryResult(error)
           },
           job => {
-            miningActorRef ! StartCoordinatorJob(job)
-            miningJobsInFlight += job -> (sender() -> miningActorRef)
+            val (urls, local) = dispatcherService.dispatchTo(query.datasets.toSet)
+
+            if (local) {
+
+              miningActorRef ! StartCoordinatorJob(job)
+              miningJobsInFlight += job -> (sender() -> miningActorRef)
+            }
+            urls.foreach { url =>
+              // Dispatch to external Woken
+            }
           }
         )
       } else {

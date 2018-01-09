@@ -21,6 +21,7 @@ import eu.hbp.mip.woken.cromwell.core.ConfigUtil._
 import cats.data.Validated._
 import cats.implicits._
 import eu.hbp.mip.woken.config.AnonymisationLevel.AnonymisationLevel
+import eu.hbp.mip.woken.fp.Traverse
 import eu.hbp.mip.woken.messages.external.DatasetId
 
 object AnonymisationLevel extends Enumeration {
@@ -46,14 +47,14 @@ object DatasetLocation {
   )
 }
 
-object FederationConfiguration {
+object DatasetsConfiguration {
 
   def read(config: Config, path: List[String]): Validation[DatasetLocation] = {
 
     val federationConfig = config.validateConfig(path.mkString("."))
 
     federationConfig.andThen { f =>
-      val dataset     = f.validateString("dataset")
+      val dataset     = path.lastOption.map(lift).getOrElse("Empty path".invalidNel[String])
       val description = f.validateString("description")
       val location    = f.validateOptionalString("location")
       val anonymisationLevel: Validation[String] = f
@@ -73,4 +74,18 @@ object FederationConfiguration {
 
   def factory(config: Config): String => Validation[DatasetLocation] =
     dataset => read(config, List("datasets", dataset))
+
+  def datasetNames(config: Config): Validation[Set[String]] =
+    config.validateConfig("datasets").map(_.keys)
+
+  def datasets(config: Config): Validation[Map[DatasetId, DatasetLocation]] = {
+    val datasetFactory = factory(config)
+    datasetNames(config).andThen { names: Set[String] =>
+      val m: List[Validation[(DatasetId, DatasetLocation)]] =
+        names.toList.map(n => lift(DatasetId(n)) -> datasetFactory(n)).map(_.tupled)
+      val t: Validation[List[(DatasetId, DatasetLocation)]] = Traverse.sequence(m)
+      t.map(_.toMap)
+    }
+  }
+
 }
