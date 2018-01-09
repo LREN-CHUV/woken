@@ -18,9 +18,12 @@ package eu.hbp.mip.woken.api
 
 import akka.actor.{ ActorRef, ActorSystem }
 import akka.cluster.client.{ ClusterClient, ClusterClientSettings }
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
+import akka.http.scaladsl.marshalling.PredefinedToResponseMarshallers
 import akka.pattern.ask
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.model.StatusCodes._
+import akka.http.scaladsl.model.ws.UpgradeToWebSocket
 import eu.hbp.mip.woken.api.swagger.MiningServiceApi
 import eu.hbp.mip.woken.authentication.BasicAuthentication
 import eu.hbp.mip.woken.config.{ AppConfiguration, JobsConfiguration }
@@ -28,10 +31,12 @@ import eu.hbp.mip.woken.messages.external._
 import eu.hbp.mip.woken.dao.FeaturesDAL
 import eu.hbp.mip.woken.service.AlgorithmLibraryService
 import akka.util.Timeout
-import eu.hbp.mip.woken.json.DefaultJsonFormats
+import org.slf4j.{ Logger, LoggerFactory }
+import spray.json.DefaultJsonProtocol
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
+import scala.util.Failure
 
 object MiningService
 
@@ -43,8 +48,11 @@ class MiningService(
 )(implicit system: ActorSystem)
     extends MiningServiceApi
     with FailureHandling
-    with DefaultJsonFormats
-    with BasicAuthentication {
+    with DefaultJsonProtocol
+    with SprayJsonSupport
+    with PredefinedToResponseMarshallers
+    with BasicAuthentication
+    with WebsocketSupport {
 
   implicit val executionContext: ExecutionContext = system.dispatcher
   implicit val timeout: Timeout                   = Timeout(180.seconds)
@@ -55,35 +63,89 @@ class MiningService(
     system.actorOf(ClusterClient.props(ClusterClientSettings(system)), "client")
   val entryPoint = "/user/entrypoint"
 
+  val logger = LoggerFactory.getLogger(getClass)
+
   import spray.json._
   import ExternalAPIProtocol._
 
   override def listMethods: Route = path("mining" / "methods") {
     authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { _ =>
-      get {
-        complete(AlgorithmLibraryService().algorithms())
+      optionalHeaderValueByType[UpgradeToWebSocket](()) {
+        case Some(upgrade) =>
+          complete(upgrade.handleMessages(listMethodsFlow.watchTermination() { (_, done) =>
+            done.onComplete {
+              case scala.util.Success(_) =>
+                logger.info("WS get methods completed successfully.")
+              case Failure(ex) =>
+                logger.error(s"WS get methods completed with failure : $ex")
+            }
+          }))
+        case None =>
+          get {
+            complete(AlgorithmLibraryService().algorithms())
+          }
       }
     }
   }
 
   override def mining: Route = path("mining" / "job") {
     authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { user =>
-      post {
-        entity(as[MiningQuery]) {
-          case MiningQuery(variables, covariables, groups, filters, AlgorithmSpec(c, p))
-              if c == "" || c == "data" =>
-            ctx =>
-              {
-                ctx.complete(
-                  featuresDatabase.queryData(jobsConf.featuresTable, {
-                    variables ++ covariables ++ groups
-                  }.distinct.map(_.code))
-                )
-              }
+      optionalHeaderValueByType[UpgradeToWebSocket](()) {
+        case Some(upgrade) =>
+          complete(upgrade.handleMessages(miningFlow.watchTermination() { (_, done) =>
+            done.onComplete {
+              case scala.util.Success(_) =>
+                logger.info("WS mining job completed successfully.")
+              case Failure(ex) =>
+                logger.error(s"WS mining job completed with failure : $ex")
+            }
+          }))
+        case None =>
+          post {
+            entity(as[MiningQuery]) {
+              case MiningQuery(variables, covariables, groups, filters, AlgorithmSpec(c, p))
+                  if c == "" || c == "data" =>
+                ctx =>
+                  {
+                    ctx.complete(
+                      featuresDatabase.queryData(jobsConf.featuresTable, {
+                        variables ++ covariables ++ groups
+                      }.distinct.map(_.code))
+                    )
+                  }
 
-          case query: MiningQuery =>
-            ctx =>
-              ctx.complete {
+              case query: MiningQuery =>
+                ctx =>
+                  ctx.complete {
+                    (cluster ? ClusterClient.Send(entryPoint, query, localAffinity = true))
+                      .mapTo[QueryResult]
+                      .map {
+                        case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
+                        case qr if qr.data.nonEmpty  => OK         -> qr.toJson
+                      }
+                  }
+            }
+          }
+      }
+    }
+  }
+
+  override def experiment: Route = path("mining" / "experiment") {
+    authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { user =>
+      optionalHeaderValueByType[UpgradeToWebSocket](()) {
+        case Some(upgrade) =>
+          complete(upgrade.handleMessages(experimentFlow.watchTermination() { (_, done) =>
+            done.onComplete {
+              case scala.util.Success(_) =>
+                logger.info("WS experiment completed successfully.")
+              case Failure(ex) =>
+                logger.error(s"WS experiment completed with failure : $ex")
+            }
+          }))
+        case None =>
+          post {
+            entity(as[ExperimentQuery]) { query: ExperimentQuery =>
+              complete {
                 (cluster ? ClusterClient.Send(entryPoint, query, localAffinity = true))
                   .mapTo[QueryResult]
                   .map {
@@ -91,26 +153,10 @@ class MiningService(
                     case qr if qr.data.nonEmpty  => OK         -> qr.toJson
                   }
               }
-        }
-      }
-    }
-  }
-
-  override def experiment: Route = path("mining" / "experiment") {
-    authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { user =>
-      post {
-        entity(as[ExperimentQuery]) { query: ExperimentQuery =>
-          complete {
-            (cluster ? ClusterClient.Send(entryPoint, query, localAffinity = true))
-              .mapTo[QueryResult]
-              .map {
-                case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
-                case qr if qr.data.nonEmpty  => OK         -> qr.toJson
-              }
+            }
           }
-        }
       }
     }
-  }
 
+  }
 }

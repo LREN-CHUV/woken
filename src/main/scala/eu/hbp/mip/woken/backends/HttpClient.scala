@@ -24,11 +24,11 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import eu.hbp.mip.woken.backends.chronos.{ ChronosJob, ChronosJobLiveliness }
-import eu.hbp.mip.woken.json.DefaultJsonFormats
+import spray.json.DefaultJsonProtocol
 
 import scala.concurrent.{ ExecutionContextExecutor, Future }
 
-object HttpClient extends DefaultJsonFormats with SprayJsonSupport {
+object HttpClient extends DefaultJsonProtocol with SprayJsonSupport {
 
   def sendReceive(request: HttpRequest)(implicit actorSystem: ActorSystem): Future[HttpResponse] =
     Http().singleRequest(request)
