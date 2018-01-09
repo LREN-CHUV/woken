@@ -24,18 +24,21 @@ import akka.pattern.ask
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import eu.hbp.mip.woken.messages.external._
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.scalatest.TryValues._
 import org.scalatest.tagobjects.Slow
 import spray.json._
 
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
-import scala.io.Source
 import scala.language.postfixOps
 import scala.util.Try
 
-class WokenAkkaAPITest extends FlatSpec with Matchers {
+class WokenAkkaAPITest
+    extends FlatSpec
+    with Matchers
+    with Queries
+    with BeforeAndAfterAll {
 
   implicit val timeout: Timeout = Timeout(200 seconds)
   val configuration = ConfigFactory.load()
@@ -45,6 +48,12 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
   val client: ActorRef =
     system.actorOf(ClusterClient.props(ClusterClientSettings(system)), "client")
   val entryPoint = "/user/entrypoint"
+
+  override def afterAll = {
+    system.terminate().onComplete { result =>
+      println("Actor system shutdown: " + result)
+    }
+  }
 
   // Test methods query
   "Woken" should "respond to a query for the list of methods" in {
@@ -164,7 +173,7 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
     assertResult(approximate(expected))(approximate(json))
   }
 
-  // Test resiliency
+  //Test resiliency
   "Woken" should "recover from multiple failed experiments" taggedAs Slow in {
 
     // TODO: add no_results, never_end
@@ -210,16 +219,6 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
 
   }
 
-  private def experimentQuery(algorithm: String, parameters: List[CodeValue]) =
-    ExperimentQuery(
-      List(VariableId("cognitive_task2")),
-      List(VariableId("score_test1"), VariableId("college_math")),
-      Nil,
-      "",
-      List(AlgorithmSpec(algorithm, parameters)),
-      List(ValidationSpec("kfold", List(CodeValue("k", "2"))))
-    )
-
   private def waitFor[T](future: Future[Any])(
       implicit timeout: Timeout): Try[T] = {
     Try {
@@ -227,40 +226,4 @@ class WokenAkkaAPITest extends FlatSpec with Matchers {
     }
   }
 
-  private def loadJson(path: String): JsValue = {
-    val source = Source.fromURL(getClass.getResource(path))
-    source.mkString.parseJson
-  }
-
-  private def approximate(json: JsValue): String = {
-    val sb = new java.lang.StringBuilder()
-    new ApproximatePrinter().print(json, sb)
-    sb.toString
-  }
-
-  class ApproximatePrinter extends SortedPrinter {
-
-    override protected def printObject(members: Map[String, JsValue],
-                                       sb: java.lang.StringBuilder,
-                                       indent: Int): Unit = {
-      val filteredMembers = members.map {
-        case ("jobId", _)     => "jobId" -> JsString("*")
-        case ("timestamp", _) => "timestamp" -> JsNumber(0.0)
-        case (k, v)           => k -> v
-      }
-      super.printObject(filteredMembers, sb, indent)
-    }
-
-    override protected def printLeaf(j: JsValue,
-                                     sb: java.lang.StringBuilder): Unit =
-      j match {
-        case JsNull      => sb.append("null")
-        case JsTrue      => sb.append("true")
-        case JsFalse     => sb.append("false")
-        case JsNumber(x) => sb.append(f"$x%1.5f")
-        case JsString(x) => printString(x, sb)
-        case _           => throw new IllegalStateException
-      }
-
-  }
 }

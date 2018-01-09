@@ -24,6 +24,8 @@ import eu.hbp.mip.woken.fp.Traverse
 import eu.hbp.mip.woken.messages.external.DatasetId
 import org.slf4j.LoggerFactory
 
+import cats.implicits._
+
 class DispatcherService(config: Config) {
   import DispatcherService._
 

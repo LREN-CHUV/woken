@@ -19,7 +19,7 @@ package eu.hbp.mip.woken.backends.chronos
 import cats.data.ValidatedNel
 import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.config.{ DatabaseConfiguration, JobsConfiguration }
-import eu.hbp.mip.woken.messages.external.{ AlgorithmSpec, CodeValue, MiningQuery, VariableId }
+import eu.hbp.mip.woken.messages.external._
 import org.scalatest.{ FlatSpec, Matchers }
 import spray.json._
 import cats.syntax.validated._
@@ -31,11 +31,15 @@ class JobToChronosTest extends FlatSpec with Matchers {
     parameters = List(CodeValue("k", "5"), CodeValue("n", "1"))
   )
 
+  val user: UserId = UserId("test")
+
   val query: MiningQuery = MiningQuery(
+    user = user,
     variables = List("target").map(VariableId),
     covariables = List("a", "b", "c").map(VariableId),
     grouping = List("grp1", "grp2").map(VariableId),
     filters = "a > 10",
+    datasets = Nil,
     algorithm = algorithm
   )
 

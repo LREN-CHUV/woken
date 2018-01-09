@@ -28,7 +28,12 @@ import eu.hbp.mip.woken.api.{ Api, MasterRouter }
 import eu.hbp.mip.woken.config.{ AlgorithmsConfiguration, AppConfiguration, DatabaseConfiguration }
 import eu.hbp.mip.woken.core.{ CoordinatorConfig, Core, CoreActors }
 import eu.hbp.mip.woken.dao.{ FeaturesDAL, MetadataRepositoryDAO, WokenRepositoryDAO }
-import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, JobResultService, VariablesMetaService, DispatcherService }
+import eu.hbp.mip.woken.service.{
+  AlgorithmLibraryService,
+  DispatcherService,
+  JobResultService,
+  VariablesMetaService
+}
 import eu.hbp.mip.woken.ssl.WokenSSLConfiguration
 import akka.stream.ActorMaterializer
 import org.slf4j.LoggerFactory

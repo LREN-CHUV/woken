@@ -19,7 +19,6 @@ package eu.hbp.mip.woken.api
 import java.util.UUID
 
 import akka.actor.{ ActorRef, ActorSystem, Props }
-import akka.routing.FromConfig
 import akka.testkit.{ ImplicitSender, TestKit }
 import eu.hbp.mip.woken.api.MasterRouter.{ QueuesSize, RequestQueuesSize }
 import eu.hbp.mip.woken.backends.DockerJob
@@ -32,9 +31,9 @@ import eu.hbp.mip.woken.core.{
 }
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import eu.hbp.mip.woken.dao.FeaturesDAL
-import eu.hbp.mip.woken.messages.external.{ ExperimentQuery, MiningQuery, QueryResult }
+import eu.hbp.mip.woken.messages.external.{ ExperimentQuery, MiningQuery, QueryResult, UserId }
 import com.typesafe.config.{ Config, ConfigFactory }
-import eu.hbp.mip.woken.service.AlgorithmLibraryService
+import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, DispatcherService }
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import spray.json.JsObject
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil
@@ -97,10 +96,12 @@ class MasterRouterTest
 
   class MasterRouterUnderTest(appConfiguration: AppConfiguration,
                               coordinatorConfig: CoordinatorConfig,
+                              dispatcherService: DispatcherService,
                               algorithmLibraryService: AlgorithmLibraryService,
                               algorithmLookup: String => Validation[AlgorithmDefinition])
       extends MasterRouter(appConfiguration,
                            coordinatorConfig,
+                           dispatcherService,
                            algorithmLibraryService,
                            algorithmLookup,
                            experimentQuery2job,
@@ -136,6 +137,10 @@ class MasterRouterTest
     jdbcConfigs.apply
   )
 
+  val dispatcherService: DispatcherService = DispatcherService(config)
+
+  val user: UserId = UserId("test")
+
   "Master Actor " must {
 
     val router =
@@ -143,6 +148,7 @@ class MasterRouterTest
         Props(
           new MasterRouterUnderTest(appConfig,
                                     coordinatorConfig,
+                                    dispatcherService,
                                     algorithmLibraryService,
                                     AlgorithmsConfiguration.factory(config))
         )
@@ -153,10 +159,12 @@ class MasterRouterTest
       val limit = appConfig.masterRouterConfig.experimentActorsLimit
 
       (1 to limit).foreach { _ =>
-        router ! ExperimentQuery(variables = Nil,
+        router ! ExperimentQuery(user = user,
+                                 variables = Nil,
                                  covariables = Nil,
                                  grouping = Nil,
                                  filters = "",
+                                 datasets = Nil,
                                  algorithms = Nil,
                                  validations = Nil)
 
@@ -180,10 +188,12 @@ class MasterRouterTest
       val overflow = limit * 2
 
       (1 to overflow).foreach { _ =>
-        router ! ExperimentQuery(variables = Nil,
+        router ! ExperimentQuery(user = user,
+                                 variables = Nil,
                                  covariables = Nil,
                                  grouping = Nil,
                                  filters = "",
+                                 datasets = Nil,
                                  algorithms = Nil,
                                  validations = Nil)
 
@@ -214,10 +224,12 @@ class MasterRouterTest
       // Now we check that after rate limits, the actor can recover and handle new requests
 
       (1 to limit).foreach { _ =>
-        router ! ExperimentQuery(variables = Nil,
+        router ! ExperimentQuery(user = user,
+                                 variables = Nil,
                                  covariables = Nil,
                                  grouping = Nil,
                                  filters = "",
+                                 datasets = Nil,
                                  algorithms = Nil,
                                  validations = Nil)
 

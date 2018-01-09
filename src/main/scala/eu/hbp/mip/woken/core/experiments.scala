@@ -20,7 +20,6 @@ import java.time.OffsetDateTime
 import java.util.UUID
 
 import akka.NotUsed
-import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{ Actor, ActorContext, ActorLogging, Props }
 import akka.stream._
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Merge, Partition, Sink, Source, Zip }
@@ -245,10 +244,12 @@ case class ExperimentFlow(
         )
         val validations = if (algorithmDefinition.predictive) a.validations else Nil
         val miningQuery = MiningQuery(
+          user = query.user,
           variables = query.variables,
           covariables = query.covariables,
           grouping = query.grouping,
           filters = query.filters,
+          datasets = query.datasets,
           algorithm = algorithmSpec
         )
         val subJob = ValidatedAlgorithmFlow.Job(jobId,
