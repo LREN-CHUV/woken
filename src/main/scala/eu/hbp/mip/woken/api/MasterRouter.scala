@@ -98,7 +98,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
 
     case query: MiningQuery =>
       if (miningJobsInFlight.size <= miningActiveActorsLimit) {
-        val jobValidated   = query2jobFM(query)
+        val jobValidated = query2jobFM(query)
 
         jobValidated.fold(
           errorMsg => {
@@ -145,7 +145,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
     case query: ExperimentQuery =>
       log.debug(s"Received message: $query")
       if (experimentJobsInFlight.size <= experimentActiveActorsLimit) {
-        val jobValidated       = query2jobF(query)
+        val jobValidated = query2jobF(query)
         jobValidated.fold(
           errorMsg => {
             val error =

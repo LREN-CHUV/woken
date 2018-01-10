@@ -25,7 +25,12 @@ import akka.http.scaladsl.Http
 import akka.pattern.{ Backoff, BackoffSupervisor }
 import cats.effect.IO
 import eu.hbp.mip.woken.api.{ Api, MasterRouter }
-import eu.hbp.mip.woken.config.{ AlgorithmsConfiguration, AppConfiguration, DatabaseConfiguration }
+import eu.hbp.mip.woken.config.{
+  AlgorithmsConfiguration,
+  AppConfiguration,
+  DatabaseConfiguration,
+  DatasetsConfiguration
+}
 import eu.hbp.mip.woken.core.{ CoordinatorConfig, Core, CoreActors }
 import eu.hbp.mip.woken.dao.{ FeaturesDAL, MetadataRepositoryDAO, WokenRepositoryDAO }
 import eu.hbp.mip.woken.service.{
@@ -117,7 +122,8 @@ trait BootedCore
     DatabaseConfiguration.factory(config)
   )
 
-  val dispatcherService: DispatcherService = DispatcherService(config)
+  val dispatcherService: DispatcherService =
+    DispatcherService(DatasetsConfiguration.datasets(config), coordinatorConfig)
 
   private val mainRouterSupervisorProps = BackoffSupervisor.props(
     Backoff.onFailure(

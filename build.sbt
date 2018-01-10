@@ -29,6 +29,7 @@ lazy val `woken` =
           library.log4jSlf4j,
           library.disruptor,
           library.catsCore,
+          library.kittens,
           library.config,
           library.doobieCore,
           library.doobiePostgres,
@@ -66,11 +67,12 @@ lazy val library =
       val log4j           = "2.9.1"
       val disruptor       = "3.3.7"
       val cats            = "1.0.0-RC1"
+      val kittens         = "1.0.0-RC1"
       val config          = "1.2.1"
       val doobie          = "0.5.0-M9"
       val snakeyaml       = "1.17"
       val hadrian         = "0.8.5"
-      val wokenMessages   = "2.1.9"
+      val wokenMessages   = "2.1.10"
       val scalaCache      = "0.21.0"
     }
     val scalaCheck: ModuleID   = "org.scalacheck"    %% "scalacheck"   % Version.scalaCheck
@@ -94,6 +96,7 @@ lazy val library =
     val log4jSlf4j: ModuleID   = "org.apache.logging.log4j" % "log4j-slf4j-impl" % Version.log4j
     val disruptor: ModuleID    = "com.lmax"           % "disruptor"    % Version.disruptor
     val catsCore: ModuleID     = "org.typelevel"     %% "cats-core"    % Version.cats
+    val kittens: ModuleID      = "org.typelevel"     %% "kittens"      % Version.kittens
     val config: ModuleID       = "com.typesafe"       % "config"       % Version.config
     val doobieCore: ModuleID   = "org.tpolecat"      %% "doobie-core"  % Version.doobie
     val doobiePostgres: ModuleID = "org.tpolecat"    %% "doobie-postgres" % Version.doobie

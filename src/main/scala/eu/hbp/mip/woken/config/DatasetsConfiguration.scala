@@ -18,45 +18,73 @@ package eu.hbp.mip.woken.config
 
 import com.typesafe.config.Config
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil._
-import cats.data.Validated._
-import cats.implicits._
 import eu.hbp.mip.woken.config.AnonymisationLevel.AnonymisationLevel
 import eu.hbp.mip.woken.fp.Traverse
 import eu.hbp.mip.woken.messages.external.DatasetId
+
+import cats.data.Validated._
+import cats.implicits._
 
 object AnonymisationLevel extends Enumeration {
   type AnonymisationLevel = Value
   val Identifying, Depersonalised, Anonymised = Value
 }
 
-case class DatasetLocation(dataset: DatasetId,
-                           description: String,
-                           location: Option[String],
-                           anonymisationLevel: AnonymisationLevel)
+case class Credentials(user: String, password: String)
+case class Location(url: String, credentials: Option[Credentials])
+case class Dataset(dataset: DatasetId,
+                   description: String,
+                   tables: List[String],
+                   anonymisationLevel: AnonymisationLevel,
+                   location: Option[Location])
 
-object DatasetLocation {
+object Dataset {
 
+  // Seems useful as Scala enumeration and Cats mapN don't appear to work together well
   def apply2(dataset: String,
              description: String,
-             location: Option[String],
-             anonymisationLevel: String): DatasetLocation = DatasetLocation(
+             tables: List[String],
+             anonymisationLevel: String,
+             location: Option[Location]): Dataset = Dataset(
     DatasetId(dataset),
     description,
-    location,
-    AnonymisationLevel.withName(anonymisationLevel)
+    tables,
+    AnonymisationLevel.withName(anonymisationLevel),
+    location
   )
 }
 
 object DatasetsConfiguration {
 
-  def read(config: Config, path: List[String]): Validation[DatasetLocation] = {
+  def read(config: Config, path: List[String]): Validation[Dataset] = {
 
     val federationConfig = config.validateConfig(path.mkString("."))
 
     federationConfig.andThen { f =>
       val dataset     = path.lastOption.map(lift).getOrElse("Empty path".invalidNel[String])
       val description = f.validateString("description")
-      val location    = f.validateOptionalString("location")
+      val tables: Validation[List[String]] = f.validateString("tables").map { s =>
+        s.split(',').toIndexedSeq.toList
+      }
+      val location: Validation[Option[Location]] = f
+        .validateConfig("location")
+        .andThen { cl =>
+          val url = cl.validateString("url")
+          val credentials: Validation[Option[Credentials]] = cl
+            .validateConfig("credentials")
+            .andThen { cc =>
+              val user     = cc.validateString("user")
+              val password = cc.validateString("password")
+
+              (user, password) mapN Credentials
+            }
+            .map(_.some)
+            .orElse(lift(None.asInstanceOf[Option[Credentials]]))
+
+          (url, credentials) mapN Location
+        }
+        .map(_.some)
+        .orElse(lift(None.asInstanceOf[Option[Location]]))
       val anonymisationLevel: Validation[String] = f
         .validateString("anonymisationLevel")
         .ensure(
@@ -67,23 +95,23 @@ object DatasetsConfiguration {
           AnonymisationLevel.withName(s); true
         }
 
-      (dataset, description, location, anonymisationLevel) mapN DatasetLocation.apply2
+      (dataset, description, tables, anonymisationLevel, location) mapN Dataset.apply2
     }
 
   }
 
-  def factory(config: Config): String => Validation[DatasetLocation] =
+  def factory(config: Config): String => Validation[Dataset] =
     dataset => read(config, List("datasets", dataset))
 
   def datasetNames(config: Config): Validation[Set[String]] =
     config.validateConfig("datasets").map(_.keys)
 
-  def datasets(config: Config): Validation[Map[DatasetId, DatasetLocation]] = {
+  def datasets(config: Config): Validation[Map[DatasetId, Dataset]] = {
     val datasetFactory = factory(config)
     datasetNames(config).andThen { names: Set[String] =>
-      val m: List[Validation[(DatasetId, DatasetLocation)]] =
+      val m: List[Validation[(DatasetId, Dataset)]] =
         names.toList.map(n => lift(DatasetId(n)) -> datasetFactory(n)).map(_.tupled)
-      val t: Validation[List[(DatasetId, DatasetLocation)]] = Traverse.sequence(m)
+      val t: Validation[List[(DatasetId, Dataset)]] = Traverse.sequence(m)
       t.map(_.toMap)
     }
   }

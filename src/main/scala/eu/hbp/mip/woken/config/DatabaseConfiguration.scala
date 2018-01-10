@@ -19,7 +19,7 @@ package eu.hbp.mip.woken.config
 import doobie._
 import doobie.implicits._
 import doobie.hikari.HikariTransactor
-import cats._
+import cats.Monad
 import cats.implicits._
 import cats.effect._
 import cats.data.Validated._
