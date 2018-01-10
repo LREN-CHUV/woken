@@ -98,7 +98,6 @@ case class MasterRouter(appConfiguration: AppConfiguration,
 
     case query: MiningQuery =>
       if (miningJobsInFlight.size <= miningActiveActorsLimit) {
-        val miningActorRef = newCoordinatorActor
         val jobValidated   = query2jobFM(query)
 
         jobValidated.fold(
@@ -115,7 +114,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
             val (urls, local) = dispatcherService.dispatchTo(query.datasets.toSet)
 
             if (local) {
-
+              val miningActorRef = newCoordinatorActor
               miningActorRef ! StartCoordinatorJob(job)
               miningJobsInFlight += job -> (sender() -> miningActorRef)
             }
@@ -146,7 +145,6 @@ case class MasterRouter(appConfiguration: AppConfiguration,
     case query: ExperimentQuery =>
       log.debug(s"Received message: $query")
       if (experimentJobsInFlight.size <= experimentActiveActorsLimit) {
-        val experimentActorRef = newExperimentActor
         val jobValidated       = query2jobF(query)
         jobValidated.fold(
           errorMsg => {
@@ -159,6 +157,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
             sender() ! JobResult.asQueryResult(error)
           },
           job => {
+            val experimentActorRef = newExperimentActor
             experimentActorRef ! StartExperimentJob(job)
             experimentJobsInFlight += job -> (sender() -> experimentActorRef)
           }

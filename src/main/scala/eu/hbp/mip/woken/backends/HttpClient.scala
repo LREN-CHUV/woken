@@ -23,10 +23,10 @@ import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
-import eu.hbp.mip.woken.backends.chronos.{ ChronosJob, ChronosJobLiveliness }
+import eu.hbp.mip.woken.backends.chronos.{ChronosJob, ChronosJobLiveliness}
 import spray.json.DefaultJsonProtocol
 
-import scala.concurrent.{ ExecutionContextExecutor, Future }
+import scala.concurrent.{ExecutionContextExecutor, Future}
 
 object HttpClient extends DefaultJsonProtocol with SprayJsonSupport {
 
@@ -39,6 +39,11 @@ object HttpClient extends DefaultJsonProtocol with SprayJsonSupport {
   )
 
   def Get(url: String): HttpRequest = HttpRequest(
+    method = HttpMethods.GET,
+    uri = url
+  )
+
+  def Get(url: Uri): HttpRequest = HttpRequest(
     method = HttpMethods.GET,
     uri = url
   )
