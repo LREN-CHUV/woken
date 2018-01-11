@@ -17,7 +17,6 @@
 package eu.hbp.mip.woken.service
 
 import akka.NotUsed
-import akka.http.scaladsl.model._
 import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.Source
 import org.slf4j.LoggerFactory

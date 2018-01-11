@@ -59,8 +59,8 @@ object MasterRouter {
         dispatcherService,
         algorithmLibraryService,
         algorithmLookup,
-        experimentQuery2job(variablesMetaService, coordinatorConfig.jobsConf),
-        miningQuery2job(variablesMetaService, coordinatorConfig.jobsConf, algorithmLookup)
+        experimentQuery2Job(variablesMetaService, coordinatorConfig.jobsConf),
+        miningQuery2Job(variablesMetaService, coordinatorConfig.jobsConf, algorithmLookup)
       )
     )
 
@@ -71,8 +71,8 @@ case class MasterRouter(appConfiguration: AppConfiguration,
                         dispatcherService: DispatcherService,
                         algorithmLibraryService: AlgorithmLibraryService,
                         algorithmLookup: String => Validation[AlgorithmDefinition],
-                        query2jobF: ExperimentQuery => Validation[ExperimentActor.Job],
-                        query2jobFM: MiningQuery => Validation[DockerJob])
+                        experimentQuery2JobF: ExperimentQuery => Validation[ExperimentActor.Job],
+                        miningQuery2JobF: MiningQuery => Validation[DockerJob])
     extends Actor
     /*with ActorTracing*/
     with ActorLogging {
@@ -82,7 +82,6 @@ case class MasterRouter(appConfiguration: AppConfiguration,
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   val validationWorker: ActorRef = initValidationWorker
-
   val scoringWorker: ActorRef = initScoringWorker
 
   val experimentActiveActorsLimit: Int = appConfiguration.masterRouterConfig.miningActorsLimit
@@ -104,7 +103,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
     case query: MiningQuery =>
       val initiator = sender()
       if (miningJobsInFlight.size <= miningActiveActorsLimit) {
-        val jobValidated = query2jobFM(query)
+        val jobValidated = miningQuery2JobF(query)
 
         jobValidated.fold(
           errorMsg => {
@@ -174,7 +173,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
     case query: ExperimentQuery =>
       log.debug(s"Received message: $query")
       if (experimentJobsInFlight.size <= experimentActiveActorsLimit) {
-        val jobValidated = query2jobF(query)
+        val jobValidated = experimentQuery2JobF(query)
         jobValidated.fold(
           errorMsg => {
             val error =

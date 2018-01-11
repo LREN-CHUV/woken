@@ -33,7 +33,7 @@ import spray.json.JsObject
   */
 object MiningQueries {
 
-  def miningQuery2job(
+  def miningQuery2Job(
       variablesMetaService: VariablesMetaService,
       jobsConfiguration: JobsConfiguration,
       algorithmLookup: String => Validation[AlgorithmDefinition]
@@ -51,7 +51,7 @@ object MiningQueries {
     (metadata, algorithm) mapN createJob
   }
 
-  def experimentQuery2job(
+  def experimentQuery2Job(
       variablesMetaService: VariablesMetaService,
       jobsConfiguration: JobsConfiguration
   )(query: ExperimentQuery): Validation[ExperimentActor.Job] = {

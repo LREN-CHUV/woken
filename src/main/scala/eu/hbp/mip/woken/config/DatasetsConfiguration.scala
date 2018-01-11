@@ -30,8 +30,8 @@ object AnonymisationLevel extends Enumeration {
   val Identifying, Depersonalised, Anonymised = Value
 }
 
-case class Credentials(user: String, password: String)
-case class RemoteLocation(url: Uri, credentials: Option[Credentials])
+case class BasicAuthCredentials(user: String, password: String)
+case class RemoteLocation(url: Uri, credentials: Option[BasicAuthCredentials])
 case class Dataset(dataset: DatasetId,
                    description: String,
                    tables: List[String],
@@ -65,21 +65,21 @@ object DatasetsConfiguration {
       val description = f.validateString("description")
       val tables: Validation[List[String]] = f.validateString("tables").map { s =>
         s.split(',').toIndexedSeq.toList
-      }
+      }.orElse(lift(List()))
       val location: Validation[Option[RemoteLocation]] = f
         .validateConfig("location")
         .andThen { cl =>
           val url: Validation[Uri] = cl.validateString("url").map(Uri.apply)
-          val credentials: Validation[Option[Credentials]] = cl
-            .validateConfig("credentials")
+          val credentials: Validation[Option[BasicAuthCredentials]] = cl
+            .validateConfig("basicAuth")
             .andThen { cc =>
               val user     = cc.validateString("user")
               val password = cc.validateString("password")
 
-              (user, password) mapN Credentials
+              (user, password) mapN BasicAuthCredentials
             }
             .map(_.some)
-            .orElse(lift(None.asInstanceOf[Option[Credentials]]))
+            .orElse(lift(None.asInstanceOf[Option[BasicAuthCredentials]]))
 
           (url, credentials) mapN RemoteLocation
         }
