@@ -22,7 +22,7 @@ import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.model.headers.{ Authorization, BasicHttpCredentials }
-import akka.http.scaladsl.model.{ HttpRequest, Uri }
+import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Flow
@@ -59,7 +59,7 @@ case class WokenService(node: String)(implicit val system: ActorSystem,
   def httpQueryFlow: Flow[RemoteLocation, (RemoteLocation, QueryResult), NotUsed] =
     Flow[RemoteLocation]
       .map(location => HttpClient.sendReceive(Get(location)).map((location, _)))
-      .mapAsync(4)(identity)
+      .mapAsync(100)(identity)
       .mapAsync(1) {
         case (url, response) if response.status.isSuccess() =>
           (url.pure[Future], Unmarshal(response).to[QueryResult]).mapN((_, _))

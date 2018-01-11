@@ -58,14 +58,12 @@ object DatasetsConfiguration {
 
   def read(config: Config, path: List[String]): Validation[Dataset] = {
 
-    val federationConfig = config.validateConfig(path.mkString("."))
+    val datasetConfig = config.validateConfig(path.mkString("."))
 
-    federationConfig.andThen { f =>
-      val dataset     = path.lastOption.map(lift).getOrElse("Empty path".invalidNel[String])
-      val description = f.validateString("description")
-      val tables: Validation[List[String]] = f.validateString("tables").map { s =>
-        s.split(',').toIndexedSeq.toList
-      }.orElse(lift(List()))
+    datasetConfig.andThen { f =>
+      val dataset                          = path.lastOption.map(lift).getOrElse("Empty path".invalidNel[String])
+      val description                      = f.validateString("description")
+      val tables: Validation[List[String]] = f.validateStringList("tables").orElse(lift(List()))
       val location: Validation[Option[RemoteLocation]] = f
         .validateConfig("location")
         .andThen { cl =>
@@ -109,6 +107,7 @@ object DatasetsConfiguration {
   def datasets(config: Config): Validation[Map[DatasetId, Dataset]] = {
     val datasetFactory = factory(config)
     datasetNames(config).andThen { names: Set[String] =>
+      println(s"datasetNames: $names")
       val m: List[Validation[(DatasetId, Dataset)]] =
         names.toList.map(n => lift(DatasetId(n)) -> datasetFactory(n)).map(_.tupled)
       val t: Validation[List[(DatasetId, Dataset)]] = Traverse.sequence(m)

@@ -25,7 +25,7 @@ import eu.hbp.mip.woken.fp.Traverse
 import eu.hbp.mip.woken.messages.external.{ DatasetId, QueryResult }
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 
-import cats.implicits._
+import cats.implicits.catsStdInstancesForOption
 import eu.hbp.mip.woken.backends.woken.WokenService
 
 class DispatcherService(datasets: Map[DatasetId, Dataset], wokenService: WokenService) {
@@ -38,8 +38,9 @@ class DispatcherService(datasets: Map[DatasetId, Dataset], wokenService: WokenSe
 
   def dispatchTo(datasets: Set[DatasetId]): (Set[RemoteLocation], Boolean) = {
     val maybeLocations = datasets.map(dispatchTo)
-    val local          = maybeLocations.contains(None)
-    val maybeSet       = Traverse.sequence(maybeLocations.filter(_.nonEmpty))
+    print(maybeLocations)
+    val local    = maybeLocations.contains(None)
+    val maybeSet = Traverse.sequence(maybeLocations.filter(_.nonEmpty))
 
     (maybeSet.getOrElse(Set.empty), local)
   }
@@ -60,10 +61,10 @@ object DispatcherService {
   private[service] def loadDatasets(
       datasets: Validation[Map[DatasetId, Dataset]]
   ): Map[DatasetId, Dataset] =
-    datasets.getOrElse {
-      logger.info("No datasets configured")
-      Map.empty
-    }
+    datasets.fold({ e =>
+      logger.info(s"No datasets configured: $e")
+      Map[DatasetId, Dataset]()
+    }, identity)
 
   def apply(datasets: Validation[Map[DatasetId, Dataset]],
             wokenService: WokenService): DispatcherService =

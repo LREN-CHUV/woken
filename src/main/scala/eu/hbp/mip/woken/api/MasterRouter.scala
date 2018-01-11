@@ -82,7 +82,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   lazy val validationWorker: ActorRef = initValidationWorker
-  lazy val scoringWorker: ActorRef = initScoringWorker
+  lazy val scoringWorker: ActorRef    = initScoringWorker
 
   if (!appConfiguration.disableWorkers) {
     // Initialise the workers to test that they work and fail early otherwise

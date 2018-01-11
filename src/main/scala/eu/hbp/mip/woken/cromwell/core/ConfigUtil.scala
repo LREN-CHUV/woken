@@ -50,10 +50,10 @@ import java.net.URL
 
 import cats.data.ValidatedNel
 import cats.syntax.validated._
-import com.typesafe.config.{ Config, ConfigException, ConfigValue }
+import com.typesafe.config.{ Config, ConfigException }
 import org.slf4j.LoggerFactory
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 import scala.reflect.{ ClassTag, classTag }
 
 object ConfigUtil {
@@ -65,10 +65,7 @@ object ConfigUtil {
   def lift[A](v: A): Validation[A] = v.validNel[String]
 
   implicit class EnhancedConfig(val config: Config) extends AnyVal {
-    def keys: Set[String] = config.entrySet().asScala.toSet map {
-      v: java.util.Map.Entry[String, ConfigValue] =>
-        v.getKey
-    }
+    def keys: Set[String] = config.root().map(_._1).toSet
 
     /**
       * For keys that are in the configuration but not in the reference keySet, log a warning.
@@ -102,6 +99,13 @@ object ConfigUtil {
       } catch {
         case _: ConfigException.Missing => None.validNel
         case _: ConfigException         => s"Invalid value for key: $key".invalidNel
+      }
+
+    def validateStringList(key: String): Validation[List[String]] =
+      try {
+        config.getStringList(key).to[List].validNel
+      } catch {
+        case _: ConfigException.Missing => s"Could not find key: $key".invalidNel
       }
 
     def validateInt(key: String): Validation[Int] =
