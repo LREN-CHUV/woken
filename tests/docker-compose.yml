@@ -327,6 +327,121 @@ services:
       PORTAL_BACKEND_SERVER: portalbackend:8080
       PORTAL_BACKEND_CONTEXT: services
 
+  # Distributed
+
+  wokennode1:
+    image: hbpmip/woken
+    volumes:
+      - ./woken-worker1/config:/opt/woken/config
+    ports:
+      - "18087:8087"
+      - "18088:8088"
+    environment:
+      CLUSTER_PORT: 8088
+      CLUSTER_IP: wokennode1
+      WOKEN_PORT_8088_TCP_ADDR: wokennode1
+      WOKEN_PORT_8088_TCP_PORT: 18088
+    links:
+      - zipkin
+    depends_on:
+      - chronos
+      - db
+
+  wokenvalidationnode1:
+    image: hbpmip/woken-validation:2.1.4
+    ports:
+      - "18081:8081"
+      - "18082:8082"
+    environment:
+      CLUSTER_PORT: 18082
+      CLUSTER_IP: wokenvalidationnode1
+      WOKEN_PORT_8088_TCP_ADDR: wokennode1
+      LOG_LEVEL: DEBUG
+    links:
+      - zipkin
+    depends_on:
+      - wokennode1
+
+  wait_wokennode1:
+    image: "waisbrot/wait"
+    restart: "no"
+    environment:
+      TARGETS: "wokennode1:8087,chronos:4400"
+      TIMEOUT: 60
+    depends_on:
+      - wokennode1
+      - chronos
+
+  wokennode2:
+    image: hbpmip/woken
+    volumes:
+      - ./woken-worker2/config:/opt/woken/config
+    ports:
+      - "28087:8087"
+      - "28088:8088"
+    environment:
+      CLUSTER_PORT: 8088
+      CLUSTER_IP: wokennode2
+      WOKEN_PORT_8088_TCP_ADDR: wokennode2
+      WOKEN_PORT_8088_TCP_PORT: 28088
+    links:
+      - zipkin
+    depends_on:
+      - chronos
+      - db
+
+  wokenvalidationnode2:
+    image: hbpmip/woken-validation:2.1.4
+    ports:
+      - "28081:8081"
+      - "28082:8082"
+    environment:
+      CLUSTER_PORT: 28082
+      CLUSTER_IP: wokenvalidationnode2
+      WOKEN_PORT_8088_TCP_ADDR: wokennode2
+      LOG_LEVEL: DEBUG
+    links:
+      - zipkin
+    depends_on:
+      - wokennode2
+
+  wait_wokennode2:
+    image: "waisbrot/wait"
+    restart: "no"
+    environment:
+      TARGETS: "wokennode2:8087,chronos:4400"
+      TIMEOUT: 60
+    depends_on:
+      - wokennode2
+      - chronos
+
+  wokencentral:
+    image: hbpmip/woken
+    volumes:
+      - ./woken-central/config:/opt/woken/config
+    ports:
+      - "8087:8087"
+      - "8088:8088"
+    environment:
+      CLUSTER_PORT: 8088
+      CLUSTER_IP: wokencentral
+      WOKEN_PORT_8088_TCP_ADDR: wokencentral
+    links:
+      - zipkin
+    depends_on:
+      - chronos
+      - db
+
+  wait_wokencentral:
+    image: "waisbrot/wait"
+    restart: "no"
+    environment:
+      TARGETS: "wokencentral:8087,chronos:4400"
+      TIMEOUT: 60
+    depends_on:
+      - wokencentral
+      - chronos
+
 networks:
   default:
     driver: bridge

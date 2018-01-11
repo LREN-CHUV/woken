@@ -31,6 +31,7 @@ case class AppConfiguration(
     networkInterface: String,
     webServicesPort: Int,
     webServicesHttps: Boolean,
+    disableWorkers: Boolean,
     jobServiceName: String,
     basicAuth: BasicAuthentication,
     masterRouterConfig: MasterRouterConfig
@@ -49,6 +50,7 @@ object AppConfiguration {
       val jobServiceName      = app.validateString("jobServiceName")
 
       val https: Validation[Boolean] = app.validateBoolean("webServicesHttps").orElse(lift(true))
+      val disableWorkers: Validation[Boolean] = app.validateBoolean("disableWorkers").orElse(lift(false))
 
       val basicAuth: Validation[BasicAuthentication] = app.validateConfig("basicAuth").andThen {
         c =>
@@ -69,6 +71,7 @@ object AppConfiguration {
        networkInterface,
        port,
        https,
+       disableWorkers,
        jobServiceName,
        basicAuth,
        masterRouterConfig) mapN AppConfiguration.apply

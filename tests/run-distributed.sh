@@ -65,9 +65,13 @@ for i in 1 2 3 4 5 ; do
   $DOCKER_COMPOSE stop chronos
 done
 
-$DOCKER_COMPOSE up -d woken wokenvalidation
+$DOCKER_COMPOSE up -d wokennode1 wokennode2 wokenvalidationnode1 wokenvalidationnode2
+$DOCKER_COMPOSE run wait_wokennode1
+$DOCKER_COMPOSE run wait_wokennode2
 
-$DOCKER_COMPOSE run wait_woken
+$DOCKER_COMPOSE up -d wokencentral
+
+$DOCKER_COMPOSE run wait_wokencentral
 
 for i in 1 2 3 4 5 ; do
   $DOCKER_COMPOSE logs chronos | grep java.util.concurrent.TimeoutException || break
@@ -82,7 +86,7 @@ echo "The Algorithm Factory is now running on your system"
 echo
 echo "Testing HTTP web services..."
 
-./http/query-experiment.sh
+./http/query-knn-distributed.sh
 
 echo
 echo "Testing Akka API..."

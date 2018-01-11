@@ -37,9 +37,9 @@ class DispatcherService(datasets: Map[DatasetId, Dataset], wokenService: WokenSe
       datasets.get(dataset).flatMap(_.location)
 
   def dispatchTo(datasets: Set[DatasetId]): (Set[RemoteLocation], Boolean) = {
-    val urls     = datasets.map(dispatchTo)
-    val local    = urls.contains(None)
-    val maybeSet = Traverse.sequence(urls.filter(_.nonEmpty))
+    val maybeLocations = datasets.map(dispatchTo)
+    val local          = maybeLocations.contains(None)
+    val maybeSet       = Traverse.sequence(maybeLocations.filter(_.nonEmpty))
 
     (maybeSet.getOrElse(Set.empty), local)
   }

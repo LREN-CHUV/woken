@@ -81,8 +81,13 @@ case class MasterRouter(appConfiguration: AppConfiguration,
 
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
-  val validationWorker: ActorRef = initValidationWorker
-  val scoringWorker: ActorRef = initScoringWorker
+  lazy val validationWorker: ActorRef = initValidationWorker
+  lazy val scoringWorker: ActorRef = initScoringWorker
+
+  if (!appConfiguration.disableWorkers) {
+    // Initialise the workers to test that they work and fail early otherwise
+    val _ = (validationWorker, scoringWorker)
+  }
 
   val experimentActiveActorsLimit: Int = appConfiguration.masterRouterConfig.miningActorsLimit
   val miningActiveActorsLimit: Int     = appConfiguration.masterRouterConfig.experimentActorsLimit
