@@ -97,6 +97,12 @@ object Shapes {
     val values = Set(json, mime)
   }
 
+  object compound extends Shape {
+    val compound = "compound"
+    val mime     = "application/vnd.hbp.mip.compound+json"
+    val values   = Set(compound, mime)
+  }
+
   val visualisationJson: Set[Shape] = Set(highcharts, plotly, json)
   def getVisualisationJson(s: String): Option[Shape] =
     visualisationJson.find(_.contains(s))

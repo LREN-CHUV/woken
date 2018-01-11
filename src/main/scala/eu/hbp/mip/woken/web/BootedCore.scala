@@ -41,6 +41,7 @@ import eu.hbp.mip.woken.service.{
 }
 import eu.hbp.mip.woken.ssl.WokenSSLConfiguration
 import akka.stream.ActorMaterializer
+import eu.hbp.mip.woken.backends.woken.WokenService
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.{ ExecutionContextExecutor, Future }
@@ -122,8 +123,10 @@ trait BootedCore
     DatabaseConfiguration.factory(config)
   )
 
+  val wokenService: WokenService = WokenService(coordinatorConfig.jobsConf.node)
+
   val dispatcherService: DispatcherService =
-    DispatcherService(DatasetsConfiguration.datasets(config), coordinatorConfig)
+    DispatcherService(DatasetsConfiguration.datasets(config), wokenService)
 
   private val mainRouterSupervisorProps = BackoffSupervisor.props(
     Backoff.onFailure(

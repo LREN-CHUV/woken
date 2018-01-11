@@ -19,6 +19,7 @@ package eu.hbp.mip.woken.api
 import java.util.UUID
 
 import akka.actor.{ ActorRef, ActorSystem, Props }
+import akka.stream.ActorMaterializer
 import akka.testkit.{ ImplicitSender, TestKit }
 import eu.hbp.mip.woken.api.MasterRouter.{ QueuesSize, RequestQueuesSize }
 import eu.hbp.mip.woken.backends.DockerJob
@@ -38,6 +39,7 @@ import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import spray.json.JsObject
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil
 import cats.data.Validated._
+import eu.hbp.mip.woken.backends.woken.WokenService
 import eu.hbp.mip.woken.util.FakeActors
 import org.scalatest.tagobjects.Slow
 
@@ -137,7 +139,12 @@ class MasterRouterTest
     jdbcConfigs.apply
   )
 
-  val dispatcherService: DispatcherService = DispatcherService(config)
+  implicit val materializer: ActorMaterializer = ActorMaterializer()
+
+  val wokenService: WokenService = WokenService("test")
+
+  val dispatcherService: DispatcherService =
+    DispatcherService(DatasetsConfiguration.datasets(config), wokenService)
 
   val user: UserId = UserId("test")
 

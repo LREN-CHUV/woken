@@ -16,12 +16,12 @@
 
 package eu.hbp.mip.woken.config
 
+import akka.http.scaladsl.model.Uri
 import com.typesafe.config.Config
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil._
 import eu.hbp.mip.woken.config.AnonymisationLevel.AnonymisationLevel
 import eu.hbp.mip.woken.fp.Traverse
 import eu.hbp.mip.woken.messages.external.DatasetId
-
 import cats.data.Validated._
 import cats.implicits._
 
@@ -31,12 +31,12 @@ object AnonymisationLevel extends Enumeration {
 }
 
 case class Credentials(user: String, password: String)
-case class Location(url: String, credentials: Option[Credentials])
+case class RemoteLocation(url: Uri, credentials: Option[Credentials])
 case class Dataset(dataset: DatasetId,
                    description: String,
                    tables: List[String],
                    anonymisationLevel: AnonymisationLevel,
-                   location: Option[Location])
+                   location: Option[RemoteLocation])
 
 object Dataset {
 
@@ -45,7 +45,7 @@ object Dataset {
              description: String,
              tables: List[String],
              anonymisationLevel: String,
-             location: Option[Location]): Dataset = Dataset(
+             location: Option[RemoteLocation]): Dataset = Dataset(
     DatasetId(dataset),
     description,
     tables,
@@ -66,10 +66,10 @@ object DatasetsConfiguration {
       val tables: Validation[List[String]] = f.validateString("tables").map { s =>
         s.split(',').toIndexedSeq.toList
       }
-      val location: Validation[Option[Location]] = f
+      val location: Validation[Option[RemoteLocation]] = f
         .validateConfig("location")
         .andThen { cl =>
-          val url = cl.validateString("url")
+          val url: Validation[Uri] = cl.validateString("url").map(Uri.apply)
           val credentials: Validation[Option[Credentials]] = cl
             .validateConfig("credentials")
             .andThen { cc =>
@@ -81,10 +81,10 @@ object DatasetsConfiguration {
             .map(_.some)
             .orElse(lift(None.asInstanceOf[Option[Credentials]]))
 
-          (url, credentials) mapN Location
+          (url, credentials) mapN RemoteLocation
         }
         .map(_.some)
-        .orElse(lift(None.asInstanceOf[Option[Location]]))
+        .orElse(lift(None.asInstanceOf[Option[RemoteLocation]]))
       val anonymisationLevel: Validation[String] = f
         .validateString("anonymisationLevel")
         .ensure(

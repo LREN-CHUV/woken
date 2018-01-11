@@ -21,6 +21,7 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.headers.Host
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import eu.hbp.mip.woken.backends.chronos.{ ChronosJob, ChronosJobLiveliness }
@@ -38,15 +39,13 @@ object HttpClient extends DefaultJsonProtocol with SprayJsonSupport {
     uri = url
   )
 
-  def Get(url: String): HttpRequest = HttpRequest(
-    method = HttpMethods.GET,
-    uri = url
-  )
+  def Get(url: String): HttpRequest = Get(Uri(url))
 
-  def Get(url: Uri): HttpRequest = HttpRequest(
-    method = HttpMethods.GET,
-    uri = url
-  )
+  def Get(url: Uri): HttpRequest =
+    HttpRequest(
+      method = HttpMethods.GET,
+      uri = url
+    ).addHeader(Host(url.authority.host.address(), url.authority.port))
 
   def Post(url: String, job: ChronosJob)(implicit actorSystem: ActorSystem): Future[HttpResponse] = {
     import ChronosJob._

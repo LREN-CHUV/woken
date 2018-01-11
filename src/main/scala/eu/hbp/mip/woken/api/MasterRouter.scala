@@ -20,13 +20,16 @@ import java.time.OffsetDateTime
 
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props, Terminated }
 import akka.routing.FromConfig
+import akka.stream.ActorMaterializer
+import akka.stream.scaladsl.Sink
+import eu.hbp.mip.woken.core.model.Shapes
 import eu.hbp.mip.woken.messages.external._
 import eu.hbp.mip.woken.core.{ CoordinatorActor, CoordinatorConfig, ExperimentActor }
 import eu.hbp.mip.woken.service.DispatcherService
 //import com.github.levkhomich.akka.tracing.ActorTracing
 import eu.hbp.mip.woken.api.MasterRouter.QueuesSize
 import eu.hbp.mip.woken.backends.DockerJob
-import eu.hbp.mip.woken.core.model.{ ErrorJobResult, JobResult }
+import eu.hbp.mip.woken.core.model.ErrorJobResult
 import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, VariablesMetaService }
 import MiningQueries._
 import eu.hbp.mip.woken.config.{ AlgorithmDefinition, AppConfiguration }
@@ -76,6 +79,8 @@ case class MasterRouter(appConfiguration: AppConfiguration,
 
   import MasterRouter.RequestQueuesSize
 
+  implicit val materializer: ActorMaterializer = ActorMaterializer()
+
   val validationWorker: ActorRef = initValidationWorker
 
   val scoringWorker: ActorRef = initScoringWorker
@@ -97,6 +102,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
     // TODO To be implemented
 
     case query: MiningQuery =>
+      val initiator = sender()
       if (miningJobsInFlight.size <= miningActiveActorsLimit) {
         val jobValidated = query2jobFM(query)
 
@@ -108,30 +114,53 @@ case class MasterRouter(appConfiguration: AppConfiguration,
                              OffsetDateTime.now(),
                              query.algorithm.code,
                              errorMsg.reduceLeft(_ + ", " + _))
-            sender() ! JobResult.asQueryResult(error)
+            initiator ! error.asQueryResult
           },
           job => {
-            val (urls, local) = dispatcherService.dispatchTo(query.datasets.toSet)
+            val datasets   = query.datasets.toSet
+            val (_, local) = dispatcherService.dispatchTo(datasets)
 
             if (local) {
+              // TODO: move to dispatcherService.localDispatchFlow?
               val miningActorRef = newCoordinatorActor
               miningActorRef ! StartCoordinatorJob(job)
-              miningJobsInFlight += job -> (sender() -> miningActorRef)
-            }
-            urls.foreach { url =>
-              // Dispatch to external Woken
+              miningJobsInFlight += job -> (initiator -> miningActorRef)
+            } else {
+              dispatcherService
+                .remoteDispatchFlow(datasets)
+                .fold(List[QueryResult]()) {
+                  _ :+ _._2
+                }
+                .map {
+                  case List() =>
+                    ErrorJobResult("",
+                                   coordinatorConfig.jobsConf.node,
+                                   OffsetDateTime.now(),
+                                   query.algorithm.code,
+                                   "No results").asQueryResult
+
+                  case List(result) => result
+
+                  case listOfResults =>
+                    compoundResult(listOfResults)
+                }
+                .map { queryResult =>
+                  initiator ! queryResult
+                  queryResult
+                }
+                .runWith(Sink.last)
             }
           }
         )
       } else {
         val error =
           ErrorJobResult("", "", OffsetDateTime.now(), "experiment", "Too busy to accept new jobs.")
-        sender() ! JobResult.asQueryResult(error)
+        initiator ! error.asQueryResult
       }
 
     case CoordinatorActor.Response(job, List(errorJob: ErrorJobResult)) =>
       log.warning(s"Received error while mining ${job.query}: $errorJob")
-      miningJobsInFlight.get(job).foreach(im => im._1 ! JobResult.asQueryResult(errorJob))
+      miningJobsInFlight.get(job).foreach(im => im._1 ! errorJob.asQueryResult)
       miningJobsInFlight -= job
 
     case CoordinatorActor.Response(job, results) =>
@@ -139,7 +168,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
       // Containerised algorithms that can produce more than one result (e.g. PFA model + images) are ignored
       log.info(s"Received results for mining ${job.query}: $results")
       val jobResult = results.head
-      miningJobsInFlight.get(job).foreach(im => im._1 ! JobResult.asQueryResult(jobResult))
+      miningJobsInFlight.get(job).foreach(im => im._1 ! jobResult.asQueryResult)
       miningJobsInFlight -= job
 
     case query: ExperimentQuery =>
@@ -154,7 +183,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
                              OffsetDateTime.now(),
                              "experiment",
                              errorMsg.reduceLeft(_ + ", " + _))
-            sender() ! JobResult.asQueryResult(error)
+            sender() ! error.asQueryResult
           },
           job => {
             val experimentActorRef = newExperimentActor
@@ -165,17 +194,17 @@ case class MasterRouter(appConfiguration: AppConfiguration,
       } else {
         val error =
           ErrorJobResult("", "", OffsetDateTime.now(), "experiment", "Too busy to accept new jobs.")
-        sender() ! JobResult.asQueryResult(error)
+        sender() ! error.asQueryResult
       }
 
     case ExperimentActor.Response(job, Left(results)) =>
       log.info(s"Received experiment error response $results")
-      experimentJobsInFlight.get(job).foreach(im => im._1 ! JobResult.asQueryResult(results))
+      experimentJobsInFlight.get(job).foreach(im => im._1 ! results.asQueryResult)
       experimentJobsInFlight -= job
 
     case ExperimentActor.Response(job, Right(results)) =>
       log.info(s"Received experiment response $results")
-      experimentJobsInFlight.get(job).foreach(im => im._1 ! JobResult.asQueryResult(results))
+      experimentJobsInFlight.get(job).foreach(im => im._1 ! results.asQueryResult)
       experimentJobsInFlight -= job
 
     case RequestQueuesSize =>
@@ -213,5 +242,20 @@ case class MasterRouter(appConfiguration: AppConfiguration,
 
   private[api] def initScoringWorker: ActorRef =
     context.actorOf(FromConfig.props(Props.empty), "scoringWorker")
+
+  private def compoundResult(queryResults: List[QueryResult]): QueryResult = {
+    import spray.json._
+    import ExternalAPIProtocol._
+
+    QueryResult(
+      jobId = "",
+      node = coordinatorConfig.jobsConf.node,
+      timestamp = OffsetDateTime.now(),
+      shape = Shapes.compound.mime,
+      function = "compound",
+      data = Some(queryResults.toJson.compactPrint),
+      error = None
+    )
+  }
 
 }

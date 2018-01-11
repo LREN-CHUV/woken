@@ -18,6 +18,7 @@ package eu.hbp.mip.woken.core.model
 
 import java.time.OffsetDateTime
 
+import eu.hbp.mip.woken.config.JobsConfiguration
 import eu.hbp.mip.woken.core.model.Shapes.{ pfa => pfaShape, _ }
 import eu.hbp.mip.woken.messages.external.{ AlgorithmSpec, ExternalAPIProtocol, QueryResult }
 import spray.json._
@@ -219,5 +220,9 @@ object JobResult {
           error = Some(e.error)
         )
     }
+
+  implicit class ToQueryResult(val jobResult: JobResult) extends AnyVal {
+    def asQueryResult: QueryResult = JobResult.asQueryResult(jobResult)
+  }
 
 }
