@@ -18,7 +18,7 @@ package eu.hbp.mip.woken.core.model
 
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil._
 import cats.implicits._
-import org.slf4j.{ Logger, LoggerFactory }
+import com.typesafe.scalalogging.Logger
 import spray.json._
 
 // TODO: defaultHistogramGroupings: List[String]
@@ -28,7 +28,7 @@ case class VariablesMeta(id: Int,
                          targetFeaturesTable: String,
                          defaultHistogramGroupings: String) {
 
-  val log: Logger = LoggerFactory.getLogger(getClass)
+  val log = Logger(getClass)
 
   def selectVariablesMeta(variables: List[String]): Validation[JsObject] = {
 

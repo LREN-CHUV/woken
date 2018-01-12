@@ -123,10 +123,12 @@ class MasterRouterTest
 
   }
 
-  val config: Config = ConfigFactory.load()
+  val config: Config = ConfigFactory.load("test.conf")
   val appConfig: AppConfiguration = AppConfiguration
     .read(config)
-    .getOrElse(throw new IllegalStateException("Invalid configuration"))
+    .valueOr(
+      e => throw new IllegalStateException(s"Invalid configuration: ${e.toList.mkString(", ")}")
+    )
 
   val jdbcConfigs: String => ConfigUtil.Validation[DatabaseConfiguration] = _ => Valid(noDbConfig)
 

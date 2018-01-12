@@ -20,7 +20,9 @@ import akka.Done
 import akka.actor.{ ActorRef, ActorSystem }
 import akka.http.scaladsl.Http.ServerBinding
 import akka.http.scaladsl.server.{ HttpApp, Route }
+import akka.http.scaladsl.settings.ServerSettings
 import akka.testkit.{ ImplicitSender, TestKit }
+import com.typesafe.config.{ Config, ConfigFactory }
 import eu.hbp.mip.woken.backends.chronos.ChronosService.Error
 import eu.hbp.mip.woken.core.{ Core, CoreActors }
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
@@ -42,11 +44,16 @@ class ChronosServiceTest
 
   import system.dispatcher
 
+  override protected lazy val config: Config = ConfigFactory.load("test.conf")
+
   class MockChronosServer extends HttpApp {
     val shutdownPromise: Promise[Done]         = Promise[Done]()
     val bindingPromise: Promise[ServerBinding] = Promise[ServerBinding]()
 
     def shutdownServer(): Unit = shutdownPromise.success(Done)
+
+    override def startServer(host: String, port: Int): Unit =
+      startServer(host, port, ServerSettings(config))
 
     override protected def postHttpBinding(binding: ServerBinding): Unit = {
       super.postHttpBinding(binding)
@@ -115,7 +122,7 @@ class ChronosServiceTest
       chronosHttp ! ChronosService.Schedule(job, self)
 
       within(40 seconds) {
-        val msg = expectMsgType[Error](5 seconds)
+        val msg = expectMsgType[Error](10 seconds)
         println(msg)
       }
     }

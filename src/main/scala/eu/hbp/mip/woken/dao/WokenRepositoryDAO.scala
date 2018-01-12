@@ -21,11 +21,11 @@ import java.time.{ OffsetDateTime, ZoneOffset }
 import doobie._
 import doobie.implicits._
 import cats._
+import com.typesafe.scalalogging.LazyLogging
 import eu.hbp.mip.woken.core.model.Shapes.{ error => errorShape, _ }
 import eu.hbp.mip.woken.core.model._
 import eu.hbp.mip.woken.json.yaml
 import eu.hbp.mip.woken.json.yaml.Yaml
-import org.slf4j.LoggerFactory
 import spray.json._
 
 import scala.language.higherKinds
@@ -40,9 +40,9 @@ class WokenRepositoryDAO[F[_]: Monad](val xa: Transactor[F]) extends WokenReposi
 /**
   * Interpreter based on Doobie that provides the operations of the algebra
   */
-class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F]) extends JobResultRepository[F] {
-
-  private val logger = LoggerFactory.getLogger("JobResultRepositoryDAO")
+class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
+    extends JobResultRepository[F]
+    with LazyLogging {
 
   private implicit val DateTimeMeta: Meta[OffsetDateTime] =
     Meta[java.sql.Timestamp].xmap(ts => OffsetDateTime.of(ts.toLocalDateTime, ZoneOffset.UTC),

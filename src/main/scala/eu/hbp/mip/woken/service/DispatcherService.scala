@@ -20,12 +20,12 @@ import akka.NotUsed
 import akka.http.scaladsl.model.Uri
 import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.Source
-import org.slf4j.LoggerFactory
 import eu.hbp.mip.woken.config.{ Dataset, RemoteLocation }
 import eu.hbp.mip.woken.fp.Traverse
 import eu.hbp.mip.woken.messages.external.{ DatasetId, QueryResult }
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import cats.implicits.catsStdInstancesForOption
+import com.typesafe.scalalogging.Logger
 import eu.hbp.mip.woken.backends.woken.WokenService
 
 class DispatcherService(datasets: Map[DatasetId, Dataset], wokenService: WokenService) {
@@ -57,7 +57,7 @@ class DispatcherService(datasets: Map[DatasetId, Dataset], wokenService: WokenSe
 
 object DispatcherService {
 
-  private val logger = LoggerFactory.getLogger("DispatcherService")
+  private val logger = Logger("DispatcherService")
 
   private[service] def loadDatasets(
       datasets: Validation[Map[DatasetId, Dataset]]

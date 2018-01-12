@@ -41,8 +41,9 @@ import eu.hbp.mip.woken.service.{
 }
 import eu.hbp.mip.woken.ssl.WokenSSLConfiguration
 import akka.stream.ActorMaterializer
+import cats.data.NonEmptyList
+import com.typesafe.scalalogging.LazyLogging
 import eu.hbp.mip.woken.backends.woken.WokenService
-import org.slf4j.LoggerFactory
 
 import scala.concurrent.{ ExecutionContextExecutor, Future }
 import scala.language.postfixOps
@@ -58,13 +59,12 @@ trait BootedCore
     with CoreActors
     with Api
     with StaticResources
-    with WokenSSLConfiguration {
-
-  private val logger = LoggerFactory.getLogger("BootedCore")
+    with WokenSSLConfiguration
+    with LazyLogging {
 
   override lazy val appConfig: AppConfiguration = AppConfiguration
     .read(config)
-    .getOrElse(throw new IllegalStateException("Invalid configuration"))
+    .valueOr(configurationFailed)
 
   logger.info(s"Starting actor system ${appConfig.clusterSystemName}")
 
@@ -78,11 +78,11 @@ trait BootedCore
 
   private lazy val resultsDbConfig = DatabaseConfiguration
     .factory(config)("woken")
-    .getOrElse(throw new IllegalStateException("Invalid configuration"))
+    .valueOr(configurationFailed)
 
   private lazy val featuresDbConnection = DatabaseConfiguration
     .factory(config)(jobsConf.featuresDb)
-    .getOrElse(throw new IllegalStateException("Invalid configuration"))
+    .valueOr(configurationFailed)
 
   override lazy val featuresDAL = FeaturesDAL(featuresDbConnection)
 
@@ -97,7 +97,7 @@ trait BootedCore
 
   private lazy val metaDbConfig = DatabaseConfiguration
     .factory(config)(jobsConf.metaDb)
-    .getOrElse(throw new IllegalStateException("Invalid configuration"))
+    .valueOr(configurationFailed)
 
   private lazy val vmsIO: IO[VariablesMetaService] = for {
     xa <- DatabaseConfiguration.dbTransactor(metaDbConfig)

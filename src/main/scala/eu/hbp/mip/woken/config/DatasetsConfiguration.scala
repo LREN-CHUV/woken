@@ -106,7 +106,6 @@ object DatasetsConfiguration {
   def datasets(config: Config): Validation[Map[DatasetId, Dataset]] = {
     val datasetFactory = factory(config)
     datasetNames(config).andThen { names: Set[String] =>
-      println(s"datasetNames: $names")
       val m: List[Validation[(DatasetId, Dataset)]] =
         names.toList.map(n => lift(DatasetId(n)) -> datasetFactory(n)).map(_.tupled)
       val t: Validation[List[(DatasetId, Dataset)]] = Traverse.sequence(m)

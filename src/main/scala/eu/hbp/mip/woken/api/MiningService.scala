@@ -30,7 +30,7 @@ import eu.hbp.mip.woken.messages.external._
 import eu.hbp.mip.woken.dao.FeaturesDAL
 import eu.hbp.mip.woken.service.AlgorithmLibraryService
 import akka.util.Timeout
-import org.slf4j.LoggerFactory
+import com.typesafe.scalalogging.LazyLogging
 import spray.json.DefaultJsonProtocol
 
 import scala.concurrent.duration._
@@ -52,14 +52,13 @@ class MiningService(
     with SprayJsonSupport
     with PredefinedToResponseMarshallers
     with BasicAuthentication
-    with WebsocketSupport {
+    with WebsocketSupport
+    with LazyLogging {
 
   implicit val executionContext: ExecutionContext = system.dispatcher
   implicit val timeout: Timeout                   = Timeout(180.seconds)
 
   val routes: Route = mining ~ experiment ~ listMethods
-
-  private[this] val logger = LoggerFactory.getLogger(getClass)
 
   import spray.json._
   import ExternalAPIProtocol._

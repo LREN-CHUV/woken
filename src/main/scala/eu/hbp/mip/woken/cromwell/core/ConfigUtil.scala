@@ -51,7 +51,7 @@ import java.net.URL
 import cats.data.ValidatedNel
 import cats.syntax.validated._
 import com.typesafe.config.{ Config, ConfigException }
-import org.slf4j.LoggerFactory
+import com.typesafe.scalalogging.Logger
 
 import scala.collection.JavaConversions._
 import scala.reflect.{ ClassTag, classTag }
@@ -60,7 +60,7 @@ object ConfigUtil {
 
   type Validation[A] = ValidatedNel[String, A]
 
-  private val validationLogger = LoggerFactory.getLogger("ConfigurationValidation")
+  private val validationLogger = Logger("ConfigurationValidation")
 
   def lift[A](v: A): Validation[A] = v.validNel[String]
 

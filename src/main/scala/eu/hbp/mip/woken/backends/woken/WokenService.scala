@@ -36,11 +36,13 @@ import cats.data._
 import cats.implicits._
 import spray.json._
 import ExternalAPIProtocol._
+import com.typesafe.scalalogging.LazyLogging
 
 case class WokenService(node: String)(implicit val system: ActorSystem,
                                       implicit val materializer: ActorMaterializer)
     extends DefaultJsonProtocol
-    with SprayJsonSupport {
+    with SprayJsonSupport
+    with LazyLogging {
 
   implicit private val ec: ExecutionContext = system.dispatcher
 
@@ -58,7 +60,10 @@ case class WokenService(node: String)(implicit val system: ActorSystem,
 
   def httpQueryFlow: Flow[RemoteLocation, (RemoteLocation, QueryResult), NotUsed] =
     Flow[RemoteLocation]
-      .map(location => HttpClient.sendReceive(Get(location)).map((location, _)))
+      .map { location =>
+        logger.info(s"Send Get request to ${location.url}")
+        HttpClient.sendReceive(Get(location)).map((location, _))
+      }
       .mapAsync(100)(identity)
       .mapAsync(1) {
         case (url, response) if response.status.isSuccess() =>

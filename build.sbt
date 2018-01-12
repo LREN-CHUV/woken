@@ -38,6 +38,7 @@ lazy val `woken` =
           library.hadrian,
           library.wokenMessages,
           //library.scalaCache,
+          library.scalaLogging,
           library.scalaCheck   % Test,
           library.scalaTest    % Test,
           library.akkaTestkit  % Test
@@ -74,6 +75,7 @@ lazy val library =
       val hadrian         = "0.8.5"
       val wokenMessages   = "2.1.10"
       val scalaCache      = "0.21.0"
+      val scalaLogging    = "3.7.2"
     }
     val scalaCheck: ModuleID   = "org.scalacheck"    %% "scalacheck"   % Version.scalaCheck
     val scalaTest: ModuleID    = "org.scalatest"     %% "scalatest"    % Version.scalaTest
@@ -104,6 +106,7 @@ lazy val library =
     val yaml: ModuleID         = "org.yaml"           % "snakeyaml"    % Version.snakeyaml
     val hadrian: ModuleID      = "com.opendatagroup" %  "hadrian"      % Version.hadrian
     val scalaCache: ModuleID   = "com.github.cb372"  %% "scalacache-core" % Version.scalaCache
+    val scalaLogging: ModuleID = "com.typesafe.scala-logging" %% "scala-logging" % Version.scalaLogging
     val wokenMessages: ModuleID = "eu.humanbrainproject.mip" %% "woken-messages" % Version.wokenMessages
   }
 

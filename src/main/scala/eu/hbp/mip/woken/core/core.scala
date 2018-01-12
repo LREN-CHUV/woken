@@ -19,6 +19,7 @@ package eu.hbp.mip.woken.core
 import akka.actor.{ ActorRef, ActorSystem }
 import akka.pattern.{ Backoff, BackoffSupervisor }
 import akka.stream._
+import cats.data.NonEmptyList
 import com.typesafe.config.{ Config, ConfigFactory }
 import eu.hbp.mip.woken.backends.chronos.ChronosThrottler
 import eu.hbp.mip.woken.config.JobsConfiguration
@@ -48,10 +49,13 @@ trait Core {
 trait CoreActors {
   this: Core =>
 
+  protected def configurationFailed[B](e: NonEmptyList[String]): B =
+    throw new IllegalStateException(s"Invalid configuration: ${e.toList.mkString(", ")}")
+
   protected lazy val config: Config = ConfigFactory.load()
   protected lazy val jobsConf: JobsConfiguration = JobsConfiguration
     .read(config)
-    .getOrElse(throw new IllegalStateException("Invalid configuration"))
+    .valueOr(configurationFailed)
 
   private implicit val materializer: ActorMaterializer = ActorMaterializer()
 
