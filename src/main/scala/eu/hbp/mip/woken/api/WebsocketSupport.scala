@@ -22,19 +22,16 @@ import akka.http.scaladsl.model.ws.TextMessage
 import akka.http.scaladsl.model.ws.Message
 import akka.stream.scaladsl.Flow
 import akka.util.Timeout
-import eu.hbp.mip.woken.config.{ AppConfiguration, JobsConfiguration }
+import eu.hbp.mip.woken.config.{AppConfiguration, JobsConfiguration}
 import eu.hbp.mip.woken.dao.FeaturesDAL
 import eu.hbp.mip.woken.service.AlgorithmLibraryService
-import eu.hbp.mip.woken.messages.external.{
-  ExperimentQuery,
-  ExternalAPIProtocol,
-  MiningQuery,
-  QueryResult
-}
-import scala.concurrent.{ ExecutionContext, Future }
+import eu.hbp.mip.woken.messages.external.{ExperimentQuery, ExternalAPIProtocol, MiningQuery, QueryResult}
 
+import scala.concurrent.{ExecutionContext, Future}
 import spray.json._
 import ExternalAPIProtocol._
+import akka.stream.{ActorAttributes, Supervision}
+import org.slf4j.LoggerFactory
 
 trait WebsocketSupport {
 
@@ -44,6 +41,17 @@ trait WebsocketSupport {
   val jobsConf: JobsConfiguration
   implicit val timeout: Timeout
   implicit val executionContext: ExecutionContext
+
+  private[this] val logger = LoggerFactory.getLogger(getClass)
+
+  private val decider: Supervision.Decider = {
+    case err: RuntimeException =>
+      logger.error(err.getMessage)
+      Supervision.Resume
+    case _ =>
+      logger.error("Unknown error. Stopping the stream. ")
+      Supervision.Stop
+  }
 
   def listMethodsFlow: Flow[Message, Message, Any] =
     Flow[Message]
@@ -74,7 +82,7 @@ trait WebsocketSupport {
         case tm: TextMessage =>
           val jsonEncodeStringMsg = tm.getStrictText
           jsonEncodeStringMsg.parseJson.convertTo[MiningQuery]
-      }
+      }.withAttributes(ActorAttributes.supervisionStrategy(decider))
       .mapAsync(1) { minQuery: MiningQuery =>
         if (minQuery.algorithm.code.isEmpty || minQuery.algorithm.code == "data") {
           Future.successful(featuresDatabase.queryData(jobsConf.featuresTable, {
