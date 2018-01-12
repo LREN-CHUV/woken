@@ -46,12 +46,12 @@ trait Api extends CoreActors with Core {
       jobsConf
     )
 
-  val routes: Route = SwaggerService.routes ~ miningService.routes
-  pathPrefix("health") {
-    get {
-      complete("OK")
+  val routes: Route = SwaggerService.routes ~ miningService.routes ~
+    pathPrefix("health") {
+      get {
+        complete("OK")
+      }
     }
-  }
 
 }
 

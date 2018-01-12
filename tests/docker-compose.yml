@@ -341,7 +341,6 @@ services:
       CLUSTER_IP: wokennode1
       CLUSTER_NAME: woken-node1
       WOKEN_PORT_8088_TCP_ADDR: wokennode1
-      WOKEN_PORT_8088_TCP_PORT: 18088
     links:
       - zipkin
     depends_on:
@@ -386,7 +385,6 @@ services:
       CLUSTER_IP: wokennode2
       CLUSTER_NAME: woken-node2
       WOKEN_PORT_8088_TCP_ADDR: wokennode2
-      WOKEN_PORT_8088_TCP_PORT: 28088
     links:
       - zipkin
     depends_on:
