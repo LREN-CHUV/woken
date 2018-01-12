@@ -50,7 +50,7 @@ class DispatcherService(datasets: Map[DatasetId, Dataset], wokenService: WokenSe
       .map(q => dispatchTo(datasets)._1.map(ds => ds -> q))
       .mapConcat(identity)
       .buffer(100, OverflowStrategy.backpressure)
-      .map { case (l, q) => l.copy(url = l.url.withPath(l.url.path + "/mining/job")) -> q }
+      .map { case (l, q) => l.copy(url = l.url.withPath(l.url.path / "mining" / "job")) -> q }
       .via(wokenService.queryFlow)
 
   def localDispatchFlow(datasets: Set[DatasetId]): Source[QueryResult, NotUsed] = ???
