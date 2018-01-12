@@ -21,22 +21,21 @@ import java.time.OffsetDateTime
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
-import akka.http.scaladsl.model.headers.{ Authorization, BasicHttpCredentials }
-import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Flow
 import eu.hbp.mip.woken.backends.HttpClient
 import eu.hbp.mip.woken.config.RemoteLocation
 import eu.hbp.mip.woken.core.model.Shapes
-import eu.hbp.mip.woken.messages.external.{ ExternalAPIProtocol, QueryResult }
+import eu.hbp.mip.woken.messages.external._
 
 import scala.concurrent.{ ExecutionContext, Future }
+import com.typesafe.scalalogging.LazyLogging
 import cats.data._
 import cats.implicits._
 import spray.json._
 import ExternalAPIProtocol._
-import com.typesafe.scalalogging.LazyLogging
+import HttpClient._
 
 case class WokenService(node: String)(implicit val system: ActorSystem,
                                       implicit val materializer: ActorMaterializer)
@@ -52,17 +51,21 @@ case class WokenService(node: String)(implicit val system: ActorSystem,
   // val reqFlow = Flow[String] map pathToRequest
   // see https://stackoverflow.com/questions/37659421/what-is-the-best-way-to-combine-akka-http-flow-in-a-scala-stream-flow?rq=1
 
-  def queryFlow: Flow[RemoteLocation, (RemoteLocation, QueryResult), NotUsed] =
+  def queryFlow: Flow[(RemoteLocation, Query), (RemoteLocation, QueryResult), NotUsed] =
     httpQueryFlow
   // TODO: case remoteLocation.url startsWith "http" => httpQueryFlow
   // TODO: case remoteLocation.url startsWith "ws" => webserviceQueryFlow
   // TODO: case remoteLocation.url startsWith "akka" => actorQueryFlow
 
-  def httpQueryFlow: Flow[RemoteLocation, (RemoteLocation, QueryResult), NotUsed] =
-    Flow[RemoteLocation]
-      .map { location =>
-        logger.info(s"Send Get request to ${location.url}")
-        HttpClient.sendReceive(Get(location)).map((location, _))
+  def httpQueryFlow: Flow[(RemoteLocation, Query), (RemoteLocation, QueryResult), NotUsed] =
+    Flow[(RemoteLocation, Query)]
+      .map {
+        case (location, query: MiningQuery) =>
+          logger.info(s"Send Post request to ${location.url}")
+          Post(location, query).map((location, _))
+        case (location, query: ExperimentQuery) =>
+          logger.info(s"Send Post request to ${location.url}")
+          Post(location, query).map((location, _))
       }
       .mapAsync(100)(identity)
       .mapAsync(1) {
@@ -78,10 +81,6 @@ case class WokenService(node: String)(implicit val system: ActorSystem,
                        None,
                        Some(response.entity.toString))).pure[Future]
       }
-
-  private def Get(location: RemoteLocation): HttpRequest =
-    location.credentials.foldLeft(HttpClient.Get(location.url))(
-      (get, creds) => get.addHeader(Authorization(BasicHttpCredentials(creds.user, creds.password)))
-    )
+      .map(identity)
 
 }

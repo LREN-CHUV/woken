@@ -19,11 +19,11 @@ package eu.hbp.mip.woken.backends.chronos
 import akka.Done
 import akka.actor.{ ActorRef, ActorSystem }
 import akka.http.scaladsl.Http.ServerBinding
-import akka.http.scaladsl.server.{ HttpApp, Route }
+import akka.http.scaladsl.server.{ Directives, HttpApp, Route }
 import akka.http.scaladsl.settings.ServerSettings
 import akka.testkit.{ ImplicitSender, TestKit }
 import com.typesafe.config.{ Config, ConfigFactory }
-import eu.hbp.mip.woken.backends.chronos.ChronosService.Error
+import eu.hbp.mip.woken.backends.chronos.ChronosService.Ok
 import eu.hbp.mip.woken.core.{ Core, CoreActors }
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import eu.hbp.mip.woken.backends.chronos.{ EnvironmentVariable => EV, Parameter => P }
@@ -32,6 +32,9 @@ import eu.hbp.mip.woken.util.FakeActors
 import scala.concurrent.{ Await, ExecutionContext, Future, Promise }
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import ChronosJob._
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
+import spray.json.DefaultJsonProtocol
 
 class ChronosServiceTest
     extends TestKit(ActorSystem("ChronosServiceSpec"))
@@ -40,13 +43,15 @@ class ChronosServiceTest
     with Matchers
     with BeforeAndAfterAll
     with Core
-    with CoreActors {
+    with CoreActors
+    with DefaultJsonProtocol
+    with SprayJsonSupport {
 
   import system.dispatcher
 
   override protected lazy val config: Config = ConfigFactory.load("test.conf")
 
-  class MockChronosServer extends HttpApp {
+  class MockChronosServer extends HttpApp with Directives {
     val shutdownPromise: Promise[Done]         = Promise[Done]()
     val bindingPromise: Promise[ServerBinding] = Promise[ServerBinding]()
 
@@ -65,9 +70,12 @@ class ChronosServiceTest
     )(implicit ec: ExecutionContext): Future[Done] =
       shutdownPromise.future
 
-    override protected def routes: Route = pathPrefix("/v1/scheduler/iso8601") {
+    override protected def routes: Route = pathPrefix("v1" / "scheduler" / "iso8601") {
       post {
-        complete(200 -> "")
+        entity(as[ChronosJob]) { job =>
+          job.name shouldBe "hbpmip_somealgo_1"
+          complete(200 -> "")
+        }
       }
     }
   }
@@ -122,7 +130,7 @@ class ChronosServiceTest
       chronosHttp ! ChronosService.Schedule(job, self)
 
       within(40 seconds) {
-        val msg = expectMsgType[Error](10 seconds)
+        val msg = expectMsgType[Ok.type](10 seconds)
         println(msg)
       }
     }

@@ -23,7 +23,6 @@ import akka.util.Timeout
 //import com.github.levkhomich.akka.tracing.ActorTracing
 import eu.hbp.mip.woken.backends.HttpClient
 import eu.hbp.mip.woken.config.JobsConfiguration
-import spray.json.PrettyPrinter
 
 import scala.concurrent.duration._
 import scala.concurrent.{ ExecutionContextExecutor, Future }
@@ -82,10 +81,11 @@ class ChronosService(jobsConfig: JobsConfiguration)
       implicit val timeout: Timeout                           = Timeout(30.seconds)
       implicit val actorSystem: ActorSystem                   = context.system
 
-      log.info(s"Send job to Chronos: ${chronosJobFormat.write(job).prettyPrint}")
+      log.debug(s"Send job to Chronos: ${chronosJobFormat.write(job).prettyPrint}")
 
       val originalSender             = originator
-      val url                        = jobsConfig.chronosServerUrl + "/v1/scheduler/iso8601"
+      val chronosUrl                 = Uri(jobsConfig.chronosServerUrl)
+      val url                        = chronosUrl.withPath(chronosUrl.path + "/v1/scheduler/iso8601")
       val chronosResponse: Future[_] = HttpClient.Post(url, job)
 
       chronosResponse
@@ -93,7 +93,10 @@ class ChronosService(jobsConfig: JobsConfiguration)
 
           case HttpResponse(statusCode: StatusCode, _, entity, _) =>
             statusCode match {
-              case _: StatusCodes.Success => Ok
+              case _: StatusCodes.Success => {
+                log.debug("Chronos says success")
+                Ok
+              }
               case _ =>
                 log.warning(
                   s"Post schedule to Chronos on $url returned error $statusCode: $entity"

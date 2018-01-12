@@ -21,11 +21,13 @@ import java.time.OffsetDateTime
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props, Terminated }
 import akka.routing.FromConfig
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.Sink
+import akka.stream.scaladsl.{ Sink, Source }
 import eu.hbp.mip.woken.core.model.Shapes
 import eu.hbp.mip.woken.messages.external._
 import eu.hbp.mip.woken.core.{ CoordinatorActor, CoordinatorConfig, ExperimentActor }
 import eu.hbp.mip.woken.service.DispatcherService
+
+import scala.concurrent.ExecutionContext
 //import com.github.levkhomich.akka.tracing.ActorTracing
 import eu.hbp.mip.woken.api.MasterRouter.QueuesSize
 import eu.hbp.mip.woken.backends.DockerJob
@@ -80,6 +82,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
   import MasterRouter.RequestQueuesSize
 
   implicit val materializer: ActorMaterializer = ActorMaterializer()
+  implicit val ec: ExecutionContext            = context.dispatcher
 
   lazy val validationWorker: ActorRef = initValidationWorker
   lazy val scoringWorker: ActorRef    = initScoringWorker
@@ -130,8 +133,11 @@ case class MasterRouter(appConfiguration: AppConfiguration,
               miningActorRef ! StartCoordinatorJob(job)
               miningJobsInFlight += job -> (initiator -> miningActorRef)
             } else {
-              dispatcherService
-                .remoteDispatchFlow(datasets, "mining/job")
+              log.info("Dispatch mining query to remote workers...")
+
+              Source
+                .single(query)
+                .via(dispatcherService.remoteDispatchMiningFlow(datasets))
                 .fold(List[QueryResult]()) {
                   _ :+ _._2
                 }
@@ -153,6 +159,13 @@ case class MasterRouter(appConfiguration: AppConfiguration,
                   queryResult
                 }
                 .runWith(Sink.last)
+                .onFailure {
+                  case e =>
+                    log.error(e, s"Cannot complete mining query $query")
+                    val error =
+                      ErrorJobResult("", "", OffsetDateTime.now(), "experiment", e.toString)
+                    initiator ! error.asQueryResult
+                }
             }
           }
         )

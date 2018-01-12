@@ -17,12 +17,11 @@
 package eu.hbp.mip.woken.service
 
 import akka.NotUsed
-import akka.http.scaladsl.model.Uri
 import akka.stream.OverflowStrategy
-import akka.stream.scaladsl.Source
+import akka.stream.scaladsl.{ Flow, Source }
 import eu.hbp.mip.woken.config.{ Dataset, RemoteLocation }
 import eu.hbp.mip.woken.fp.Traverse
-import eu.hbp.mip.woken.messages.external.{ DatasetId, QueryResult }
+import eu.hbp.mip.woken.messages.external.{ DatasetId, MiningQuery, QueryResult }
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import cats.implicits.catsStdInstancesForOption
 import com.typesafe.scalalogging.Logger
@@ -44,11 +43,14 @@ class DispatcherService(datasets: Map[DatasetId, Dataset], wokenService: WokenSe
     (maybeSet.getOrElse(Set.empty), local)
   }
 
-  def remoteDispatchFlow(datasets: Set[DatasetId],
-                         servicePath: String): Source[(RemoteLocation, QueryResult), NotUsed] =
-    Source(dispatchTo(datasets)._1)
+  def remoteDispatchMiningFlow(
+      datasets: Set[DatasetId]
+  ): Flow[MiningQuery, (RemoteLocation, QueryResult), NotUsed] =
+    Flow[MiningQuery]
+      .map(q => dispatchTo(datasets)._1.map(ds => ds -> q))
+      .mapConcat(identity)
       .buffer(100, OverflowStrategy.backpressure)
-      .map(l => l.copy(url = l.url.copy(path = Uri.Path(servicePath))))
+      .map { case (l, q) => l.copy(url = l.url.withPath(l.url.path + "/mining/job")) -> q }
       .via(wokenService.queryFlow)
 
   def localDispatchFlow(datasets: Set[DatasetId]): Source[QueryResult, NotUsed] = ???

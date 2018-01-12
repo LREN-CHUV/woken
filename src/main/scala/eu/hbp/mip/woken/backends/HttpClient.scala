@@ -21,11 +21,14 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers.Host
+import akka.http.scaladsl.model.headers.{ Authorization, BasicHttpCredentials, Host }
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
-import eu.hbp.mip.woken.backends.chronos.{ ChronosJob, ChronosJobLiveliness }
 import spray.json.DefaultJsonProtocol
+import eu.hbp.mip.woken.backends.chronos.{ ChronosJob, ChronosJobLiveliness }
+import eu.hbp.mip.woken.config.RemoteLocation
+import eu.hbp.mip.woken.messages.external.{ ExperimentQuery, MiningQuery, QueryResult }
+import eu.hbp.mip.woken.messages.external.ExternalAPIProtocol._
 
 import scala.concurrent.{ ExecutionContextExecutor, Future }
 
@@ -47,18 +50,46 @@ object HttpClient extends DefaultJsonProtocol with SprayJsonSupport {
       uri = url
     ).addHeader(Host(url.authority.host.address(), url.authority.port))
 
-  def Post(url: String, job: ChronosJob)(implicit actorSystem: ActorSystem): Future[HttpResponse] = {
+  def Post(url: Uri, job: ChronosJob)(implicit actorSystem: ActorSystem): Future[HttpResponse] = {
     import ChronosJob._
     implicit val executionContext: ExecutionContextExecutor = actorSystem.dispatcher
     Marshal(job).to[RequestEntity].flatMap { entity =>
-      sendReceive(
-        HttpRequest(
-          method = HttpMethods.POST,
-          uri = url,
-          entity = entity
-        )
-      )
+      Post(RemoteLocation(url, None), entity)
     }
+  }
+
+  def Post(location: RemoteLocation,
+           query: MiningQuery)(implicit actorSystem: ActorSystem): Future[HttpResponse] = {
+    implicit val executionContext: ExecutionContextExecutor = actorSystem.dispatcher
+    Marshal(query).to[RequestEntity].flatMap { entity =>
+      Post(location, entity)
+    }
+  }
+
+  def Post(location: RemoteLocation,
+           query: ExperimentQuery)(implicit actorSystem: ActorSystem): Future[HttpResponse] = {
+    implicit val executionContext: ExecutionContextExecutor = actorSystem.dispatcher
+    Marshal(query).to[RequestEntity].flatMap { entity =>
+      Post(location, entity)
+    }
+  }
+
+  private def Post(location: RemoteLocation, entity: RequestEntity)(
+      implicit actorSystem: ActorSystem
+  ): Future[HttpResponse] = {
+    val url = location.url
+
+    val request = HttpRequest(
+      method = HttpMethods.POST,
+      uri = url,
+      entity = entity
+    ).addHeader(Host(url.authority.host.address(), url.authority.port))
+    val requestWithAuth = location.credentials.foldLeft(request)(
+      (r, creds) => r.addHeader(Authorization(BasicHttpCredentials(creds.user, creds.password)))
+    )
+
+    println(s"Post: $requestWithAuth")
+    sendReceive(requestWithAuth)
   }
 
   def unmarshalChronosResponse(
@@ -69,4 +100,10 @@ object HttpClient extends DefaultJsonProtocol with SprayJsonSupport {
     Unmarshal(entity).to[List[ChronosJobLiveliness]]
   }
 
+  def unmarshalQueryResult(
+      entity: HttpEntity
+  )(implicit actorSystem: ActorSystem): Future[QueryResult] = {
+    implicit val materializer: ActorMaterializer = ActorMaterializer()
+    Unmarshal(entity).to[QueryResult]
+  }
 }

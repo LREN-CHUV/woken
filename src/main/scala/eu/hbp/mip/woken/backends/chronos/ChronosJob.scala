@@ -110,10 +110,6 @@ case class EnvironmentVariable(
     value: String
 )
 
-case class Uri(
-    uri: String
-)
-
 /**
   * A job to submit to Chronos via its REST API.
   *
@@ -206,7 +202,6 @@ object ChronosJob extends DefaultJsonProtocol {
   implicit val environmentVariableFormat: RootJsonFormat[EnvironmentVariable] = jsonFormat2(
     EnvironmentVariable.apply
   )
-  implicit val uriFormat: RootJsonFormat[Uri]               = jsonFormat1(Uri.apply)
   implicit val chronosJobFormat: RootJsonFormat[ChronosJob] = jsonFormat20(ChronosJob.apply)
 
 }
