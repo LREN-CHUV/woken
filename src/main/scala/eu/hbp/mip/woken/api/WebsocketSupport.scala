@@ -22,15 +22,20 @@ import akka.http.scaladsl.model.ws.TextMessage
 import akka.http.scaladsl.model.ws.Message
 import akka.stream.scaladsl.Flow
 import akka.util.Timeout
-import eu.hbp.mip.woken.config.{AppConfiguration, JobsConfiguration}
+import eu.hbp.mip.woken.config.{ AppConfiguration, JobsConfiguration }
 import eu.hbp.mip.woken.dao.FeaturesDAL
 import eu.hbp.mip.woken.service.AlgorithmLibraryService
-import eu.hbp.mip.woken.messages.external.{ExperimentQuery, ExternalAPIProtocol, MiningQuery, QueryResult}
+import eu.hbp.mip.woken.messages.external.{
+  ExperimentQuery,
+  ExternalAPIProtocol,
+  MiningQuery,
+  QueryResult
+}
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 import spray.json._
 import ExternalAPIProtocol._
-import akka.stream.{ActorAttributes, Supervision}
+import akka.stream.{ ActorAttributes, Supervision }
 import org.slf4j.LoggerFactory
 
 trait WebsocketSupport {
@@ -82,7 +87,8 @@ trait WebsocketSupport {
         case tm: TextMessage =>
           val jsonEncodeStringMsg = tm.getStrictText
           jsonEncodeStringMsg.parseJson.convertTo[MiningQuery]
-      }.withAttributes(ActorAttributes.supervisionStrategy(decider))
+      }
+      .withAttributes(ActorAttributes.supervisionStrategy(decider))
       .mapAsync(1) { minQuery: MiningQuery =>
         if (minQuery.algorithm.code.isEmpty || minQuery.algorithm.code == "data") {
           Future.successful(featuresDatabase.queryData(jobsConf.featuresTable, {

@@ -17,8 +17,8 @@
 package eu.hbp.mip.woken.backends
 
 import eu.hbp.mip.woken.core.model.Queries._
-import eu.hbp.mip.woken.messages.external.MiningQuery
-import spray.json.JsObject
+import eu.hbp.mip.woken.messages.external._
+import spray.json.{ DefaultJsonProtocol, JsObject, RootJsonFormat }
 
 /**
   * Definition of a computation using an algorithm packaged as a Docker container.
@@ -58,5 +58,18 @@ case class DockerJob(
     parameters.map({ case (key, value) => ("MODEL_PARAM_" + key, value) }) ++
     parameters.map({ case (key, value) => ("PARAM_MODEL_" + key, value) })
   }
+
+}
+
+object DockerJob extends DefaultJsonProtocol {
+
+  implicit val formatCodeValue: RootJsonFormat[CodeValue]         = jsonFormat2(CodeValue.apply)
+  implicit val formatAlgorithmSpec: RootJsonFormat[AlgorithmSpec] = jsonFormat2(AlgorithmSpec.apply)
+  implicit val formatDataSetId: RootJsonFormat[DatasetId]         = jsonFormat1(DatasetId.apply)
+  implicit val formatVariableId: RootJsonFormat[VariableId]       = jsonFormat1(VariableId.apply)
+  implicit val formatUserId: RootJsonFormat[UserId]               = jsonFormat1(UserId.apply)
+  implicit val formatQueryOffset: RootJsonFormat[QueryOffset]     = jsonFormat2(QueryOffset.apply)
+  implicit val formatMinigQuery: RootJsonFormat[MiningQuery]      = jsonFormat7(MiningQuery.apply)
+  implicit val formatDockerJob: RootJsonFormat[DockerJob]         = jsonFormat7(DockerJob.apply)
 
 }
