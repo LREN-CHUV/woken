@@ -30,8 +30,7 @@ object AnonymisationLevel extends Enumeration {
   val Identifying, Depersonalised, Anonymised = Value
 }
 
-case class BasicAuthCredentials(user: String, password: String)
-case class RemoteLocation(url: Uri, credentials: Option[BasicAuthCredentials])
+case class RemoteLocation(url: Uri, credentials: Option[BasicAuthentication])
 case class Dataset(dataset: DatasetId,
                    description: String,
                    tables: List[String],
@@ -68,16 +67,16 @@ object DatasetsConfiguration {
         .validateConfig("location")
         .andThen { cl =>
           val url: Validation[Uri] = cl.validateString("url").map(Uri.apply)
-          val credentials: Validation[Option[BasicAuthCredentials]] = cl
+          val credentials: Validation[Option[BasicAuthentication]] = cl
             .validateConfig("basicAuth")
             .andThen { cc =>
               val user     = cc.validateString("user")
               val password = cc.validateString("password")
 
-              (user, password) mapN BasicAuthCredentials
+              (user, password) mapN BasicAuthentication
             }
             .map(_.some)
-            .orElse(lift(None.asInstanceOf[Option[BasicAuthCredentials]]))
+            .orElse(lift(None.asInstanceOf[Option[BasicAuthentication]]))
 
           (url, credentials) mapN RemoteLocation
         }

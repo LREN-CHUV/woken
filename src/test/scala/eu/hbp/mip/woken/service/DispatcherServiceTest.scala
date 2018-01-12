@@ -19,11 +19,11 @@ package eu.hbp.mip.woken.service
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.testkit.TestKit
-import com.typesafe.config.{ Config, ConfigFactory }
+import com.typesafe.config.{Config, ConfigFactory}
 import eu.hbp.mip.woken.backends.woken.WokenService
-import eu.hbp.mip.woken.config.{ BasicAuthCredentials, DatasetsConfiguration, RemoteLocation }
+import eu.hbp.mip.woken.config.{ BasicAuthentication, DatasetsConfiguration, RemoteLocation }
 import eu.hbp.mip.woken.messages.external.DatasetId
-import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 class DispatcherServiceTest
     extends TestKit(ActorSystem("DispatcherServiceSpec"))
@@ -52,8 +52,8 @@ class DispatcherServiceTest
 
       val expectedRemotes = Set(
         RemoteLocation("http://service.remote/1", None),
-        RemoteLocation("http://service.remote/2", Some(BasicAuthCredentials("woken", "wokenpwd"))),
-        RemoteLocation("wss://service.remote/3", Some(BasicAuthCredentials("woken", "wokenpwd")))
+        RemoteLocation("http://service.remote/2", Some(BasicAuthentication("woken", "wokenpwd"))),
+        RemoteLocation("wss://service.remote/3", Some(BasicAuthentication("woken", "wokenpwd")))
       )
 
       local shouldBe true

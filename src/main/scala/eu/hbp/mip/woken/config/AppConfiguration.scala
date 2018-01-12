@@ -21,7 +21,7 @@ import eu.hbp.mip.woken.cromwell.core.ConfigUtil._
 import cats.data.Validated._
 import cats.implicits._
 
-case class BasicAuthentication(username: String, password: String)
+case class BasicAuthentication(user: String, password: String)
 
 case class MasterRouterConfig(miningActorsLimit: Int, experimentActorsLimit: Int)
 
@@ -55,9 +55,9 @@ object AppConfiguration {
 
       val basicAuth: Validation[BasicAuthentication] = app.validateConfig("basicAuth").andThen {
         c =>
-          val username = c.validateString("username")
+          val user     = c.validateString("user")
           val password = c.validateString("password")
-          (username, password) mapN BasicAuthentication.apply
+          (user, password) mapN BasicAuthentication.apply
       }
 
       val masterRouterConfig: Validation[MasterRouterConfig] =
