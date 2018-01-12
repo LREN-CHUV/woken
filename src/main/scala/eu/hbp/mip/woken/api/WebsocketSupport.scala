@@ -17,7 +17,6 @@
 package eu.hbp.mip.woken.api
 
 import akka.actor.ActorRef
-import akka.cluster.client.ClusterClient
 import akka.pattern.ask
 import akka.http.scaladsl.model.ws.TextMessage
 import akka.http.scaladsl.model.ws.Message
@@ -39,11 +38,10 @@ import ExternalAPIProtocol._
 
 trait WebsocketSupport {
 
+  val masterRouter: ActorRef
   val featuresDatabase: FeaturesDAL
   val appConfiguration: AppConfiguration
   val jobsConf: JobsConfiguration
-  val cluster: ActorRef
-  val entryPoint: String
   implicit val timeout: Timeout
   implicit val executionContext: ExecutionContext
 
@@ -64,8 +62,7 @@ trait WebsocketSupport {
           jsonEncodedString.parseJson.convertTo[ExperimentQuery]
       }
       .mapAsync(1) { query =>
-        (cluster ? ClusterClient.Send(entryPoint, query, localAffinity = true))
-          .mapTo[QueryResult]
+        (masterRouter ? query).mapTo[QueryResult]
       }
       .map { result =>
         TextMessage(result.toJson.compactPrint)
@@ -84,8 +81,7 @@ trait WebsocketSupport {
             minQuery.variables ++ minQuery.covariables ++ minQuery.grouping
           }.distinct.map(_.code)))
         } else {
-          val result = (cluster ? ClusterClient.Send(entryPoint, minQuery, localAffinity = true))
-            .mapTo[QueryResult]
+          val result = (masterRouter ? minQuery).mapTo[QueryResult]
           result.map(_.toJson)
         }
       }

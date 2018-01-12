@@ -40,6 +40,7 @@ trait Api extends CoreActors with Core {
 
   lazy val miningService =
     new MiningService(
+      mainRouter,
       featuresDAL,
       appConfig,
       jobsConf

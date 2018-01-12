@@ -17,7 +17,6 @@
 package eu.hbp.mip.woken.api
 
 import akka.actor.{ ActorRef, ActorSystem }
-import akka.cluster.client.{ ClusterClient, ClusterClientSettings }
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.marshalling.PredefinedToResponseMarshallers
 import akka.pattern.ask
@@ -42,6 +41,7 @@ object MiningService
 
 // this trait defines our service behavior independently from the service actor
 class MiningService(
+    val masterRouter: ActorRef,
     val featuresDatabase: FeaturesDAL,
     override val appConfiguration: AppConfiguration,
     val jobsConf: JobsConfiguration
@@ -58,10 +58,6 @@ class MiningService(
   implicit val timeout: Timeout                   = Timeout(180.seconds)
 
   val routes: Route = mining ~ experiment ~ listMethods
-
-  val cluster: ActorRef =
-    system.actorOf(ClusterClient.props(ClusterClientSettings(system)), "client")
-  val entryPoint = "/user/entrypoint"
 
   private[this] val logger = LoggerFactory.getLogger(getClass)
 
@@ -122,7 +118,7 @@ class MiningService(
               case query: MiningQuery =>
                 ctx =>
                   ctx.complete {
-                    (cluster ? ClusterClient.Send(entryPoint, query, localAffinity = true))
+                    (masterRouter ? query)
                       .mapTo[QueryResult]
                       .map {
                         case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
@@ -151,7 +147,7 @@ class MiningService(
           post {
             entity(as[ExperimentQuery]) { query: ExperimentQuery =>
               complete {
-                (cluster ? ClusterClient.Send(entryPoint, query, localAffinity = true))
+                (masterRouter ? query)
                   .mapTo[QueryResult]
                   .map {
                     case qr if qr.error.nonEmpty => BadRequest -> qr.toJson

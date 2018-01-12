@@ -123,12 +123,12 @@ trait BootedCore
     DatabaseConfiguration.factory(config)
   )
 
-  val wokenService: WokenService = WokenService(coordinatorConfig.jobsConf.node)
+  private lazy val wokenService: WokenService = WokenService(coordinatorConfig.jobsConf.node)
 
-  val dispatcherService: DispatcherService =
+  private lazy val dispatcherService: DispatcherService =
     DispatcherService(DatasetsConfiguration.datasets(config), wokenService)
 
-  private val mainRouterSupervisorProps = BackoffSupervisor.props(
+  private lazy val mainRouterSupervisorProps = BackoffSupervisor.props(
     Backoff.onFailure(
       MasterRouter.props(appConfig,
                          coordinatorConfig,

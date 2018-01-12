@@ -40,6 +40,8 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.language.higherKinds
 
+// TODO: replace with Akka streams, similar example can be found at https://softwaremill.com/replacing-akka-actors-with-akka-streams/
+
 // TODO: featuresDatabase needed by CrossValidationActor, not by CoordinatorActor
 case class CoordinatorConfig(chronosService: ActorRef,
                              dockerBridgeNetwork: Option[String],

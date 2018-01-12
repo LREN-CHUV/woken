@@ -233,7 +233,7 @@ services:
       - db
 
   wokenvalidation:
-    image: hbpmip/woken-validation:2.1.4
+    image: hbpmip/woken-validation:2.1.5
     ports:
       - "8081:8081"
       - "8082:8082"
@@ -339,6 +339,7 @@ services:
     environment:
       CLUSTER_PORT: 8088
       CLUSTER_IP: wokennode1
+      CLUSTER_NAME: woken-node1
       WOKEN_PORT_8088_TCP_ADDR: wokennode1
       WOKEN_PORT_8088_TCP_PORT: 18088
     links:
@@ -348,13 +349,14 @@ services:
       - db
 
   wokenvalidationnode1:
-    image: hbpmip/woken-validation:2.1.4
+    image: hbpmip/woken-validation:2.1.5
     ports:
       - "18081:8081"
       - "18082:8082"
     environment:
       CLUSTER_PORT: 18082
       CLUSTER_IP: wokenvalidationnode1
+      CLUSTER_NAME: woken-node1
       WOKEN_PORT_8088_TCP_ADDR: wokennode1
       LOG_LEVEL: DEBUG
     links:
@@ -382,6 +384,7 @@ services:
     environment:
       CLUSTER_PORT: 8088
       CLUSTER_IP: wokennode2
+      CLUSTER_NAME: woken-node2
       WOKEN_PORT_8088_TCP_ADDR: wokennode2
       WOKEN_PORT_8088_TCP_PORT: 28088
     links:
@@ -391,13 +394,14 @@ services:
       - db
 
   wokenvalidationnode2:
-    image: hbpmip/woken-validation:2.1.4
+    image: hbpmip/woken-validation:2.1.5
     ports:
       - "28081:8081"
       - "28082:8082"
     environment:
       CLUSTER_PORT: 28082
       CLUSTER_IP: wokenvalidationnode2
+      CLUSTER_NAME: woken-node2
       WOKEN_PORT_8088_TCP_ADDR: wokennode2
       LOG_LEVEL: DEBUG
     links:
@@ -425,6 +429,7 @@ services:
     environment:
       CLUSTER_PORT: 8088
       CLUSTER_IP: wokencentral
+      CLUSTER_NAME: woken-central
       WOKEN_PORT_8088_TCP_ADDR: wokencentral
     links:
       - zipkin
