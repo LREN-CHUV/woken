@@ -17,34 +17,24 @@
 package eu.hbp.mip.woken.web
 
 import scala.concurrent.duration._
-import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem }
+import akka.actor.{ActorRef, ActorRefFactory, ActorSystem}
 import akka.util.Timeout
 import akka.cluster.Cluster
 import akka.cluster.client.ClusterClientReceptionist
 import akka.http.scaladsl.Http
-import akka.pattern.{ Backoff, BackoffSupervisor }
+import akka.pattern.{Backoff, BackoffSupervisor}
 import cats.effect.IO
-import eu.hbp.mip.woken.api.{ Api, MasterRouter }
-import eu.hbp.mip.woken.config.{
-  AlgorithmsConfiguration,
-  AppConfiguration,
-  DatabaseConfiguration,
-  DatasetsConfiguration
-}
-import eu.hbp.mip.woken.core.{ CoordinatorConfig, Core, CoreActors }
-import eu.hbp.mip.woken.dao.{ FeaturesDAL, MetadataRepositoryDAO, WokenRepositoryDAO }
-import eu.hbp.mip.woken.service.{
-  AlgorithmLibraryService,
-  DispatcherService,
-  JobResultService,
-  VariablesMetaService
-}
+import eu.hbp.mip.woken.api.{Api, MasterRouter}
+import eu.hbp.mip.woken.config.{AlgorithmsConfiguration, AppConfiguration, DatabaseConfiguration, DatasetsConfiguration}
+import eu.hbp.mip.woken.core.{CoordinatorConfig, Core, CoreActors}
+import eu.hbp.mip.woken.dao.{FeaturesDAL, MetadataRepositoryDAO, WokenRepositoryDAO}
+import eu.hbp.mip.woken.service.{AlgorithmLibraryService, DispatcherService, JobResultService, VariablesMetaService}
 import eu.hbp.mip.woken.ssl.WokenSSLConfiguration
-import akka.stream.ActorMaterializer
+import akka.stream.{ActorMaterializer, ActorMaterializerSettings, Supervision}
 import eu.hbp.mip.woken.backends.woken.WokenService
 import org.slf4j.LoggerFactory
 
-import scala.concurrent.{ ExecutionContextExecutor, Future }
+import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.language.postfixOps
 import scala.sys.ShutdownHookThread
 
@@ -54,7 +44,7 @@ import scala.sys.ShutdownHookThread
   */
 @SuppressWarnings(Array("org.wartremover.warts.Throw", "org.wartremover.warts.NonUnitStatements"))
 trait BootedCore
-    extends Core
+  extends Core
     with CoreActors
     with Api
     with StaticResources
@@ -71,9 +61,17 @@ trait BootedCore
   /**
     * Construct the ActorSystem we will use in our application
     */
-  override lazy implicit val system: ActorSystem          = ActorSystem(appConfig.clusterSystemName, config)
-  lazy val actorRefFactory: ActorRefFactory               = system
-  implicit val actorMaterializer: ActorMaterializer       = ActorMaterializer()
+  override lazy implicit val system: ActorSystem = ActorSystem(appConfig.clusterSystemName, config)
+  lazy val actorRefFactory: ActorRefFactory = system
+  val decider: Supervision.Decider = {
+    case err: RuntimeException =>
+      logger.error(err.getMessage)
+      Supervision.Resume
+    case _ =>
+      logger.error("Unknown error. Stopping the stream. ")
+      Supervision.Stop
+  }
+  implicit lazy val actorMaterializer: ActorMaterializer = ActorMaterializer(ActorMaterializerSettings(system).withSupervisionStrategy(decider))
   implicit val executionContext: ExecutionContextExecutor = system.dispatcher
 
   private lazy val resultsDbConfig = DatabaseConfiguration
@@ -88,7 +86,7 @@ trait BootedCore
 
   private lazy val jrsIO: IO[JobResultService] = for {
     xa <- DatabaseConfiguration.dbTransactor(resultsDbConfig)
-    _  <- DatabaseConfiguration.testConnection[IO](xa)
+    _ <- DatabaseConfiguration.testConnection[IO](xa)
     wokenDb = new WokenRepositoryDAO[IO](xa)
   } yield {
     JobResultService(wokenDb.jobResults)
@@ -101,7 +99,7 @@ trait BootedCore
 
   private lazy val vmsIO: IO[VariablesMetaService] = for {
     xa <- DatabaseConfiguration.dbTransactor(metaDbConfig)
-    _  <- DatabaseConfiguration.testConnection[IO](xa)
+    _ <- DatabaseConfiguration.testConnection[IO](xa)
     metaDb = new MetadataRepositoryDAO[IO](xa)
   } yield {
     VariablesMetaService(metaDb.variablesMeta)
@@ -131,11 +129,11 @@ trait BootedCore
   private lazy val mainRouterSupervisorProps = BackoffSupervisor.props(
     Backoff.onFailure(
       MasterRouter.props(appConfig,
-                         coordinatorConfig,
-                         variablesMetaService,
-                         dispatcherService,
-                         algorithmLibraryService,
-                         AlgorithmsConfiguration.factory(config)),
+        coordinatorConfig,
+        variablesMetaService,
+        dispatcherService,
+        algorithmLibraryService,
+        AlgorithmsConfiguration.factory(config)),
       childName = "mainRouter",
       minBackoff = 100 milliseconds,
       maxBackoff = 1 seconds,
@@ -157,9 +155,9 @@ trait BootedCore
 
   // start a new HTTP server on port 8080 with our service actor as the handler
   val binding: Future[Http.ServerBinding] = Http().bindAndHandle(routes,
-                                                                 interface =
-                                                                   appConfig.networkInterface,
-                                                                 port = appConfig.webServicesPort)
+    interface =
+      appConfig.networkInterface,
+    port = appConfig.webServicesPort)
 
   /**
     * Ensure that the constructed ActorSystem is shut down when the JVM shuts down
