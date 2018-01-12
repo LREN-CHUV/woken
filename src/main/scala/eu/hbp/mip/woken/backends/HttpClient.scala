@@ -24,10 +24,11 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.Host
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
-import eu.hbp.mip.woken.backends.chronos.{ ChronosJob, ChronosJobLiveliness }
+import eu.hbp.mip.woken.backends.chronos.{ChronosJob, ChronosJobLiveliness}
+import eu.hbp.mip.woken.messages.external.MiningQuery
 import spray.json.DefaultJsonProtocol
 
-import scala.concurrent.{ ExecutionContextExecutor, Future }
+import scala.concurrent.{ExecutionContextExecutor, Future}
 
 object HttpClient extends DefaultJsonProtocol with SprayJsonSupport {
 
@@ -47,17 +48,51 @@ object HttpClient extends DefaultJsonProtocol with SprayJsonSupport {
       uri = url
     ).addHeader(Host(url.authority.host.address(), url.authority.port))
 
-  def Post(url: String, job: ChronosJob)(implicit actorSystem: ActorSystem): Future[HttpResponse] = {
+  def Post(url: String, job: ChronosJob)(implicit actorSystem: ActorSystem): Future[HttpRequest] =
+    Post(Uri(url), job)
+
+  def Post(url: Uri, job: ChronosJob)(implicit actorSystem: ActorSystem): Future[HttpRequest] = {
     import ChronosJob._
     implicit val executionContext: ExecutionContextExecutor = actorSystem.dispatcher
-    Marshal(job).to[RequestEntity].flatMap { entity =>
-      sendReceive(
-        HttpRequest(
-          method = HttpMethods.POST,
-          uri = url,
-          entity = entity
-        )
+    Marshal(job).to[RequestEntity].map { entity =>
+      HttpRequest(
+        method = HttpMethods.POST,
+        uri = url,
+        entity = entity
       )
+
+    }
+  }
+
+  def Post(url: String, job: DockerJob)(implicit actorSystem: ActorSystem): Future[HttpRequest] =
+    Post(Uri(url), job)
+
+  def Post(url: Uri, job: DockerJob)(implicit actorSystem: ActorSystem): Future[HttpRequest] = {
+    import DockerJob._
+    implicit val executionContext: ExecutionContextExecutor = actorSystem.dispatcher
+    Marshal(job).to[RequestEntity].map { entity =>
+      HttpRequest(
+        method = HttpMethods.POST,
+        uri = url,
+        entity = entity
+      )
+
+    }
+  }
+
+  def Post(url: String, query: MiningQuery)(implicit actorSystem: ActorSystem): Future[HttpRequest] =
+    Post(Uri(url), query)
+
+  def Post(url: Uri, query: MiningQuery)(implicit actorSystem: ActorSystem): Future[HttpRequest] = {
+    import DockerJob._
+    implicit val executionContext: ExecutionContextExecutor = actorSystem.dispatcher
+    Marshal(query).to[RequestEntity].map { entity =>
+      HttpRequest(
+        method = HttpMethods.POST,
+        uri = url,
+        entity = entity
+      )
+
     }
   }
 

@@ -21,21 +21,22 @@ import java.time.OffsetDateTime
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
-import akka.http.scaladsl.model.headers.{ Authorization, BasicHttpCredentials }
+import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials}
 import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Flow
-import eu.hbp.mip.woken.backends.HttpClient
+import eu.hbp.mip.woken.backends.{DockerJob, HttpClient}
 import eu.hbp.mip.woken.config.RemoteLocation
 import eu.hbp.mip.woken.core.model.Shapes
-import eu.hbp.mip.woken.messages.external.{ ExternalAPIProtocol, QueryResult }
+import eu.hbp.mip.woken.messages.external.{ExternalAPIProtocol, MiningQuery, QueryResult}
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ExecutionContext, Future}
 import cats.data._
 import cats.implicits._
 import spray.json._
 import ExternalAPIProtocol._
+import eu.hbp.mip.woken.backends.chronos.ChronosJob
 
 case class WokenService(node: String)(implicit val system: ActorSystem,
                                       implicit val materializer: ActorMaterializer)
@@ -50,15 +51,22 @@ case class WokenService(node: String)(implicit val system: ActorSystem,
   // val reqFlow = Flow[String] map pathToRequest
   // see https://stackoverflow.com/questions/37659421/what-is-the-best-way-to-combine-akka-http-flow-in-a-scala-stream-flow?rq=1
 
-  def queryFlow: Flow[RemoteLocation, (RemoteLocation, QueryResult), NotUsed] =
+  def queryFlow: Flow[(RemoteLocation, DockerJob), (RemoteLocation, QueryResult), NotUsed] =
     httpQueryFlow
   // TODO: case remoteLocation.url startsWith "http" => httpQueryFlow
   // TODO: case remoteLocation.url startsWith "ws" => webserviceQueryFlow
   // TODO: case remoteLocation.url startsWith "akka" => actorQueryFlow
 
-  def httpQueryFlow: Flow[RemoteLocation, (RemoteLocation, QueryResult), NotUsed] =
-    Flow[RemoteLocation]
-      .map(location => HttpClient.sendReceive(Get(location)).map((location, _)))
+  def httpQueryFlow: Flow[(RemoteLocation, DockerJob), (RemoteLocation, QueryResult), NotUsed] =
+    Flow[(RemoteLocation, DockerJob)]
+      .map {
+        case (location, job: DockerJob) =>
+          Post(location, job.query)
+            .flatMap { req =>
+              HttpClient.sendReceive(req)
+            }
+            .map((location, _))
+      }
       .mapAsync(100)(identity)
       .mapAsync(1) {
         case (url, response) if response.status.isSuccess() =>
@@ -79,4 +87,15 @@ case class WokenService(node: String)(implicit val system: ActorSystem,
       (get, creds) => get.addHeader(Authorization(BasicHttpCredentials(creds.user, creds.password)))
     )
 
+  private def Post(location: RemoteLocation, job: DockerJob): Future[HttpRequest] =
+    location.credentials.foldLeft(HttpClient.Post(location.url, job))(
+      (post, creds) =>
+        post.map(_.addHeader(Authorization(BasicHttpCredentials(creds.user, creds.password))))
+    )
+
+  private def Post(location: RemoteLocation, query: MiningQuery): Future[HttpRequest] =
+    location.credentials.foldLeft(HttpClient.Post(location.url, query))(
+      (post, creds) =>
+        post.map(_.addHeader(Authorization(BasicHttpCredentials(creds.user, creds.password))))
+    )
 }

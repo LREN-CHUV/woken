@@ -66,7 +66,7 @@ class WokenWebSocketAPITest
 
     executeQuery(Some("/knn_data_mining_query.json"),
                  Some("/knn_data_mining.json"),
-                 "ws://localhost:8087/mining/job")
+                 "ws://woken:8087/mining/job")
 
   }
 

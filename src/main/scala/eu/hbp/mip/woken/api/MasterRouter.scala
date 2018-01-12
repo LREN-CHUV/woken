@@ -131,7 +131,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
               miningJobsInFlight += job -> (initiator -> miningActorRef)
             } else {
               dispatcherService
-                .remoteDispatchFlow(datasets, "mining/job")
+                .remoteDispatchFlow(datasets, "/mining/job", job)
                 .fold(List[QueryResult]()) {
                   _ :+ _._2
                 }

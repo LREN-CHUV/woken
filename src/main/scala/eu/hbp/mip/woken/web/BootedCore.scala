@@ -40,7 +40,7 @@ import eu.hbp.mip.woken.service.{
   VariablesMetaService
 }
 import eu.hbp.mip.woken.ssl.WokenSSLConfiguration
-import akka.stream.ActorMaterializer
+import akka.stream.{ ActorMaterializer, ActorMaterializerSettings, Supervision }
 import eu.hbp.mip.woken.backends.woken.WokenService
 import org.slf4j.LoggerFactory
 
@@ -71,9 +71,19 @@ trait BootedCore
   /**
     * Construct the ActorSystem we will use in our application
     */
-  override lazy implicit val system: ActorSystem          = ActorSystem(appConfig.clusterSystemName, config)
-  lazy val actorRefFactory: ActorRefFactory               = system
-  implicit val actorMaterializer: ActorMaterializer       = ActorMaterializer()
+  override lazy implicit val system: ActorSystem = ActorSystem(appConfig.clusterSystemName, config)
+  lazy val actorRefFactory: ActorRefFactory      = system
+  val decider: Supervision.Decider = {
+    case err: RuntimeException =>
+      logger.error(err.getMessage)
+      Supervision.Resume
+    case _ =>
+      logger.error("Unknown error. Stopping the stream. ")
+      Supervision.Stop
+  }
+  implicit lazy val actorMaterializer: ActorMaterializer = ActorMaterializer(
+    ActorMaterializerSettings(system).withSupervisionStrategy(decider)
+  )
   implicit val executionContext: ExecutionContextExecutor = system.dispatcher
 
   private lazy val resultsDbConfig = DatabaseConfiguration
