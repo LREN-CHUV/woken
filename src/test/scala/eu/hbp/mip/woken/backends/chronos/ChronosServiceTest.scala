@@ -34,6 +34,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import ChronosJob._
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
+import com.typesafe.scalalogging.LazyLogging
 import spray.json.DefaultJsonProtocol
 
 class ChronosServiceTest
@@ -45,7 +46,8 @@ class ChronosServiceTest
     with Core
     with CoreActors
     with DefaultJsonProtocol
-    with SprayJsonSupport {
+    with SprayJsonSupport
+    with LazyLogging {
 
   import system.dispatcher
 

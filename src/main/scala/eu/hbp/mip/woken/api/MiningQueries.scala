@@ -18,6 +18,7 @@ package eu.hbp.mip.woken.api
 
 import java.util.UUID
 
+import cats.data.Validated
 import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.messages.external._
 import eu.hbp.mip.woken.config.{ AlgorithmDefinition, JobsConfiguration }
@@ -25,8 +26,11 @@ import eu.hbp.mip.woken.core.ExperimentActor
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import eu.hbp.mip.woken.service.VariablesMetaService
 import eu.hbp.mip.woken.core.model.Queries._
-import cats.implicits._
+import eu.hbp.mip.woken.core.model.VariablesMeta
 import spray.json.JsObject
+
+import cats.data._
+import cats.implicits._
 
 /**
   * Transform incoming mining and experiment queries into jobs
@@ -42,8 +46,14 @@ object MiningQueries {
     val jobId         = UUID.randomUUID().toString
     val featuresDb    = jobsConfiguration.featuresDb
     val featuresTable = jobsConfiguration.featuresTable
-    val metadata      = variablesMetaService.get(featuresTable).get.selectVariablesMeta(query.dbAllVars)
-    val algorithm     = algorithmLookup(query.algorithm.code)
+    val metadataKey   = jobsConfiguration.metadataKeyForFeaturesTable
+    val variablesMeta: Validation[VariablesMeta] = Validated.fromOption(
+      variablesMetaService.get(metadataKey),
+      NonEmptyList(s"Cannot find metadata for table $metadataKey", Nil)
+    )
+    val metadata: Validation[JsObject] =
+      variablesMeta.andThen(v => v.selectVariablesMeta(query.dbAllVars))
+    val algorithm = algorithmLookup(query.algorithm.code)
 
     def createJob(mt: JsObject, al: AlgorithmDefinition) =
       DockerJob(jobId, al.dockerImage, featuresDb, featuresTable, query, metadata = mt)

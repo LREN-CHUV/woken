@@ -81,6 +81,7 @@ class JobToChronosTest extends FlatSpec with Matchers {
     chronosServerUrl = "http://localhost:4400",
     featuresDb = "features_db",
     featuresTable = "features",
+    metadataKeyForFeaturesTable = "features",
     resultDb = "woken_db",
     metaDb = "meta_db"
   )

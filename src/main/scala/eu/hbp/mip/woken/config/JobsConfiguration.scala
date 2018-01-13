@@ -36,6 +36,7 @@ final case class JobsConfiguration(
     chronosServerUrl: String,
     featuresDb: String,
     featuresTable: String,
+    metadataKeyForFeaturesTable: String,
     resultDb: String,
     metaDb: String
 )
@@ -51,10 +52,19 @@ object JobsConfiguration {
       val chronosServerUrl = jobs.validateString("chronosServerUrl")
       val featuresDb       = jobs.validateString("featuresDb")
       val featuresTable    = jobs.validateString("featuresTable")
-      val resultDb         = jobs.validateString("resultDb")
-      val metaDb           = jobs.validateString("metaDb")
+      val metadataKeyForFeaturesTable: Validation[String] =
+        jobs.validateString("metadataKeyForFeaturesTable").orElse(featuresTable)
+      val resultDb = jobs.validateString("resultDb")
+      val metaDb   = jobs.validateString("metaDb")
 
-      (node, owner, chronosServerUrl, featuresDb, featuresTable, resultDb, metaDb) mapN JobsConfiguration.apply
+      (node,
+       owner,
+       chronosServerUrl,
+       featuresDb,
+       featuresTable,
+       metadataKeyForFeaturesTable,
+       resultDb,
+       metaDb) mapN JobsConfiguration.apply
     }
   }
 

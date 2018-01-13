@@ -69,7 +69,14 @@ class MasterRouterTest
                           user = "",
                           password = "")
   val noJobsConf =
-    JobsConfiguration("none", "noone", "http://nowhere", "features", "features", "results", "meta")
+    JobsConfiguration("none",
+                      "noone",
+                      "http://nowhere",
+                      "features",
+                      "features",
+                      "features",
+                      "results",
+                      "meta")
 
   val fakeFeaturesDAL = FeaturesDAL(noDbConfig)
 

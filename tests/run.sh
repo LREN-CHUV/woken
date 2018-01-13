@@ -51,7 +51,7 @@ echo "Migrate woken database..."
 $DOCKER_COMPOSE run woken_db_setup
 
 echo "Migrate metadata database..."
-$DOCKER_COMPOSE run meta_db_setup
+$DOCKER_COMPOSE run sample_meta_db_setup
 
 echo "Migrate features database..."
 $DOCKER_COMPOSE run sample_db_setup
