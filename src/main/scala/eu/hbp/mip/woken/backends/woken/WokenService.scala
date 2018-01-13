@@ -22,12 +22,12 @@ import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.Flow
+import akka.stream.{ ActorMaterializer, ClosedShape, FlowShape, SinkShape }
+import akka.stream.scaladsl._
 import eu.hbp.mip.woken.backends.HttpClient
 import eu.hbp.mip.woken.config.RemoteLocation
 import eu.hbp.mip.woken.core.model.Shapes
-import eu.hbp.mip.woken.messages.external._
+import eu.hbp.mip.woken.messages.external.{ QueryResult, _ }
 
 import scala.concurrent.{ ExecutionContext, Future }
 import com.typesafe.scalalogging.LazyLogging
@@ -36,6 +36,7 @@ import cats.implicits._
 import spray.json._
 import ExternalAPIProtocol._
 import HttpClient._
+import eu.hbp.mip.woken.backends.WebSocketClient
 
 case class WokenService(node: String)(implicit val system: ActorSystem,
                                       implicit val materializer: ActorMaterializer)
@@ -52,10 +53,25 @@ case class WokenService(node: String)(implicit val system: ActorSystem,
   // see https://stackoverflow.com/questions/37659421/what-is-the-best-way-to-combine-akka-http-flow-in-a-scala-stream-flow?rq=1
 
   def queryFlow: Flow[(RemoteLocation, Query), (RemoteLocation, QueryResult), NotUsed] =
-    httpQueryFlow
-  // TODO: case remoteLocation.url startsWith "http" => httpQueryFlow
-  // TODO: case remoteLocation.url startsWith "ws" => webserviceQueryFlow
-  // TODO: case remoteLocation.url startsWith "akka" => actorQueryFlow
+    Flow.fromGraph(GraphDSL.create() { implicit builder =>
+      import GraphDSL.Implicits._
+      def switcher(locationAndQuery: (RemoteLocation, Query)): Int =
+        locationAndQuery._1.url.scheme match {
+          case "http" => 1
+          case "ws"   => 2
+          case "akka" => 3
+          case _      => 1
+        }
+
+      val partition = builder.add(Partition[(RemoteLocation, Query)](3, switcher))
+      val merger    = builder.add(Merge[(RemoteLocation, QueryResult)](3))
+
+      partition.out(1).via(httpQueryFlow) ~> merger
+      partition.out(2).via(wsQueryFlow) ~> merger
+      partition.out(3).via(actorQueryFlow) ~> merger
+
+      FlowShape(partition.in, merger.out)
+    })
 
   def httpQueryFlow: Flow[(RemoteLocation, Query), (RemoteLocation, QueryResult), NotUsed] =
     Flow[(RemoteLocation, Query)]
@@ -82,5 +98,18 @@ case class WokenService(node: String)(implicit val system: ActorSystem,
                        Some(response.entity.toString))).pure[Future]
       }
       .map(identity)
+
+  def wsQueryFlow: Flow[(RemoteLocation, Query), (RemoteLocation, QueryResult), NotUsed] =
+    Flow[(RemoteLocation, Query)]
+      .mapAsync(1) {
+        case (location, query: MiningQuery) =>
+          logger.info(s"Send Post request to ${location.url}")
+          WebSocketClient.sendReceive(location, query)
+        case (location, query: ExperimentQuery) =>
+          logger.info(s"Send Post request to ${location.url}")
+          WebSocketClient.sendReceive(location, query)
+      }
+
+  def actorQueryFlow: Flow[(RemoteLocation, Query), (RemoteLocation, QueryResult), NotUsed] = ???
 
 }
