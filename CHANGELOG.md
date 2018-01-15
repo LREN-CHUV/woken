@@ -1,6 +1,14 @@
 
 # Changelog
 
+## 2.2.0 - 2018-01-01
+
+* Distributed datamining
+* Distributed experiments
+* Add support for Websockets
+* [dev] Rely on Akka streams for all distributed functionality, also for experiments
+* [dev] Update to Akka 2.5.9
+
 ## 2.1.1 - 2017-12-14
 
 * Clarify and update configuration
