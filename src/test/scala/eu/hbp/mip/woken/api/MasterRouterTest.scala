@@ -175,14 +175,19 @@ class MasterRouterTest
       val limit = appConfig.masterRouterConfig.experimentActorsLimit
 
       (1 to limit).foreach { _ =>
-        router ! ExperimentQuery(user = user,
-                                 variables = Nil,
-                                 covariables = Nil,
-                                 grouping = Nil,
-                                 filters = "",
-                                 datasets = Nil,
-                                 algorithms = Nil,
-                                 validations = Nil)
+        router ! ExperimentQuery(
+          user = user,
+          variables = Nil,
+          covariables = Nil,
+          grouping = Nil,
+          filters = "",
+          trainingDatasets = None,
+          testingDatasets = None,
+          validationDatasets = None,
+          algorithms = Nil,
+          validations = Nil,
+          executionPlan = None
+        )
 
       }
 
@@ -204,14 +209,19 @@ class MasterRouterTest
       val overflow = limit * 2
 
       (1 to overflow).foreach { _ =>
-        router ! ExperimentQuery(user = user,
-                                 variables = Nil,
-                                 covariables = Nil,
-                                 grouping = Nil,
-                                 filters = "",
-                                 datasets = Nil,
-                                 algorithms = Nil,
-                                 validations = Nil)
+        router ! ExperimentQuery(
+          user = user,
+          variables = Nil,
+          covariables = Nil,
+          grouping = Nil,
+          filters = "",
+          trainingDatasets = None,
+          testingDatasets = None,
+          validationDatasets = None,
+          algorithms = Nil,
+          validations = Nil,
+          executionPlan = None
+        )
 
       }
 
@@ -240,14 +250,19 @@ class MasterRouterTest
       // Now we check that after rate limits, the actor can recover and handle new requests
 
       (1 to limit).foreach { _ =>
-        router ! ExperimentQuery(user = user,
-                                 variables = Nil,
-                                 covariables = Nil,
-                                 grouping = Nil,
-                                 filters = "",
-                                 datasets = Nil,
-                                 algorithms = Nil,
-                                 validations = Nil)
+        router ! ExperimentQuery(
+          user = user,
+          variables = Nil,
+          covariables = Nil,
+          grouping = Nil,
+          filters = "",
+          trainingDatasets = None,
+          testingDatasets = None,
+          validationDatasets = None,
+          algorithms = Nil,
+          validations = Nil,
+          executionPlan = None
+        )
 
       }
 

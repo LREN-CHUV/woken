@@ -22,7 +22,7 @@ import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.{ ActorMaterializer, ClosedShape, FlowShape, SinkShape }
+import akka.stream.{ ActorMaterializer, FlowShape }
 import akka.stream.scaladsl._
 import eu.hbp.mip.woken.backends.HttpClient
 import eu.hbp.mip.woken.config.RemoteLocation
@@ -101,7 +101,7 @@ case class WokenService(node: String)(implicit val system: ActorSystem,
 
   def wsQueryFlow: Flow[(RemoteLocation, Query), (RemoteLocation, QueryResult), NotUsed] =
     Flow[(RemoteLocation, Query)]
-      .mapAsync(1) {
+      .mapAsync(100) {
         case (location, query: MiningQuery) =>
           logger.info(s"Send Post request to ${location.url}")
           WebSocketClient.sendReceive(location, query)

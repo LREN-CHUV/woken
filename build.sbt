@@ -73,7 +73,7 @@ lazy val library =
       val doobie          = "0.5.0-M9"
       val snakeyaml       = "1.17"
       val hadrian         = "0.8.5"
-      val wokenMessages   = "2.1.10"
+      val wokenMessages   = "2.2.3"
       val scalaCache      = "0.21.0"
       val scalaLogging    = "3.7.2"
     }

@@ -39,7 +39,7 @@ class JobToChronosTest extends FlatSpec with Matchers {
     covariables = List("a", "b", "c").map(VariableId),
     grouping = List("grp1", "grp2").map(VariableId),
     filters = "a > 10",
-    datasets = Nil,
+    datasets = None,
     algorithm = algorithm
   )
 
