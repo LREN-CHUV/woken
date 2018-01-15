@@ -22,7 +22,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.cluster.client.{ClusterClient, ClusterClientSettings}
 import akka.pattern.ask
 import akka.util.Timeout
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import eu.hbp.mip.woken.messages.external._
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.scalatest.TryValues._
@@ -41,15 +41,15 @@ class WokenAkkaAPITest
     with BeforeAndAfterAll {
 
   implicit val timeout: Timeout = Timeout(200 seconds)
-  val configuration = ConfigFactory.load()
-  val system = ActorSystem("test", configuration)
+  val configuration: Config = ConfigFactory.load()
+  val system: ActorSystem = ActorSystem("test", configuration)
   implicit val ec: ExecutionContext = system.dispatcher
 
   val client: ActorRef =
     system.actorOf(ClusterClient.props(ClusterClientSettings(system)), "client")
   val entryPoint = "/user/entrypoint"
 
-  override def afterAll = {
+  override def afterAll: Unit = {
     system.terminate().onComplete { result =>
       println("Actor system shutdown: " + result)
     }
@@ -81,11 +81,13 @@ class WokenAkkaAPITest
 
     val start = System.currentTimeMillis()
     val query = MiningQuery(
-      List(VariableId("cognitive_task2")),
-      List(VariableId("score_math_course1")),
-      Nil,
-      "",
-      AlgorithmSpec("knn", List(CodeValue("k", "5")))
+      user = UserId("test1"),
+      variables = List(VariableId("cognitive_task2")),
+      covariables = List(VariableId("score_math_course1")),
+      grouping = Nil,
+      filters = "",
+      algorithm = AlgorithmSpec("knn", List(CodeValue("k", "5"))),
+      datasets = None
     )
 
     val future = client ? ClusterClient.Send(entryPoint,
@@ -104,7 +106,7 @@ class WokenAkkaAPITest
 
     result.success.value.data should not be empty
 
-    val json = result.success.value.data.get.parseJson
+    val json = result.success.value.data.get
     val expected = loadJson("/knn_data_mining.json")
 
     assertResult(approximate(expected))(approximate(json))
@@ -114,11 +116,14 @@ class WokenAkkaAPITest
 
     val start = System.currentTimeMillis()
     val query = MiningQuery(
-      List(VariableId("cognitive_task2")),
-      List("score_math_course1", "score_math_course2").map(VariableId),
-      Nil,
-      "",
-      AlgorithmSpec("histograms", Nil)
+      user = UserId("test1"),
+      variables = List(VariableId("cognitive_task2")),
+      covariables =
+        List("score_math_course1", "score_math_course2").map(VariableId),
+      grouping = Nil,
+      filters = "",
+      algorithm = AlgorithmSpec("histograms", Nil),
+      datasets = None
     )
 
     val future = client ? ClusterClient.Send(entryPoint,
@@ -138,7 +143,7 @@ class WokenAkkaAPITest
 
     result.success.value.data should not be empty
 
-    val json = result.success.value.data.get.parseJson
+    val json = result.success.value.data.get
     val expected = loadJson("/histograms.json")
 
     assertResult(approximate(expected))(approximate(json))
@@ -167,7 +172,7 @@ class WokenAkkaAPITest
 
     data should not be empty
 
-    val json = data.get.parseJson
+    val json = data.get
     val expected = loadJson("/knn_experiment.json")
 
     assertResult(approximate(expected))(approximate(json))
@@ -212,7 +217,7 @@ class WokenAkkaAPITest
 
     data should not be empty
 
-    val json = data.get.parseJson
+    val json = data.get
     val expected = loadJson("/knn_experiment.json")
 
     assertResult(approximate(expected))(approximate(json))

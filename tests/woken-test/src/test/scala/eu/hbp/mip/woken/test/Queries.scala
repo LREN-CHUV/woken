@@ -33,12 +33,17 @@ trait Queries {
 
   def experimentQuery(algorithm: String, parameters: List[CodeValue]) =
     ExperimentQuery(
-      List(VariableId("cognitive_task2")),
-      List(VariableId("score_test1"), VariableId("college_math")),
-      Nil,
-      "",
-      List(AlgorithmSpec(algorithm, parameters)),
-      List(ValidationSpec("kfold", List(CodeValue("k", "2"))))
+      user = UserId("test1"),
+      variables = List(VariableId("cognitive_task2")),
+      covariables = List(VariableId("score_test1"), VariableId("college_math")),
+      grouping = Nil,
+      filters = "",
+      algorithms = List(AlgorithmSpec(algorithm, parameters)),
+      validations = List(ValidationSpec("kfold", List(CodeValue("k", "2")))),
+      trainingDatasets = None,
+      testingDatasets = None,
+      validationDatasets = None,
+      executionPlan = None
     )
 
   def loadJson(path: String): JsValue = {
