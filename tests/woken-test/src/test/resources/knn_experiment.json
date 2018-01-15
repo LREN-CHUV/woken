@@ -1,5 +1,6 @@
 [
   {
+    "algorithm": "java-rapidminer-knn",
     "code": "knn",
     "data": {
       "action": [
@@ -1315,7 +1316,6 @@
       },
       "pools": {}
     },
-    "function": "java-rapidminer-knn",
     "jobId": "*",
     "node": "federation",
     "timestamp": 0.0,
