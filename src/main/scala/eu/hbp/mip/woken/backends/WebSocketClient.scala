@@ -43,7 +43,6 @@ object WebSocketClient extends SprayJsonSupport with PredefinedToResponseMarshal
       implicit actorSystem: ActorSystem,
       materializer: Materializer
   ): Future[(RemoteLocation, QueryResult)] = {
-
     val promise: Promise[(RemoteLocation, QueryResult)] = Promise[(RemoteLocation, QueryResult)]()
     val q: String                                       = query.toJson.compactPrint
     sendReceive(location, q, promise)
@@ -69,6 +68,8 @@ object WebSocketClient extends SprayJsonSupport with PredefinedToResponseMarshal
         case message: TextMessage.Strict =>
           val queryResult: QueryResult = message.text.parseJson.convertTo[QueryResult]
           promise.completeWith(Future.successful((location, queryResult)))
+        case err =>
+          promise.failure(new RuntimeException(s"Response type format is not supported: $err"))
       }
 
     val source: Source[Message, NotUsed] = Source.single(TextMessage.Strict(query))
