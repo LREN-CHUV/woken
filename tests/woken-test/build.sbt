@@ -43,14 +43,14 @@ lazy val library =
     object Version {
       val scalaCheck    = "1.13.5"
       val scalaTest     = "3.0.3"
-      val akka          = "2.5.8"
+      val akka          = "2.5.9"
       val akkaHttp      = "10.1.0-RC1"
       val sprayJson     = "1.3.4"
       val slf4j         = "1.7.25"
       val log4j         = "2.9.1"
       val disruptor     = "3.3.7"
       val config        = "1.2.1"
-      val wokenMessages = "2.1.8"
+      val wokenMessages = "2.2.4"
     }
     val scalaCheck: ModuleID       = "org.scalacheck"    %% "scalacheck"   % Version.scalaCheck
     val scalaTest: ModuleID        = "org.scalatest"     %% "scalatest"    % Version.scalaTest

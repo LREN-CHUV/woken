@@ -123,50 +123,44 @@ case class MasterRouter(appConfiguration: AppConfiguration,
                              errorMsg.reduceLeft(_ + ", " + _))
             initiator ! error.asQueryResult
           },
-          job => {
-            val datasets   = query.datasets.toSet
-            val (_, local) = dispatcherService.dispatchTo(datasets)
+          job =>
+            query.datasets.map(dispatcherService.dispatchTo) match {
+              case None                      => startMiningJob(job, initiator)
+              case Some((_, local)) if local => startMiningJob(job, initiator)
+              case _ =>
+                log.info("Dispatch mining query to remote workers...")
 
-            if (local) {
-              // TODO: move to dispatcherService.localDispatchFlow?
-              val miningActorRef = newCoordinatorActor
-              miningActorRef ! StartCoordinatorJob(job)
-              miningJobsInFlight += job -> (initiator -> miningActorRef)
-            } else {
-              log.info("Dispatch mining query to remote workers...")
+                Source
+                  .single(query)
+                  .via(dispatcherService.remoteDispatchMiningFlow())
+                  .fold(List[QueryResult]()) {
+                    _ :+ _._2
+                  }
+                  .map {
+                    case List() =>
+                      ErrorJobResult("",
+                                     coordinatorConfig.jobsConf.node,
+                                     OffsetDateTime.now(),
+                                     query.algorithm.code,
+                                     "No results").asQueryResult
 
-              Source
-                .single(query)
-                .via(dispatcherService.remoteDispatchMiningFlow(datasets))
-                .fold(List[QueryResult]()) {
-                  _ :+ _._2
-                }
-                .map {
-                  case List() =>
-                    ErrorJobResult("",
-                                   coordinatorConfig.jobsConf.node,
-                                   OffsetDateTime.now(),
-                                   query.algorithm.code,
-                                   "No results").asQueryResult
+                    case List(result) => result
 
-                  case List(result) => result
-
-                  case listOfResults =>
-                    compoundResult(listOfResults)
-                }
-                .map { queryResult =>
-                  initiator ! queryResult
-                  queryResult
-                }
-                .runWith(Sink.last)
-                .onFailure {
-                  case e =>
-                    log.error(e, s"Cannot complete mining query $query")
-                    val error =
-                      ErrorJobResult("", "", OffsetDateTime.now(), "experiment", e.toString)
-                    initiator ! error.asQueryResult
-                }
-            }
+                    case listOfResults =>
+                      compoundResult(listOfResults)
+                  }
+                  .map { queryResult =>
+                    initiator ! queryResult
+                    queryResult
+                  }
+                  .runWith(Sink.last)
+                  .onFailure {
+                    case e =>
+                      log.error(e, s"Cannot complete mining query $query")
+                      val error =
+                        ErrorJobResult("", "", OffsetDateTime.now(), "experiment", e.toString)
+                      initiator ! error.asQueryResult
+                  }
           }
         )
       } else {
@@ -189,6 +183,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
       miningJobsInFlight -= job
 
     case query: ExperimentQuery =>
+      val initiator = sender()
       log.debug(s"Received message: $query")
       if (experimentJobsInFlight.size <= experimentActiveActorsLimit) {
         val jobValidated = experimentQuery2JobF(query)
@@ -202,10 +197,44 @@ case class MasterRouter(appConfiguration: AppConfiguration,
                              errorMsg.reduceLeft(_ + ", " + _))
             sender() ! error.asQueryResult
           },
-          job => {
-            val experimentActorRef = newExperimentActor
-            experimentActorRef ! StartExperimentJob(job)
-            experimentJobsInFlight += job -> (sender() -> experimentActorRef)
+          job =>
+            query.trainingDatasets.map(dispatcherService.dispatchTo) match {
+              case None                      => startExperimentJob(job, initiator)
+              case Some((_, local)) if local => startExperimentJob(job, initiator)
+              case _ =>
+                log.info("Dispatch mining query to remote workers...")
+
+                Source
+                  .single(query)
+                  .via(dispatcherService.remoteDispatchExperimentFlow())
+                  .fold(List[QueryResult]()) {
+                    _ :+ _._2
+                  }
+                  .map {
+                    case List() =>
+                      ErrorJobResult("",
+                                     coordinatorConfig.jobsConf.node,
+                                     OffsetDateTime.now(),
+                                     "experiment",
+                                     "No results").asQueryResult
+
+                    case List(result) => result
+
+                    case listOfResults =>
+                      compoundResult(listOfResults)
+                  }
+                  .map { queryResult =>
+                    initiator ! queryResult
+                    queryResult
+                  }
+                  .runWith(Sink.last)
+                  .onFailure {
+                    case e =>
+                      log.error(e, s"Cannot complete experiment query $query")
+                      val error =
+                        ErrorJobResult("", "", OffsetDateTime.now(), "experiment", e.toString)
+                      initiator ! error.asQueryResult
+                  }
           }
         )
       } else {
@@ -242,6 +271,18 @@ case class MasterRouter(appConfiguration: AppConfiguration,
 
   }
 
+  private def startMiningJob(job: DockerJob, initiator: ActorRef): Unit = {
+    val miningActorRef = newCoordinatorActor
+    miningActorRef ! StartCoordinatorJob(job)
+    miningJobsInFlight += job -> (initiator -> miningActorRef)
+  }
+
+  private def startExperimentJob(job: ExperimentActor.Job, initiator: ActorRef): Unit = {
+    val experimentActorRef = newExperimentActor
+    experimentActorRef ! StartExperimentJob(job)
+    experimentJobsInFlight += job -> (initiator -> experimentActorRef)
+  }
+
   private[api] def newExperimentActor: ActorRef = {
     val ref = context.actorOf(ExperimentActor.props(coordinatorConfig, algorithmLookup))
     context watch ref
@@ -269,8 +310,8 @@ case class MasterRouter(appConfiguration: AppConfiguration,
       node = coordinatorConfig.jobsConf.node,
       timestamp = OffsetDateTime.now(),
       shape = Shapes.compound.mime,
-      function = "compound",
-      data = Some(queryResults.toJson.compactPrint),
+      algorithm = "compound",
+      data = Some(queryResults.toJson),
       error = None
     )
   }

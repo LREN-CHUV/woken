@@ -21,7 +21,7 @@ import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.{ Flow, Source }
 import eu.hbp.mip.woken.config.{ Dataset, RemoteLocation }
 import eu.hbp.mip.woken.fp.Traverse
-import eu.hbp.mip.woken.messages.external.{ DatasetId, MiningQuery, QueryResult }
+import eu.hbp.mip.woken.messages.external.{ DatasetId, ExperimentQuery, MiningQuery, QueryResult }
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import cats.implicits.catsStdInstancesForOption
 import com.typesafe.scalalogging.Logger
@@ -43,14 +43,23 @@ class DispatcherService(datasets: Map[DatasetId, Dataset], wokenService: WokenSe
     (maybeSet.getOrElse(Set.empty), local)
   }
 
-  def remoteDispatchMiningFlow(
-      datasets: Set[DatasetId]
-  ): Flow[MiningQuery, (RemoteLocation, QueryResult), NotUsed] =
+  def remoteDispatchMiningFlow(): Flow[MiningQuery, (RemoteLocation, QueryResult), NotUsed] =
     Flow[MiningQuery]
-      .map(q => dispatchTo(datasets)._1.map(ds => ds -> q))
+      .map(q => dispatchTo(q.datasets.getOrElse(Set()))._1.map(ds => ds -> q))
       .mapConcat(identity)
       .buffer(100, OverflowStrategy.backpressure)
       .map { case (l, q) => l.copy(url = l.url.withPath(l.url.path / "mining" / "job")) -> q }
+      .via(wokenService.queryFlow)
+
+  def remoteDispatchExperimentFlow()
+    : Flow[ExperimentQuery, (RemoteLocation, QueryResult), NotUsed] =
+    Flow[ExperimentQuery]
+      .map(q => dispatchTo(q.trainingDatasets.getOrElse(Set()))._1.map(ds => ds -> q))
+      .mapConcat(identity)
+      .buffer(100, OverflowStrategy.backpressure)
+      .map {
+        case (l, q) => l.copy(url = l.url.withPath(l.url.path / "mining" / "experiment")) -> q
+      }
       .via(wokenService.queryFlow)
 
   def localDispatchFlow(datasets: Set[DatasetId]): Source[QueryResult, NotUsed] = ???

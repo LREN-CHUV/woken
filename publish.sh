@@ -34,7 +34,7 @@ fi
 # Build
 echo "Build the project..."
 ./build.sh
-./tests/test.sh
+#./tests/test.sh
 echo "[ok] Done"
 
 count=$(git status --porcelain | wc -l)

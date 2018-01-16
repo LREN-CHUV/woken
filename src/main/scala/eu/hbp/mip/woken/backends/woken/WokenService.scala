@@ -101,7 +101,7 @@ case class WokenService(node: String)(implicit val system: ActorSystem,
 
   def wsQueryFlow: Flow[(RemoteLocation, Query), (RemoteLocation, QueryResult), NotUsed] =
     Flow[(RemoteLocation, Query)]
-      .mapAsync(1) {
+      .mapAsync(100) {
         case (location, query: MiningQuery) =>
           logger.info(s"Send Post request to ${location.url}")
           WebSocketClient.sendReceive(location, query)

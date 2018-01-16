@@ -58,7 +58,7 @@ lazy val library =
     object Version {
       val scalaCheck      = "1.13.5"
       val scalaTest       = "3.0.3"
-      val akka            = "2.5.8"
+      val akka            = "2.5.9"
       val akkaTracing     = "0.6.1"
       val akkaHttp        = "10.0.11"
       val akkaHttpSwagger = "0.11.0"
@@ -73,7 +73,7 @@ lazy val library =
       val doobie          = "0.5.0-M9"
       val snakeyaml       = "1.17"
       val hadrian         = "0.8.5"
-      val wokenMessages   = "2.1.10"
+      val wokenMessages   = "2.2.4"
       val scalaCache      = "0.21.0"
       val scalaLogging    = "3.7.2"
     }

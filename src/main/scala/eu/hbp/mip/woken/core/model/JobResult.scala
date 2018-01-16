@@ -18,7 +18,6 @@ package eu.hbp.mip.woken.core.model
 
 import java.time.OffsetDateTime
 
-import eu.hbp.mip.woken.config.JobsConfiguration
 import eu.hbp.mip.woken.core.model.Shapes.{ pfa => pfaShape, _ }
 import eu.hbp.mip.woken.messages.external.{ AlgorithmSpec, ExternalAPIProtocol, QueryResult }
 import spray.json._
@@ -30,13 +29,13 @@ sealed trait JobResult extends Product with Serializable {
 
   def timestamp: OffsetDateTime
 
-  def function: String
+  def algorithm: String
 }
 
 case class PfaJobResult(jobId: String,
                         node: String,
                         timestamp: OffsetDateTime,
-                        function: String,
+                        algorithm: String,
                         model: JsObject)
     extends JobResult {
 
@@ -56,7 +55,7 @@ case class PfaExperimentJobResult(jobId: String,
                                   models: JsArray)
     extends JobResult {
 
-  override val function = "experiment"
+  override val algorithm = "experiment"
 }
 
 object PfaExperimentJobResult {
@@ -74,41 +73,41 @@ object PfaExperimentJobResult {
         .map(r => {
           val code = r._1.code
           r._2 match {
-            case PfaJobResult(jobId, node, timestamp, function, model) =>
+            case PfaJobResult(jobId, node, timestamp, algorithm, model) =>
               // TODO: inform if algorithm is predictive...
               JsObject(
                 "type"      -> JsString(pfaShape.mime),
-                "function"  -> JsString(function),
+                "algorithm" -> JsString(algorithm),
                 "code"      -> JsString(code),
                 "jobId"     -> JsString(jobId),
                 "node"      -> JsString(node),
                 "timestamp" -> timestamp.toJson,
                 "data"      -> model
               )
-            case ErrorJobResult(jobId, node, timestamp, function, errorMsg) =>
+            case ErrorJobResult(jobId, node, timestamp, algorithm, errorMsg) =>
               JsObject(
                 "type"      -> JsString(error.mime),
-                "function"  -> JsString(function),
+                "algorithm" -> JsString(algorithm),
                 "code"      -> JsString(code),
                 "jobId"     -> JsString(jobId),
                 "node"      -> JsString(node),
                 "timestamp" -> timestamp.toJson,
                 "error"     -> JsString(errorMsg)
               )
-            case JsonDataJobResult(jobId, node, timestamp, shape, function, data) =>
+            case JsonDataJobResult(jobId, node, timestamp, shape, algorithm, data) =>
               JsObject(
                 "type"      -> JsString(shape),
-                "function"  -> JsString(function),
+                "algorithm" -> JsString(algorithm),
                 "code"      -> JsString(code),
                 "jobId"     -> JsString(jobId),
                 "node"      -> JsString(node),
                 "timestamp" -> timestamp.toJson,
                 "data"      -> data
               )
-            case OtherDataJobResult(jobId, node, timestamp, shape, function, data) =>
+            case OtherDataJobResult(jobId, node, timestamp, shape, algorithm, data) =>
               JsObject(
                 "type"      -> JsString(shape),
-                "function"  -> JsString(function),
+                "algorithm" -> JsString(algorithm),
                 "code"      -> JsString(code),
                 "jobId"     -> JsString(jobId),
                 "node"      -> JsString(node),
@@ -141,7 +140,7 @@ object PfaExperimentJobResult {
 case class ErrorJobResult(jobId: String,
                           node: String,
                           timestamp: OffsetDateTime,
-                          function: String,
+                          algorithm: String,
                           error: String)
     extends JobResult
 
@@ -153,7 +152,7 @@ case class JsonDataJobResult(jobId: String,
                              node: String,
                              timestamp: OffsetDateTime,
                              shape: String,
-                             function: String,
+                             algorithm: String,
                              data: JsValue)
     extends VisualisationJobResult
 
@@ -161,7 +160,7 @@ case class OtherDataJobResult(jobId: String,
                               node: String,
                               timestamp: OffsetDateTime,
                               shape: String,
-                              function: String,
+                              algorithm: String,
                               data: String)
     extends VisualisationJobResult
 
@@ -175,8 +174,8 @@ object JobResult {
           node = pfa.node,
           timestamp = pfa.timestamp,
           shape = pfaShape.mime,
-          function = pfa.function,
-          data = Some(pfa.model.compactPrint),
+          algorithm = pfa.algorithm,
+          data = Some(pfa.model),
           error = None
         )
       case pfa: PfaExperimentJobResult =>
@@ -185,8 +184,8 @@ object JobResult {
           node = pfa.node,
           timestamp = pfa.timestamp,
           shape = pfaExperiment.mime,
-          function = pfa.function,
-          data = Some(pfa.models.compactPrint),
+          algorithm = pfa.algorithm,
+          data = Some(pfa.models),
           error = None
         )
       case v: JsonDataJobResult =>
@@ -195,8 +194,8 @@ object JobResult {
           node = v.node,
           timestamp = v.timestamp,
           shape = v.shape,
-          function = v.function,
-          data = Some(v.data.compactPrint),
+          algorithm = v.algorithm,
+          data = Some(v.data),
           error = None
         )
       case v: OtherDataJobResult =>
@@ -205,8 +204,8 @@ object JobResult {
           node = v.node,
           timestamp = v.timestamp,
           shape = v.shape,
-          function = v.function,
-          data = Some(JsString(v.data).compactPrint),
+          algorithm = v.algorithm,
+          data = Some(JsString(v.data)),
           error = None
         )
       case e: ErrorJobResult =>
@@ -215,7 +214,7 @@ object JobResult {
           node = e.node,
           timestamp = e.timestamp,
           shape = error.mime,
-          function = e.function,
+          algorithm = e.algorithm,
           data = None,
           error = Some(e.error)
         )

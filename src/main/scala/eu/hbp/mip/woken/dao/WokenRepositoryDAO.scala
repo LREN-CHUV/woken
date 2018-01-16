@@ -117,7 +117,7 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
        j.node.take(32),
        j.timestamp,
        pfa.mime,
-       j.function.take(255),
+       j.algorithm.take(255),
        Some(j.model.compactPrint),
        None)
     case j: PfaExperimentJobResult =>
@@ -126,7 +126,7 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
        j.node.take(32),
        j.timestamp,
        pfaExperiment.mime,
-       j.function.take(255),
+       j.algorithm.take(255),
        Some(pfa),
        None)
     case j: ErrorJobResult =>
@@ -134,7 +134,7 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
        j.node.take(32),
        j.timestamp,
        errorShape.mime,
-       j.function.take(255),
+       j.algorithm.take(255),
        None,
        Some(j.error.take(255)))
     case j: JsonDataJobResult =>
@@ -142,11 +142,11 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
        j.node.take(32),
        j.timestamp,
        j.shape,
-       j.function.take(255),
+       j.algorithm.take(255),
        Some(j.data.compactPrint),
        None)
     case j: OtherDataJobResult =>
-      (j.jobId, j.node.take(32), j.timestamp, j.shape, j.function.take(255), Some(j.data), None)
+      (j.jobId, j.node.take(32), j.timestamp, j.shape, j.algorithm.take(255), Some(j.data), None)
   }
 
   private implicit val JobResultComposite: Composite[JobResult] =
