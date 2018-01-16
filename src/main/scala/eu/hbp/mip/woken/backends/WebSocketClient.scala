@@ -35,6 +35,7 @@ import scala.collection.immutable.Seq
 import scala.concurrent.{ Future, Promise }
 import scala.concurrent.duration.FiniteDuration
 import spray.json._
+import eu.hbp.mip.woken.messages.external.ExternalAPIProtocol._
 
 object WebSocketClient extends SprayJsonSupport with PredefinedToResponseMarshallers {
 
@@ -42,7 +43,6 @@ object WebSocketClient extends SprayJsonSupport with PredefinedToResponseMarshal
       implicit actorSystem: ActorSystem,
       materializer: Materializer
   ): Future[(RemoteLocation, QueryResult)] = {
-    import eu.hbp.mip.woken.json.QueryJsonSupport._
     val promise: Promise[(RemoteLocation, QueryResult)] = Promise[(RemoteLocation, QueryResult)]()
     val q: String                                       = query.toJson.compactPrint
     sendReceive(location, q, promise)
@@ -52,7 +52,6 @@ object WebSocketClient extends SprayJsonSupport with PredefinedToResponseMarshal
       implicit actorSystem: ActorSystem,
       materializer: Materializer
   ): Future[(RemoteLocation, QueryResult)] = {
-    import eu.hbp.mip.woken.json.QueryJsonSupport._
     val promise: Promise[(RemoteLocation, QueryResult)] = Promise[(RemoteLocation, QueryResult)]()
     val q: String                                       = query.toJson.compactPrint
     sendReceive(location, q, promise)
@@ -64,12 +63,13 @@ object WebSocketClient extends SprayJsonSupport with PredefinedToResponseMarshal
       implicit actorSystem: ActorSystem,
       materializer: Materializer
   ): Future[(RemoteLocation, QueryResult)] = {
-    import eu.hbp.mip.woken.json.QueryJsonSupport._
     val sink: Sink[Message, Future[Done]] =
       Sink.foreach {
         case message: TextMessage.Strict =>
           val queryResult: QueryResult = message.text.parseJson.convertTo[QueryResult]
           promise.completeWith(Future.successful((location, queryResult)))
+        case err =>
+          promise.failure(new RuntimeException(s"Response type format is not supported: $err"))
       }
 
     val source: Source[Message, NotUsed] = Source.single(TextMessage.Strict(query))
