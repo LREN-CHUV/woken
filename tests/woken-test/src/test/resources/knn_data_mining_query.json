@@ -1,1 +1,34 @@
-{"user":{"code":"user1"},"datasets":[{"code":"node1"},{"code":"node2"}],"covariables":[{"code":"score_math_course1"}],"grouping":[],"variables":[{"code":"cognitive_task2"}],"algorithm":{"code":"knn","parameters":[{"code":"k","value":"5"}]},"filters":""}
+{
+  "algorithm": {
+    "code": "knn",
+    "parameters": [
+      {
+        "code": "k",
+        "value": "5"
+      }
+    ]
+  },
+  "covariables": [
+    {
+      "code": "score_math_course1"
+    }
+  ],
+  "datasets": [
+    {
+      "code": "node1"
+    },
+    {
+      "code": "node2"
+    }
+  ],
+  "filters": "",
+  "grouping": [],
+  "user": {
+    "code": "user1"
+  },
+  "variables": [
+    {
+      "code": "cognitive_task2"
+    }
+  ]
+}
