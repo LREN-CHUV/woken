@@ -22,7 +22,7 @@ import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.{ ActorMaterializer, ClosedShape, FlowShape, SinkShape }
+import akka.stream.{ ActorMaterializer, FlowShape }
 import akka.stream.scaladsl._
 import eu.hbp.mip.woken.backends.HttpClient
 import eu.hbp.mip.woken.config.RemoteLocation
