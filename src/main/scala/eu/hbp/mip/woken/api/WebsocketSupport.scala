@@ -36,9 +36,9 @@ import scala.concurrent.{ ExecutionContext, Future }
 import spray.json._
 import ExternalAPIProtocol._
 import akka.stream.{ ActorAttributes, Supervision }
-import org.slf4j.LoggerFactory
+import com.typesafe.scalalogging.LazyLogging
 
-trait WebsocketSupport {
+trait WebsocketSupport extends LazyLogging {
 
   val masterRouter: ActorRef
   val featuresDatabase: FeaturesDAL
@@ -47,14 +47,12 @@ trait WebsocketSupport {
   implicit val timeout: Timeout
   implicit val executionContext: ExecutionContext
 
-  private[this] val logger = LoggerFactory.getLogger(getClass)
-
   private val decider: Supervision.Decider = {
     case err: RuntimeException =>
-      logger.error(err.getMessage)
+      logger.error(err.getMessage, err)
       Supervision.Resume
-    case _ =>
-      logger.error("Unknown error. Stopping the stream. ")
+    case otherErr =>
+      logger.error("Unknown error. Stopping the stream.", otherErr)
       Supervision.Stop
   }
 

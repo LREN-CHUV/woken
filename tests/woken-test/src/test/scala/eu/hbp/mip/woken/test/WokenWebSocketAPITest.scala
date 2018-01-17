@@ -78,7 +78,7 @@ class WokenWebSocketAPITest
 
   }
 
-  ignore should "respond to an experiment query using websocket" in {
+  "Woken" should "respond to an experiment query using websocket" in {
 
     executeQuery(Some("/knn_experiment_query.json"),
                  Some("/knn_experiment.json"),
