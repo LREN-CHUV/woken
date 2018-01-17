@@ -15,6 +15,9 @@
   ],
   "filters": "",
   "grouping": [],
+  "user": {
+    "code": "user1"
+  },
   "variables": [
     {
       "code": "cognitive_task2"

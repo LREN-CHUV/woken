@@ -20,6 +20,9 @@
   ],
   "filters": "",
   "grouping": [],
+  "user": {
+    "code": "user1"
+  },
   "validations": [
     {
       "code": "kfold",
