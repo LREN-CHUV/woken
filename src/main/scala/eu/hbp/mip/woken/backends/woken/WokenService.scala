@@ -24,7 +24,7 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.{ ActorMaterializer, FlowShape }
 import akka.stream.scaladsl._
-import eu.hbp.mip.woken.backends.HttpClient
+import eu.hbp.mip.woken.backends.{ AkkaClusterClient, HttpClient, WebSocketClient }
 import eu.hbp.mip.woken.config.RemoteLocation
 import eu.hbp.mip.woken.core.model.Shapes
 import eu.hbp.mip.woken.messages.external.{ QueryResult, _ }
@@ -36,7 +36,6 @@ import cats.implicits._
 import spray.json._
 import ExternalAPIProtocol._
 import HttpClient._
-import eu.hbp.mip.woken.backends.WebSocketClient
 
 case class WokenService(node: String)(implicit val system: ActorSystem,
                                       implicit val materializer: ActorMaterializer)
@@ -110,6 +109,10 @@ case class WokenService(node: String)(implicit val system: ActorSystem,
           WebSocketClient.sendReceive(location, query)
       }
 
-  def actorQueryFlow: Flow[(RemoteLocation, Query), (RemoteLocation, QueryResult), NotUsed] = ???
+  def actorQueryFlow: Flow[(RemoteLocation, Query), (RemoteLocation, QueryResult), NotUsed] =
+    Flow[(RemoteLocation, Query)]
+      .mapAsync(100) {
+        case (location, query) => AkkaClusterClient.sendReceive(location, query).map((location, _))
+      }
 
 }
