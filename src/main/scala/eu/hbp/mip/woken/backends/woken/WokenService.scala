@@ -57,18 +57,18 @@ case class WokenService(node: String)(implicit val system: ActorSystem,
       import GraphDSL.Implicits._
       def switcher(locationAndQuery: (RemoteLocation, Query)): Int =
         locationAndQuery._1.url.scheme match {
-          case "http" => 1
-          case "ws"   => 2
-          case "akka" => 3
+          case "http" => 0
+          case "ws"   => 1
+          case "akka" => 2
           case _      => 1
         }
 
       val partition = builder.add(Partition[(RemoteLocation, Query)](3, switcher))
       val merger    = builder.add(Merge[(RemoteLocation, QueryResult)](3))
 
-      partition.out(1).via(httpQueryFlow) ~> merger
-      partition.out(2).via(wsQueryFlow) ~> merger
-      partition.out(3).via(actorQueryFlow) ~> merger
+      partition.out(0).via(httpQueryFlow) ~> merger
+      partition.out(1).via(wsQueryFlow) ~> merger
+      partition.out(2).via(actorQueryFlow) ~> merger
 
       FlowShape(partition.in, merger.out)
     })
