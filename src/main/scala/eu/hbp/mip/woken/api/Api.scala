@@ -49,6 +49,7 @@ trait Api extends CoreActors with Core {
   val routes: Route = SwaggerService.routes ~ miningService.routes ~
     pathPrefix("health") {
       get {
+        // TODO: proper helf check is required, check db connection, check cluster availability...
         complete("OK")
       }
     }
