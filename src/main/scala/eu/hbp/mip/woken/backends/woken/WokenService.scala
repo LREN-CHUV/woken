@@ -24,7 +24,7 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.{ ActorMaterializer, FlowShape }
 import akka.stream.scaladsl._
-import eu.hbp.mip.woken.backends.HttpClient
+import eu.hbp.mip.woken.backends.{ AkkaClusterClient, HttpClient, WebSocketClient }
 import eu.hbp.mip.woken.config.RemoteLocation
 import eu.hbp.mip.woken.core.model.Shapes
 import eu.hbp.mip.woken.messages.external.{ QueryResult, _ }
@@ -36,7 +36,6 @@ import cats.implicits._
 import spray.json._
 import ExternalAPIProtocol._
 import HttpClient._
-import eu.hbp.mip.woken.backends.WebSocketClient
 
 case class WokenService(node: String)(implicit val system: ActorSystem,
                                       implicit val materializer: ActorMaterializer)
@@ -57,18 +56,18 @@ case class WokenService(node: String)(implicit val system: ActorSystem,
       import GraphDSL.Implicits._
       def switcher(locationAndQuery: (RemoteLocation, Query)): Int =
         locationAndQuery._1.url.scheme match {
-          case "http" => 1
-          case "ws"   => 2
-          case "akka" => 3
+          case "http" => 0
+          case "ws"   => 1
+          case "akka" => 2
           case _      => 1
         }
 
       val partition = builder.add(Partition[(RemoteLocation, Query)](3, switcher))
       val merger    = builder.add(Merge[(RemoteLocation, QueryResult)](3))
 
-      partition.out(1).via(httpQueryFlow) ~> merger
-      partition.out(2).via(wsQueryFlow) ~> merger
-      partition.out(3).via(actorQueryFlow) ~> merger
+      partition.out(0).via(httpQueryFlow) ~> merger
+      partition.out(1).via(wsQueryFlow) ~> merger
+      partition.out(2).via(actorQueryFlow) ~> merger
 
       FlowShape(partition.in, merger.out)
     })
@@ -110,6 +109,10 @@ case class WokenService(node: String)(implicit val system: ActorSystem,
           WebSocketClient.sendReceive(location, query)
       }
 
-  def actorQueryFlow: Flow[(RemoteLocation, Query), (RemoteLocation, QueryResult), NotUsed] = ???
+  def actorQueryFlow: Flow[(RemoteLocation, Query), (RemoteLocation, QueryResult), NotUsed] =
+    Flow[(RemoteLocation, Query)]
+      .mapAsync(100) {
+        case (location, query) => AkkaClusterClient.sendReceive(location, query).map((location, _))
+      }
 
 }
