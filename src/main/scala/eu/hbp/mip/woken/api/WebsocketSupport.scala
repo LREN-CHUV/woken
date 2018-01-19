@@ -48,7 +48,7 @@ trait WebsocketSupport extends LazyLogging {
   implicit val executionContext: ExecutionContext
 
   private val decider: Supervision.Decider = {
-    case err: RuntimeException =>
+    case err: Exception =>
       logger.error(err.getMessage, err)
       Supervision.Resume
     case otherErr =>
