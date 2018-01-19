@@ -91,7 +91,7 @@ echo "Testing HTTP web services..."
 echo
 echo "Testing Akka API..."
 
-$DOCKER_COMPOSE run wokentest
+$DOCKER_COMPOSE run wokencentraltest
 
 echo
 echo "Now that's up to you to play with the user interface..."
