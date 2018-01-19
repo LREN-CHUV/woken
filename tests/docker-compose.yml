@@ -284,20 +284,6 @@ services:
     depends_on:
       - woken
 
-  wokencentraltest:
-      build:
-        context: ./woken-test
-        dockerfile: Dockerfile
-      hostname: "wokentest"
-      ports:
-        - "8097:8097"
-      environment:
-        CLUSTER_PORT: 8097
-        CLUSTER_IP: wokencentraltest
-        WOKEN_PORT_8088_TCP_ADDR: wokencentral
-      depends_on:
-        - wokencentral
-
   portalbackend:
     image: "hbpmip/portal-backend:2.5.1"
     container_name: "backend-test"
@@ -471,6 +457,21 @@ services:
     depends_on:
       - wokencentral
       - chronos
+
+  wokencentraltest:
+    build:
+      context: ./woken-test
+      dockerfile: Dockerfile
+    hostname: "wokentest"
+    ports:
+      - "8097:8097"
+    environment:
+      CLUSTER_PORT: 8097
+      CLUSTER_IP: wokencentral
+      WOKEN_PORT_8088_TCP_ADDR: wokencentraltest
+    depends_on:
+      - wokencentral
+
 
 networks:
   default:
