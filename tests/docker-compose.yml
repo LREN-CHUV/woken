@@ -467,8 +467,8 @@ services:
       - "8097:8097"
     environment:
       CLUSTER_PORT: 8097
-      CLUSTER_IP: wokencentral
-      WOKEN_PORT_8088_TCP_ADDR: wokencentraltest
+      CLUSTER_IP: wokentest
+      WOKEN_PORT_8088_TCP_ADDR: wokencentral
     depends_on:
       - wokencentral
 
