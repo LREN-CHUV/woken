@@ -50,6 +50,8 @@ class WokenWebSocketAPITest
 
   implicit val executionContext = system.dispatcher
 
+  val remoteHostName = configuration.getString("clustering.seed-ip")
+
   override def afterAll = {
     system.terminate().onComplete { result =>
       println("Actor system shutdown: " + result)
@@ -58,7 +60,7 @@ class WokenWebSocketAPITest
 
   "Woken" should "respond to a query for the list of methods using websocket" in {
 
-    executeQuery(None, None, "ws://woken:8087/mining/methods")
+    executeQuery(None, None, s"ws://$remoteHostName:8087/mining/methods")
 
   }
 
@@ -66,7 +68,7 @@ class WokenWebSocketAPITest
 
     executeQuery(Some("/knn_data_mining_query.json"),
                  Some("/knn_data_mining.json"),
-                 "ws://woken:8087/mining/job")
+                 s"ws://$remoteHostName:8087/mining/job")
 
   }
 
@@ -74,7 +76,7 @@ class WokenWebSocketAPITest
 
     executeQuery(Some("/knn_data_mining_empty_alg_query.json"),
                  Some("/knn_data_mining_empty_alg.json"),
-                 "ws://woken:8087/mining/job")
+                 s"ws://$remoteHostName:8087/mining/job")
 
   }
 
@@ -82,7 +84,7 @@ class WokenWebSocketAPITest
 
     executeQuery(Some("/knn_experiment_query.json"),
                  Some("/knn_experiment.json"),
-                 "ws://woken:8087/mining/experiment")
+                 s"ws://$remoteHostName:8087/mining/experiment")
 
   }
 

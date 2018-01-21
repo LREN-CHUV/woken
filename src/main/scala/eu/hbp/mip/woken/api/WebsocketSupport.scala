@@ -77,7 +77,7 @@ trait WebsocketSupport extends LazyLogging {
       }
       .map { result =>
         TextMessage(result.toJson.compactPrint)
-      }
+      }.named("Experiment WS flow")
 
   def miningFlow: Flow[Message, Message, Any] =
     Flow[Message]
@@ -99,5 +99,5 @@ trait WebsocketSupport extends LazyLogging {
       }
       .map { result =>
         TextMessage(result.compactPrint)
-      }
+      }.named("Mining WS flow.")
 }
