@@ -22,7 +22,7 @@ import akka.http.scaladsl.model.ws.TextMessage
 import akka.http.scaladsl.model.ws.Message
 import akka.stream.scaladsl.Flow
 import akka.util.Timeout
-import eu.hbp.mip.woken.config.{ AppConfiguration, JobsConfiguration }
+import eu.hbp.mip.woken.config.{AppConfiguration, JobsConfiguration}
 import eu.hbp.mip.woken.dao.FeaturesDAL
 import eu.hbp.mip.woken.service.AlgorithmLibraryService
 import eu.hbp.mip.woken.messages.external.{
@@ -32,11 +32,13 @@ import eu.hbp.mip.woken.messages.external.{
   QueryResult
 }
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ExecutionContext, Future}
 import spray.json._
 import ExternalAPIProtocol._
-import akka.stream.{ ActorAttributes, Supervision }
+import akka.stream.{ActorAttributes, Supervision}
 import com.typesafe.scalalogging.LazyLogging
+
+import scala.util.{Failure, Success, Try}
 
 trait WebsocketSupport extends LazyLogging {
 
@@ -70,23 +72,43 @@ trait WebsocketSupport extends LazyLogging {
     Flow[Message]
       .collect {
         case TextMessage.Strict(jsonEncodedString) =>
-          jsonEncodedString.parseJson.convertTo[ExperimentQuery]
+          Try {
+            jsonEncodedString.parseJson.convertTo[ExperimentQuery]
+          }
+      }
+      .filter {
+        case Success(_) => true
+        case Failure(err) =>
+          logger.error("Deserilize failed", err)
+          false
+
       }
       .mapAsync(1) { query =>
-        (masterRouter ? query).mapTo[QueryResult]
+        (masterRouter ? query.get).mapTo[QueryResult]
       }
       .map { result =>
         TextMessage(result.toJson.compactPrint)
-      }.named("Experiment WS flow")
+      }
+      .named("Experiment WS flow")
 
   def miningFlow: Flow[Message, Message, Any] =
     Flow[Message]
       .collect {
         case tm: TextMessage =>
           val jsonEncodeStringMsg = tm.getStrictText
-          jsonEncodeStringMsg.parseJson.convertTo[MiningQuery]
+          Try {
+            jsonEncodeStringMsg.parseJson.convertTo[MiningQuery]
+          }
+      }
+      .filter {
+        case Success(_) => true
+        case Failure(err) =>
+          logger.error("Deserilize failed", err)
+          false
+
       }
       .withAttributes(ActorAttributes.supervisionStrategy(decider))
+      .map(_.get)
       .mapAsync(1) { minQuery: MiningQuery =>
         if (minQuery.algorithm.code.isEmpty || minQuery.algorithm.code == "data") {
           Future.successful(featuresDatabase.queryData(jobsConf.featuresTable, {
@@ -99,5 +121,6 @@ trait WebsocketSupport extends LazyLogging {
       }
       .map { result =>
         TextMessage(result.compactPrint)
-      }.named("Mining WS flow.")
+      }
+      .named("Mining WS flow.")
 }
