@@ -41,7 +41,7 @@ $DOCKER_COMPOSE run wait_zookeeper
 $DOCKER_COMPOSE up -d mesos_master
 $DOCKER_COMPOSE run wait_mesos_master
 $DOCKER_COMPOSE up -d mesos_slave
-$DOCKER_COMPOSE build wokentest
+$DOCKER_COMPOSE build wokencentraltest
 $DOCKER_COMPOSE run wait_dbs
 
 echo "Create databases..."
@@ -91,7 +91,7 @@ echo "Testing HTTP web services..."
 echo
 echo "Testing Akka API..."
 
-$DOCKER_COMPOSE run wokentest
+$DOCKER_COMPOSE run wokencentraltest
 
 echo
 echo "Now that's up to you to play with the user interface..."

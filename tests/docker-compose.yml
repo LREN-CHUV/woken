@@ -458,6 +458,23 @@ services:
       - wokencentral
       - chronos
 
+  wokencentraltest:
+    build:
+      context: ./woken-test
+      dockerfile: Dockerfile
+    hostname: "wokentest"
+    ports:
+      - "8097:8097"
+    environment:
+      CLUSTER_PORT: 8097
+      CLUSTER_IP: wokentest
+      CLUSTER_NAME: woken-central
+      WOKEN_PORT_8088_TCP_ADDR: wokencentral
+      LOG_LEVEL: DEBUG
+    depends_on:
+      - wokencentral
+
+
 networks:
   default:
     driver: bridge
