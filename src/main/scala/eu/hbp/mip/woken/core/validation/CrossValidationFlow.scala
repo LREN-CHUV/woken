@@ -30,14 +30,14 @@ import eu.hbp.mip.woken.backends.{ DockerJob, QueryOffset }
 import eu.hbp.mip.woken.config.AlgorithmDefinition
 import eu.hbp.mip.woken.core.{ CoordinatorActor, CoordinatorConfig }
 import eu.hbp.mip.woken.core.model.{ ErrorJobResult, PfaJobResult }
-import eu.hbp.mip.woken.messages.external.{ MiningQuery, ValidationSpec }
+import eu.hbp.mip.woken.messages.query.{ MiningQuery, ValidationSpec }
 import eu.hbp.mip.woken.messages.validation.{
   ScoringQuery,
   ScoringResult,
   ValidationQuery,
   ValidationResult
 }
-import eu.hbp.mip.woken.meta.{ VariableMetaData, VariableMetaDataProtocol }
+import eu.hbp.mip.woken.messages.variables.{ VariableMetaData, variablesProtocol }
 import spray.json.{ JsObject, JsString }
 
 import scala.concurrent.{ ExecutionContext, Future }
@@ -143,7 +143,7 @@ case class CrossValidationFlow(
   private def targetMetadata(job: Job) = {
     // TODO: move this code in a better place, test it
     import eu.hbp.mip.woken.core.model.Queries._
-    import VariableMetaDataProtocol._
+    import variablesProtocol._
     val targetMetaData: VariableMetaData = job.metadata
       .convertTo[Map[String, VariableMetaData]]
       .get(job.query.dbVariables.head) match {

@@ -21,7 +21,7 @@ import com.typesafe.config.Config
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil._
 import eu.hbp.mip.woken.config.AnonymisationLevel.AnonymisationLevel
 import eu.hbp.mip.woken.fp.Traverse
-import eu.hbp.mip.woken.messages.external.DatasetId
+import eu.hbp.mip.woken.messages.datasets.DatasetId
 import cats.data.Validated._
 import cats.implicits._
 

@@ -26,7 +26,7 @@ import akka.http.scaladsl.model.ws.UpgradeToWebSocket
 import eu.hbp.mip.woken.api.swagger.MiningServiceApi
 import eu.hbp.mip.woken.authentication.BasicAuthentication
 import eu.hbp.mip.woken.config.{ AppConfiguration, JobsConfiguration }
-import eu.hbp.mip.woken.messages.external._
+import eu.hbp.mip.woken.messages.query._
 import eu.hbp.mip.woken.dao.FeaturesDAL
 import eu.hbp.mip.woken.service.AlgorithmLibraryService
 import akka.util.Timeout
@@ -61,7 +61,7 @@ class MiningService(
   val routes: Route = mining ~ experiment ~ listMethods
 
   import spray.json._
-  import ExternalAPIProtocol._
+  import queryProtocol._
 
   override def listMethods: Route = path("mining" / "methods") {
     authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { _ =>

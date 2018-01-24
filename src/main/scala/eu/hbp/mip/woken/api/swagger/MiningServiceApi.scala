@@ -19,7 +19,7 @@ package eu.hbp.mip.woken.api.swagger
 import javax.ws.rs.Path
 
 import akka.http.scaladsl.server.{ Directives, Route }
-import eu.hbp.mip.woken.messages.external.{ MethodsResponse, QueryResult }
+import eu.hbp.mip.woken.messages.query.{ MethodsResponse, QueryResult }
 import io.swagger.annotations._
 
 // This trait documents the API, tries not to pollute the code with annotations

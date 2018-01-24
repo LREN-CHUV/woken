@@ -43,7 +43,6 @@ import eu.hbp.mip.woken.ssl.WokenSSLConfiguration
 import akka.stream.{ ActorMaterializer, ActorMaterializerSettings, Supervision }
 import eu.hbp.mip.woken.backends.woken.WokenService
 import com.typesafe.scalalogging.LazyLogging
-import cats.data.NonEmptyList
 
 import scala.concurrent.{ ExecutionContextExecutor, Future }
 import scala.language.postfixOps

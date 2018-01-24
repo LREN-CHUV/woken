@@ -32,7 +32,7 @@ import eu.hbp.mip.woken.core.{
 }
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import eu.hbp.mip.woken.dao.FeaturesDAL
-import eu.hbp.mip.woken.messages.external.{ ExperimentQuery, MiningQuery, QueryResult, UserId }
+import eu.hbp.mip.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryResult, UserId }
 import com.typesafe.config.{ Config, ConfigFactory }
 import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, DispatcherService }
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }

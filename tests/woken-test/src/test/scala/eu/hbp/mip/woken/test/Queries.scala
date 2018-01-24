@@ -16,7 +16,7 @@
 
 package eu.hbp.mip.woken.test
 
-import eu.hbp.mip.woken.messages.external._
+import eu.hbp.mip.woken.messages.query._
 import spray.json.{
   JsFalse,
   JsNull,

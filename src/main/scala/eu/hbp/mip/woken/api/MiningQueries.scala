@@ -20,7 +20,7 @@ import java.util.UUID
 
 import cats.data.Validated
 import eu.hbp.mip.woken.backends.DockerJob
-import eu.hbp.mip.woken.messages.external._
+import eu.hbp.mip.woken.messages.query._
 import eu.hbp.mip.woken.config.{ AlgorithmDefinition, JobsConfiguration }
 import eu.hbp.mip.woken.core.ExperimentActor
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation

@@ -25,16 +25,11 @@ import akka.util.Timeout
 import eu.hbp.mip.woken.config.{ AppConfiguration, JobsConfiguration }
 import eu.hbp.mip.woken.dao.FeaturesDAL
 import eu.hbp.mip.woken.service.AlgorithmLibraryService
-import eu.hbp.mip.woken.messages.external.{
-  ExperimentQuery,
-  ExternalAPIProtocol,
-  MiningQuery,
-  QueryResult
-}
+import eu.hbp.mip.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryResult, queryProtocol }
 
 import scala.concurrent.{ ExecutionContext, Future }
 import spray.json._
-import ExternalAPIProtocol._
+import queryProtocol._
 import akka.stream.{ ActorAttributes, Supervision }
 import com.typesafe.scalalogging.LazyLogging
 
@@ -77,7 +72,8 @@ trait WebsocketSupport extends LazyLogging {
       }
       .map { result =>
         TextMessage(result.toJson.compactPrint)
-      }.named("Experiment WS flow")
+      }
+      .named("Experiment WS flow")
 
   def miningFlow: Flow[Message, Message, Any] =
     Flow[Message]
@@ -99,5 +95,6 @@ trait WebsocketSupport extends LazyLogging {
       }
       .map { result =>
         TextMessage(result.compactPrint)
-      }.named("Mining WS flow.")
+      }
+      .named("Mining WS flow.")
 }

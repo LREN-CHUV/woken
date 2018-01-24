@@ -24,7 +24,6 @@ import akka.actor.{ Actor, ActorContext, ActorLogging, Props }
 import akka.stream._
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Merge, Partition, Sink, Source, Zip }
 import eu.hbp.mip.woken.core.validation.ValidatedAlgorithmFlow
-import eu.hbp.mip.woken.messages.external.ValidationSpec
 
 import scala.concurrent.ExecutionContext
 import scala.util.{ Failure, Success }
@@ -34,7 +33,12 @@ import eu.hbp.mip.woken.core.commands.JobCommands.StartExperimentJob
 import eu.hbp.mip.woken.config.AlgorithmDefinition
 import eu.hbp.mip.woken.core.model.{ ErrorJobResult, JobResult, PfaExperimentJobResult }
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
-import eu.hbp.mip.woken.messages.external.{ AlgorithmSpec, ExperimentQuery, MiningQuery }
+import eu.hbp.mip.woken.messages.query.{
+  AlgorithmSpec,
+  ExperimentQuery,
+  MiningQuery,
+  ValidationSpec
+}
 import spray.json._
 
 /**

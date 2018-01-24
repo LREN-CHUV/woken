@@ -17,7 +17,9 @@
 package eu.hbp.mip.woken.backends
 
 import eu.hbp.mip.woken.core.model.Queries._
-import eu.hbp.mip.woken.messages.external._
+import eu.hbp.mip.woken.messages.datasets.DatasetId
+import eu.hbp.mip.woken.messages.query._
+import eu.hbp.mip.woken.messages.variables.VariableId
 import spray.json.{ DefaultJsonProtocol, JsObject, RootJsonFormat }
 
 /**

@@ -27,14 +27,14 @@ import akka.stream.scaladsl._
 import eu.hbp.mip.woken.backends.{ AkkaClusterClient, HttpClient, WebSocketClient }
 import eu.hbp.mip.woken.config.RemoteLocation
 import eu.hbp.mip.woken.core.model.Shapes
-import eu.hbp.mip.woken.messages.external.{ QueryResult, _ }
+import eu.hbp.mip.woken.messages.query._
 
 import scala.concurrent.{ ExecutionContext, Future }
 import com.typesafe.scalalogging.LazyLogging
 import cats.data._
 import cats.implicits._
 import spray.json._
-import ExternalAPIProtocol._
+import queryProtocol._
 import HttpClient._
 
 case class WokenService(node: String)(implicit val system: ActorSystem,

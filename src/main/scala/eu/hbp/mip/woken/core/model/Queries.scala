@@ -16,7 +16,8 @@
 
 package eu.hbp.mip.woken.core.model
 
-import eu.hbp.mip.woken.messages.external.{ Query, VariableId }
+import eu.hbp.mip.woken.messages.query.Query
+import eu.hbp.mip.woken.messages.variables.VariableId
 
 object Queries {
 
