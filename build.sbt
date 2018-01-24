@@ -67,13 +67,13 @@ lazy val library =
       val slf4j           = "1.7.25"
       val log4j           = "2.9.1"
       val disruptor       = "3.3.7"
-      val cats            = "1.0.0-RC1"
+      val cats            = "1.0.1"
       val kittens         = "1.0.0-RC1"
       val config          = "1.2.1"
-      val doobie          = "0.5.0-M9"
+      val doobie          = "0.5.0-M13"
       val snakeyaml       = "1.17"
       val hadrian         = "0.8.5"
-      val wokenMessages   = "2.2.4"
+      val wokenMessages   = "2.3.0"
       val scalaCache      = "0.21.0"
       val scalaLogging    = "3.7.2"
     }
@@ -121,7 +121,7 @@ lazy val settings = commonSettings ++ gitSettings ++ scalafmtSettings
 
 lazy val commonSettings =
   Seq(
-    scalaVersion := "2.11.11",
+    scalaVersion := "2.12.4",
     organization in ThisBuild := "eu.humanbrainproject.mip",
     organizationName in ThisBuild := "Human Brain Project MIP by LREN CHUV",
     homepage in ThisBuild := Some(url(s"https://github.com/HBPMedical/${name.value}/#readme")),
@@ -136,10 +136,10 @@ lazy val commonSettings =
     scalacOptions ++= Seq(
       "-unchecked",
       "-deprecation",
-      "-Xlint",
+      //"-Xlint", -- disabled due to Scala bug, waiting for 2.12.5
       "-Yno-adapted-args",
-      "-Ywarn-dead-code",
-      "-Ywarn-value-discard",
+      //"-Ywarn-dead-code", -- disabled due to Scala bug, waiting for 2.12.5
+      //"-Ywarn-value-discard", -- disabled due to Scala bug, waiting for 2.12.5
       "-Ypartial-unification",
       "-language:_",
       "-target:jvm-1.8",
@@ -169,5 +169,5 @@ lazy val scalafmtSettings =
   Seq(
     scalafmtOnCompile := true,
     scalafmtOnCompile.in(Sbt) := false,
-    scalafmtVersion := "1.1.0"
+    scalafmtVersion := "1.4.0"
   )
