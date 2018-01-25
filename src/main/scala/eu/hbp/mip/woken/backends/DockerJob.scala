@@ -17,10 +17,11 @@
 package eu.hbp.mip.woken.backends
 
 import eu.hbp.mip.woken.core.model.Queries._
-import eu.hbp.mip.woken.messages.datasets.DatasetId
+import eu.hbp.mip.woken.messages.datasets.DatasetsProtocol
 import eu.hbp.mip.woken.messages.query._
-import eu.hbp.mip.woken.messages.variables.VariableId
-import spray.json.{ DefaultJsonProtocol, JsObject, RootJsonFormat }
+import eu.hbp.mip.woken.messages.query.filters.QueryFiltersProtocol
+import eu.hbp.mip.woken.messages.variables.VariablesProtocol
+import spray.json.{ JsObject, JsonFormat, RootJsonFormat }
 
 /**
   * Definition of a computation using an algorithm packaged as a Docker container.
@@ -63,15 +64,13 @@ case class DockerJob(
 
 }
 
-object DockerJob extends DefaultJsonProtocol {
+object DockerJob
+    extends QueryProtocol
+    with DatasetsProtocol
+    with VariablesProtocol
+    with QueryFiltersProtocol {
 
-  implicit val formatCodeValue: RootJsonFormat[CodeValue]         = jsonFormat2(CodeValue.apply)
-  implicit val formatAlgorithmSpec: RootJsonFormat[AlgorithmSpec] = jsonFormat2(AlgorithmSpec.apply)
-  implicit val formatDataSetId: RootJsonFormat[DatasetId]         = jsonFormat1(DatasetId.apply)
-  implicit val formatVariableId: RootJsonFormat[VariableId]       = jsonFormat1(VariableId.apply)
-  implicit val formatUserId: RootJsonFormat[UserId]               = jsonFormat1(UserId.apply)
-  implicit val formatQueryOffset: RootJsonFormat[QueryOffset]     = jsonFormat2(QueryOffset.apply)
-  implicit val formatMinigQuery: RootJsonFormat[MiningQuery]      = jsonFormat7(MiningQuery.apply)
-  implicit val formatDockerJob: RootJsonFormat[DockerJob]         = jsonFormat7(DockerJob.apply)
+  implicit val formatQueryOffset: JsonFormat[QueryOffset] = jsonFormat2(QueryOffset.apply)
+  implicit val formatDockerJob: RootJsonFormat[DockerJob] = jsonFormat7(DockerJob.apply)
 
 }

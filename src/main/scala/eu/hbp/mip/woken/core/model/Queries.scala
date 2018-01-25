@@ -18,8 +18,25 @@ package eu.hbp.mip.woken.core.model
 
 import eu.hbp.mip.woken.messages.query.Query
 import eu.hbp.mip.woken.messages.variables.VariableId
+import org.postgresql.core.Utils
 
 object Queries {
+  private val numberRegex = "[-+]?\\d+(\\.\\d+)?".r
+
+  implicit class SqlStrings(val s: String) extends AnyVal {
+
+    def safe: String =
+      if (numberRegex.pattern.matcher(s).matches())
+        s
+      else {
+        val sb = new java.lang.StringBuilder("'")
+        Utils.escapeIdentifier(sb, s)
+        sb.append("'")
+        sb.toString
+      }
+
+    def quoted: String = s""""$s""""
+  }
 
   implicit class QueryEnhanced(val query: Query) extends AnyVal {
 

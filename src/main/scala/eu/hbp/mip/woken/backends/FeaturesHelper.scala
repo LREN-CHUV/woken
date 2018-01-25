@@ -18,12 +18,7 @@ package eu.hbp.mip.woken.backends
 
 import eu.hbp.mip.woken.messages.query.MiningQuery
 import eu.hbp.mip.woken.core.model.Queries._
-import eu.hbp.mip.woken.messages.query.filters.{
-  CompoundFilterRule,
-  FilterRule,
-  Operator,
-  SingleFilterRule
-}
+import eu.hbp.mip.woken.messages.query.filters._
 
 // TODO: merge with Queries?
 
@@ -34,47 +29,59 @@ object FeaturesHelper {
   implicit class FilterRuleToSql(val rule: FilterRule) extends AnyVal {
     def toSqlWhere: String = rule match {
       case c: CompoundFilterRule =>
+        c.rules.map(r => r.toSqlWhere).mkString(s" ${c.condition.toString} ")
       case s: SingleFilterRule =>
         s.operator match {
-          case Operator.equal          => s"'${s.field}' = XXX"
-          case Operator.notEqual       => s"'${s.field}' != XXX"
-          case Operator.less           => s"'${s.field}' < ${s.value.head}"
-          case Operator.greater        => s"'${s.field}' > ${s.value.head}"
-          case Operator.lessOrEqual    => s"'${s.field}' <= ${s.value.head}"
-          case Operator.greaterOrEqual => s"'${s.field}' >= ${s.value.head}"
-          case Operator.in             => s"'${s.field}' IN (XXX)"
-          case Operator.notIn          => s"'${s.field}' NOT IN (XXX)"
-          case Operator.between        => s"'${s.field}' BETWEEN ${s.value.head} AND ${s.value.tail}"
+          case Operator.equal          => s"${s.field.quoted} = ${s.value.head.safe}"
+          case Operator.notEqual       => s"${s.field.quoted} != ${s.value.head.safe}"
+          case Operator.less           => s"${s.field.quoted} < ${s.value.head.safe}"
+          case Operator.greater        => s"${s.field.quoted} > ${s.value.head.safe}"
+          case Operator.lessOrEqual    => s"${s.field.quoted} <= ${s.value.head.safe}"
+          case Operator.greaterOrEqual => s"${s.field.quoted} >= ${s.value.head.safe}"
+          case Operator.in             => s"${s.field.quoted} IN (${s.value.map(_.safe).mkString(",")})"
+          case Operator.notIn          => s"${s.field.quoted} NOT IN (${s.value.map(_.safe).mkString(",")})"
+          case Operator.between =>
+            s"${s.field.quoted} BETWEEN ${s.value.head.safe} AND ${s.value.last.safe}"
           case Operator.notBetween =>
-            s"'${s.field}' NOT BETWEEN ${s.value.head} AND ${s.value.tail}"
-          case Operator.beginsWith    => s"'${s.field}' LIKE '${s.value.head}%'"
-          case Operator.notBeginsWith => s"'${s.field}' NOT LIKE '${s.value.head}%'"
-          case Operator.contains      => s"'${s.field}' LIKE '%${s.value.head}%'"
-          case Operator.notContains   => s"'${s.field}' NOT LIKE '%${s.value.head}%'"
-          case Operator.endsWith      => s"'${s.field}' LIKE '%${s.value.head}'"
-          case Operator.notEndsWith   => s"'${s.field}' NOT LIKE '%${s.value.head}'"
-          case Operator.isEmpty       => s"'COALESCE(${s.field}, '') = ''"
-          case Operator.isNotEmpty    => s"'COALESCE(${s.field}, '') != ''"
-          case Operator.isNull        => s"'${s.field}' IS NULL"
-          case Operator.isNotNull     => s"'${s.field}' IS NOT NULL"
+            s"${s.field.quoted} NOT BETWEEN ${s.value.head.safe} AND ${s.value.last.safe}"
+          case Operator.beginsWith    => s"${s.field.quoted} LIKE ${(s.value.head + '%').safe}'"
+          case Operator.notBeginsWith => s"${s.field.quoted} NOT LIKE ${(s.value.head + '%').safe}'"
+          case Operator.contains      => s"${s.field.quoted} LIKE ${('%' + s.value.head + '%').safe}'"
+          case Operator.notContains =>
+            s"${s.field.quoted} NOT LIKE ${('%' + s.value.head + '%').safe}'"
+          case Operator.endsWith    => s"${s.field.quoted} LIKE ${('%' + s.value.head).safe}'"
+          case Operator.notEndsWith => s"${s.field.quoted} NOT LIKE ${('%' + s.value.head).safe}'"
+          case Operator.isEmpty     => s"'COALESCE(${s.field.quoted}, '') = ''"
+          case Operator.isNotEmpty  => s"'COALESCE(${s.field.quoted}, '') != ''"
+          case Operator.isNull      => s"${s.field.quoted} IS NULL"
+          case Operator.isNotNull   => s"${s.field.quoted} IS NOT NULL"
         }
-
     }
   }
 
   def buildQueryFeaturesSql(inputTable: String,
                             query: MiningQuery,
+                            excludeNullValues: Boolean,
                             shadowOffset: Option[QueryOffset]): String = {
 
-    val varListDbSafe = query.dbAllVars
+    val filters: Option[FilterRule] = if (excludeNullValues) {
+      val notNullFilters: List[FilterRule] = query.dbAllVars
+        .map(v => SingleFilterRule(v, v, "string", InputType.text, Operator.isNotNull, Nil))
+      val mergingQueryFilters = query.filters.fold(notNullFilters)(f => notNullFilters :+ f)
+      mergingQueryFilters match {
+        case List(f) => Some(f)
+        case _       => Some(CompoundFilterRule(Condition.and, mergingQueryFilters))
+      }
+    } else {
+      query.filters
+    }
 
-    // TODO: some algorithms can work with null / missing data
-    val sql = s"select ${varListDbSafe.mkString(",")} from $inputTable where ${varListDbSafe
-      .map(_ + " is not null")
-      .mkString(" and ")} ${if (query.filters != "") s"and ${query.filters}" else ""}"
+    val whereClause = filters.fold("")(f => s" WHERE ${f.toSqlWhere}")
+    val selectNoPaging =
+      s"select ${query.dbAllVars.map(_.quoted).mkString(",")} from $inputTable $whereClause"
 
-    shadowOffset.fold(sql) { o =>
-      sql + s" EXCEPT ALL (" + sql + s" OFFSET ${o.start} LIMIT ${o.count})"
+    shadowOffset.fold(selectNoPaging) { o =>
+      selectNoPaging + s" EXCEPT ALL (" + selectNoPaging + s" OFFSET ${o.start} LIMIT ${o.count})"
     }
   }
 
