@@ -16,12 +16,9 @@
 
 package eu.hbp.mip.woken.backends
 
-import eu.hbp.mip.woken.core.model.Queries._
-import eu.hbp.mip.woken.messages.datasets.DatasetsProtocol
+import eu.hbp.mip.woken.core.features.FeaturesQuery
 import eu.hbp.mip.woken.messages.query._
-import eu.hbp.mip.woken.messages.query.filters.QueryFiltersProtocol
-import eu.hbp.mip.woken.messages.variables.VariablesProtocol
-import spray.json.{ JsObject, JsonFormat, RootJsonFormat }
+import spray.json.JsObject
 
 /**
   * Definition of a computation using an algorithm packaged as a Docker container.
@@ -29,27 +26,27 @@ import spray.json.{ JsObject, JsonFormat, RootJsonFormat }
   * @param jobId Id of the job. Must be unique
   * @param dockerImage Name of the Docker image to use. Include the version to ensure reproducibility
   * @param inputDb Name of the input database
-  * @param inputTable Name of the input table
-  * @param query The original query
+  * @param query A representation of the query selecting features
+  * @param algorithmSpec Specifications for the algorithm. We use only the parameters here, the algorithm having already been used to select the Docker image to execute.
   * @param metadata Metadata associated with each field used in the query
   */
 case class DockerJob(
     jobId: String,
     dockerImage: String,
     inputDb: String,
-    inputTable: String,
-    query: MiningQuery,
-    metadata: JsObject,
-    shadowOffset: Option[QueryOffset] = None
+    query: FeaturesQuery,
+    algorithmSpec: AlgorithmSpec,
+    metadata: JsObject
 ) {
 
   def jobName: String =
     (dockerImage.replaceAll("^.*?/", "").takeWhile(_ != ':') + "_" + jobId)
       .replaceAll("[/.-]", "_")
 
+  //
   def dockerParameters: Map[String, String] =
     Map[String, String](
-      "PARAM_query"       -> FeaturesHelper.buildQueryFeaturesSql(inputTable, query, shadowOffset),
+      "PARAM_query"       -> query.query,
       "PARAM_variables"   -> query.dbVariables.mkString(","),
       "PARAM_covariables" -> query.dbCovariables.mkString(","),
       "PARAM_grouping"    -> query.dbGrouping.mkString(","),
@@ -57,20 +54,9 @@ case class DockerJob(
     ) ++ algoParameters
 
   private[this] def algoParameters: Map[String, String] = {
-    val parameters = query.algorithm.parametersAsMap
+    val parameters = algorithmSpec.parametersAsMap
     parameters.map({ case (key, value) => ("MODEL_PARAM_" + key, value) }) ++
     parameters.map({ case (key, value) => ("PARAM_MODEL_" + key, value) })
   }
-
-}
-
-object DockerJob
-    extends QueryProtocol
-    with DatasetsProtocol
-    with VariablesProtocol
-    with QueryFiltersProtocol {
-
-  implicit val formatQueryOffset: JsonFormat[QueryOffset] = jsonFormat2(QueryOffset.apply)
-  implicit val formatDockerJob: RootJsonFormat[DockerJob] = jsonFormat7(DockerJob.apply)
 
 }

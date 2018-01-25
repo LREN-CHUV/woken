@@ -26,6 +26,7 @@ import eu.hbp.mip.woken.config.{ AppConfiguration, JobsConfiguration }
 import eu.hbp.mip.woken.dao.FeaturesDAL
 import eu.hbp.mip.woken.service.AlgorithmLibraryService
 import eu.hbp.mip.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryResult, queryProtocol }
+import eu.hbp.mip.woken.core.features.Queries._
 
 import scala.concurrent.{ ExecutionContext, Future }
 import spray.json._
@@ -83,13 +84,13 @@ trait WebsocketSupport extends LazyLogging {
           jsonEncodeStringMsg.parseJson.convertTo[MiningQuery]
       }
       .withAttributes(ActorAttributes.supervisionStrategy(decider))
-      .mapAsync(1) { minQuery: MiningQuery =>
-        if (minQuery.algorithm.code.isEmpty || minQuery.algorithm.code == "data") {
-          Future.successful(featuresDatabase.queryData(jobsConf.featuresTable, {
-            minQuery.variables ++ minQuery.covariables ++ minQuery.grouping
-          }.distinct.map(_.code)))
+      .mapAsync(1) { miningQuery: MiningQuery =>
+        if (miningQuery.algorithm.code.isEmpty || miningQuery.algorithm.code == "data") {
+          Future.successful(
+            featuresDatabase.queryData(jobsConf.featuresTable, miningQuery.dbAllVars)
+          )
         } else {
-          val result = (masterRouter ? minQuery).mapTo[QueryResult]
+          val result = (masterRouter ? miningQuery).mapTo[QueryResult]
           result.map(_.toJson)
         }
       }

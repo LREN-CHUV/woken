@@ -26,8 +26,9 @@ import akka.stream.{ FlowShape, Materializer }
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Zip }
 import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.config.AlgorithmDefinition
-import eu.hbp.mip.woken.core.model.{ ErrorJobResult, JobResult, PfaJobResult }
 import eu.hbp.mip.woken.core.{ CoordinatorActor, CoordinatorConfig }
+import eu.hbp.mip.woken.core.model.{ ErrorJobResult, JobResult, PfaJobResult }
+import eu.hbp.mip.woken.core.features.Queries._
 import eu.hbp.mip.woken.messages.query.{ AlgorithmSpec, MiningQuery, ValidationSpec }
 import spray.json._
 
@@ -98,12 +99,14 @@ case class ValidatedAlgorithmFlow(
 
         // Spawn a CoordinatorActor
         val jobId = UUID.randomUUID().toString
+        val featuresQuery =
+          job.query.features(job.inputTable, !job.algorithmDefinition.supportsNullValues, None)
         val subJob =
           DockerJob(jobId,
                     job.algorithmDefinition.dockerImage,
                     job.inputDb,
-                    job.inputTable,
-                    job.query,
+                    featuresQuery,
+                    job.query.algorithm,
                     job.metadata)
         CoordinatorActor.future(subJob, coordinatorConfig, context)
       }
@@ -149,7 +152,7 @@ case class ValidatedAlgorithmFlow(
               .toVector
           )
 
-          val algorithm = response.job.query.algorithm
+          val algorithm = response.job.algorithmSpec
           response.results.headOption match {
             case Some(pfa: PfaJobResult) =>
               val model = pfa.injectCell("validations", validationsJson)

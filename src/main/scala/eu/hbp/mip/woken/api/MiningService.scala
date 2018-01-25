@@ -27,6 +27,7 @@ import eu.hbp.mip.woken.api.swagger.MiningServiceApi
 import eu.hbp.mip.woken.authentication.BasicAuthentication
 import eu.hbp.mip.woken.config.{ AppConfiguration, JobsConfiguration }
 import eu.hbp.mip.woken.messages.query._
+import eu.hbp.mip.woken.core.features.Queries._
 import eu.hbp.mip.woken.dao.FeaturesDAL
 import eu.hbp.mip.woken.service.AlgorithmLibraryService
 import akka.util.Timeout
@@ -98,19 +99,12 @@ class MiningService(
         case None =>
           post {
             entity(as[MiningQuery]) {
-              case MiningQuery(userId,
-                               variables,
-                               covariables,
-                               groups,
-                               filters,
-                               datasets,
-                               AlgorithmSpec(c, p)) if c == "" || c == "data" =>
+              case query: MiningQuery
+                  if query.algorithm.code == "" || query.algorithm.code == "data" =>
                 ctx =>
                   {
                     ctx.complete(
-                      featuresDatabase.queryData(jobsConf.featuresTable, {
-                        variables ++ covariables ++ groups
-                      }.distinct.map(_.code))
+                      featuresDatabase.queryData(jobsConf.featuresTable, query.dbAllVars)
                     )
                   }
 
