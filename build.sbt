@@ -110,8 +110,8 @@ lazy val library =
     val wokenMessages: ModuleID = "eu.humanbrainproject.mip" %% "woken-messages" % Version.wokenMessages
   }
 
+resolvers += "HBPMedical Bintray Repo" at "https://dl.bintray.com/hbpmedical/maven/"
 resolvers += "opendatagroup maven" at "http://repository.opendatagroup.com/maven"
-resolvers += "HBPMedical Bintray Repo" at "http://dl.bintray.com/hbpmedical/maven/"
 
 // *****************************************************************************
 // Settings

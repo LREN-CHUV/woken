@@ -4,6 +4,9 @@ resolvers += Classpaths.sbtPluginReleases
 
 resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/"
 
+libraryDependencies += "org.slf4j" % "slf4j-api" % "1.7.25" // Needed by sbt-git
+libraryDependencies += "org.slf4j" % "slf4j-nop" % "1.7.25" // Needed by sbt-git
+
 // App Packaging
 addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.5")
 
@@ -25,5 +28,3 @@ addSbtPlugin("de.heikoseeberger" % "sbt-header"      % "4.1.0")
 
 // Versioning
 addSbtPlugin("com.typesafe.sbt"  % "sbt-git"         % "0.9.3")
-
-libraryDependencies += "org.slf4j" % "slf4j-nop" % "1.7.25" // Needed by sbt-git

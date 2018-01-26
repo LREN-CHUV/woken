@@ -37,7 +37,7 @@ RUN adduser -H -D -u 1000 woken \
     && ln -s /opt/woken/woken.sh /run.sh \
     && chown -R woken:woken /opt/woken
 
-COPY --from=scala-build-env /build/target/scala-2.11/woken-all.jar /opt/woken/woken.jar
+COPY --from=scala-build-env /build/target/scala-2.12/woken-all.jar /opt/woken/woken.jar
 
 USER woken
 
