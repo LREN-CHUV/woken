@@ -132,8 +132,7 @@ class ChronosServiceTest
       chronosHttp ! ChronosService.Schedule(job, self)
 
       within(40 seconds) {
-        val msg = expectMsgType[Ok.type](10 seconds)
-        println(msg)
+        val _ = expectMsgType[Ok.type](10 seconds)
       }
     }
 

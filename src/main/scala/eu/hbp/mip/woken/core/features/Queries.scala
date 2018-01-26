@@ -44,7 +44,12 @@ object Queries {
   implicit class FilterRuleToSql(val rule: FilterRule) extends AnyVal {
     def toSqlWhere: String = rule match {
       case c: CompoundFilterRule =>
-        c.rules.map(r => r.toSqlWhere).mkString(s" ${c.condition.toString} ")
+        c.rules
+          .map {
+            case r: SingleFilterRule    => r.toSqlWhere
+            case sc: CompoundFilterRule => s"(${sc.toSqlWhere})"
+          }
+          .mkString(s" ${c.condition.toString} ")
       case s: SingleFilterRule =>
         s.operator match {
           case Operator.equal          => s"${s.field.quoted} = ${s.value.head.safe}"
@@ -107,7 +112,7 @@ object Queries {
       }
 
       val selectNoPaging =
-        s"select ${query.dbAllVars.map(_.quoted).mkString(",")} FROM $inputTable WHERE ${filters.toSqlWhere}"
+        s"SELECT ${query.dbAllVars.map(_.quoted).mkString(",")} FROM $inputTable WHERE ${filters.toSqlWhere}"
 
       val sqlQuery = shadowOffset.fold(selectNoPaging) { o =>
         selectNoPaging + s" EXCEPT ALL (" + selectNoPaging + s" OFFSET ${o.start} LIMIT ${o.count})"

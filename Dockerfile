@@ -7,7 +7,7 @@ RUN  mkdir -p /build/project/
 COPY project/build.properties project/plugins.sbt project/.gitignore /build/project/
 
 # Run sbt on an empty project and force it to download most of its dependencies to fill the cache
-RUN sbt compile
+RUN sbt -mem 1500 compile
 
 # Second caching layer: project sources
 COPY src/ /build/src/
@@ -20,7 +20,7 @@ COPY .*.cfg .*ignore .*.yaml .*.conf .gitattributes *.md *.sh *.yml *.json *.txt
 
 RUN /check-sources.sh
 
-RUN sbt test assembly
+RUN sbt -mem 1500 test assembly
 
 FROM hbpmip/java-base:8u151-0
 

@@ -16,14 +16,17 @@
 
 package eu.hbp.mip.woken.backends.chronos
 
-import cats.data.ValidatedNel
 import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.config.{ DatabaseConfiguration, JobsConfiguration }
 import eu.hbp.mip.woken.messages.query._
+import eu.hbp.mip.woken.messages.query.filters.{ InputType, Operator, SingleFilterRule }
+import eu.hbp.mip.woken.messages.variables.VariableId
+import eu.hbp.mip.woken.core.features.Queries._
 import org.scalatest.{ FlatSpec, Matchers }
 import spray.json._
+import cats.data.ValidatedNel
 import cats.syntax.validated._
-import eu.hbp.mip.woken.messages.variables.VariableId
+import eu.hbp.mip.woken.core.features.FeaturesQuery
 
 class JobToChronosTest extends FlatSpec with Matchers {
 
@@ -34,15 +37,22 @@ class JobToChronosTest extends FlatSpec with Matchers {
 
   val user: UserId = UserId("test")
 
+  // a < 10
+  private val rule =
+    SingleFilterRule("a", "a", "number", InputType.number, Operator.less, List("10"))
+
   val query: MiningQuery = MiningQuery(
     user = user,
     variables = List("target").map(VariableId),
     covariables = List("a", "b", "c").map(VariableId),
     grouping = List("grp1", "grp2").map(VariableId),
-    filters = "a > 10",
-    datasets = None,
+    filters = Some(rule),
+    datasets = Set(),
     algorithm = algorithm
   )
+
+  val featuresQuery: FeaturesQuery =
+    query.features("features_table", excludeNullValues = true, None)
 
   val jdbcConfs: Map[String, ValidatedNel[String, DatabaseConfiguration]] = Map(
     "features_db" -> DatabaseConfiguration(
@@ -93,10 +103,9 @@ class JobToChronosTest extends FlatSpec with Matchers {
       jobId = "1234",
       dockerImage = "hbpmpi/test",
       inputDb = "features_db",
-      inputTable = "features_table",
-      query = query,
-      metadata = metadata,
-      shadowOffset = None
+      query = featuresQuery,
+      algorithmSpec = query.algorithm,
+      metadata = metadata
     )
 
     val chronosJob = JobToChronos(dockerJob, None, jobsConf, jdbcConfs.apply)
@@ -110,7 +119,7 @@ class JobToChronosTest extends FlatSpec with Matchers {
       EnvironmentVariable("PARAM_MODEL_n", "1"),
       EnvironmentVariable(
         "PARAM_query",
-        "select target,a,b,c,grp1,grp2 from features_table where target is not null and a is not null and b is not null and c is not null and grp1 is not null and grp2 is not null and a > 10"
+        """SELECT "target","a","b","c","grp1","grp2" FROM features_table WHERE "target" IS NOT NULL AND "a" IS NOT NULL AND "b" IS NOT NULL AND "c" IS NOT NULL AND "grp1" IS NOT NULL AND "grp2" IS NOT NULL AND "a" < 10"""
       ),
       EnvironmentVariable("MODEL_PARAM_n", "1"),
       EnvironmentVariable("PARAM_MODEL_k", "5"),
@@ -170,10 +179,9 @@ class JobToChronosTest extends FlatSpec with Matchers {
       jobId = "1234",
       dockerImage = "hbpmpi/test",
       inputDb = "unknown_db",
-      inputTable = "features",
-      query = query,
-      metadata = metadata,
-      shadowOffset = None
+      query = featuresQuery,
+      algorithmSpec = query.algorithm,
+      metadata = metadata
     )
 
     val chronosJob = JobToChronos(dockerJob, None, jobsConf, jdbcConfs.apply)
