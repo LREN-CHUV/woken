@@ -24,10 +24,10 @@ import akka.pattern.ask
 import akka.util.Timeout
 import com.typesafe.config.{Config, ConfigFactory}
 import eu.hbp.mip.woken.messages.query._
+import eu.hbp.mip.woken.messages.variables.VariableId
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.scalatest.TryValues._
 import org.scalatest.tagobjects.Slow
-import spray.json._
 
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
@@ -85,9 +85,9 @@ class WokenAkkaAPITest
       variables = List(VariableId("cognitive_task2")),
       covariables = List(VariableId("score_math_course1")),
       grouping = Nil,
-      filters = "",
+      filters = None,
       algorithm = AlgorithmSpec("knn", List(CodeValue("k", "5"))),
-      datasets = None
+      datasets = Set()
     )
 
     val future = client ? ClusterClient.Send(entryPoint,
@@ -121,9 +121,9 @@ class WokenAkkaAPITest
       covariables =
         List("score_math_course1", "score_math_course2").map(VariableId),
       grouping = Nil,
-      filters = "",
+      filters = None,
       algorithm = AlgorithmSpec("histograms", Nil),
-      datasets = None
+      datasets = Set()
     )
 
     val future = client ? ClusterClient.Send(entryPoint,
