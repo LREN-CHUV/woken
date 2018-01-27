@@ -14,6 +14,3 @@ RUN sbt compile test:compile
 COPY application.conf /build/
 
 ENTRYPOINT ["/test.sh"]
-
-#RUN apk add --no-cache --update strace
-#ENTRYPOINT ["strace", "-f", "-e", "trace=file", "/test.sh"]

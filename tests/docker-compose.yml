@@ -257,7 +257,6 @@ services:
       CLUSTER_PORT: 8082
       CLUSTER_IP: wokenvalidation
       WOKEN_PORT_8088_TCP_ADDR: woken
-      UDP_ARTERY: "true"
       LOG_LEVEL: DEBUG
     links:
       - zipkin
@@ -278,20 +277,15 @@ services:
     build:
       context: ./woken-test
       dockerfile: Dockerfile
-    volumes:
-      - /dev/shm/wokentest:/dev/shm
     hostname: "wokentest"
     ports:
-      - "8097:8097/udp"
+      - "8097:8097"
     environment:
       CLUSTER_PORT: 8097
       CLUSTER_IP: wokentest
       WOKEN_PORT_8088_TCP_ADDR: woken
     depends_on:
       - woken
-    cap_add:
-      - SYS_ADMIN
-      - SYS_PTRACE
 
   portalbackend:
     image: "hbpmip/portal-backend:2.5.1"
