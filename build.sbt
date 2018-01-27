@@ -25,7 +25,7 @@ lazy val `woken` =
           library.akkaHttpSwagger,
           library.swaggerUI,
           library.sprayJson,
-          library.chill,
+          library.kryoSerialization,
           library.slf4j,
           library.log4jSlf4j,
           library.disruptor,
@@ -65,7 +65,7 @@ lazy val library =
       val akkaHttpSwagger = "0.11.0"
       val swaggerUI       = "2.0.12"
       val sprayJson       = "1.3.4"
-      val chill           = "0.9.2"
+      val kryoSerialization = "0.5.3-0.ss.1"
       val slf4j           = "1.7.25"
       val log4j           = "2.9.1"
       val disruptor       = "3.3.7"
@@ -96,7 +96,7 @@ lazy val library =
     val akkaHttpSwagger: ModuleID = "com.github.swagger-akka-http"   %% "swagger-akka-http" % Version.akkaHttpSwagger
     val swaggerUI: ModuleID    = "org.webjars"        % "swagger-ui"   % Version.swaggerUI
     val sprayJson: ModuleID    = "io.spray"          %% "spray-json"   % Version.sprayJson
-    val chill: ModuleID        = "com.twitter"       %% "chill-akka"   % Version.chill
+    val kryoSerialization: ModuleID = "com.github.romix.akka" %% "akka-kryo-serialization" % Version.kryoSerialization
     val slf4j: ModuleID        = "org.slf4j"          % "slf4j-api"    % Version.slf4j
     val log4jSlf4j: ModuleID   = "org.apache.logging.log4j" % "log4j-slf4j-impl" % Version.log4j
     val disruptor: ModuleID    = "com.lmax"           % "disruptor"    % Version.disruptor
@@ -115,6 +115,8 @@ lazy val library =
 
 resolvers += "HBPMedical Bintray Repo" at "https://dl.bintray.com/hbpmedical/maven/"
 resolvers += "opendatagroup maven" at "http://repository.opendatagroup.com/maven"
+// For latest version of akka-kryo-serialization
+resolvers += "Seventh Sense" at "http://dl.bintray.com/7thsense/maven/"
 
 // *****************************************************************************
 // Settings

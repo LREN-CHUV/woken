@@ -16,11 +16,11 @@
 
 package eu.hbp.mip.woken.core
 
-import akka.actor.{ ActorRef, ActorSystem }
-import akka.pattern.{ Backoff, BackoffSupervisor }
+import akka.actor.{ActorRef, ActorSystem}
+import akka.pattern.{Backoff, BackoffSupervisor}
 import akka.stream._
 import cats.data.NonEmptyList
-import com.typesafe.config.{ Config, ConfigFactory }
+import com.typesafe.config.{Config, ConfigFactory, ConfigValue}
 import eu.hbp.mip.woken.backends.chronos.ChronosThrottler
 import eu.hbp.mip.woken.config.JobsConfiguration
 
@@ -52,7 +52,15 @@ trait CoreActors {
   protected def configurationFailed[B](e: NonEmptyList[String]): B =
     throw new IllegalStateException(s"Invalid configuration: ${e.toList.mkString(", ")}")
 
-  protected lazy val config: Config = ConfigFactory.load()
+  protected lazy val config: Config =
+    ConfigFactory.parseString(
+      """
+        |akka {
+        |  actor.provider = cluster
+        |  extensions += "akka.cluster.pubsub.DistributedPubSub"
+        |  extensions += "akka.cluster.client.ClusterClientReceptionist"
+        |}
+      """.stripMargin).withFallback(ConfigFactory.load()).resolve()
   protected lazy val jobsConf: JobsConfiguration = JobsConfiguration
     .read(config)
     .valueOr(configurationFailed)
