@@ -86,7 +86,7 @@ lazy val settings = commonSettings ++ scalafmtSettings
 
 lazy val commonSettings =
   Seq(
-    scalaVersion := "2.12.4",
+    scalaVersion := "2.11.11",
     organization in ThisBuild := "eu.humanbrainproject.mip",
     organizationName in ThisBuild := "Human Brain Project MIP by LREN CHUV",
     licenses in ThisBuild := Seq("Apache-2.0" ->

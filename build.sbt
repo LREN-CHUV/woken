@@ -126,7 +126,7 @@ lazy val settings = commonSettings ++ gitSettings ++ scalafmtSettings
 
 lazy val commonSettings =
   Seq(
-    scalaVersion := "2.12.4",
+    scalaVersion := "2.11.11",
     organization in ThisBuild := "eu.humanbrainproject.mip",
     organizationName in ThisBuild := "Human Brain Project MIP by LREN CHUV",
     homepage in ThisBuild := Some(url(s"https://github.com/HBPMedical/${name.value}/#readme")),
