@@ -16,16 +16,17 @@
 
 package eu.hbp.mip.woken.api
 
-import akka.actor.{ ActorRef, ActorSystem }
+import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.marshalling.PredefinedToResponseMarshallers
+import akka.http.scaladsl.model.StatusCode
 import akka.pattern.ask
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.ws.UpgradeToWebSocket
 import eu.hbp.mip.woken.api.swagger.MiningServiceApi
 import eu.hbp.mip.woken.authentication.BasicAuthentication
-import eu.hbp.mip.woken.config.{ AppConfiguration, JobsConfiguration }
+import eu.hbp.mip.woken.config.{AppConfiguration, JobsConfiguration}
 import eu.hbp.mip.woken.messages.query._
 import eu.hbp.mip.woken.core.features.Queries._
 import eu.hbp.mip.woken.dao.FeaturesDAL
@@ -35,7 +36,7 @@ import com.typesafe.scalalogging.LazyLogging
 import spray.json.DefaultJsonProtocol
 
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Failure
 
 object MiningService
@@ -116,7 +117,9 @@ class MiningService(
                       .map {
                         case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
                         case qr if qr.data.nonEmpty  => OK         -> qr.toJson
-                      }
+                      }.recoverWith { case e =>
+                      Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
+                    }
                   }
             }
           }
@@ -145,6 +148,8 @@ class MiningService(
                   .map {
                     case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
                     case qr if qr.data.nonEmpty  => OK         -> qr.toJson
+                  }.recoverWith { case e =>
+                    Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
                   }
               }
             }
