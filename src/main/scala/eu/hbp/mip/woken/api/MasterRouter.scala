@@ -194,7 +194,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
                              OffsetDateTime.now(),
                              "experiment",
                              errorMsg.reduceLeft(_ + ", " + _))
-            sender() ! error.asQueryResult
+            initiator ! error.asQueryResult
           },
           job =>
             dispatcherService.dispatchTo(query.trainingDatasets) match {
