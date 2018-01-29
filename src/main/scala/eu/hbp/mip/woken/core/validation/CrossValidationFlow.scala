@@ -293,8 +293,8 @@ case class CrossValidationFlow(
                                  foldScores = foldScores,
                                  validations = validations)
           }
-      case _ =>
-        val message = s"Final reduce for cross-validation uses empty datasets"
+      case (r, gt) =>
+        val message = s"Final reduce for cross-validation uses empty datasets: Validations = $r, ground truths = $gt"
         log.error(message)
         Future.failed[CrossValidationScore](new IllegalStateException(message))
     }
