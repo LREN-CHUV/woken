@@ -254,7 +254,8 @@ case class ExperimentFlow(
           grouping = query.grouping,
           filters = query.filters,
           datasets = query.trainingDatasets,
-          algorithm = algorithmSpec
+          algorithm = algorithmSpec,
+          executionPlan = None
         )
         val subJob = ValidatedAlgorithmFlow.Job(jobId,
                                                 job.inputDb,

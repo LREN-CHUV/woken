@@ -48,7 +48,8 @@ class JobToChronosTest extends FlatSpec with Matchers {
     grouping = List("grp1", "grp2").map(VariableId),
     filters = Some(rule),
     datasets = Set(),
-    algorithm = algorithm
+    algorithm = algorithm,
+    executionPlan = None
   )
 
   val featuresQuery: FeaturesQuery =
