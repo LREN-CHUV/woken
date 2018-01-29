@@ -161,7 +161,7 @@ services:
       - db
 
   sample_meta_db_setup:
-    image: "hbpmip/sample-meta-db-setup:0.3.1"
+    image: "hbpmip/sample-meta-db-setup:0.4.1"
     container_name: "sample-meta-db-setup"
     restart: "no"
     environment:
@@ -246,7 +246,7 @@ services:
       - db
 
   wokenvalidation:
-    image: hbpmip/woken-validation
+    image: hbpmip/woken-validation:2.1.8
     ports:
       - "8081:8081"
       - "8082:8082"
@@ -285,7 +285,7 @@ services:
       - woken
 
   portalbackend:
-    image: "hbpmip/portal-backend:2.5.1"
+    image: "hbpmip/portal-backend"
     container_name: "backend-test"
     restart: "no"
     ports:
@@ -314,6 +314,7 @@ services:
       FRONTEND_AFTER_LOGOUT_URL: http://frontend/services/login/hbp
       WOKEN_HOST: woken
       WOKEN_PORT: 8088
+      WOKEN_PORT_8088_TCP_ADDR: woken
       WOKEN_AKKA_PATH: "/user/entrypoint"
     depends_on:
       - db

@@ -87,7 +87,8 @@ class WokenAkkaAPITest
       grouping = Nil,
       filters = None,
       algorithm = AlgorithmSpec("knn", List(CodeValue("k", "5"))),
-      datasets = Set()
+      datasets = Set(),
+      executionPlan = None
     )
 
     val future = client ? ClusterClient.Send(entryPoint,
@@ -123,7 +124,8 @@ class WokenAkkaAPITest
       grouping = Nil,
       filters = None,
       algorithm = AlgorithmSpec("histograms", Nil),
-      datasets = Set()
+      datasets = Set(),
+      executionPlan = None
     )
 
     val future = client ? ClusterClient.Send(entryPoint,

@@ -16,6 +16,22 @@ get_script_dir () {
 
 cd "$(get_script_dir)"
 
+frontend=1
+tests=1
+for param in "$@"
+do
+  if [ "--no-frontend" == "$param" ]; then
+    frontend=0
+    echo "INFO: --no-frontend option detected !"
+    break;
+  fi
+  if [ "--no-tests" == "$param" ]; then
+    tests=0
+    echo "INFO: --no-tests option detected !"
+    break;
+  fi
+done
+
 if pgrep -lf sshuttle > /dev/null ; then
   echo "sshuttle detected. Please close this program as it messes with networking and prevents Docker links to work"
   exit 1
@@ -79,21 +95,25 @@ done
 
 echo "The Algorithm Factory is now running on your system"
 
-echo
-echo "Testing HTTP web services..."
+if [ $tests == 1 ]; then
+    echo
+    echo "Testing HTTP web services..."
 
-./http/query-experiment.sh
+    ./http/query-experiment.sh
 
-echo
-echo "Testing Akka API..."
+    echo
+    echo "Testing Akka API..."
 
-$DOCKER_COMPOSE run wokentest
+    $DOCKER_COMPOSE run wokentest
+fi
 
-echo
-echo "Now that's up to you to play with the user interface..."
+if [ $frontend == 1 ]; then
+    echo
+    echo "Now that's up to you to play with the user interface..."
 
-$DOCKER_COMPOSE up -d portalbackend
+    $DOCKER_COMPOSE up -d portalbackend
 
-$DOCKER_COMPOSE run wait_portal_backend
+    $DOCKER_COMPOSE run wait_portal_backend
 
-$DOCKER_COMPOSE up -d frontend
+    $DOCKER_COMPOSE up -d frontend
+fi
