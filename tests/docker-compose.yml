@@ -147,19 +147,6 @@ services:
     depends_on:
       - db
 
-  cde_meta_db_setup:
-    image: "hbpmip/mip-cde-meta-db-setup:1.2.0"
-    container_name: "cde-meta-db-setup"
-    restart: "no"
-    environment:
-      FLYWAY_HOST: db
-      FLYWAY_PORT: 5432
-      FLYWAY_DATABASE_NAME: meta
-      FLYWAY_USER: postgres
-      FLYWAY_PASSWORD: test
-    depends_on:
-      - db
-
   sample_meta_db_setup:
     image: "hbpmip/sample-meta-db-setup:0.4.1"
     container_name: "sample-meta-db-setup"
@@ -286,7 +273,6 @@ services:
 
   portalbackend:
     image: "hbpmip/portal-backend:2.5.11"
-    container_name: "backend-test"
     restart: "no"
     ports:
       - "65440:8080"
