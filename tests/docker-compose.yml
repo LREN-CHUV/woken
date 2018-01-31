@@ -304,7 +304,7 @@ services:
       FEATURES_DB_SERVER: db:5432
       FEATURES_DB_USER: features
       FEATURES_DB_PASSWORD: featurespwd
-      FEATURES_DB_MAIN_TABLE: sample_data
+      FEATURES_DB_MAIN_TABLE: cde_features_a
       CONTEXT_PATH: /services
       AUTHENTICATION: 0
       FRONTEND_LOGIN_URL: http://frontend/services/login/hbp
