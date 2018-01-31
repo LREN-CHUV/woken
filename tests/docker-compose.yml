@@ -264,7 +264,7 @@ services:
     image: "waisbrot/wait"
     restart: "no"
     environment:
-      TARGETS: "woken:8087,chronos:4400"
+      TARGETS: "woken:8087,chronos:4400,wokenvalidation:8081"
       TIMEOUT: 60
     depends_on:
       - woken
@@ -285,11 +285,12 @@ services:
       - woken
 
   portalbackend:
-    image: "hbpmip/portal-backend"
+    image: "hbpmip/portal-backend:2.5.11"
     container_name: "backend-test"
     restart: "no"
     ports:
       - "65440:8080"
+      - "8089:8089"
     environment:
       PORTAL_DB_URL: jdbc:postgresql://db:5432/portal
       PORTAL_DB_SERVER: db:5432
@@ -304,14 +305,13 @@ services:
       FEATURES_DB_USER: features
       FEATURES_DB_PASSWORD: featurespwd
       FEATURES_DB_MAIN_TABLE: sample_data
-      WOKEN_HOST: woken
-      WOKEN_PORT: 8088
-      WOKEN_AKKA_PATH: "/user/entrypoint"
       CONTEXT_PATH: /services
       AUTHENTICATION: 0
       FRONTEND_LOGIN_URL: http://frontend/services/login/hbp
       FRONTEND_AFTER_LOGIN_URL: http://frontend/home
       FRONTEND_AFTER_LOGOUT_URL: http://frontend/services/login/hbp
+      CLUSTER_IP: portalbackend
+      CLUSTER_PORT: 8089
       WOKEN_HOST: woken
       WOKEN_PORT: 8088
       WOKEN_PORT_8088_TCP_ADDR: woken
@@ -329,7 +329,7 @@ services:
       - portalbackend
 
   frontend:
-    image: hbpmip/portal-frontend:2.5.1
+    image: hbpmip/portal-frontend:2.6.0
     depends_on:
       - portalbackend
     ports:
