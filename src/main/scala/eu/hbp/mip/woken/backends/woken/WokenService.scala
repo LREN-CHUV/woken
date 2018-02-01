@@ -56,8 +56,8 @@ case class WokenService(node: String)(implicit val system: ActorSystem,
       import GraphDSL.Implicits._
       def switcher(locationAndQuery: (RemoteLocation, Query)): Int =
         locationAndQuery._1.url.scheme match {
-          case "http" => 0
-          case "ws"   => 1
+          case "http" | "https" => 0
+          case "ws" | "wss" => 1
           case "akka" => 2
           case _      => 1
         }
