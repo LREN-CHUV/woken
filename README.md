@@ -84,6 +84,7 @@ Json input should be of the form:
 
 ```json
   {
+    "user": {"code": "user1"},
     "variables": [{"code": "var1"}],
     "covariables": [{"code": "var2"},{"code": "var3"}],
     "grouping": [{"code": "var4"}],
