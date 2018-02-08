@@ -188,7 +188,7 @@ algorithms {
     predictive = false
   }
   statisticsSummary {
-    dockerImage = "hbpmip/python-summary-statistics:0.1.0"
+    dockerImage = "hbpmip/python-summary-statistics:0.1.1"
     predictive = false
   }
   anova {

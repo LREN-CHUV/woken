@@ -48,7 +48,7 @@ class AlgorithmLibraryService {
                 "type": ["statistics"],
                 "environment": "python",
                 "description": "Statistics Summary...",
-                "docker_image": "hbpmip/python-summary-statistics:0.1.0",
+                "docker_image": "hbpmip/python-summary-statistics:0.1.1",
                 "constraints": {
                     "variable": {
                       "real": true,

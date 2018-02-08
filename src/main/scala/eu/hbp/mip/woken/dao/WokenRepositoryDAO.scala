@@ -97,6 +97,23 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
                        s"Data for job $jobId produced by $function is not a valid Json document")
       )
     case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
+      if getdataResourceJson(shape).isDefined =>
+      Try {
+        val json = data.parseJson
+        DataResourceJobResult(jobId,
+          node,
+          timestamp,
+          getVisualisationOther(shape).get.mime,
+          function,
+          json)
+        }.getOrElse(
+          ErrorJobResult(jobId,
+            node,
+            timestamp,
+            function,
+            s"Data for job $jobId produced by $function is not a valid Json document")
+      )
+    case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
         if getVisualisationOther(shape).isDefined =>
       OtherDataJobResult(jobId,
                          node,
@@ -145,6 +162,14 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
        j.algorithm.take(255),
        Some(j.data.compactPrint),
        None)
+    case j: DataResourceJobResult =>
+      (j.jobId,
+        j.node.take(32),
+        j.timestamp,
+        j.shape,
+        j.algorithm.take(255),
+        Some(j.data.compactPrint),
+        None)
     case j: OtherDataJobResult =>
       (j.jobId, j.node.take(32), j.timestamp, j.shape, j.algorithm.take(255), Some(j.data), None)
   }
