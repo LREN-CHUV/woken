@@ -75,7 +75,7 @@ The project [algorithm-repository](https://github.com/LREN-CHUV/algorithm-reposi
 
 Performs a data mining task.
 
-Path: /mining
+Path: /mining/job
 Verb: POST
 
 Takes a Json document in the body, returns a Json document.
