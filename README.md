@@ -46,11 +46,11 @@ You need the following software installed:
 * [Httppie](https://github.com/jakubroztocil/httpie)
 
 ```sh
-  cd dev-tests
+  cd tests
   ./run.sh
 ```
 
-dev-tests/run.sh uses docker-compose to start a full environment with Mesos, Zookeeper and Chronos, all of those are required for the proper execution of Woken.
+tests/run.sh uses docker-compose to start a full environment with Mesos, Zookeeper and Chronos, all of those are required for the proper execution of Woken.
 
 5. Create a DNS alias in /etc/hosts
 
@@ -59,7 +59,7 @@ dev-tests/run.sh uses docker-compose to start a full environment with Mesos, Zoo
 
 ```
 
-6. Browse to [http://frontend:8087](http://frontend:8087/) or run one of the query* script located in folder 'dev-tests'.
+6. Browse to [http://frontend:8087](http://frontend:8087/) or run one of the query* script located in folder 'tests'.
 
 ## Available Docker containers
 
@@ -67,7 +67,7 @@ The Docker containers that can be executed on this platform require a few specif
 
 TODO: define those features - parameters passed as environment variables, in and out directories, entrypoint with a 'compute command', ...
 
-The project [functions-repository](https://github.com/LREN-CHUV/functions-repository) contains the Docker images that can be used with woken.
+The project [algorithm-repository](https://github.com/LREN-CHUV/algorithm-repository) contains the Docker images that can be used with woken.
 
 ## Available commands
 
@@ -75,9 +75,7 @@ The project [functions-repository](https://github.com/LREN-CHUV/functions-reposi
 
 Performs a data mining task.
 
-TODO: align this API with Exareme
-
-Path: /mining
+Path: /mining/job
 Verb: POST
 
 Takes a Json document in the body, returns a Json document.
@@ -86,11 +84,13 @@ Json input should be of the form:
 
 ```json
   {
-    "variables": [],
-    "covariables": [],
-    "grouping": [],
+    "user": {"code": "user1"},
+    "variables": [{"code": "var1"}],
+    "covariables": [{"code": "var2"},{"code": "var3"}],
+    "grouping": [{"code": "var4"}],
     "filters": [],
-    "algorithm": ""
+    "algorithm": "",
+    "datasets": [{"code": "dataset1"},{"code": "dataset2"}]
   }
 ```
 
@@ -98,13 +98,16 @@ where:
 * variables is the list of variables
 * covariables is the list of covariables
 * grouping is the list of variables to group together
-* filters is the list of filters
+* filters is the list of filters. The format used here is coming from [JQuery QueryBuilder filters](http://querybuilder.js.org/#filters), for example ```{"condition":"AND","rules":[{"id":"FULLNAME", "field":"FULLNAME","type":"string","input":"text","operator":"equal","value":"Isaac Fulmer"}],"valid":true}```
+* datasets is an optional list of datasets, it can be used in distributed mode to select the nodes to query and in all cases add a filter rule of type ```{"condition":"OR","rules":[{"field":"dataset","operator","equals","value":"dataset1"},{"field":"dataset","operator","equals","value":"dataset2"}]}```
 * algorithm is the algorithm to use.
 
 Currently, the following algorithms are supported:
 * data: returns the raw data matching the query
 * linearRegression: performs a linear regression
 * summaryStatistics: performs a summary statistics than can be used to draw box plots.
+* knn
+* naiveBayes
 
 ### Experiment query
 
