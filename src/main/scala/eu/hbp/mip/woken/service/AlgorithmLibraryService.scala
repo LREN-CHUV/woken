@@ -88,7 +88,7 @@ class AlgorithmLibraryService {
                 "code": "anova",
                 "label": "Anova",
                 "type": ["statistics"],
-                "docker_image": "hbpmip/python-anova:0.3.5",
+                "docker_image": "hbpmip/python-anova:0.3.6",
                 "environment": "Python",
                 "description": "ANOVA...",
                 "parameters": [{

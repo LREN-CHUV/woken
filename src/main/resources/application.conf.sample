@@ -192,11 +192,11 @@ algorithms {
     predictive = false
   }
   anova {
-    dockerImage = "hbpmip/python-anova:0.3.5"
+    dockerImage = "hbpmip/python-anova:0.3.6"
     predictive = false
   }
   linearRegression {
-    dockerImage = "hbpmip/python-linear-regression:0.0.6"
+    dockerImage = "hbpmip/python-linear-regression:0.0.7"
     predictive = false
   }
   knn {
