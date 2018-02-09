@@ -22,7 +22,7 @@ RUN /check-sources.sh
 
 RUN sbt -mem 1500 test assembly
 
-FROM hbpmip/java-base:8u151-0
+FROM hbpmip/java-base:8u151-1
 
 MAINTAINER Ludovic Claude <ludovic.claude@chuv.ch>
 
