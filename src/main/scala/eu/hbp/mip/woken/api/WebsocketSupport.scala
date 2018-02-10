@@ -22,19 +22,19 @@ import akka.http.scaladsl.model.ws.TextMessage
 import akka.http.scaladsl.model.ws.Message
 import akka.stream.scaladsl.Flow
 import akka.util.Timeout
-import eu.hbp.mip.woken.config.{AppConfiguration, JobsConfiguration}
+import eu.hbp.mip.woken.config.{ AppConfiguration, JobsConfiguration }
 import eu.hbp.mip.woken.dao.FeaturesDAL
 import eu.hbp.mip.woken.service.AlgorithmLibraryService
 import eu.hbp.mip.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryResult, queryProtocol }
 import eu.hbp.mip.woken.core.features.Queries._
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 import spray.json._
 import queryProtocol._
 import akka.stream.{ ActorAttributes, Supervision }
 import com.typesafe.scalalogging.LazyLogging
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 trait WebsocketSupport extends LazyLogging {
 
@@ -99,11 +99,13 @@ trait WebsocketSupport extends LazyLogging {
       .filter {
         case Success(_) => true
         case Failure(err) =>
-          logger.error("Deserilize failed", err)
+          logger.error("Deserialize failed", err)
           false
 
       }
       .withAttributes(ActorAttributes.supervisionStrategy(decider))
+      .filter(_.isSuccess)
+      .map(_.get)
       .mapAsync(1) { miningQuery: MiningQuery =>
         if (miningQuery.algorithm.code.isEmpty || miningQuery.algorithm.code == "data") {
           Future.successful(
