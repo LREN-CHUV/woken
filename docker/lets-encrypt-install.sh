@@ -1,10 +1,14 @@
-#!/bin/bash
-set -e
+#!/bin/sh -e
 
-JAVA_HOME=${1-text}
-[ $# -eq 0 ] && { echo "Usage: sudo $0 \$(/usr/libexec/java_home -v '1.8*')" ; exit 1; }
 
-KEYSTORE=$JAVA_HOME/jre/lib/security/cacerts
+#ln -s /etc/ssl/certs/java/cacerts $JAVA_HOME/jre/lib/security/cacerts
+
+
+cd /opt/woken
+
+# ls -asl $JAVA_HOME/lib/security
+
+KEYSTORE=$JAVA_HOME/lib/security/cacerts
 
 wget https://letsencrypt.org/certs/letsencryptauthorityx1.der
 wget https://letsencrypt.org/certs/letsencryptauthorityx2.der

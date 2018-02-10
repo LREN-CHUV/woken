@@ -18,7 +18,7 @@ COPY docker/ /build/docker/
 COPY docs/ /build/docs/
 COPY .*.cfg .*ignore .*.yaml .*.conf .gitattributes *.md *.sh *.yml *.json *.txt Dockerfile LICENSE /build/
 
-# RUN /check-sources.sh
+RUN /check-sources.sh
 
 RUN sbt -mem 1500 test assembly
 
@@ -30,7 +30,14 @@ ARG BUILD_DATE
 ARG VCS_REF
 ARG VERSION
 
+RUN apk update \
+    && apk add --no-cache java-cacerts
+
 COPY docker/runner/woken.sh /opt/woken/
+ADD  docker/lets-encrypt-install.sh /opt/woken/
+
+RUN  chmod +x /opt/woken/lets-encrypt-install.sh
+RUN  /opt/woken/lets-encrypt-install.sh
 
 RUN adduser -H -D -u 1000 woken \
     && chmod +x /opt/woken/woken.sh \
@@ -40,8 +47,6 @@ RUN adduser -H -D -u 1000 woken \
 COPY --from=scala-build-env /build/target/scala-2.11/woken-all.jar /opt/woken/woken.jar
 
 USER woken
-
-RUN  docker/lets-encrypt-install.sh
 
 LABEL org.label-schema.build-date=$BUILD_DATE \
       org.label-schema.name="hbpmip/woken" \
