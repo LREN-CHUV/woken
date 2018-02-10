@@ -46,15 +46,15 @@ class AlgorithmLibraryService {
                 "code": "statisticsSummary",
                 "label": "Statistics Summary",
                 "type": ["statistics"],
-                "environment": "R",
+                "environment": "python",
                 "description": "Statistics Summary...",
-                "docker_image": "hbpmip/r-summary-stats:52198fd",
+                "docker_image": "hbpmip/python-summary-statistics:0.1.0",
                 "constraints": {
                     "variable": {
                       "real": true,
                       "integer": true,
-                      "binominal": false,
-                      "polynominal": false
+                      "binominal": true,
+                      "polynominal": true
                     }
                 }
             },

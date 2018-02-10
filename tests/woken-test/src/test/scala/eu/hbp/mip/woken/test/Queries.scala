@@ -16,7 +16,8 @@
 
 package eu.hbp.mip.woken.test
 
-import eu.hbp.mip.woken.messages.external._
+import eu.hbp.mip.woken.messages.query._
+import eu.hbp.mip.woken.messages.variables.VariableId
 import spray.json.{
   JsFalse,
   JsNull,
@@ -27,6 +28,7 @@ import spray.json.{
   SortedPrinter
 }
 import spray.json._
+
 import scala.io.Source
 
 trait Queries {
@@ -37,12 +39,12 @@ trait Queries {
       variables = List(VariableId("cognitive_task2")),
       covariables = List(VariableId("score_test1"), VariableId("college_math")),
       grouping = Nil,
-      filters = "",
+      filters = None,
       algorithms = List(AlgorithmSpec(algorithm, parameters)),
       validations = List(ValidationSpec("kfold", List(CodeValue("k", "2")))),
-      trainingDatasets = None,
-      testingDatasets = None,
-      validationDatasets = None,
+      trainingDatasets = Set(),
+      testingDatasets = Set(),
+      validationDatasets = Set(),
       executionPlan = None
     )
 

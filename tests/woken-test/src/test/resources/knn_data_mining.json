@@ -1023,7 +1023,7 @@
         "covariables": [
           "score_math_course1"
         ],
-        "sql": "select cognitive_task2,score_math_course1 from sample_data where cognitive_task2 is not null and score_math_course1 is not null ",
+        "sql": "SELECT \"cognitive_task2\",\"score_math_course1\" FROM sample_data WHERE \"cognitive_task2\" IS NOT NULL AND \"score_math_course1\" IS NOT NULL",
         "variable": "cognitive_task2"
       },
       "type": {

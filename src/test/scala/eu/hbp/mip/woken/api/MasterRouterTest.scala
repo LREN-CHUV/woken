@@ -21,6 +21,7 @@ import java.util.UUID
 import akka.actor.{ ActorRef, ActorSystem, Props }
 import akka.stream.ActorMaterializer
 import akka.testkit.{ ImplicitSender, TestKit }
+import com.typesafe.config.{ Config, ConfigFactory }
 import eu.hbp.mip.woken.api.MasterRouter.{ QueuesSize, RequestQueuesSize }
 import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.config._
@@ -32,16 +33,16 @@ import eu.hbp.mip.woken.core.{
 }
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import eu.hbp.mip.woken.dao.FeaturesDAL
-import eu.hbp.mip.woken.messages.external.{ ExperimentQuery, MiningQuery, QueryResult, UserId }
-import com.typesafe.config.{ Config, ConfigFactory }
+import eu.hbp.mip.woken.messages.query._
 import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, DispatcherService }
-import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
-import spray.json.JsObject
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil
-import cats.data.Validated._
 import eu.hbp.mip.woken.backends.woken.WokenService
+import eu.hbp.mip.woken.core.features.Queries._
 import eu.hbp.mip.woken.util.FakeActors
+import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import org.scalatest.tagobjects.Slow
+import cats.data.Validated._
+import spray.json.JsObject
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -91,17 +92,20 @@ class MasterRouterTest
       )
     )
 
-  def miningQuery2job(query: MiningQuery): Validation[DockerJob] =
+  def miningQuery2job(query: MiningQuery): Validation[DockerJob] = {
+    val featuresQuery = query.features("test", excludeNullValues = true, None)
+
     ConfigUtil.lift(
       DockerJob(
         jobId = UUID.randomUUID().toString,
         dockerImage = "",
         inputDb = "",
-        inputTable = "",
-        query = query,
+        query = featuresQuery,
+        algorithmSpec = query.algorithm,
         metadata = JsObject.empty
       )
     )
+  }
 
   class MasterRouterUnderTest(appConfiguration: AppConfiguration,
                               coordinatorConfig: CoordinatorConfig,
@@ -180,10 +184,10 @@ class MasterRouterTest
           variables = Nil,
           covariables = Nil,
           grouping = Nil,
-          filters = "",
-          trainingDatasets = None,
-          testingDatasets = None,
-          validationDatasets = None,
+          filters = None,
+          trainingDatasets = Set(),
+          testingDatasets = Set(),
+          validationDatasets = Set(),
           algorithms = Nil,
           validations = Nil,
           executionPlan = None
@@ -214,10 +218,10 @@ class MasterRouterTest
           variables = Nil,
           covariables = Nil,
           grouping = Nil,
-          filters = "",
-          trainingDatasets = None,
-          testingDatasets = None,
-          validationDatasets = None,
+          filters = None,
+          trainingDatasets = Set(),
+          testingDatasets = Set(),
+          validationDatasets = Set(),
           algorithms = Nil,
           validations = Nil,
           executionPlan = None
@@ -255,10 +259,10 @@ class MasterRouterTest
           variables = Nil,
           covariables = Nil,
           grouping = Nil,
-          filters = "",
-          trainingDatasets = None,
-          testingDatasets = None,
-          validationDatasets = None,
+          filters = None,
+          trainingDatasets = Set(),
+          testingDatasets = Set(),
+          validationDatasets = Set(),
           algorithms = Nil,
           validations = Nil,
           executionPlan = None

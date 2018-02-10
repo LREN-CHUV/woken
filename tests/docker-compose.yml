@@ -147,21 +147,8 @@ services:
     depends_on:
       - db
 
-  cde_meta_db_setup:
-    image: "hbpmip/mip-cde-meta-db-setup:1.2.0"
-    container_name: "cde-meta-db-setup"
-    restart: "no"
-    environment:
-      FLYWAY_HOST: db
-      FLYWAY_PORT: 5432
-      FLYWAY_DATABASE_NAME: meta
-      FLYWAY_USER: postgres
-      FLYWAY_PASSWORD: test
-    depends_on:
-      - db
-
   sample_meta_db_setup:
-    image: "hbpmip/sample-meta-db-setup:0.3.1"
+    image: "hbpmip/sample-meta-db-setup:0.4.1"
     container_name: "sample-meta-db-setup"
     restart: "no"
     environment:
@@ -246,7 +233,7 @@ services:
       - db
 
   wokenvalidation:
-    image: hbpmip/woken-validation:2.1.6
+    image: hbpmip/woken-validation:2.1.8
     ports:
       - "8081:8081"
       - "8082:8082"
@@ -264,7 +251,7 @@ services:
     image: "waisbrot/wait"
     restart: "no"
     environment:
-      TARGETS: "woken:8087,chronos:4400"
+      TARGETS: "woken:8087,chronos:4400,wokenvalidation:8081"
       TIMEOUT: 60
     depends_on:
       - woken
@@ -285,11 +272,11 @@ services:
       - woken
 
   portalbackend:
-    image: "hbpmip/portal-backend:2.5.1"
-    container_name: "backend-test"
+    image: "hbpmip/portal-backend:2.5.11"
     restart: "no"
     ports:
       - "65440:8080"
+      - "8089:8089"
     environment:
       PORTAL_DB_URL: jdbc:postgresql://db:5432/portal
       PORTAL_DB_SERVER: db:5432
@@ -303,17 +290,17 @@ services:
       FEATURES_DB_SERVER: db:5432
       FEATURES_DB_USER: features
       FEATURES_DB_PASSWORD: featurespwd
-      FEATURES_DB_MAIN_TABLE: sample_data
-      WOKEN_HOST: woken
-      WOKEN_PORT: 8088
-      WOKEN_AKKA_PATH: "/user/entrypoint"
+      FEATURES_DB_MAIN_TABLE: cde_features_a
       CONTEXT_PATH: /services
       AUTHENTICATION: 0
       FRONTEND_LOGIN_URL: http://frontend/services/login/hbp
       FRONTEND_AFTER_LOGIN_URL: http://frontend/home
       FRONTEND_AFTER_LOGOUT_URL: http://frontend/services/login/hbp
+      CLUSTER_IP: portalbackend
+      CLUSTER_PORT: 8089
       WOKEN_HOST: woken
       WOKEN_PORT: 8088
+      WOKEN_PORT_8088_TCP_ADDR: woken
       WOKEN_AKKA_PATH: "/user/entrypoint"
     depends_on:
       - db
@@ -328,7 +315,7 @@ services:
       - portalbackend
 
   frontend:
-    image: hbpmip/portal-frontend:2.5.1
+    image: hbpmip/portal-frontend:2.6.0
     depends_on:
       - portalbackend
     ports:

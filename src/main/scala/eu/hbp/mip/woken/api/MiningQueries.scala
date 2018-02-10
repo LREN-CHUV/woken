@@ -20,12 +20,12 @@ import java.util.UUID
 
 import cats.data.Validated
 import eu.hbp.mip.woken.backends.DockerJob
-import eu.hbp.mip.woken.messages.external._
+import eu.hbp.mip.woken.messages.query._
 import eu.hbp.mip.woken.config.{ AlgorithmDefinition, JobsConfiguration }
 import eu.hbp.mip.woken.core.ExperimentActor
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import eu.hbp.mip.woken.service.VariablesMetaService
-import eu.hbp.mip.woken.core.model.Queries._
+import eu.hbp.mip.woken.core.features.Queries._
 import eu.hbp.mip.woken.core.model.VariablesMeta
 import spray.json.JsObject
 
@@ -55,8 +55,10 @@ object MiningQueries {
       variablesMeta.andThen(v => v.selectVariablesMeta(query.dbAllVars))
     val algorithm = algorithmLookup(query.algorithm.code)
 
-    def createJob(mt: JsObject, al: AlgorithmDefinition) =
-      DockerJob(jobId, al.dockerImage, featuresDb, featuresTable, query, metadata = mt)
+    def createJob(mt: JsObject, al: AlgorithmDefinition) = {
+      val featuresQuery = query.features(featuresTable, !al.supportsNullValues, None)
+      DockerJob(jobId, al.dockerImage, featuresDb, featuresQuery, query.algorithm, metadata = mt)
+    }
 
     (metadata, algorithm) mapN createJob
   }

@@ -26,14 +26,14 @@ import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials}
 import akka.http.scaladsl.model.ws.{Message, TextMessage, WebSocketRequest}
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Minutes, Span}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import spray.json._
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.collection.immutable.Seq
 
@@ -44,15 +44,15 @@ class WokenWebSocketAPITest
     with ScalaFutures
     with BeforeAndAfterAll {
 
-  val configuration = ConfigFactory.load()
-  implicit val system = ActorSystem("WebSocketAPITest")
-  implicit val materializer = ActorMaterializer()
+  val configuration: Config = ConfigFactory.load()
+  implicit val system: ActorSystem = ActorSystem("WebSocketAPITest")
+  implicit val materializer: ActorMaterializer = ActorMaterializer()
 
-  implicit val executionContext = system.dispatcher
+  implicit val executionContext: ExecutionContext = system.dispatcher
 
-  val remoteHostName = configuration.getString("clustering.seed-ip")
+  val remoteHostName: String = configuration.getString("clustering.seed-ip")
 
-  override def afterAll = {
+  override def afterAll: Unit = {
     system.terminate().onComplete { result =>
       println("Actor system shutdown: " + result)
     }
@@ -107,7 +107,7 @@ class WokenWebSocketAPITest
 
   private def executeQuery(probeData: Option[String],
                            expectedResult: Option[String],
-                           endpointUrl: String) = {
+                           endpointUrl: String): Unit = {
     val probeSource: Source[Message, NotUsed] = probeData match {
       case Some(probe) =>
         val source = scala.io.Source.fromURL(getClass.getResource(probe))

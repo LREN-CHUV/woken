@@ -65,15 +65,15 @@ lazy val library =
       val swaggerUI       = "2.0.12"
       val sprayJson       = "1.3.4"
       val slf4j           = "1.7.25"
-      val log4j           = "2.9.1"
+      val log4j           = "2.10.0"
       val disruptor       = "3.3.7"
-      val cats            = "1.0.0-RC1"
-      val kittens         = "1.0.0-RC1"
+      val cats            = "1.0.1"
+      val kittens         = "1.0.0-RC2"
       val config          = "1.2.1"
-      val doobie          = "0.5.0-M9"
+      val doobie          = "0.5.0-M13"
       val snakeyaml       = "1.17"
       val hadrian         = "0.8.5"
-      val wokenMessages   = "2.2.4"
+      val wokenMessages   = "2.3.1"
       val scalaCache      = "0.21.0"
       val scalaLogging    = "3.7.2"
     }
@@ -110,8 +110,8 @@ lazy val library =
     val wokenMessages: ModuleID = "eu.humanbrainproject.mip" %% "woken-messages" % Version.wokenMessages
   }
 
+resolvers += "HBPMedical Bintray Repo" at "https://dl.bintray.com/hbpmedical/maven/"
 resolvers += "opendatagroup maven" at "http://repository.opendatagroup.com/maven"
-resolvers += "HBPMedical Bintray Repo" at "http://dl.bintray.com/hbpmedical/maven/"
 
 // *****************************************************************************
 // Settings
@@ -136,10 +136,10 @@ lazy val commonSettings =
     scalacOptions ++= Seq(
       "-unchecked",
       "-deprecation",
-      "-Xlint",
+      //"-Xlint", -- disabled due to Scala bug, waiting for 2.12.5
       "-Yno-adapted-args",
-      "-Ywarn-dead-code",
-      "-Ywarn-value-discard",
+      //"-Ywarn-dead-code", -- disabled due to Scala bug, waiting for 2.12.5
+      //"-Ywarn-value-discard", -- disabled due to Scala bug, waiting for 2.12.5
       "-Ypartial-unification",
       "-language:_",
       "-target:jvm-1.8",
@@ -169,5 +169,5 @@ lazy val scalafmtSettings =
   Seq(
     scalafmtOnCompile := true,
     scalafmtOnCompile.in(Sbt) := false,
-    scalafmtVersion := "1.1.0"
+    scalafmtVersion := "1.4.0"
   )

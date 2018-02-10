@@ -41,7 +41,7 @@ class FakeCoordinatorActor() extends Actor {
       sender() ! Response(
         job,
         List(
-          PfaJobResult(job.jobId, "testNode", OffsetDateTime.now(), job.query.algorithm.code, pfa)
+          PfaJobResult(job.jobId, "testNode", OffsetDateTime.now(), job.algorithmSpec.code, pfa)
         )
       )
       self ! PoisonPill

@@ -1178,7 +1178,7 @@
               "score_test1",
               "college_math"
             ],
-            "sql": "select cognitive_task2,score_test1,college_math from sample_data where cognitive_task2 is not null and score_test1 is not null and college_math is not null ",
+            "sql": "SELECT \"cognitive_task2\",\"score_test1\",\"college_math\" FROM sample_data WHERE \"cognitive_task2\" IS NOT NULL AND \"score_test1\" IS NOT NULL AND \"college_math\" IS NOT NULL",
             "variable": "cognitive_task2"
           },
           "type": {

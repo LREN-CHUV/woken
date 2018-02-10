@@ -23,7 +23,7 @@ import akka.routing.FromConfig
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{ Sink, Source }
 import eu.hbp.mip.woken.core.model.Shapes
-import eu.hbp.mip.woken.messages.external._
+import eu.hbp.mip.woken.messages.query._
 import eu.hbp.mip.woken.core.{ CoordinatorActor, CoordinatorConfig, ExperimentActor }
 import eu.hbp.mip.woken.service.DispatcherService
 
@@ -124,9 +124,8 @@ case class MasterRouter(appConfiguration: AppConfiguration,
             initiator ! error.asQueryResult
           },
           job =>
-            query.datasets.map(dispatcherService.dispatchTo) match {
-              case None                      => startMiningJob(job, initiator)
-              case Some((_, local)) if local => startMiningJob(job, initiator)
+            dispatcherService.dispatchTo(query.datasets) match {
+              case (_, true) => startMiningJob(job, initiator)
               case _ =>
                 log.info("Dispatch mining query to remote workers...")
 
@@ -154,12 +153,12 @@ case class MasterRouter(appConfiguration: AppConfiguration,
                     queryResult
                   }
                   .runWith(Sink.last)
-                  .onFailure {
-                    case e =>
-                      log.error(e, s"Cannot complete mining query $query")
-                      val error =
-                        ErrorJobResult("", "", OffsetDateTime.now(), "experiment", e.toString)
-                      initiator ! error.asQueryResult
+                  .failed
+                  .foreach { e =>
+                    log.error(e, s"Cannot complete mining query $query")
+                    val error =
+                      ErrorJobResult("", "", OffsetDateTime.now(), "experiment", e.toString)
+                    initiator ! error.asQueryResult
                   }
           }
         )
@@ -195,12 +194,11 @@ case class MasterRouter(appConfiguration: AppConfiguration,
                              OffsetDateTime.now(),
                              "experiment",
                              errorMsg.reduceLeft(_ + ", " + _))
-            sender() ! error.asQueryResult
+            initiator ! error.asQueryResult
           },
           job =>
-            query.trainingDatasets.map(dispatcherService.dispatchTo) match {
-              case None                      => startExperimentJob(job, initiator)
-              case Some((_, local)) if local => startExperimentJob(job, initiator)
+            dispatcherService.dispatchTo(query.trainingDatasets) match {
+              case (_, true) => startExperimentJob(job, initiator)
               case _ =>
                 log.info("Dispatch mining query to remote workers...")
 
@@ -228,12 +226,12 @@ case class MasterRouter(appConfiguration: AppConfiguration,
                     queryResult
                   }
                   .runWith(Sink.last)
-                  .onFailure {
-                    case e =>
-                      log.error(e, s"Cannot complete experiment query $query")
-                      val error =
-                        ErrorJobResult("", "", OffsetDateTime.now(), "experiment", e.toString)
-                      initiator ! error.asQueryResult
+                  .failed
+                  .foreach { e =>
+                    log.error(e, s"Cannot complete experiment query $query")
+                    val error =
+                      ErrorJobResult("", "", OffsetDateTime.now(), "experiment", e.toString)
+                    initiator ! error.asQueryResult
                   }
           }
         )
@@ -303,7 +301,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
 
   private def compoundResult(queryResults: List[QueryResult]): QueryResult = {
     import spray.json._
-    import ExternalAPIProtocol._
+    import queryProtocol._
 
     QueryResult(
       jobId = "",

@@ -22,7 +22,7 @@ import akka.testkit.TestKit
 import com.typesafe.config.{ Config, ConfigFactory }
 import eu.hbp.mip.woken.backends.woken.WokenService
 import eu.hbp.mip.woken.config.{ BasicAuthentication, DatasetsConfiguration, RemoteLocation }
-import eu.hbp.mip.woken.messages.external.DatasetId
+import eu.hbp.mip.woken.messages.datasets.DatasetId
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 
 class DispatcherServiceTest

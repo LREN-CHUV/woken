@@ -26,18 +26,20 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.Flow
 import akka.util.Timeout
 import cats.syntax.list._
-import eu.hbp.mip.woken.backends.{ DockerJob, QueryOffset }
+import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.config.AlgorithmDefinition
+import eu.hbp.mip.woken.core.features.QueryOffset
 import eu.hbp.mip.woken.core.{ CoordinatorActor, CoordinatorConfig }
 import eu.hbp.mip.woken.core.model.{ ErrorJobResult, PfaJobResult }
-import eu.hbp.mip.woken.messages.external.{ MiningQuery, ValidationSpec }
+import eu.hbp.mip.woken.core.features.Queries._
+import eu.hbp.mip.woken.messages.query.{ MiningQuery, ValidationSpec }
 import eu.hbp.mip.woken.messages.validation.{
   ScoringQuery,
   ScoringResult,
   ValidationQuery,
   ValidationResult
 }
-import eu.hbp.mip.woken.meta.{ VariableMetaData, VariableMetaDataProtocol }
+import eu.hbp.mip.woken.messages.variables.{ VariableMetaData, variablesProtocol }
 import spray.json.{ JsObject, JsString }
 
 import scala.concurrent.{ ExecutionContext, Future }
@@ -103,12 +105,14 @@ case class CrossValidationFlow(
       .map { job =>
         val validation = job.validation
         val foldCount  = validation.parametersAsMap("k").toInt
+        val featuresQuery =
+          job.query.features(job.inputTable, !job.algorithmDefinition.supportsNullValues, None)
 
         log.info(s"List of folds: $foldCount")
 
         // TODO For now only kfold cross-validation
         val crossValidation =
-          KFoldCrossValidation(job, foldCount, coordinatorConfig.featuresDatabase)
+          KFoldCrossValidation(featuresQuery, foldCount, coordinatorConfig.featuresDatabase)
 
         assert(crossValidation.partition.size == foldCount)
 
@@ -142,8 +146,8 @@ case class CrossValidationFlow(
 
   private def targetMetadata(job: Job) = {
     // TODO: move this code in a better place, test it
-    import eu.hbp.mip.woken.core.model.Queries._
-    import VariableMetaDataProtocol._
+    import eu.hbp.mip.woken.core.features.Queries._
+    import variablesProtocol._
     val targetMetaData: VariableMetaData = job.metadata
       .convertTo[Map[String, VariableMetaData]]
       .get(job.query.dbVariables.head) match {
@@ -163,14 +167,17 @@ case class CrossValidationFlow(
 
     // Spawn a LocalCoordinatorActor for that one particular fold
     val jobId = UUID.randomUUID().toString
+    val featuresQuery = job.query.features(job.inputTable,
+                                           !job.algorithmDefinition.supportsNullValues,
+                                           Some(QueryOffset(s, n)))
+
     val subJob = DockerJob(
       jobId = jobId,
       dockerImage = job.algorithmDefinition.dockerImage,
       inputDb = job.inputDb,
-      inputTable = job.inputTable,
-      query = job.query,
-      metadata = job.metadata,
-      shadowOffset = Some(QueryOffset(s, n))
+      query = featuresQuery,
+      algorithmSpec = job.query.algorithm,
+      metadata = job.metadata
     )
 
     CoordinatorActor
@@ -286,10 +293,16 @@ case class CrossValidationFlow(
                                  foldScores = foldScores,
                                  validations = validations)
           }
-      case _ =>
-        val message = s"Final reduce for cross-validation uses empty datasets"
+      case (r, gt) =>
+        val message = s"Final reduce for cross-validation uses empty datasets: Validations = $r, ground truths = $gt"
         log.error(message)
-        Future.failed[CrossValidationScore](new IllegalStateException(message))
+        //Future.failed[CrossValidationScore](new IllegalStateException(message))
+        Future(CrossValidationScore(job = foldResults.head.job,
+          score = ScoringResult(JsObject()),
+          foldScores = foldScores,
+          validations = validations)
+        )
+
     }
 
   }

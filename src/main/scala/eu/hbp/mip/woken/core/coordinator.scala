@@ -409,7 +409,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
                ErrorJobResult(job.jobId,
                               coordinatorConfig.jobsConf.node,
                               OffsetDateTime.now(),
-                              job.query.algorithm.code,
+                              job.algorithmSpec.code,
                               msg)
              ))
 

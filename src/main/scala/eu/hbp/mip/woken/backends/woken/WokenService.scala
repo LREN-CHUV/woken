@@ -27,14 +27,14 @@ import akka.stream.scaladsl._
 import eu.hbp.mip.woken.backends.{ AkkaClusterClient, HttpClient, WebSocketClient }
 import eu.hbp.mip.woken.config.RemoteLocation
 import eu.hbp.mip.woken.core.model.Shapes
-import eu.hbp.mip.woken.messages.external.{ QueryResult, _ }
+import eu.hbp.mip.woken.messages.query._
 
 import scala.concurrent.{ ExecutionContext, Future }
 import com.typesafe.scalalogging.LazyLogging
 import cats.data._
 import cats.implicits._
 import spray.json._
-import ExternalAPIProtocol._
+import queryProtocol._
 import HttpClient._
 
 case class WokenService(node: String)(implicit val system: ActorSystem,
@@ -56,8 +56,8 @@ case class WokenService(node: String)(implicit val system: ActorSystem,
       import GraphDSL.Implicits._
       def switcher(locationAndQuery: (RemoteLocation, Query)): Int =
         locationAndQuery._1.url.scheme match {
-          case "http" => 0
-          case "ws"   => 1
+          case "http" | "https" => 0
+          case "ws" | "wss" => 1
           case "akka" => 2
           case _      => 1
         }

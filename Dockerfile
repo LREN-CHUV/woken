@@ -1,5 +1,5 @@
 # Verified with http://hadolint.lukasmartinelli.ch/
-FROM hbpmip/scala-base-build:0.13.16-6 as scala-build-env
+FROM hbpmip/scala-base-build:1.1.0-0 as scala-build-env
 
 # First caching layer: build.sbt and sbt configuration
 COPY build.sbt /build/
@@ -7,7 +7,7 @@ RUN  mkdir -p /build/project/
 COPY project/build.properties project/plugins.sbt project/.gitignore /build/project/
 
 # Run sbt on an empty project and force it to download most of its dependencies to fill the cache
-RUN sbt compile
+RUN sbt -mem 1500 compile
 
 # Second caching layer: project sources
 COPY src/ /build/src/
@@ -20,7 +20,7 @@ COPY .*.cfg .*ignore .*.yaml .*.conf .gitattributes *.md *.sh *.yml *.json *.txt
 
 RUN /check-sources.sh
 
-RUN sbt test assembly
+RUN sbt -mem 1500 test assembly
 
 FROM hbpmip/java-base:8u151-0
 

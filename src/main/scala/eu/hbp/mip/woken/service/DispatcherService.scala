@@ -21,11 +21,12 @@ import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.{ Flow, Source }
 import eu.hbp.mip.woken.config.{ Dataset, RemoteLocation }
 import eu.hbp.mip.woken.fp.Traverse
-import eu.hbp.mip.woken.messages.external.{ DatasetId, ExperimentQuery, MiningQuery, QueryResult }
+import eu.hbp.mip.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryResult }
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import cats.implicits.catsStdInstancesForOption
 import com.typesafe.scalalogging.Logger
 import eu.hbp.mip.woken.backends.woken.WokenService
+import eu.hbp.mip.woken.messages.datasets.DatasetId
 
 class DispatcherService(datasets: Map[DatasetId, Dataset], wokenService: WokenService) {
 
@@ -37,7 +38,7 @@ class DispatcherService(datasets: Map[DatasetId, Dataset], wokenService: WokenSe
 
   def dispatchTo(datasets: Set[DatasetId]): (Set[RemoteLocation], Boolean) = {
     val maybeLocations = datasets.map(dispatchTo)
-    val local          = maybeLocations.contains(None)
+    val local          = maybeLocations.isEmpty || maybeLocations.contains(None)
     val maybeSet       = Traverse.sequence(maybeLocations.filter(_.nonEmpty))
 
     (maybeSet.getOrElse(Set.empty), local)
@@ -45,7 +46,7 @@ class DispatcherService(datasets: Map[DatasetId, Dataset], wokenService: WokenSe
 
   def remoteDispatchMiningFlow(): Flow[MiningQuery, (RemoteLocation, QueryResult), NotUsed] =
     Flow[MiningQuery]
-      .map(q => dispatchTo(q.datasets.getOrElse(Set()))._1.map(ds => ds -> q))
+      .map(q => dispatchTo(q.datasets)._1.map(ds => ds -> q))
       .mapConcat(identity)
       .buffer(100, OverflowStrategy.backpressure)
       .map { case (l, q) => l.copy(url = l.url.withPath(l.url.path / "mining" / "job")) -> q }
@@ -54,7 +55,7 @@ class DispatcherService(datasets: Map[DatasetId, Dataset], wokenService: WokenSe
   def remoteDispatchExperimentFlow()
     : Flow[ExperimentQuery, (RemoteLocation, QueryResult), NotUsed] =
     Flow[ExperimentQuery]
-      .map(q => dispatchTo(q.trainingDatasets.getOrElse(Set()))._1.map(ds => ds -> q))
+      .map(q => dispatchTo(q.trainingDatasets)._1.map(ds => ds -> q))
       .mapConcat(identity)
       .buffer(100, OverflowStrategy.backpressure)
       .map {

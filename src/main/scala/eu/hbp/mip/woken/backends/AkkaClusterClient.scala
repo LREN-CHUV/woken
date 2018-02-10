@@ -21,7 +21,7 @@ import akka.actor.{ ActorRef, ActorSystem }
 import akka.cluster.client.{ ClusterClient, ClusterClientSettings }
 import akka.util.Timeout
 import eu.hbp.mip.woken.config.RemoteLocation
-import eu.hbp.mip.woken.messages.external.{ Query, QueryResult }
+import eu.hbp.mip.woken.messages.query.{ Query, QueryResult }
 import scala.concurrent.duration._
 
 import scala.concurrent.Future

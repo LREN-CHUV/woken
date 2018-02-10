@@ -21,7 +21,7 @@ import com.typesafe.config.Config
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil._
 import eu.hbp.mip.woken.config.AnonymisationLevel.AnonymisationLevel
 import eu.hbp.mip.woken.fp.Traverse
-import eu.hbp.mip.woken.messages.external.DatasetId
+import eu.hbp.mip.woken.messages.datasets.DatasetId
 import cats.data.Validated._
 import cats.implicits._
 
@@ -32,6 +32,7 @@ object AnonymisationLevel extends Enumeration {
 
 case class RemoteLocation(url: Uri, credentials: Option[BasicAuthentication])
 case class Dataset(dataset: DatasetId,
+                   label: String,
                    description: String,
                    tables: List[String],
                    anonymisationLevel: AnonymisationLevel,
@@ -41,11 +42,13 @@ object Dataset {
 
   // Seems useful as Scala enumeration and Cats mapN don't appear to work together well
   def apply2(dataset: String,
+             label: String,
              description: String,
              tables: List[String],
              anonymisationLevel: String,
              location: Option[RemoteLocation]): Dataset = Dataset(
     DatasetId(dataset),
+    label,
     description,
     tables,
     AnonymisationLevel.withName(anonymisationLevel),
@@ -61,6 +64,7 @@ object DatasetsConfiguration {
 
     datasetConfig.andThen { f =>
       val dataset                          = path.lastOption.map(lift).getOrElse("Empty path".invalidNel[String])
+      val label                            = f.validateString("label")
       val description                      = f.validateString("description")
       val tables: Validation[List[String]] = f.validateStringList("tables").orElse(lift(List()))
       val location: Validation[Option[RemoteLocation]] = f
@@ -92,7 +96,7 @@ object DatasetsConfiguration {
           AnonymisationLevel.withName(s); true
         }
 
-      (dataset, description, tables, anonymisationLevel, location) mapN Dataset.apply2
+      (dataset, label, description, tables, anonymisationLevel, location) mapN Dataset.apply2
     }
 
   }
