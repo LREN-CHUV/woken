@@ -182,6 +182,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
       miningJobsInFlight -= job
 
     case query: ExperimentQuery =>
+      // TODO: needs migration to ExperimentFlowHandler
       val initiator = sender()
       log.debug(s"Received message: $query")
       if (experimentJobsInFlight.size <= experimentActiveActorsLimit) {
