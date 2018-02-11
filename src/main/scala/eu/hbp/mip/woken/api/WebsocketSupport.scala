@@ -34,6 +34,8 @@ import queryProtocol._
 import akka.stream.{ ActorAttributes, Supervision }
 import com.typesafe.scalalogging.LazyLogging
 
+import scala.util.{ Failure, Success, Try }
+
 trait WebsocketSupport extends LazyLogging {
 
   val masterRouter: ActorRef
@@ -66,10 +68,19 @@ trait WebsocketSupport extends LazyLogging {
     Flow[Message]
       .collect {
         case TextMessage.Strict(jsonEncodedString) =>
-          jsonEncodedString.parseJson.convertTo[ExperimentQuery]
+          Try {
+            jsonEncodedString.parseJson.convertTo[ExperimentQuery]
+          }
+      }
+      .filter {
+        case Success(_) => true
+        case Failure(err) =>
+          logger.error("Deserilize failed", err)
+          false
+
       }
       .mapAsync(1) { query =>
-        (masterRouter ? query).mapTo[QueryResult]
+        (masterRouter ? query.get).mapTo[QueryResult]
       }
       .map { result =>
         TextMessage(result.toJson.compactPrint)
@@ -81,9 +92,20 @@ trait WebsocketSupport extends LazyLogging {
       .collect {
         case tm: TextMessage =>
           val jsonEncodeStringMsg = tm.getStrictText
-          jsonEncodeStringMsg.parseJson.convertTo[MiningQuery]
+          Try {
+            jsonEncodeStringMsg.parseJson.convertTo[MiningQuery]
+          }
+      }
+      .filter {
+        case Success(_) => true
+        case Failure(err) =>
+          logger.error("Deserialize failed", err)
+          false
+
       }
       .withAttributes(ActorAttributes.supervisionStrategy(decider))
+      .filter(_.isSuccess)
+      .map(_.get)
       .mapAsync(1) { miningQuery: MiningQuery =>
         if (miningQuery.algorithm.code.isEmpty || miningQuery.algorithm.code == "data") {
           Future.successful(
