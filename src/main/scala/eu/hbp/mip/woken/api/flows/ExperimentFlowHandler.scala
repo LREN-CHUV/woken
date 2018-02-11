@@ -19,10 +19,11 @@ package eu.hbp.mip.woken.api.flows
 import java.time.OffsetDateTime
 
 import akka.NotUsed
-import akka.actor.ActorRef
+import akka.actor.{ ActorContext, ActorRef, ActorSystem }
 import akka.stream.FlowShape
 import akka.stream.scaladsl.{ Flow, GraphDSL, Merge, Partition }
-import eu.hbp.mip.woken.config.AppConfiguration
+import eu.hbp.mip.woken.config.{ AlgorithmDefinition, AppConfiguration }
+import eu.hbp.mip.woken.core.commands.JobCommands.StartExperimentJob
 import eu.hbp.mip.woken.core.{ CoordinatorConfig, ExperimentActor }
 import eu.hbp.mip.woken.core.model.{ ErrorJobResult, Shapes }
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
@@ -32,16 +33,17 @@ import eu.hbp.mip.woken.service.DispatcherService
 /**
   * Experiment Flow.
   */
-class ExperimentFlow(
+class ExperimentFlowHandler(
     appConfiguration: AppConfiguration,
     experimentQuery2JobF: ExperimentQuery => Validation[ExperimentActor.Job],
     dispatcherService: DispatcherService,
-    coordinatorConfig: CoordinatorConfig
-) {
+    coordinatorConfig: CoordinatorConfig,
+    algorithmLookup: String => Validation[AlgorithmDefinition]
+)(implicit system: ActorSystem) {
 
   private val experimentActiveActorsLimit: Int =
     appConfiguration.masterRouterConfig.miningActorsLimit
-  private var experimentJobsInFlight: Map[ExperimentActor.Job, (ActorRef, ActorRef)] = Map()
+  private var experimentJobsInFlight: Map[ExperimentActor.Job, ActorRef] = Map()
 
   private def canProcessJob(query: ExperimentQuery): Boolean =
     experimentJobsInFlight.size <= experimentActiveActorsLimit
@@ -63,10 +65,16 @@ class ExperimentFlow(
       ErrorJobResult("", "", OffsetDateTime.now(), "experiment", "Too busy to accept new jobs.").asQueryResult
   )
 
-  private val executionFlow: Flow[Validation[ExperimentActor.Job], QueryResult, NotUsed] =
-    Flow[Validation[ExperimentActor.Job]]
+  private def isNewJobRequired(job: ExperimentActor.Job): Boolean =
+    dispatcherService.dispatchTo(job.query.trainingDatasets) match {
+      case (_, true) => true
+      case _         => false
+    }
+
+  private val executionFlow: Flow[ExperimentActor.Job, QueryResult, NotUsed] =
+    Flow[ExperimentActor.Job]
       .map { job =>
-        job.toOption.get.query
+        job.query
       }
       .via(dispatcherService.remoteDispatchExperimentFlow())
       .fold(List[QueryResult]()) {
@@ -86,18 +94,27 @@ class ExperimentFlow(
           compoundResult(listOfResults)
       }
 
+  private val startExperimentTask: Flow[ExperimentActor.Job, QueryResult, NotUsed] =
+    Flow[ExperimentActor.Job].map(startExperimentJob)
+
+  private val shouldStartANewJob: Flow[Validation[ExperimentActor.Job], QueryResult, NotUsed] =
+    Flow[Validation[ExperimentActor.Job]]
+      .map(job => job.toOption.get)
+      .via(conditionalFlow(isNewJobRequired, startExperimentTask, executionFlow))
+
   val experimentFlow: Flow[ExperimentQuery, QueryResult, _] =
-    Flow[ExperimentQuery].via(
-      conditionalFlow(
-        canProcessJob,
-        validationFlow(
-          canBuildValidJob,
-          validationFailedFlow,
-          executionFlow
-        ),
-        tooBusyFlow
+    Flow[ExperimentQuery]
+      .via(
+        conditionalFlow(
+          canProcessJob,
+          validationFlow(
+            canBuildValidJob,
+            validationFailedFlow,
+            shouldStartANewJob
+          ),
+          tooBusyFlow
+        )
       )
-    )
 
   /**
     * Build a conditional flow.
@@ -156,6 +173,21 @@ class ExperimentFlow(
       data = Some(queryResults.toJson),
       error = None
     )
+  }
+
+  private def startExperimentJob(job: ExperimentActor.Job): QueryResult = {
+    val experimentActorRef = newExperimentActor
+    experimentActorRef ! StartExperimentJob(job)
+    experimentJobsInFlight += job -> experimentActorRef
+    // TODO: need to fix the data included in return type
+    QueryResult(job.jobId, "", OffsetDateTime.now(), "", "", None, None)
+  }
+
+  private[api] def newExperimentActor: ActorRef = {
+    val ref = system.actorOf(ExperimentActor.props(coordinatorConfig, algorithmLookup))
+    //TODO: need some supervision for experiment actor
+    //context watch ref
+    ref
   }
 
 }

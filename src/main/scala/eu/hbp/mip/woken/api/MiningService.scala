@@ -33,6 +33,7 @@ import eu.hbp.mip.woken.dao.FeaturesDAL
 import eu.hbp.mip.woken.service.AlgorithmLibraryService
 import akka.util.Timeout
 import com.typesafe.scalalogging.LazyLogging
+import eu.hbp.mip.woken.api.flows.ExperimentFlowHandler
 import spray.json.DefaultJsonProtocol
 
 import scala.concurrent.duration._
@@ -44,6 +45,7 @@ object MiningService
 // this trait defines our service behavior independently from the service actor
 class MiningService(
     val masterRouter: ActorRef,
+    val experimentFlowHandler: ExperimentFlowHandler,
     val featuresDatabase: FeaturesDAL,
     override val appConfiguration: AppConfiguration,
     val jobsConf: JobsConfiguration

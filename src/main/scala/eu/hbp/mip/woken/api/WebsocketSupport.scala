@@ -33,12 +33,14 @@ import spray.json._
 import queryProtocol._
 import akka.stream.{ ActorAttributes, Supervision }
 import com.typesafe.scalalogging.LazyLogging
+import eu.hbp.mip.woken.api.flows.ExperimentFlowHandler
 
 import scala.util.{ Failure, Success, Try }
 
 trait WebsocketSupport extends LazyLogging {
 
   val masterRouter: ActorRef
+  val experimentFlowHandler: ExperimentFlowHandler
   val featuresDatabase: FeaturesDAL
   val appConfiguration: AppConfiguration
   val jobsConf: JobsConfiguration
@@ -79,9 +81,8 @@ trait WebsocketSupport extends LazyLogging {
           false
 
       }
-      .mapAsync(1) { query =>
-        (masterRouter ? query.get).mapTo[QueryResult]
-      }
+      .map(_.get)
+      .via(experimentFlowHandler.experimentFlow)
       .map { result =>
         TextMessage(result.toJson.compactPrint)
       }

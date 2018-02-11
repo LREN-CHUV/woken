@@ -23,6 +23,7 @@ import eu.hbp.mip.woken.dao.FeaturesDAL
 import eu.hbp.mip.woken.service.{ JobResultService, VariablesMetaService }
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
+import eu.hbp.mip.woken.api.flows.ExperimentFlowHandler
 
 /**
   * The REST API layer. It exposes the REST services, but does not provide any
@@ -37,10 +38,12 @@ trait Api extends CoreActors with Core {
   val variablesMetaService: VariablesMetaService
   val appConfig: AppConfiguration
   val coordinatorConfig: CoordinatorConfig
+  val experimentFlowHandler: ExperimentFlowHandler
 
   lazy val miningService =
     new MiningService(
       mainRouter,
+      experimentFlowHandler,
       featuresDAL,
       appConfig,
       jobsConf
