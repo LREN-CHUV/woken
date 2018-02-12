@@ -52,14 +52,14 @@ class ExperimentFlowHandler(
     experimentQuery2JobF(query)
 
   private val validationFailedFlow: Flow[Validation[ExperimentActor.Job], QueryResult, _] =
-    Flow[Validation[ExperimentActor.Job]].map(
+    Flow[Validation[ExperimentActor.Job]].map {
       errorMsg =>
         ErrorJobResult("",
-                       "",
-                       OffsetDateTime.now(),
-                       "experiment",
-                       errorMsg.toEither.left.get.reduceLeft(_ + ", " + _)).asQueryResult
-    )
+          "",
+          OffsetDateTime.now(),
+          "experiment",
+          errorMsg.toEither.left.get.reduceLeft(_ + ", " + _)).asQueryResult
+    }
   private val tooBusyFlow: Flow[ExperimentQuery, QueryResult, _] = Flow[ExperimentQuery].map(
     _ =>
       ErrorJobResult("", "", OffsetDateTime.now(), "experiment", "Too busy to accept new jobs.").asQueryResult
@@ -150,7 +150,7 @@ class ExperimentFlowHandler(
     Flow.fromGraph(GraphDSL.create() { implicit builder =>
       import GraphDSL.Implicits._
 
-      def partitionFunction = (a: ExperimentQuery) => f(a).fold(_ => 1, _ => 0)
+      def partitionFunction = (a: ExperimentQuery) => f(a).fold(_ => 0, _ => 1)
 
       val partitioner = builder.add(Partition[ExperimentQuery](2, partitionFunction))
       val merger      = builder.add(Merge[QueryResult](2))
