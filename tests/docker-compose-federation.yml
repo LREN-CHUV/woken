@@ -215,49 +215,123 @@ services:
     depends_on:
       - zipkin
 
-  woken:
+  wokennode1:
     image: hbpmip/woken
     volumes:
-      - ./woken/config:/opt/woken/config
+      - ./woken-worker1/config:/opt/woken/config
     ports:
-      - "8087:8087"
-      - "8088:8088"
+      - "18087:8087"
+      - "18088:8088"
     environment:
       CLUSTER_PORT: 8088
-      CLUSTER_IP: woken
-      WOKEN_PORT_8088_TCP_ADDR: woken
+      CLUSTER_IP: wokennode1
+      CLUSTER_NAME: woken-node1
+      WOKEN_PORT_8088_TCP_ADDR: wokennode1
     links:
       - zipkin
     depends_on:
       - chronos
       - db
 
-  wokenvalidation:
+  wokenvalidationnode1:
     image: hbpmip/woken-validation:2.1.8
     ports:
-      - "8081:8081"
-      - "8082:8082"
+      - "18081:8081"
+      - "18082:8082"
     environment:
-      CLUSTER_PORT: 8082
-      CLUSTER_IP: wokenvalidation
-      WOKEN_PORT_8088_TCP_ADDR: woken
+      CLUSTER_PORT: 18082
+      CLUSTER_IP: wokenvalidationnode1
+      CLUSTER_NAME: woken-node1
+      WOKEN_PORT_8088_TCP_ADDR: wokennode1
       LOG_LEVEL: DEBUG
     links:
       - zipkin
     depends_on:
-      - woken
+      - wokennode1
 
-  wait_woken:
+  wait_wokennode1:
     image: "waisbrot/wait"
     restart: "no"
     environment:
-      TARGETS: "woken:8087,chronos:4400,wokenvalidation:8081"
+      TARGETS: "wokennode1:8087,chronos:4400"
       TIMEOUT: 60
     depends_on:
-      - woken
+      - wokennode1
       - chronos
 
-  wokentest:
+  wokennode2:
+    image: hbpmip/woken
+    volumes:
+      - ./woken-worker2/config:/opt/woken/config
+    ports:
+      - "28087:8087"
+      - "28088:8088"
+    environment:
+      CLUSTER_PORT: 8088
+      CLUSTER_IP: wokennode2
+      CLUSTER_NAME: woken-node2
+      WOKEN_PORT_8088_TCP_ADDR: wokennode2
+    links:
+      - zipkin
+    depends_on:
+      - chronos
+      - db
+
+  wokenvalidationnode2:
+    image: hbpmip/woken-validation:2.1.8
+    ports:
+      - "28081:8081"
+      - "28082:8082"
+    environment:
+      CLUSTER_PORT: 28082
+      CLUSTER_IP: wokenvalidationnode2
+      CLUSTER_NAME: woken-node2
+      WOKEN_PORT_8088_TCP_ADDR: wokennode2
+      LOG_LEVEL: DEBUG
+    links:
+      - zipkin
+    depends_on:
+      - wokennode2
+
+  wait_wokennode2:
+    image: "waisbrot/wait"
+    restart: "no"
+    environment:
+      TARGETS: "wokennode2:8087,chronos:4400"
+      TIMEOUT: 60
+    depends_on:
+      - wokennode2
+      - chronos
+
+  wokencentral:
+    image: hbpmip/woken
+    volumes:
+      - ./woken-central/config:/opt/woken/config
+    ports:
+      - "8087:8087"
+      - "8088:8088"
+    environment:
+      CLUSTER_PORT: 8088
+      CLUSTER_IP: wokencentral
+      CLUSTER_NAME: woken-central
+      WOKEN_PORT_8088_TCP_ADDR: wokencentral
+    links:
+      - zipkin
+    depends_on:
+      - chronos
+      - db
+
+  wait_wokencentral:
+    image: "waisbrot/wait"
+    restart: "no"
+    environment:
+      TARGETS: "wokencentral:8087,chronos:4400"
+      TIMEOUT: 60
+    depends_on:
+      - wokencentral
+      - chronos
+
+  wokencentraltest:
     build:
       context: ./woken-test
       dockerfile: Dockerfile
@@ -267,9 +341,11 @@ services:
     environment:
       CLUSTER_PORT: 8097
       CLUSTER_IP: wokentest
-      WOKEN_PORT_8088_TCP_ADDR: woken
+      CLUSTER_NAME: woken-central
+      WOKEN_PORT_8088_TCP_ADDR: wokencentral
+      LOG_LEVEL: DEBUG
     depends_on:
-      - woken
+      - wokencentral
 
   portalbackend:
     image: "hbpmip/portal-backend:2.5.4"
@@ -304,7 +380,7 @@ services:
       WOKEN_AKKA_PATH: "/user/entrypoint"
     depends_on:
       - db
-      - woken
+      - wokencentral
 
   wait_portal_backend:
     image: "waisbrot/wait"

@@ -42,11 +42,18 @@ RUN  /opt/woken/lets-encrypt-install.sh
 RUN adduser -H -D -u 1000 woken \
     && chmod +x /opt/woken/woken.sh \
     && ln -s /opt/woken/woken.sh /run.sh \
-    && chown -R woken:woken /opt/woken
+    && chown -R woken:woken /opt/woken \
+    && apk add --update --no-cache curl
 
 COPY --from=scala-build-env /build/target/scala-2.11/woken-all.jar /opt/woken/woken.jar
 
 USER woken
+
+# Health checks on http://host:8087/health
+# Akka on 8088
+EXPOSE 8087 8088 8088/UDP
+
+HEALTHCHECK CMD curl -v --silent http://localhost:8087/health 2>&1 | grep UP
 
 LABEL org.label-schema.build-date=$BUILD_DATE \
       org.label-schema.name="hbpmip/woken" \
