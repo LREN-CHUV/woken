@@ -52,13 +52,12 @@ class ExperimentFlowHandler(
     experimentQuery2JobF(query)
 
   private val validationFailedFlow: Flow[Validation[ExperimentActor.Job], QueryResult, _] =
-    Flow[Validation[ExperimentActor.Job]].map {
-      errorMsg =>
-        ErrorJobResult("",
-          "",
-          OffsetDateTime.now(),
-          "experiment",
-          errorMsg.toEither.left.get.reduceLeft(_ + ", " + _)).asQueryResult
+    Flow[Validation[ExperimentActor.Job]].map { errorMsg =>
+      ErrorJobResult("",
+                     "",
+                     OffsetDateTime.now(),
+                     "experiment",
+                     errorMsg.toEither.left.get.reduceLeft(_ + ", " + _)).asQueryResult
     }
   private val tooBusyFlow: Flow[ExperimentQuery, QueryResult, _] = Flow[ExperimentQuery].map(
     _ =>
