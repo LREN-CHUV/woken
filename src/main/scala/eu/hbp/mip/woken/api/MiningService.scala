@@ -156,7 +156,7 @@ class MiningService(
             entity(as[ExperimentQuery]) { query: ExperimentQuery =>
               val source: Source[QueryResult, NotUsed] = Source
                 .single(query)
-                .via(experimentFlowHandler.experimentFlow)
+                .via(experimentFlowHandler.experimentFlowRouter)
               complete(source)
             }
           }
