@@ -157,12 +157,12 @@ case class JsonDataJobResult(jobId: String,
     extends VisualisationJobResult
 
 case class DataResourceJobResult(jobId: String,
-                              node: String,
-                              timestamp: OffsetDateTime,
-                              shape: String,
-                              algorithm: String,
-                              data: JsValue)
-  extends VisualisationJobResult
+                                 node: String,
+                                 timestamp: OffsetDateTime,
+                                 shape: String,
+                                 algorithm: String,
+                                 data: JsValue)
+    extends VisualisationJobResult
 
 case class OtherDataJobResult(jobId: String,
                               node: String,

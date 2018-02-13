@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 if groups "$USER" | grep &>/dev/null '\bdocker\b'; then
   DOCKER_COMPOSE="docker-compose"

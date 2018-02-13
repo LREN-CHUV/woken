@@ -40,6 +40,7 @@ trait Queries {
       covariables = List(VariableId("score_test1"), VariableId("college_math")),
       grouping = Nil,
       filters = None,
+      targetTable = Some("sample_data"),
       algorithms = List(AlgorithmSpec(algorithm, parameters)),
       validations = List(ValidationSpec("kfold", List(CodeValue("k", "2")))),
       trainingDatasets = Set(),

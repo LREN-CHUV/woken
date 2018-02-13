@@ -63,18 +63,20 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
         if pfa.contains(shape) =>
       Try(
         PfaJobResult(jobId, node, timestamp, function, data.parseJson.asJsObject)
-      ).recover { case t: Throwable =>
-        val msg = s"Data for job $jobId produced by $function is not a valid Json object"
-        logger.warn(msg, t)
-        ErrorJobResult(jobId, node, timestamp, function, s"$msg : $t")
+      ).recover {
+        case t: Throwable =>
+          val msg = s"Data for job $jobId produced by $function is not a valid Json object"
+          logger.warn(msg, t)
+          ErrorJobResult(jobId, node, timestamp, function, s"$msg : $t")
       }.get
     case (jobId, node, timestamp, shape, _, Some(data), None) if pfaExperiment.contains(shape) =>
       Try(
         PfaExperimentJobResult(jobId, node, timestamp, data.parseJson.asInstanceOf[JsArray])
-      ).recover { case t: Throwable =>
-        val msg = s"Data for job $jobId for a PFA experiment is not a valid Json array"
-        logger.warn(msg, t)
-        ErrorJobResult(jobId, node, timestamp, "experiment", s"$msg : $t")
+      ).recover {
+        case t: Throwable =>
+          val msg = s"Data for job $jobId for a PFA experiment is not a valid Json array"
+          logger.warn(msg, t)
+          ErrorJobResult(jobId, node, timestamp, "experiment", s"$msg : $t")
       }.get
     case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
         if pfaYaml.contains(shape) =>
@@ -89,10 +91,11 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
                           getVisualisationJson(shape).get.mime,
                           function,
                           json)
-      }.recover { case t: Throwable =>
-        val msg = s"Data for job $jobId produced by $function is not a valid Json object"
-        logger.warn(msg, t)
-        ErrorJobResult(jobId, node, timestamp, function, s"$msg : $t")
+      }.recover {
+        case t: Throwable =>
+          val msg = s"Data for job $jobId produced by $function is not a valid Json object"
+          logger.warn(msg, t)
+          ErrorJobResult(jobId, node, timestamp, function, s"$msg : $t")
       }.get
     case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
         if getVisualisationOther(shape).isDefined =>
@@ -145,12 +148,12 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
        None)
     case j: DataResourceJobResult =>
       (j.jobId,
-        j.node.take(32),
-        j.timestamp,
-        j.shape,
-        j.algorithm.take(255),
-        Some(j.data.compactPrint),
-        None)
+       j.node.take(32),
+       j.timestamp,
+       j.shape,
+       j.algorithm.take(255),
+       Some(j.data.compactPrint),
+       None)
     case j: OtherDataJobResult =>
       (j.jobId, j.node.take(32), j.timestamp, j.shape, j.algorithm.take(255), Some(j.data), None)
   }
