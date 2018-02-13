@@ -86,6 +86,7 @@ class WokenAkkaAPITest
       covariables = List(VariableId("score_math_course1")),
       grouping = Nil,
       filters = None,
+      targetTable = Some("sample_data"),
       algorithm = AlgorithmSpec("knn", List(CodeValue("k", "5"))),
       datasets = Set(),
       executionPlan = None
@@ -123,6 +124,7 @@ class WokenAkkaAPITest
         List("score_math_course1", "score_math_course2").map(VariableId),
       grouping = Nil,
       filters = None,
+      targetTable = Some("sample_data"),
       algorithm = AlgorithmSpec("histograms", Nil),
       datasets = Set(),
       executionPlan = None

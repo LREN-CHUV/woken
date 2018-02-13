@@ -49,6 +49,12 @@ object Shapes {
     val values = Set(json, mime)
   }
 
+  object dataResource extends Shape {
+    val json   = "data_resource_json"
+    val mime   = "application/vnd.dataresource+json"
+    val values = Set(json, mime)
+  }
+
   object html extends Shape {
     val html   = "html"
     val mime   = "text/html"
@@ -103,10 +109,12 @@ object Shapes {
     val values   = Set(compound, mime)
   }
 
-  val visualisationJson: Set[Shape] = Set(highcharts, plotly, json)
+  /** Group results stored as Json documents in the base */
+  val visualisationJson: Set[Shape] = Set(highcharts, plotly, json, dataResource)
   def getVisualisationJson(s: String): Option[Shape] =
     visualisationJson.find(_.contains(s))
 
+  /** Group results stored as generic documents (strings) in the base */
   val visualisationOther: Set[Shape] = Set(html, svg, png, visjs)
   def getVisualisationOther(s: String): Option[Shape] =
     visualisationOther.find(_.contains(s))

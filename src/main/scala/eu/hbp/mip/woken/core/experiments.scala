@@ -253,6 +253,7 @@ case class ExperimentFlow(
           covariables = query.covariables,
           grouping = query.grouping,
           filters = query.filters,
+          targetTable = Some(job.inputTable),
           datasets = query.trainingDatasets,
           algorithm = algorithmSpec,
           executionPlan = None

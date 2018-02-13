@@ -13,8 +13,9 @@
       "code": "score_math_course1"
     }
   ],
-  "filters": "",
+  "filters": [],
   "grouping": [],
+  "targetTable": "sample_data",
   "user": {
     "code": "user1"
   },

@@ -21,8 +21,9 @@
       "code": "node2"
     }
   ],
-  "filters": "",
+  "filters": [],
   "grouping": [],
+  "targetTable": "sample_data",
   "user": {
     "code": "user1"
   },

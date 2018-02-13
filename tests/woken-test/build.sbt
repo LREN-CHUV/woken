@@ -28,7 +28,7 @@ lazy val `woken-test` =
           library.scalaTest    % Test,
           library.akkaTestkit  % Test
         ),
-        includeFilter in (Test, unmanagedResources) := "*.json",
+        includeFilter in (Test, unmanagedResources) := "*.json" || "*.xml",
         fork in Test := false,
         parallelExecution in Test := false
       )
@@ -50,7 +50,7 @@ lazy val library =
       val log4j         = "2.9.1"
       val disruptor     = "3.3.7"
       val config        = "1.2.1"
-      val wokenMessages = "2.3.1"
+      val wokenMessages = "2.3.2"
     }
     val scalaCheck: ModuleID       = "org.scalacheck"    %% "scalacheck"   % Version.scalaCheck
     val scalaTest: ModuleID        = "org.scalatest"     %% "scalatest"    % Version.scalaTest

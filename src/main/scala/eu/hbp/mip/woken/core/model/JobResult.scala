@@ -156,6 +156,14 @@ case class JsonDataJobResult(jobId: String,
                              data: JsValue)
     extends VisualisationJobResult
 
+case class DataResourceJobResult(jobId: String,
+                                 node: String,
+                                 timestamp: OffsetDateTime,
+                                 shape: String,
+                                 algorithm: String,
+                                 data: JsValue)
+    extends VisualisationJobResult
+
 case class OtherDataJobResult(jobId: String,
                               node: String,
                               timestamp: OffsetDateTime,
@@ -189,6 +197,16 @@ object JobResult {
           error = None
         )
       case v: JsonDataJobResult =>
+        QueryResult(
+          jobId = v.jobId,
+          node = v.node,
+          timestamp = v.timestamp,
+          shape = v.shape,
+          algorithm = v.algorithm,
+          data = Some(v.data),
+          error = None
+        )
+      case v: DataResourceJobResult =>
         QueryResult(
           jobId = v.jobId,
           node = v.node,
