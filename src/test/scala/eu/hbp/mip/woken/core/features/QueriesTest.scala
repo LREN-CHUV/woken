@@ -16,7 +16,10 @@
 
 package eu.hbp.mip.woken.core.features
 
-import org.scalatest.{ Matchers, WordSpec }
+import eu.hbp.mip.woken.messages.query.{AlgorithmSpec, CodeValue, MiningQuery, UserId}
+import org.scalatest.{Matchers, WordSpec}
+import eu.hbp.mip.woken.messages.query.filters._
+import eu.hbp.mip.woken.messages.variables.VariableId
 
 class QueriesTest extends WordSpec with Matchers {
 
@@ -55,7 +58,45 @@ class QueriesTest extends WordSpec with Matchers {
   }
 
   "FilterRuleToSql" should {
+
     // TODO
+
+    // generate the where clause for a simple filter
+    val simpleFilter = SingleFilterRule("col1", "col1", "string", InputType.number, Operator.greaterOrEqual, List("10.5"))
+
+    // generate the where clause for a more complex filter
+
+    // try to find some tricky filters, filters with bad values that may be injected by an attacker
   }
 
+  "QueryEnhanced" should {
+
+    // TODO
+
+//    val algorithm: AlgorithmSpec = AlgorithmSpec(
+//      code = "knn",
+//      parameters = List(CodeValue("k", "5"), CodeValue("n", "1"))
+//    )
+//
+//    val user: UserId = UserId("test")
+//
+//    // a < 10
+//    private val rule =
+//    SingleFilterRule("a", "a", "number", InputType.number, Operator.less, List("10"))
+//
+//    val query = MiningQuery(
+//      user = user,
+//      variables = List("target").map(VariableId),
+//      covariables = List("a", "b", "c").map(VariableId),
+//      grouping = List("grp1", "grp2").map(VariableId),
+//      filters = Some(rule),
+//      targetTable = None,
+//      datasets = Set(),
+//      algorithm = algorithm,
+//      executionPlan = None
+//    )
+
+    // generate the SQL query
+
+  }
 }
