@@ -48,6 +48,19 @@ object Queries {
   }
 
   implicit class FilterRuleToSql(val rule: FilterRule) extends AnyVal {
+
+    def withAdaptedFieldName: FilterRule = rule match {
+      case c: CompoundFilterRule =>
+        CompoundFilterRule(c.condition, c.rules.map(_.withAdaptedFieldName))
+      case s: SingleFilterRule =>
+        SingleFilterRule(s.id,
+                         s.field.toLowerCase().replaceAll("-", "_").replaceFirst("^(\\d)", "_$1"),
+                         s.`type`,
+                         s.input,
+                         s.operator,
+                         s.value)
+    }
+
     def toSqlWhere: String = rule match {
       case c: CompoundFilterRule =>
         c.rules
@@ -73,16 +86,16 @@ object Queries {
           case Operator.notBetween =>
             s"${s.field.identifier} NOT BETWEEN ${s.value.head.safeValue} AND ${s.value.last.safeValue}"
           case Operator.beginsWith =>
-            s"${s.field.identifier} LIKE ${(s.value.head + "%").safeValue}'"
+            s"${s.field.identifier} LIKE ${(s.value.head + "%").safeValue}"
           case Operator.notBeginsWith =>
-            s"${s.field.identifier} NOT LIKE ${(s.value.head + "%").safeValue}'"
+            s"${s.field.identifier} NOT LIKE ${(s.value.head + "%").safeValue}"
           case Operator.contains =>
-            s"${s.field.identifier} LIKE ${("%" + s.value.head + "%").safeValue}'"
+            s"${s.field.identifier} LIKE ${("%" + s.value.head + "%").safeValue}"
           case Operator.notContains =>
-            s"${s.field.identifier} NOT LIKE ${("%" + s.value.head + "%").safeValue}'"
-          case Operator.endsWith => s"${s.field.identifier} LIKE ${("%" + s.value.head).safeValue}'"
+            s"${s.field.identifier} NOT LIKE ${("%" + s.value.head + "%").safeValue}"
+          case Operator.endsWith => s"${s.field.identifier} LIKE ${("%" + s.value.head).safeValue}"
           case Operator.notEndsWith =>
-            s"${s.field.identifier} NOT LIKE ${("%" + s.value.head).safeValue}'"
+            s"${s.field.identifier} NOT LIKE ${("%" + s.value.head).safeValue}"
           case Operator.isEmpty    => s"'COALESCE(${s.field.identifier}, '') = ''"
           case Operator.isNotEmpty => s"'COALESCE(${s.field.identifier}, '') != ''"
           case Operator.isNull     => s"${s.field.identifier} IS NULL"
@@ -118,7 +131,8 @@ object Queries {
       val nonNullableFields = if (excludeNullValues) query.dbAllVars else query.dbVariables
       val notNullFilters: List[FilterRule] = nonNullableFields
         .map(v => SingleFilterRule(v, v, "string", InputType.text, Operator.isNotNull, Nil))
-      val mergingQueryFilters = query.filters.fold(notNullFilters)(f => notNullFilters :+ f)
+      val mergingQueryFilters =
+        query.filters.map(_.withAdaptedFieldName).fold(notNullFilters)(f => notNullFilters :+ f)
       val filters: FilterRule = mergingQueryFilters match {
         case List(f) => f
         case _       => CompoundFilterRule(Condition.and, mergingQueryFilters)
