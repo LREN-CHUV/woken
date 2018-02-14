@@ -53,12 +53,7 @@ object Queries {
       case c: CompoundFilterRule =>
         CompoundFilterRule(c.condition, c.rules.map(_.withAdaptedFieldName))
       case s: SingleFilterRule =>
-        SingleFilterRule(s.id,
-                         s.field.toLowerCase().replaceAll("-", "_").replaceFirst("^(\\d)", "_$1"),
-                         s.`type`,
-                         s.input,
-                         s.operator,
-                         s.value)
+        s.copy(field = s.field.toLowerCase().replaceAll("-", "_").replaceFirst("^(\\d)", "_$1"))
     }
 
     def toSqlWhere: String = rule match {

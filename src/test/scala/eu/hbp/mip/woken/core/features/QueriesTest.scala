@@ -60,8 +60,6 @@ class QueriesTest extends WordSpec with Matchers {
   "FilterRuleToSql" should {
     import Queries.FilterRuleToSql
 
-    // TODO
-
     "generate the where clause for a simple filter" in {
       val simpleFilter = SingleFilterRule("col1",
                                           "col1",
