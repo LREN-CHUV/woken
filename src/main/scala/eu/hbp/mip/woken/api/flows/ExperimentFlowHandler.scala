@@ -19,7 +19,7 @@ package eu.hbp.mip.woken.api.flows
 import java.time.OffsetDateTime
 
 import akka.NotUsed
-import akka.actor.{ ActorContext, ActorRef, ActorSystem }
+import akka.actor.{ ActorRef, ActorSystem }
 import akka.stream.FlowShape
 import akka.stream.scaladsl.{ Flow, GraphDSL, Merge, Partition }
 import eu.hbp.mip.woken.config.{ AlgorithmDefinition, AppConfiguration }
