@@ -19,24 +19,16 @@ package eu.hbp.mip.woken.api.flows
 import java.time.OffsetDateTime
 
 import akka.NotUsed
-import akka.actor.ActorContext
-import akka.stream.{ FlowShape, Materializer }
-import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Keep, Merge, Partition, Zip }
+import akka.actor.{ ActorContext, ActorRef, ActorSystem }
+import akka.stream.FlowShape
+import akka.stream.scaladsl.{ Flow, GraphDSL, Merge, Partition }
 import eu.hbp.mip.woken.config.{ AlgorithmDefinition, AppConfiguration }
-import eu.hbp.mip.woken.core.ExperimentActor.{ Job, Response }
-import eu.hbp.mip.woken.core.{ CoordinatorConfig, ExperimentActor, ExperimentFlow }
-import eu.hbp.mip.woken.core.model.{ ErrorJobResult, JobResult, PfaExperimentJobResult, Shapes }
+import eu.hbp.mip.woken.core.commands.JobCommands.StartExperimentJob
+import eu.hbp.mip.woken.core.{ CoordinatorConfig, ExperimentActor }
+import eu.hbp.mip.woken.core.model.{ ErrorJobResult, Shapes }
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
-import eu.hbp.mip.woken.messages.query.{
-  AlgorithmSpec,
-  ExperimentQuery,
-  QueryResult,
-  queryProtocol
-}
+import eu.hbp.mip.woken.messages.query.{ ExperimentQuery, QueryResult, queryProtocol }
 import eu.hbp.mip.woken.service.DispatcherService
-import org.slf4j.LoggerFactory
-
-import scala.concurrent.ExecutionContext
 
 /**
   * Experiment Flow.
@@ -46,14 +38,15 @@ class ExperimentFlowHandler(
     experimentQuery2JobF: ExperimentQuery => Validation[ExperimentActor.Job],
     dispatcherService: DispatcherService,
     coordinatorConfig: CoordinatorConfig,
-    algorithmLookup: String => Validation[AlgorithmDefinition],
-    context: ActorContext
-)(implicit materializer: Materializer, ec: ExecutionContext) {
+    algorithmLookup: String => Validation[AlgorithmDefinition]
+)(implicit system: ActorSystem) {
 
-  private val log = LoggerFactory.getLogger(getClass)
+  private val experimentActiveActorsLimit: Int =
+    appConfiguration.masterRouterConfig.miningActorsLimit
+  private var experimentJobsInFlight: Map[ExperimentActor.Job, ActorRef] = Map()
 
-  lazy val experimentFlow: Flow[Job, Map[AlgorithmSpec, JobResult], NotUsed] =
-    ExperimentFlow(coordinatorConfig, algorithmLookup, context).flow
+  private def canProcessJob(query: ExperimentQuery): Boolean =
+    experimentJobsInFlight.size <= experimentActiveActorsLimit
 
   private def canBuildValidJob(query: ExperimentQuery): Validation[ExperimentActor.Job] =
     experimentQuery2JobF(query)
@@ -66,6 +59,10 @@ class ExperimentFlowHandler(
                      "experiment",
                      errorMsg.toEither.left.get.reduceLeft(_ + ", " + _)).asQueryResult
     }
+  private val tooBusyFlow: Flow[ExperimentQuery, QueryResult, _] = Flow[ExperimentQuery].map(
+    _ =>
+      ErrorJobResult("", "", OffsetDateTime.now(), "experiment", "Too busy to accept new jobs.").asQueryResult
+  )
 
   private def isNewJobRequired(job: ExperimentActor.Job): Boolean =
     dispatcherService.dispatchTo(job.query.trainingDatasets) match {
@@ -96,47 +93,25 @@ class ExperimentFlowHandler(
           compoundResult(listOfResults)
       }
 
-  private val zipper = Flow.fromGraph(GraphDSL.create() { implicit builder =>
-    import GraphDSL.Implicits._
-
-    val bcast  = builder.add(Broadcast[ExperimentActor.Job](2))
-    val merger = builder.add(Zip[ExperimentActor.Job, Map[AlgorithmSpec, JobResult]])
-    bcast.out(0).via(experimentFlow) ~> merger.in1
-    bcast.out(1) ~> merger.in0
-    FlowShape(bcast.in, merger.out)
-  })
-
   private val startExperimentTask: Flow[ExperimentActor.Job, QueryResult, NotUsed] =
-    Flow[ExperimentActor.Job].via(zipper).map {
-      case (job, results) =>
-        val algorithms = job.query.algorithms
-        log.info("Experiment - build final response")
-        log.info(s"Algorithms: $algorithms")
-        log.info(s"Results: $results")
-
-        assert(results.size == algorithms.size, "There should be as many results as algorithms")
-        assert(results.keySet equals algorithms.toSet,
-               "Algorithms defined in the results should match the incoming list of algorithms")
-
-        val pfa = PfaExperimentJobResult(experimentJobId = job.jobId,
-                                         experimentNode = coordinatorConfig.jobsConf.node,
-                                         results = results)
-
-        pfa.asQueryResult
-    }
+    Flow[ExperimentActor.Job].map(startExperimentJob)
 
   private val shouldStartANewJob: Flow[Validation[ExperimentActor.Job], QueryResult, NotUsed] =
     Flow[Validation[ExperimentActor.Job]]
       .map(job => job.toOption.get)
       .via(conditionalFlow(isNewJobRequired, startExperimentTask, executionFlow))
 
-  val experimentFlowRouter: Flow[ExperimentQuery, QueryResult, _] =
+  val experimentFlow: Flow[ExperimentQuery, QueryResult, _] =
     Flow[ExperimentQuery]
       .via(
-        validationFlow(
-          canBuildValidJob,
-          validationFailedFlow,
-          shouldStartANewJob
+        conditionalFlow(
+          canProcessJob,
+          validationFlow(
+            canBuildValidJob,
+            validationFailedFlow,
+            shouldStartANewJob
+          ),
+          tooBusyFlow
         )
       )
 
@@ -197,6 +172,21 @@ class ExperimentFlowHandler(
       data = Some(queryResults.toJson),
       error = None
     )
+  }
+
+  private def startExperimentJob(job: ExperimentActor.Job): QueryResult = {
+    val experimentActorRef = newExperimentActor
+    experimentActorRef ! StartExperimentJob(job)
+    experimentJobsInFlight += job -> experimentActorRef
+    // TODO: need to fix the data included in return type
+    QueryResult(job.jobId, "", OffsetDateTime.now(), "", "", None, None)
+  }
+
+  private[api] def newExperimentActor: ActorRef = {
+    val ref = system.actorOf(ExperimentActor.props(coordinatorConfig, algorithmLookup))
+    //TODO: need some supervision for experiment actor
+    //context watch ref
+    ref
   }
 
 }

@@ -82,7 +82,7 @@ trait WebsocketSupport extends LazyLogging {
 
       }
       .map(_.get)
-      .via(experimentFlowHandler.experimentFlowRouter)
+      .via(experimentFlowHandler.experimentFlow)
       .map { result =>
         TextMessage(result.toJson.compactPrint)
       }
