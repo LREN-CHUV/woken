@@ -30,7 +30,7 @@ case class VariablesMeta(id: Int,
 
   val log = Logger(getClass)
 
-  def selectVariablesMeta(variables: List[String]): Validation[JsObject] = {
+  def selectVariablesMeta(filter: String => Boolean): Validation[JsObject] = {
 
     def scanVariables(variable: String, groups: JsObject): Option[JsObject] =
       if (groups.fields.contains("variables")) {
