@@ -18,7 +18,9 @@ package eu.hbp.mip.woken.backends
 
 import eu.hbp.mip.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.messages.query._
-import spray.json.JsObject
+import ch.chuv.lren.woken.messages.variables.{ VariableMetaData, variablesProtocol }
+import spray.json._
+import variablesProtocol._
 
 /**
   * Definition of a computation using an algorithm packaged as a Docker container.
@@ -36,7 +38,7 @@ case class DockerJob(
     inputDb: String,
     query: FeaturesQuery,
     algorithmSpec: AlgorithmSpec,
-    metadata: JsObject
+    metadata: List[VariableMetaData]
 ) {
 
   def jobName: String =
@@ -50,7 +52,7 @@ case class DockerJob(
       "PARAM_variables"   -> query.dbVariables.mkString(","),
       "PARAM_covariables" -> query.dbCovariables.mkString(","),
       "PARAM_grouping"    -> query.dbGrouping.mkString(","),
-      "PARAM_meta"        -> metadata.compactPrint
+      "PARAM_meta"        -> metadata.toJson.compactPrint
     ) ++ algoParameters
 
   private[this] def algoParameters: Map[String, String] = {

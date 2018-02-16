@@ -22,6 +22,7 @@ import cats.implicits._
 import scala.language.higherKinds
 
 object Traverse {
+
   def traverse[F[_]: Applicative, A, B](values: List[A])(func: A => F[B]): F[List[B]] =
     values.foldLeft(List.empty[B].pure[F]) { (accum, host) =>
       (accum, func(host)).mapN(_ :+ _)
@@ -37,4 +38,5 @@ object Traverse {
 
   def sequence[F[_]: Applicative, B](fs: Set[F[B]]): F[Set[B]] =
     traverse(fs)(identity)
+
 }

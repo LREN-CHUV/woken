@@ -64,6 +64,9 @@ object ConfigUtil {
 
   def lift[A](v: A): Validation[A] = v.validNel[String]
 
+  def liftOption[A](v: Option[A]): Validation[A] =
+    v.fold("No results".invalidNel[A])(_.validNel[String])
+
   implicit class EnhancedConfig(val config: Config) extends AnyVal {
     def keys: Set[String] = config.root().map(_._1).toSet
 

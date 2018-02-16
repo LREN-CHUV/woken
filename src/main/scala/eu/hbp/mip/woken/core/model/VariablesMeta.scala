@@ -16,72 +16,33 @@
 
 package eu.hbp.mip.woken.core.model
 
-import eu.hbp.mip.woken.cromwell.core.ConfigUtil._
-import cats.implicits._
+import ch.chuv.lren.woken.messages.variables.{ GroupMetaData, VariableMetaData }
 import com.typesafe.scalalogging.Logger
-import spray.json._
 
-// TODO: defaultHistogramGroupings: List[String]
+/**
+  * Meta description of variables
+  *
+  * @param id Database ID
+  * @param source Owner of the list of variables and their organisation into groups
+  * @param hierarchy Hierarchy of groups and variables associated with
+  * @param targetFeaturesTable Name of the table containing the features described in this metadata
+  * @param defaultHistogramGroupings List of groupings to apply by default when creating histograms on the features table
+  */
 case class VariablesMeta(id: Int,
                          source: String,
-                         hierarchy: JsObject,
+                         hierarchy: GroupMetaData,
                          targetFeaturesTable: String,
-                         defaultHistogramGroupings: String) {
+                         defaultHistogramGroupings: List[String]) {
 
   val log = Logger(getClass)
 
-  def selectVariablesMeta(filter: String => Boolean): Validation[JsObject] = {
+  def selectVariablesMeta(filter: String => Boolean): List[VariableMetaData] = {
 
-    def scanVariables(variable: String, groups: JsObject): Option[JsObject] =
-      if (groups.fields.contains("variables")) {
-        groups.fields("variables") match {
-          case a: JsArray =>
-            a.elements.toStream
-              .map(_.asJsObject)
-              .find(
-                v =>
-                  v.fields.get("code") match {
-                    case Some(JsString(code)) if code == variable => true
-                    case _                                        => false
-                }
-              )
-          case _ =>
-            log.error("JsArray expected")
-            None
-        }
-      } else None
+    def selectVars(group: GroupMetaData): List[VariableMetaData] =
+      group.groups.map(selectVars).reduce(_ ++ _) ++ group.variables.filter(v => filter(v.code))
 
-    def scanGroups(variable: String, groups: JsObject): Option[JsObject] =
-      if (groups.fields.contains("groups")) {
-        groups.fields("groups") match {
-          case a: JsArray =>
-            a.elements
-              .map(g => getVariableMetaData(variable, g.asJsObject))
-              .collectFirst { case Some(varMeta) => varMeta }
-          case _ =>
-            log.error("JsArray expected")
-            None
-        }
-      } else None
+    selectVars(hierarchy)
 
-    /**
-      * Parse the tree of groups to find the variables meta data!
-      * Temporary... We need to separate groups from variable meta!
-      * @return
-      */
-    def getVariableMetaData(variable: String, groups: JsObject): Option[JsObject] =
-      scanVariables(variable, groups).fold(
-        scanGroups(variable, groups)
-      )(
-        Option(_)
-      )
-
-    val results = variables.map(v => v -> getVariableMetaData(v, hierarchy))
-    if (results.exists(p => p._2.isEmpty)) {
-      val variablesNotFound = results.collect { case (v, None) => v }
-      s"Cannot not find metadata for ${variablesNotFound.mkString(", ")}".invalidNel
-    } else
-      lift(JsObject(results.map { case (v, m) => (v, m.get) }.toMap))
   }
 
 }

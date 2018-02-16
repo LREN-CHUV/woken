@@ -27,15 +27,17 @@ import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import eu.hbp.mip.woken.service.VariablesMetaService
 import eu.hbp.mip.woken.core.features.Queries._
 import eu.hbp.mip.woken.core.model.VariablesMeta
-import spray.json.JsObject
+import eu.hbp.mip.woken.cromwell.core.ConfigUtil.lift
 import cats.data._
 import cats.implicits._
+import ch.chuv.lren.woken.messages.variables.VariableMetaData
+import com.typesafe.scalalogging.LazyLogging
 import shapeless.{ ::, HNil }
 
 /**
   * Transform incoming mining and experiment queries into jobs
   */
-object MiningQueries {
+object MiningQueries extends LazyLogging {
 
   def miningQuery2Job(
       variablesMetaService: VariablesMetaService,
@@ -47,7 +49,7 @@ object MiningQueries {
       prepareQuery(variablesMetaService, jobsConfiguration, query)
     val algorithm = algorithmLookup(query.algorithm.code)
 
-    def createJob(mt: JsObject, al: AlgorithmDefinition) = {
+    def createJob(mt: List[VariableMetaData], al: AlgorithmDefinition) = {
       val featuresQuery = query.features(featuresTable, !al.supportsNullValues, None)
       DockerJob(jobId, al.dockerImage, featuresDb, featuresQuery, query.algorithm, metadata = mt)
     }
@@ -63,7 +65,7 @@ object MiningQueries {
     val jobId :: featuresDb :: featuresTable :: metadata :: HNil =
       prepareQuery(variablesMetaService, jobsConfiguration, query)
 
-    metadata.andThen { mt: JsObject =>
+    metadata.andThen { mt: List[VariableMetaData] =>
       ExperimentActor.Job(jobId, featuresDb, featuresTable, query, metadata = mt).validNel[String]
     }
   }
@@ -72,7 +74,7 @@ object MiningQueries {
       variablesMetaService: VariablesMetaService,
       jobsConfiguration: JobsConfiguration,
       query: Query
-  ): String :: String :: String :: Validation[JsObject] :: HNil = {
+  ): String :: String :: String :: Validation[List[VariableMetaData]] :: HNil = {
     val jobId         = UUID.randomUUID().toString
     val featuresDb    = jobsConfiguration.featuresDb
     val featuresTable = query.targetTable.getOrElse(jobsConfiguration.featuresTable)
@@ -81,8 +83,19 @@ object MiningQueries {
       variablesMetaService.get(metadataKey),
       NonEmptyList(s"Cannot find metadata for table $metadataKey", Nil)
     )
-    val metadata: Validation[JsObject] =
-      variablesMeta.andThen(v => v.selectVariablesMeta(query.dbAllVars))
+    val metadata: Validation[List[VariableMetaData]] =
+      variablesMeta.andThen(v => {
+        val vars          = query.dbAllVars
+        val variablesMeta = v.selectVariablesMeta(vars.contains)
+        if (variablesMeta.lengthCompare(vars.size) != 0) {
+          val missingVars = vars.diff(variablesMeta.map(_.code))
+          logger.warn(
+            s"Could not find all variables: ${variablesMeta.size} out of ${vars.size}. Missing ${missingVars
+              .mkString(",")}"
+          )
+        }
+        lift(variablesMeta)
+      })
 
     jobId :: featuresDb :: featuresTable :: metadata :: HNil
   }

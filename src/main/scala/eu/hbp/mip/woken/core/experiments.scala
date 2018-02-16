@@ -23,6 +23,7 @@ import akka.NotUsed
 import akka.actor.{ Actor, ActorContext, ActorLogging, Props }
 import akka.stream._
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Merge, Partition, Sink, Source, Zip }
+import ch.chuv.lren.woken.messages.variables.VariableMetaData
 import eu.hbp.mip.woken.core.validation.ValidatedAlgorithmFlow
 
 import scala.concurrent.ExecutionContext
@@ -39,7 +40,6 @@ import ch.chuv.lren.woken.messages.query.{
   MiningQuery,
   ValidationSpec
 }
-import spray.json._
 
 /**
   * We use the companion object to hold all the messages that the ``ExperimentActor`` receives.
@@ -52,7 +52,7 @@ object ExperimentActor {
       inputDb: String,
       inputTable: String,
       query: ExperimentQuery,
-      metadata: JsObject
+      metadata: List[VariableMetaData]
   )
 
   case object Done
