@@ -33,7 +33,7 @@ import eu.hbp.mip.woken.core.{
 }
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import eu.hbp.mip.woken.dao.FeaturesDAL
-import eu.hbp.mip.woken.messages.query._
+import ch.chuv.lren.woken.messages.query._
 import eu.hbp.mip.woken.service.{ AlgorithmLibraryService, DispatcherService }
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil
 import eu.hbp.mip.woken.backends.woken.WokenService

@@ -19,7 +19,7 @@ package eu.hbp.mip.woken.core.model
 import java.time.OffsetDateTime
 
 import eu.hbp.mip.woken.core.model.Shapes.{ pfa => pfaShape, _ }
-import eu.hbp.mip.woken.messages.query.{ AlgorithmSpec, QueryResult, queryProtocol }
+import ch.chuv.lren.woken.messages.query.{ AlgorithmSpec, QueryResult, queryProtocol }
 import spray.json._
 
 sealed trait JobResult extends Product with Serializable {

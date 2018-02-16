@@ -23,7 +23,7 @@ import akka.routing.FromConfig
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{ Sink, Source }
 import eu.hbp.mip.woken.core.model.Shapes
-import eu.hbp.mip.woken.messages.query._
+import ch.chuv.lren.woken.messages.query._
 import eu.hbp.mip.woken.core.{ CoordinatorActor, CoordinatorConfig, ExperimentActor }
 import eu.hbp.mip.woken.service.DispatcherService
 

@@ -20,8 +20,7 @@ import com.typesafe.config.Config
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil._
 import cats.data.Validated._
 import cats.implicits._
-
-case class BasicAuthentication(user: String, password: String)
+import ch.chuv.lren.woken.messages.remoting.BasicAuthentication
 
 case class MasterRouterConfig(miningActorsLimit: Int, experimentActorsLimit: Int)
 

@@ -25,7 +25,12 @@ import akka.util.Timeout
 import eu.hbp.mip.woken.config.{ AppConfiguration, JobsConfiguration }
 import eu.hbp.mip.woken.dao.FeaturesDAL
 import eu.hbp.mip.woken.service.AlgorithmLibraryService
-import eu.hbp.mip.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryResult, queryProtocol }
+import ch.chuv.lren.woken.messages.query.{
+  ExperimentQuery,
+  MiningQuery,
+  QueryResult,
+  queryProtocol
+}
 import eu.hbp.mip.woken.core.features.Queries._
 
 import scala.concurrent.{ ExecutionContext, Future }

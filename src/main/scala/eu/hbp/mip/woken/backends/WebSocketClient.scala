@@ -28,14 +28,14 @@ import akka.http.scaladsl.model.headers.{ Authorization, BasicHttpCredentials }
 import akka.http.scaladsl.model.ws.{ Message, TextMessage, WebSocketRequest }
 import akka.stream.Materializer
 import akka.stream.scaladsl.{ Flow, Keep, Sink, Source }
-import eu.hbp.mip.woken.config.RemoteLocation
-import eu.hbp.mip.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryResult }
+import ch.chuv.lren.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryResult }
 
 import scala.collection.immutable.Seq
 import scala.concurrent.{ Future, Promise }
 import scala.concurrent.duration.FiniteDuration
 import spray.json._
-import eu.hbp.mip.woken.messages.query.queryProtocol._
+import ch.chuv.lren.woken.messages.query.queryProtocol._
+import ch.chuv.lren.woken.messages.remoting.RemoteLocation
 
 object WebSocketClient extends SprayJsonSupport with PredefinedToResponseMarshallers {
 

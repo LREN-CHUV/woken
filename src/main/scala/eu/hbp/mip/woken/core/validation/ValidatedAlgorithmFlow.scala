@@ -29,7 +29,7 @@ import eu.hbp.mip.woken.config.AlgorithmDefinition
 import eu.hbp.mip.woken.core.{ CoordinatorActor, CoordinatorConfig }
 import eu.hbp.mip.woken.core.model.{ ErrorJobResult, JobResult, PfaJobResult }
 import eu.hbp.mip.woken.core.features.Queries._
-import eu.hbp.mip.woken.messages.query.{ AlgorithmSpec, MiningQuery, ValidationSpec }
+import ch.chuv.lren.woken.messages.query.{ AlgorithmSpec, MiningQuery, ValidationSpec }
 import spray.json._
 
 import scala.concurrent.ExecutionContext

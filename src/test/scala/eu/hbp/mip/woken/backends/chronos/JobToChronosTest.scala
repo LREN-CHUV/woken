@@ -18,9 +18,9 @@ package eu.hbp.mip.woken.backends.chronos
 
 import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.config.{ DatabaseConfiguration, JobsConfiguration }
-import eu.hbp.mip.woken.messages.query._
-import eu.hbp.mip.woken.messages.query.filters.{ InputType, Operator, SingleFilterRule }
-import eu.hbp.mip.woken.messages.variables.VariableId
+import ch.chuv.lren.woken.messages.query._
+import ch.chuv.lren.woken.messages.query.filters.{ InputType, Operator, SingleFilterRule }
+import ch.chuv.lren.woken.messages.variables.VariableId
 import eu.hbp.mip.woken.core.features.Queries._
 import org.scalatest.{ FlatSpec, Matchers }
 import spray.json._

@@ -26,9 +26,9 @@ import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import spray.json.DefaultJsonProtocol
 import eu.hbp.mip.woken.backends.chronos.{ ChronosJob, ChronosJobLiveliness }
-import eu.hbp.mip.woken.config.RemoteLocation
-import eu.hbp.mip.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryResult }
-import eu.hbp.mip.woken.messages.query.queryProtocol._
+import ch.chuv.lren.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryResult }
+import ch.chuv.lren.woken.messages.query.queryProtocol._
+import ch.chuv.lren.woken.messages.remoting.RemoteLocation
 
 import scala.concurrent.{ ExecutionContextExecutor, Future }
 

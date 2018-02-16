@@ -24,7 +24,7 @@ import scala.concurrent.{ ExecutionContext, Future }
 /**
   * Simple support for basic authentication.
   */
-trait BasicAuthentication {
+trait BasicAuthenticator {
 
   def appConfiguration: AppConfiguration
 

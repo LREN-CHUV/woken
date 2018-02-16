@@ -25,9 +25,8 @@ import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.{ ActorMaterializer, FlowShape }
 import akka.stream.scaladsl._
 import eu.hbp.mip.woken.backends.{ AkkaClusterClient, HttpClient, WebSocketClient }
-import eu.hbp.mip.woken.config.RemoteLocation
 import eu.hbp.mip.woken.core.model.Shapes
-import eu.hbp.mip.woken.messages.query._
+import ch.chuv.lren.woken.messages.query._
 
 import scala.concurrent.{ ExecutionContext, Future }
 import com.typesafe.scalalogging.LazyLogging
@@ -36,6 +35,7 @@ import cats.implicits._
 import spray.json._
 import queryProtocol._
 import HttpClient._
+import ch.chuv.lren.woken.messages.remoting.RemoteLocation
 
 case class WokenService(node: String)(implicit val system: ActorSystem,
                                       implicit val materializer: ActorMaterializer)

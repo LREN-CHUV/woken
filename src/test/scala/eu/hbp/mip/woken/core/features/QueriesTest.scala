@@ -16,10 +16,10 @@
 
 package eu.hbp.mip.woken.core.features
 
-import eu.hbp.mip.woken.messages.query.{ AlgorithmSpec, CodeValue, MiningQuery, UserId }
+import ch.chuv.lren.woken.messages.query.{ AlgorithmSpec, CodeValue, MiningQuery, UserId }
 import org.scalatest.{ Matchers, WordSpec }
-import eu.hbp.mip.woken.messages.query.filters._
-import eu.hbp.mip.woken.messages.variables.VariableId
+import ch.chuv.lren.woken.messages.query.filters._
+import ch.chuv.lren.woken.messages.variables.VariableId
 
 class QueriesTest extends WordSpec with Matchers {
 

@@ -16,8 +16,8 @@
 
 package eu.hbp.mip.woken.test
 
-import eu.hbp.mip.woken.messages.query._
-import eu.hbp.mip.woken.messages.variables.VariableId
+import ch.chuv.lren.woken.messages.query._
+import ch.chuv.lren.woken.messages.variables.VariableId
 import spray.json.{
   JsFalse,
   JsNull,

@@ -17,7 +17,7 @@
 package eu.hbp.mip.woken.backends
 
 import eu.hbp.mip.woken.core.features.FeaturesQuery
-import eu.hbp.mip.woken.messages.query._
+import ch.chuv.lren.woken.messages.query._
 import spray.json.JsObject
 
 /**

@@ -33,7 +33,7 @@ import eu.hbp.mip.woken.core.commands.JobCommands.StartExperimentJob
 import eu.hbp.mip.woken.config.AlgorithmDefinition
 import eu.hbp.mip.woken.core.model.{ ErrorJobResult, JobResult, PfaExperimentJobResult }
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
-import eu.hbp.mip.woken.messages.query.{
+import ch.chuv.lren.woken.messages.query.{
   AlgorithmSpec,
   ExperimentQuery,
   MiningQuery,

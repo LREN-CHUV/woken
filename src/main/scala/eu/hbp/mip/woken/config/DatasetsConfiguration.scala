@@ -19,34 +19,21 @@ package eu.hbp.mip.woken.config
 import akka.http.scaladsl.model.Uri
 import com.typesafe.config.Config
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil._
-import eu.hbp.mip.woken.config.AnonymisationLevel.AnonymisationLevel
 import eu.hbp.mip.woken.fp.Traverse
-import eu.hbp.mip.woken.messages.datasets.DatasetId
+import ch.chuv.lren.woken.messages.datasets.{ AnonymisationLevel, Dataset, DatasetId }
 import cats.data.Validated._
 import cats.implicits._
+import ch.chuv.lren.woken.messages.remoting.{ BasicAuthentication, RemoteLocation }
 
-object AnonymisationLevel extends Enumeration {
-  type AnonymisationLevel = Value
-  val Identifying, Depersonalised, Anonymised = Value
-}
-
-case class RemoteLocation(url: Uri, credentials: Option[BasicAuthentication])
-case class Dataset(dataset: DatasetId,
-                   label: String,
-                   description: String,
-                   tables: List[String],
-                   anonymisationLevel: AnonymisationLevel,
-                   location: Option[RemoteLocation])
-
-object Dataset {
+object DatasetsConfiguration {
 
   // Seems useful as Scala enumeration and Cats mapN don't appear to work together well
-  def apply2(dataset: String,
-             label: String,
-             description: String,
-             tables: List[String],
-             anonymisationLevel: String,
-             location: Option[RemoteLocation]): Dataset = Dataset(
+  def createDataset(dataset: String,
+                    label: String,
+                    description: String,
+                    tables: List[String],
+                    anonymisationLevel: String,
+                    location: Option[RemoteLocation]): Dataset = Dataset(
     DatasetId(dataset),
     label,
     description,
@@ -54,9 +41,6 @@ object Dataset {
     AnonymisationLevel.withName(anonymisationLevel),
     location
   )
-}
-
-object DatasetsConfiguration {
 
   def read(config: Config, path: List[String]): Validation[Dataset] = {
 
@@ -96,7 +80,7 @@ object DatasetsConfiguration {
           AnonymisationLevel.withName(s); true
         }
 
-      (dataset, label, description, tables, anonymisationLevel, location) mapN Dataset.apply2
+      (dataset, label, description, tables, anonymisationLevel, location) mapN createDataset
     }
 
   }

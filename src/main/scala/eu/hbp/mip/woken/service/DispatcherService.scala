@@ -19,14 +19,14 @@ package eu.hbp.mip.woken.service
 import akka.NotUsed
 import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.{ Flow, Source }
-import eu.hbp.mip.woken.config.{ Dataset, RemoteLocation }
 import eu.hbp.mip.woken.fp.Traverse
-import eu.hbp.mip.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryResult }
+import ch.chuv.lren.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryResult }
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import cats.implicits.catsStdInstancesForOption
 import com.typesafe.scalalogging.Logger
 import eu.hbp.mip.woken.backends.woken.WokenService
-import eu.hbp.mip.woken.messages.datasets.DatasetId
+import ch.chuv.lren.woken.messages.datasets.{ Dataset, DatasetId }
+import ch.chuv.lren.woken.messages.remoting.RemoteLocation
 
 class DispatcherService(datasets: Map[DatasetId, Dataset], wokenService: WokenService) {
 

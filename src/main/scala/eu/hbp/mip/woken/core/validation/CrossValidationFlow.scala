@@ -32,14 +32,14 @@ import eu.hbp.mip.woken.core.features.QueryOffset
 import eu.hbp.mip.woken.core.{ CoordinatorActor, CoordinatorConfig }
 import eu.hbp.mip.woken.core.model.{ ErrorJobResult, PfaJobResult }
 import eu.hbp.mip.woken.core.features.Queries._
-import eu.hbp.mip.woken.messages.query.{ MiningQuery, ValidationSpec }
-import eu.hbp.mip.woken.messages.validation.{
+import ch.chuv.lren.woken.messages.query.{ MiningQuery, ValidationSpec }
+import ch.chuv.lren.woken.messages.validation.{
   ScoringQuery,
   ScoringResult,
   ValidationQuery,
   ValidationResult
 }
-import eu.hbp.mip.woken.messages.variables.{ VariableMetaData, variablesProtocol }
+import ch.chuv.lren.woken.messages.variables.{ VariableMetaData, variablesProtocol }
 import spray.json.{ JsObject, JsString }
 
 import scala.concurrent.{ ExecutionContext, Future }

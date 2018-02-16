@@ -25,9 +25,9 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.ws.UpgradeToWebSocket
 import eu.hbp.mip.woken.api.swagger.MiningServiceApi
-import eu.hbp.mip.woken.authentication.BasicAuthentication
+import eu.hbp.mip.woken.authentication.BasicAuthenticator
 import eu.hbp.mip.woken.config.{ AppConfiguration, JobsConfiguration }
-import eu.hbp.mip.woken.messages.query._
+import ch.chuv.lren.woken.messages.query._
 import eu.hbp.mip.woken.core.features.Queries._
 import eu.hbp.mip.woken.dao.FeaturesDAL
 import eu.hbp.mip.woken.service.AlgorithmLibraryService
@@ -53,7 +53,7 @@ class MiningService(
     with DefaultJsonProtocol
     with SprayJsonSupport
     with PredefinedToResponseMarshallers
-    with BasicAuthentication
+    with BasicAuthenticator
     with WebsocketSupport
     with LazyLogging {
 
