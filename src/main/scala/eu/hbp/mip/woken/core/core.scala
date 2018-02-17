@@ -20,7 +20,7 @@ import akka.actor.{ ActorRef, ActorSystem }
 import akka.pattern.{ Backoff, BackoffSupervisor }
 import akka.stream._
 import cats.data.NonEmptyList
-import com.typesafe.config.{ Config, ConfigFactory, ConfigValue }
+import com.typesafe.config.{ Config, ConfigFactory }
 import eu.hbp.mip.woken.backends.chronos.ChronosThrottler
 import eu.hbp.mip.woken.config.JobsConfiguration
 

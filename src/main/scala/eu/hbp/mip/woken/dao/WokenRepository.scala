@@ -26,7 +26,7 @@ import scala.language.higherKinds
 /**
   * The interface to Woken database
   */
-trait WokenRepository[F[_]] extends DAL {
+trait WokenRepository[F[_]] extends Repository {
 
   def jobResults: JobResultRepository[F]
 
@@ -35,7 +35,7 @@ trait WokenRepository[F[_]] extends DAL {
 /**
   * Algebra for persistance of JobResult
   */
-trait JobResultRepository[F[_]] {
+trait JobResultRepository[F[_]] extends Repository {
 
   def put(result: JobResult): F[JobResult]
 

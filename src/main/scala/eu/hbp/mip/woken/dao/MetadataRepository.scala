@@ -26,13 +26,13 @@ import scala.language.higherKinds
 /**
   * The interface to Metadata database
   */
-trait MetadataRepository[F[_]] extends DAL {
+trait MetadataRepository[F[_]] extends Repository {
 
   def variablesMeta: VariablesMetaRepository[F]
 
 }
 
-trait VariablesMetaRepository[F[_]] {
+trait VariablesMetaRepository[F[_]] extends Repository {
 
   def put(variablesMeta: VariablesMeta): F[VariablesMeta]
 

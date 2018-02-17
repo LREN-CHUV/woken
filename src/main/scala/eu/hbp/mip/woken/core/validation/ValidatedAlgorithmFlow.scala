@@ -30,6 +30,7 @@ import eu.hbp.mip.woken.core.{ CoordinatorActor, CoordinatorConfig }
 import eu.hbp.mip.woken.core.model.{ ErrorJobResult, JobResult, PfaJobResult }
 import eu.hbp.mip.woken.core.features.Queries._
 import ch.chuv.lren.woken.messages.query.{ AlgorithmSpec, MiningQuery, ValidationSpec }
+import ch.chuv.lren.woken.messages.variables.VariableMetaData
 import spray.json._
 
 import scala.concurrent.ExecutionContext
@@ -40,7 +41,7 @@ object ValidatedAlgorithmFlow {
                  inputDb: String,
                  inputTable: String,
                  query: MiningQuery,
-                 metadata: JsObject,
+                 metadata: List[VariableMetaData],
                  validations: List[ValidationSpec],
                  algorithmDefinition: AlgorithmDefinition) {
     // Invariants

@@ -20,8 +20,10 @@ import doobie._
 import doobie.implicits._
 import cats._
 import cats.implicits._
+import ch.chuv.lren.woken.messages.variables.{ GroupMetaData, variablesProtocol }
 import eu.hbp.mip.woken.core.model.VariablesMeta
 import spray.json.JsObject
+import variablesProtocol._
 
 import scala.collection.mutable
 import scala.language.higherKinds
@@ -33,7 +35,8 @@ class MetadataRepositoryDAO[F[_]: Monad](val xa: Transactor[F]) extends Metadata
 
 class VariablesMetaRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
     extends VariablesMetaRepository[F] {
-  implicit val JsObjectMeta: Meta[JsObject] = DAL.JsObjectMeta
+
+  implicit val groupMetaDataMeta: Meta[GroupMetaData] = codecMeta[GroupMetaData]
 
   // TODO: use a real cache, for example ScalaCache + Caffeine
   val variablesMetaCache: mutable.Map[String, VariablesMeta] =

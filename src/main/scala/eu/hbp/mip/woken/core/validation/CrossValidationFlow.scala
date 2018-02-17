@@ -39,7 +39,7 @@ import ch.chuv.lren.woken.messages.validation.{
   ValidationQuery,
   ValidationResult
 }
-import ch.chuv.lren.woken.messages.variables.{ VariableMetaData, variablesProtocol }
+import ch.chuv.lren.woken.messages.variables.VariableMetaData
 import spray.json.{ JsObject, JsString }
 
 import scala.concurrent.{ ExecutionContext, Future }
@@ -53,7 +53,7 @@ object CrossValidationFlow {
       inputDb: String,
       inputTable: String,
       query: MiningQuery,
-      metadata: JsObject,
+      metadata: List[VariableMetaData],
       validation: ValidationSpec,
       algorithmDefinition: AlgorithmDefinition
   )
@@ -145,16 +145,12 @@ case class CrossValidationFlow(
       .named("crossValidate")
 
   private def targetMetadata(job: Job) = {
-    // TODO: move this code in a better place, test it
     import eu.hbp.mip.woken.core.features.Queries._
-    import variablesProtocol._
-    val targetMetaData: VariableMetaData = job.metadata
-      .convertTo[Map[String, VariableMetaData]]
-      .get(job.query.dbVariables.head) match {
-      case Some(v: VariableMetaData) => v
-      case None                      => throw new Exception("Problem with variables' meta data!")
-    }
-    targetMetaData
+    job.query.dbVariables.headOption
+      .flatMap { v =>
+        job.metadata.find(m => m.code == v)
+      }
+      .getOrElse(throw new Exception("Problem with variables' meta data!"))
   }
 
   private def localJobForFold(

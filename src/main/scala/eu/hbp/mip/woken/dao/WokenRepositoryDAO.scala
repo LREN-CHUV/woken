@@ -44,11 +44,6 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
     extends JobResultRepository[F]
     with LazyLogging {
 
-  private implicit val DateTimeMeta: Meta[OffsetDateTime] =
-    Meta[java.sql.Timestamp].xmap(ts => OffsetDateTime.of(ts.toLocalDateTime, ZoneOffset.UTC),
-                                  dt => java.sql.Timestamp.valueOf(dt.toLocalDateTime))
-  implicit val JsObjectMeta: Meta[JsObject] = DAL.JsObjectMeta
-
   type JobResultColumns =
     (String, String, OffsetDateTime, String, String, Option[String], Option[String])
 

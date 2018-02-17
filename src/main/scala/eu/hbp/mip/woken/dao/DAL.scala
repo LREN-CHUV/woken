@@ -17,6 +17,7 @@
 package eu.hbp.mip.woken.dao
 
 import java.sql.{ Connection, DriverManager, ResultSet, ResultSetMetaData }
+import java.time.{ OffsetDateTime, ZoneOffset }
 
 import doobie._
 import eu.hbp.mip.woken.config.DatabaseConfiguration
@@ -24,13 +25,14 @@ import org.postgresql.util.PGobject
 import spray.json._
 
 import scala.language.higherKinds
+import scala.reflect.runtime.universe.TypeTag
 
 /**
   * Data Access Layer
   */
-object DAL {
+trait Repository {
 
-  implicit val JsObjectMeta: Meta[JsObject] =
+  protected implicit val JsObjectMeta: Meta[JsObject] =
     Meta
       .other[PGobject]("json")
       .xmap[JsObject](
@@ -42,14 +44,29 @@ object DAL {
           o
         }
       )
-}
 
-trait DAL
+  protected implicit val DateTimeMeta: Meta[OffsetDateTime] =
+    Meta[java.sql.Timestamp].xmap(ts => OffsetDateTime.of(ts.toLocalDateTime, ZoneOffset.UTC),
+                                  dt => java.sql.Timestamp.valueOf(dt.toLocalDateTime))
+
+  protected implicit val ListStringMeta: Meta[List[String]] =
+    Meta[String].xmap(
+      _.split(",").toList,
+      _.mkString(",")
+    )
+
+  protected def codecMeta[A: RootJsonFormat: TypeTag]: Meta[A] =
+    Meta[JsObject].xmap[A](
+      _.convertTo[A],
+      _.toJson.asJsObject
+    )
+
+}
 
 /**
   * Data access to features used by machine learning and visualisation algorithms
   */
-case class FeaturesDAL(featuresDbConnection: DatabaseConfiguration) extends DAL {
+case class FeaturesDAL(featuresDbConnection: DatabaseConfiguration) extends Repository {
 
   // TODO: Doobie provides better tools...
 
