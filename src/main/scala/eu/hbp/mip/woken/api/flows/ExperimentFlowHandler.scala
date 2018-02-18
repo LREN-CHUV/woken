@@ -20,14 +20,13 @@ import java.time.OffsetDateTime
 
 import akka.NotUsed
 import akka.actor.{ ActorRef, ActorSystem }
-import akka.stream.FlowShape
-import akka.stream.scaladsl.{ Flow, GraphDSL, Merge, Partition }
+import akka.stream.scaladsl.Flow
 import eu.hbp.mip.woken.config.{ AlgorithmDefinition, AppConfiguration }
 import eu.hbp.mip.woken.core.commands.JobCommands.StartExperimentJob
 import eu.hbp.mip.woken.core.{ CoordinatorConfig, ExperimentActor }
-import eu.hbp.mip.woken.core.model.{ ErrorJobResult, Shapes }
+import eu.hbp.mip.woken.core.model.ErrorJobResult
 import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
-import eu.hbp.mip.woken.messages.query.{ ExperimentQuery, QueryResult, queryProtocol }
+import eu.hbp.mip.woken.messages.query.{ ExperimentQuery, QueryResult }
 import eu.hbp.mip.woken.service.DispatcherService
 
 /**
@@ -39,7 +38,8 @@ class ExperimentFlowHandler(
     dispatcherService: DispatcherService,
     coordinatorConfig: CoordinatorConfig,
     algorithmLookup: String => Validation[AlgorithmDefinition]
-)(implicit system: ActorSystem) {
+)(implicit system: ActorSystem)
+    extends FlowHandler {
 
   private val experimentActiveActorsLimit: Int =
     appConfiguration.masterRouterConfig.miningActorsLimit
@@ -90,7 +90,7 @@ class ExperimentFlowHandler(
         case List(result) => result
 
         case listOfResults =>
-          compoundResult(listOfResults)
+          compoundResult(coordinatorConfig, listOfResults)
       }
 
   private val startExperimentTask: Flow[ExperimentActor.Job, QueryResult, NotUsed] =
@@ -114,65 +114,6 @@ class ExperimentFlowHandler(
           tooBusyFlow
         )
       )
-
-  /**
-    * Build a conditional flow.
-    *
-    * @param f         - conditional function
-    * @param trueFlow  - flow that will be executed in case of evaluation of function f is true
-    * @param falseFlow - flow that will be executed in case of evaluation of function f is false
-    * @tparam IN  - input type
-    * @tparam OUT - output type
-    * @return a flow instance.
-    */
-  private def conditionalFlow[IN, OUT](f: IN => Boolean,
-                                       trueFlow: Flow[IN, OUT, _],
-                                       falseFlow: Flow[IN, OUT, _]): Flow[IN, OUT, Any] =
-    Flow.fromGraph(GraphDSL.create() { implicit builder =>
-      import GraphDSL.Implicits._
-      def partitionFunction = (a: IN) => if (f(a)) 0 else 1
-
-      val partitioner = builder.add(Partition[IN](2, partitionFunction))
-      val merger      = builder.add(Merge[OUT](2))
-
-      partitioner.out(0).via(trueFlow) ~> merger
-      partitioner.out(1).via(falseFlow) ~> merger
-
-      FlowShape(partitioner.in, merger.out)
-    })
-
-  private def validationFlow(
-      f: ExperimentQuery => Validation[ExperimentActor.Job],
-      successFlow: Flow[Validation[ExperimentActor.Job], QueryResult, _],
-      errorFlow: Flow[Validation[ExperimentActor.Job], QueryResult, _]
-  ): Flow[ExperimentQuery, QueryResult, Any] =
-    Flow.fromGraph(GraphDSL.create() { implicit builder =>
-      import GraphDSL.Implicits._
-
-      def partitionFunction = (a: ExperimentQuery) => f(a).fold(_ => 0, _ => 1)
-
-      val partitioner = builder.add(Partition[ExperimentQuery](2, partitionFunction))
-      val merger      = builder.add(Merge[QueryResult](2))
-      partitioner.out(0).map(f).via(successFlow) ~> merger
-      partitioner.out(1).map(f).via(errorFlow) ~> merger
-
-      FlowShape(partitioner.in, merger.out)
-    })
-
-  private def compoundResult(queryResults: List[QueryResult]): QueryResult = {
-    import spray.json._
-    import queryProtocol._
-
-    QueryResult(
-      jobId = "",
-      node = coordinatorConfig.jobsConf.node,
-      timestamp = OffsetDateTime.now(),
-      shape = Shapes.compound.mime,
-      algorithm = "compound",
-      data = Some(queryResults.toJson),
-      error = None
-    )
-  }
 
   private def startExperimentJob(job: ExperimentActor.Job): QueryResult = {
     val experimentActorRef = newExperimentActor
