@@ -232,12 +232,14 @@ services:
     ports:
       - "8087:8087"
       - "8088:8088"
+      - "9095:9095"
     environment:
       CLUSTER_PORT: 8088
       CLUSTER_IP: woken
       WOKEN_PORT_8088_TCP_ADDR: woken
     links:
       - zipkin
+      - wokenprometheus
     depends_on:
       - chronos
       - db
