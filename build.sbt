@@ -9,7 +9,7 @@ lazy val `woken` =
     .settings(settings)
     .settings(
       Seq(
-        mainClass in Runtime := Some("eu.hbp.mip.woken.web.Web"),
+        mainClass in Runtime := Some("ch.chuv.lren.woken.web.Web"),
         libraryDependencies ++= Seq(
           library.akkaActor,
           library.akkaRemote,
@@ -122,11 +122,11 @@ lazy val settings = commonSettings ++ gitSettings ++ scalafmtSettings
 lazy val commonSettings =
   Seq(
     scalaVersion := "2.11.11",
-    organization in ThisBuild := "eu.humanbrainproject.mip",
-    organizationName in ThisBuild := "Human Brain Project MIP by LREN CHUV",
+    organization in ThisBuild := "ch.chuv.lren.woken",
+    organizationName in ThisBuild := "LREN CHUV for Human Brain Project",
     homepage in ThisBuild := Some(url(s"https://github.com/HBPMedical/${name.value}/#readme")),
-    licenses in ThisBuild := Seq("Apache-2.0" ->
-      url(s"https://github.com/sbt/${name.value}/blob/${version.value}/LICENSE")),
+    licenses in ThisBuild := Seq("AGPL-3.0" ->
+      url(s"https://github.com/LREN-CHUV/${name.value}/blob/${version.value}/LICENSE")),
     startYear in ThisBuild := Some(2017),
     description in ThisBuild := "Woken - a FaaS for machine learning",
     developers in ThisBuild := List(
