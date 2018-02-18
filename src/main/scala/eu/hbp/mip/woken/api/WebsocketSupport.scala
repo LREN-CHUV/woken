@@ -33,12 +33,15 @@ import spray.json._
 import queryProtocol._
 import akka.stream.{ ActorAttributes, Supervision }
 import com.typesafe.scalalogging.LazyLogging
+import eu.hbp.mip.woken.api.flows.{ ExperimentFlowHandler, FlowHandler, MiningFlowHandler }
 
 import scala.util.{ Failure, Success, Try }
 
-trait WebsocketSupport extends LazyLogging {
+trait WebsocketSupport extends LazyLogging with FlowHandler {
 
   val masterRouter: ActorRef
+  val experimentFlowHandler: ExperimentFlowHandler
+  val miningFlowHandler: MiningFlowHandler
   val featuresDatabase: FeaturesDAL
   val appConfiguration: AppConfiguration
   val jobsConf: JobsConfiguration
@@ -75,13 +78,12 @@ trait WebsocketSupport extends LazyLogging {
       .filter {
         case Success(_) => true
         case Failure(err) =>
-          logger.error("Deserilize failed", err)
+          logger.error("Deserialize failed", err)
           false
 
       }
-      .mapAsync(1) { query =>
-        (masterRouter ? query.get).mapTo[QueryResult]
-      }
+      .map(_.get)
+      .via(experimentFlowHandler.experimentFlow)
       .map { result =>
         TextMessage(result.toJson.compactPrint)
       }
@@ -106,18 +108,22 @@ trait WebsocketSupport extends LazyLogging {
       .withAttributes(ActorAttributes.supervisionStrategy(decider))
       .filter(_.isSuccess)
       .map(_.get)
-      .mapAsync(1) { miningQuery: MiningQuery =>
-        if (miningQuery.algorithm.code.isEmpty || miningQuery.algorithm.code == "data") {
-          Future.successful(
-            featuresDatabase.queryData(jobsConf.featuresTable, miningQuery.dbAllVars)
-          )
-        } else {
-          val result = (masterRouter ? miningQuery).mapTo[QueryResult]
-          result.map(_.toJson)
-        }
-      }
+      .via(conditionalFlow(isDataVarsJob, executeDataVarsJob, executeMiningJob))
       .map { result =>
         TextMessage(result.compactPrint)
       }
       .named("Mining WS flow.")
+
+  def isDataVarsJob(miningQuery: MiningQuery): Boolean =
+    miningQuery.algorithm.code.isEmpty || miningQuery.algorithm.code == "data"
+
+  def executeDataVarsJob: Flow[MiningQuery, JsObject, _] =
+    Flow[MiningQuery].map { miningQuery =>
+      featuresDatabase.queryData(jobsConf.featuresTable, miningQuery.dbAllVars)
+    }
+
+  def executeMiningJob: Flow[MiningQuery, JsValue, _] =
+    Flow[MiningQuery]
+      .via(miningFlowHandler.miningFlow)
+      .map(_.toJson)
 }

@@ -92,8 +92,8 @@ case class MasterRouter(appConfiguration: AppConfiguration,
     val _ = (validationWorker, scoringWorker)
   }
 
-  val experimentActiveActorsLimit: Int = appConfiguration.masterRouterConfig.miningActorsLimit
-  val miningActiveActorsLimit: Int     = appConfiguration.masterRouterConfig.experimentActorsLimit
+  val experimentActiveActorsLimit: Int = appConfiguration.masterRouterConfig.experimentActorsLimit
+  val miningActiveActorsLimit: Int     = appConfiguration.masterRouterConfig.miningActorsLimit
 
   var experimentJobsInFlight: Map[ExperimentActor.Job, (ActorRef, ActorRef)] = Map()
   var miningJobsInFlight: Map[DockerJob, (ActorRef, ActorRef)]               = Map()
@@ -182,6 +182,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
       miningJobsInFlight -= job
 
     case query: ExperimentQuery =>
+      // TODO: needs migration to ExperimentFlowHandler
       val initiator = sender()
       log.debug(s"Received message: $query")
       if (experimentJobsInFlight.size <= experimentActiveActorsLimit) {

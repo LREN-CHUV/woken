@@ -16,14 +16,16 @@
 
 package eu.hbp.mip.woken.api
 
+import akka.NotUsed
 import akka.actor.{ ActorRef, ActorSystem }
+import akka.http.scaladsl.common.{ EntityStreamingSupport, JsonEntityStreamingSupport }
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.marshalling.PredefinedToResponseMarshallers
-import akka.http.scaladsl.model.StatusCode
 import akka.pattern.ask
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.ws.UpgradeToWebSocket
+import akka.stream.scaladsl.Source
 import eu.hbp.mip.woken.api.swagger.MiningServiceApi
 import eu.hbp.mip.woken.authentication.BasicAuthentication
 import eu.hbp.mip.woken.config.{ AppConfiguration, JobsConfiguration }
@@ -33,6 +35,7 @@ import eu.hbp.mip.woken.dao.FeaturesDAL
 import eu.hbp.mip.woken.service.AlgorithmLibraryService
 import akka.util.Timeout
 import com.typesafe.scalalogging.LazyLogging
+import eu.hbp.mip.woken.api.flows.{ ExperimentFlowHandler, MiningFlowHandler }
 import spray.json.DefaultJsonProtocol
 
 import scala.concurrent.duration._
@@ -43,7 +46,9 @@ object MiningService
 
 // this trait defines our service behavior independently from the service actor
 class MiningService(
-    val masterRouter: ActorRef,
+    val masterRouter: ActorRef, // could be removed.
+    val experimentFlowHandler: ExperimentFlowHandler,
+    val miningFlowHandler: MiningFlowHandler,
     val featuresDatabase: FeaturesDAL,
     override val appConfiguration: AppConfiguration,
     val jobsConf: JobsConfiguration
@@ -62,8 +67,12 @@ class MiningService(
 
   val routes: Route = mining ~ experiment ~ listMethods
 
-  import spray.json._
   import queryProtocol._
+
+  implicit val jsonStreamingSupport: JsonEntityStreamingSupport =
+    EntityStreamingSupport
+      .json()
+      .withParallelMarshalling(parallelism = 8, unordered = false)
 
   override def listMethods: Route = path("mining" / "methods") {
     authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { _ =>
@@ -100,29 +109,13 @@ class MiningService(
         case None =>
           post {
             entity(as[MiningQuery]) {
-              case query: MiningQuery
-                  if query.algorithm.code == "" || query.algorithm.code == "data" =>
-                ctx =>
-                  {
-                    ctx.complete(
-                      featuresDatabase.queryData(jobsConf.featuresTable, query.dbAllVars)
-                    )
-                  }
-
               case query: MiningQuery =>
-                ctx =>
-                  ctx.complete {
-                    (masterRouter ? query)
-                      .mapTo[QueryResult]
-                      .map {
-                        case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
-                        case qr if qr.data.nonEmpty  => OK         -> qr.toJson
-                      }
-                      .recoverWith {
-                        case e =>
-                          Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
-                      }
-                  }
+                val source: Source[QueryResult, NotUsed] =
+                  Source
+                    .single(query)
+                    .via(miningFlowHandler.miningFlow)
+
+                complete(source)
             }
           }
       }
@@ -144,18 +137,10 @@ class MiningService(
         case None =>
           post {
             entity(as[ExperimentQuery]) { query: ExperimentQuery =>
-              complete {
-                (masterRouter ? query)
-                  .mapTo[QueryResult]
-                  .map {
-                    case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
-                    case qr if qr.data.nonEmpty  => OK         -> qr.toJson
-                  }
-                  .recoverWith {
-                    case e =>
-                      Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
-                  }
-              }
+              val source: Source[QueryResult, NotUsed] = Source
+                .single(query)
+                .via(experimentFlowHandler.experimentFlow)
+              complete(source)
             }
           }
       }
