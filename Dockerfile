@@ -35,6 +35,7 @@ RUN apk update \
 
 COPY docker/runner/woken.sh /opt/woken/
 ADD  docker/lets-encrypt-install.sh /opt/woken/
+ADD  docker/weaver-agent.sh /opt/woken/
 
 RUN  chmod +x /opt/woken/lets-encrypt-install.sh
 RUN  /opt/woken/lets-encrypt-install.sh
