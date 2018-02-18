@@ -43,6 +43,9 @@ import eu.hbp.mip.woken.ssl.WokenSSLConfiguration
 import akka.stream.{ ActorMaterializer, ActorMaterializerSettings, Supervision }
 import eu.hbp.mip.woken.backends.woken.WokenService
 import com.typesafe.scalalogging.LazyLogging
+import kamon.Kamon
+import kamon.prometheus.PrometheusReporter
+import kamon.zipkin.ZipkinReporter
 
 import scala.concurrent.{ ExecutionContextExecutor, Future }
 import scala.language.postfixOps
@@ -66,6 +69,9 @@ trait BootedCore
     .valueOr(configurationFailed)
 
   logger.info(s"Starting actor system ${appConfig.clusterSystemName}")
+
+  Kamon.addReporter(new PrometheusReporter)
+  Kamon.addReporter(new ZipkinReporter)
 
   /**
     * Construct the ActorSystem we will use in our application

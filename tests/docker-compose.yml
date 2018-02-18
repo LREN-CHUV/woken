@@ -215,6 +215,16 @@ services:
     depends_on:
       - zipkin
 
+  wokenprometheus:
+    build:
+      context: ./prometheus
+      dockerfile: Dockerfile
+    hostname: prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      - zipkin-ui
+
   woken:
     image: hbpmip/woken
     volumes:
