@@ -43,8 +43,8 @@ import eu.hbp.mip.woken.ssl.WokenSSLConfiguration
 import akka.stream.{ ActorMaterializer, ActorMaterializerSettings, Supervision }
 import eu.hbp.mip.woken.backends.woken.WokenService
 import com.typesafe.scalalogging.LazyLogging
-import eu.hbp.mip.woken.api.MiningQueries.experimentQuery2Job
-import eu.hbp.mip.woken.api.flows.ExperimentFlowHandler
+import eu.hbp.mip.woken.api.MiningQueries._
+import eu.hbp.mip.woken.api.flows.{ ExperimentFlowHandler, MiningFlowHandler }
 
 import scala.concurrent.{ ExecutionContextExecutor, Future }
 import scala.language.postfixOps
@@ -167,6 +167,16 @@ trait BootedCore
       dispatcherService,
       coordinatorConfig,
       AlgorithmsConfiguration.factory(config)
+    )
+
+  override lazy val miningFlowHandler: MiningFlowHandler =
+    new MiningFlowHandler(
+      appConfig,
+      coordinatorConfig,
+      dispatcherService,
+      miningQuery2Job(variablesMetaService,
+                      coordinatorConfig.jobsConf,
+                      AlgorithmsConfiguration.factory(config))
     )
 
   ClusterClientReceptionist(system).registerService(mainRouter)
