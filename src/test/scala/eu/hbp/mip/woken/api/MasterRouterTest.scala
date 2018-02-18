@@ -42,7 +42,6 @@ import eu.hbp.mip.woken.util.FakeActors
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import org.scalatest.tagobjects.Slow
 import cats.data.Validated._
-import spray.json.JsObject
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -88,7 +87,7 @@ class MasterRouterTest
         inputDb = "",
         inputTable = "",
         query = query,
-        metadata = JsObject.empty
+        metadata = Nil
       )
     )
 
@@ -102,7 +101,7 @@ class MasterRouterTest
         inputDb = "",
         query = featuresQuery,
         algorithmSpec = query.algorithm,
-        metadata = JsObject.empty
+        metadata = Nil
       )
     )
   }

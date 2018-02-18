@@ -16,7 +16,7 @@
 
 package eu.hbp.mip.woken.dao
 
-import java.time.{ OffsetDateTime, ZoneOffset }
+import java.time.OffsetDateTime
 
 import doobie._
 import doobie.implicits._
@@ -44,18 +44,22 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
     extends JobResultRepository[F]
     with LazyLogging {
 
+  protected implicit val ShapeMeta: Meta[Shape] =
+    Meta[String].xmap(
+      s => fromString(s).getOrElse(throw new IllegalArgumentException(s"Invalid shape: $s")),
+      shape => shape.mime
+    )
+
   type JobResultColumns =
-    (String, String, OffsetDateTime, String, String, Option[String], Option[String])
+    (String, String, OffsetDateTime, Shape, String, Option[String], Option[String])
 
   private val unsafeFromColumns: JobResultColumns => JobResult = {
-    case (jobId, node, timestamp, shape, function, _, Some(errorMessage))
-        if errorShape.contains(shape) =>
+    case (jobId, node, timestamp, shape, function, _, Some(errorMessage)) if shape == errorShape =>
       ErrorJobResult(jobId, node, timestamp, function, errorMessage)
     case (jobId, node, timestamp, _, function, data, Some(errorMessage))
         if data.isEmpty && errorMessage.trim.nonEmpty =>
       ErrorJobResult(jobId, node, timestamp, function, errorMessage)
-    case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
-        if pfa.contains(shape) =>
+    case (jobId, node, timestamp, shape, function, Some(data), None | Some("")) if shape == pfa =>
       Try(
         PfaJobResult(jobId, node, timestamp, function, data.parseJson.asJsObject)
       ).recover {
@@ -64,7 +68,7 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
           logger.warn(msg, t)
           ErrorJobResult(jobId, node, timestamp, function, s"$msg : $t")
       }.get
-    case (jobId, node, timestamp, shape, _, Some(data), None) if pfaExperiment.contains(shape) =>
+    case (jobId, node, timestamp, shape, _, Some(data), None) if pfaExperiment == shape =>
       Try(
         PfaExperimentJobResult(jobId, node, timestamp, data.parseJson.asInstanceOf[JsArray])
       ).recover {
@@ -74,18 +78,13 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
           ErrorJobResult(jobId, node, timestamp, "experiment", s"$msg : $t")
       }.get
     case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
-        if pfaYaml.contains(shape) =>
+        if pfaYaml == shape =>
       PfaJobResult(jobId, node, timestamp, function, yaml.yaml2Json(Yaml(data)).asJsObject)
     case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
-        if getVisualisationJson(shape).isDefined =>
+        if visualisationJsonResults.contains(shape) =>
       Try {
         val json = data.parseJson
-        JsonDataJobResult(jobId,
-                          node,
-                          timestamp,
-                          getVisualisationJson(shape).get.mime,
-                          function,
-                          json)
+        JsonDataJobResult(jobId, node, timestamp, shape, function, json)
       }.recover {
         case t: Throwable =>
           val msg = s"Data for job $jobId produced by $function is not a valid Json object"
@@ -93,13 +92,8 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
           ErrorJobResult(jobId, node, timestamp, function, s"$msg : $t")
       }.get
     case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
-        if getVisualisationOther(shape).isDefined =>
-      OtherDataJobResult(jobId,
-                         node,
-                         timestamp,
-                         getVisualisationOther(shape).get.mime,
-                         function,
-                         data)
+        if visualisationOtherResults.contains(shape) =>
+      OtherDataJobResult(jobId, node, timestamp, shape, function, data)
     case (jobId, node, timestamp, shape, function, data, error) =>
       val msg =
         s"Cannot handle job results of shape $shape produced by function $function with data $data, error $error"
@@ -112,36 +106,22 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
       (j.jobId,
        j.node.take(32),
        j.timestamp,
-       pfa.mime,
+       pfa,
        j.algorithm.take(255),
        Some(j.model.compactPrint),
        None)
     case j: PfaExperimentJobResult =>
       val pfa = j.models.compactPrint
-      (j.jobId,
-       j.node.take(32),
-       j.timestamp,
-       pfaExperiment.mime,
-       j.algorithm.take(255),
-       Some(pfa),
-       None)
+      (j.jobId, j.node.take(32), j.timestamp, pfaExperiment, j.algorithm.take(255), Some(pfa), None)
     case j: ErrorJobResult =>
       (j.jobId,
        j.node.take(32),
        j.timestamp,
-       errorShape.mime,
+       errorShape,
        j.algorithm.take(255),
        None,
        Some(j.error.take(255)))
     case j: JsonDataJobResult =>
-      (j.jobId,
-       j.node.take(32),
-       j.timestamp,
-       j.shape,
-       j.algorithm.take(255),
-       Some(j.data.compactPrint),
-       None)
-    case j: DataResourceJobResult =>
       (j.jobId,
        j.node.take(32),
        j.timestamp,

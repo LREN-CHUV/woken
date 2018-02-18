@@ -22,22 +22,45 @@ import eu.hbp.mip.woken.core.model.Shapes.{ pfa => pfaShape, _ }
 import ch.chuv.lren.woken.messages.query.{ AlgorithmSpec, QueryResult, queryProtocol }
 import spray.json._
 
+/**
+  * Result produced during the execution of an algorithm
+  */
 sealed trait JobResult extends Product with Serializable {
+
+  /** Id of the job */
   def jobId: String
 
+  /** Node where the algorithm is executed */
   def node: String
 
+  /** Date of execution */
   def timestamp: OffsetDateTime
 
+  /** Name of the algorithm */
   def algorithm: String
+
+  /** Shape of the results (mime type) */
+  def shape: Shape
+
 }
 
+/**
+  * A PFA result (Portable Format for Analytics http://dmg.org/pfa/)
+  *
+  * @param jobId Id of the job
+  * @param node Node where the algorithm is executed
+  * @param timestamp Date of execution
+  * @param algorithm Name of the algorithm
+  * @param model PFA model
+  */
 case class PfaJobResult(jobId: String,
                         node: String,
                         timestamp: OffsetDateTime,
                         algorithm: String,
                         model: JsObject)
     extends JobResult {
+
+  def shape: Shape = pfaShape
 
   def injectCell(name: String, value: JsValue): PfaJobResult = {
     val cells        = model.fields.getOrElse("cells", JsObject()).asJsObject
@@ -49,11 +72,21 @@ case class PfaJobResult(jobId: String,
 
 }
 
+/**
+  * Result of an experiment, i.e. the execution of multiple algorithms over the same datasets
+  *
+  * @param jobId Id of the job
+  * @param node Node where the algorithm is executed
+  * @param timestamp Date of execution
+  * @param models List of models produced by the experiment
+  */
 case class PfaExperimentJobResult(jobId: String,
                                   node: String,
                                   timestamp: OffsetDateTime,
                                   models: JsArray)
     extends JobResult {
+
+  def shape: Shape = pfaExperiment
 
   override val algorithm = "experiment"
 }
@@ -67,7 +100,7 @@ object PfaExperimentJobResult {
     implicit val offsetDateTimeJsonFormat: RootJsonFormat[OffsetDateTime] =
       queryProtocol.OffsetDateTimeJsonFormat
 
-    // Concatenate results while respecting received algorithms order
+    // Concatenate results while respecting order of algorithms
     val output = JsArray(
       results
         .map(r => {
@@ -96,7 +129,7 @@ object PfaExperimentJobResult {
               )
             case JsonDataJobResult(jobId, node, timestamp, shape, algorithm, data) =>
               JsObject(
-                "type"      -> JsString(shape),
+                "type"      -> JsString(shape.mime),
                 "algorithm" -> JsString(algorithm),
                 "code"      -> JsString(code),
                 "jobId"     -> JsString(jobId),
@@ -106,7 +139,7 @@ object PfaExperimentJobResult {
               )
             case OtherDataJobResult(jobId, node, timestamp, shape, algorithm, data) =>
               JsObject(
-                "type"      -> JsString(shape),
+                "type"      -> JsString(shape.mime),
                 "algorithm" -> JsString(algorithm),
                 "code"      -> JsString(code),
                 "jobId"     -> JsString(jobId),
@@ -137,37 +170,63 @@ object PfaExperimentJobResult {
   }
 }
 
+/**
+  * Result of a failed job
+  *
+  * @param jobId Id of the job
+  * @param node Node where the algorithm is executed
+  * @param timestamp Date of execution
+  * @param algorithm Name of the algorithm
+  * @param error Error to report
+  */
 case class ErrorJobResult(jobId: String,
                           node: String,
                           timestamp: OffsetDateTime,
                           algorithm: String,
                           error: String)
-    extends JobResult
+    extends JobResult {
 
-sealed trait VisualisationJobResult extends JobResult {
-  def shape: String
+  def shape: Shape = Shapes.error
+
 }
 
+/**
+  * Result producing a visualisation or a table or any other output to display to the user
+  */
+sealed trait VisualisationJobResult extends JobResult
+
+/**
+  * A visualisaton result encoded in Json
+  *
+  * @param jobId Id of the job
+  * @param node Node where the algorithm is executed
+  * @param timestamp Date of execution
+  * @param shape Shape of the data (mime type)
+  * @param algorithm Name of the algorithm
+  * @param data Json encoded data result
+  */
 case class JsonDataJobResult(jobId: String,
                              node: String,
                              timestamp: OffsetDateTime,
-                             shape: String,
+                             shape: Shape,
                              algorithm: String,
                              data: JsValue)
     extends VisualisationJobResult
 
-case class DataResourceJobResult(jobId: String,
-                                 node: String,
-                                 timestamp: OffsetDateTime,
-                                 shape: String,
-                                 algorithm: String,
-                                 data: JsValue)
-    extends VisualisationJobResult
-
+/**
+  * A visualisation or other type of user-facing information encoded as a string
+  *
+  * @param jobId Id of the job
+  * @param node Node where the algorithm is executed
+  * @param timestamp Date of execution
+  * @param shape Shape of the data (mime type)
+  * @param algorithm Name of the algorithm
+  * @param data Data result as a string
+  */
 case class OtherDataJobResult(jobId: String,
                               node: String,
                               timestamp: OffsetDateTime,
-                              shape: String,
+                              shape: Shape,
                               algorithm: String,
                               data: String)
     extends VisualisationJobResult
@@ -201,17 +260,7 @@ object JobResult {
           jobId = v.jobId,
           node = v.node,
           timestamp = v.timestamp,
-          shape = v.shape,
-          algorithm = v.algorithm,
-          data = Some(v.data),
-          error = None
-        )
-      case v: DataResourceJobResult =>
-        QueryResult(
-          jobId = v.jobId,
-          node = v.node,
-          timestamp = v.timestamp,
-          shape = v.shape,
+          shape = v.shape.mime,
           algorithm = v.algorithm,
           data = Some(v.data),
           error = None
@@ -221,7 +270,7 @@ object JobResult {
           jobId = v.jobId,
           node = v.node,
           timestamp = v.timestamp,
-          shape = v.shape,
+          shape = v.shape.mime,
           algorithm = v.algorithm,
           data = Some(JsString(v.data)),
           error = None

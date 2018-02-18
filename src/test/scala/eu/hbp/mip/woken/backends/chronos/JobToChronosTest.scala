@@ -20,10 +20,9 @@ import eu.hbp.mip.woken.backends.DockerJob
 import eu.hbp.mip.woken.config.{ DatabaseConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.query.filters.{ InputType, Operator, SingleFilterRule }
-import ch.chuv.lren.woken.messages.variables.VariableId
+import ch.chuv.lren.woken.messages.variables.{ VariableId, VariableMetaData, VariableType }
 import eu.hbp.mip.woken.core.features.Queries._
 import org.scalatest.{ FlatSpec, Matchers }
-import spray.json._
 import cats.data.ValidatedNel
 import cats.syntax.validated._
 import eu.hbp.mip.woken.core.features.FeaturesQuery
@@ -77,16 +76,80 @@ class JobToChronosTest extends FlatSpec with Matchers {
     ).validNel
   ).withDefaultValue("".invalidNel)
 
-  val metadata: JsObject = """
-               |{
-               |  "target": {"type": "string"},
-               |  "a": {"type": "string"},
-               |  "b": {"type": "string"},
-               |  "c": {"type": "string"},
-               |  "grp1": {"type": "string"},
-               |  "grp2": {"type": "string"}
-               |}
-             """.stripMargin.parseJson.asJsObject
+  val metadata: List[VariableMetaData] = List(
+    VariableMetaData("target",
+                     "target",
+                     VariableType.text,
+                     None,
+                     None,
+                     None,
+                     None,
+                     None,
+                     None,
+                     None,
+                     None,
+                     Set()),
+    VariableMetaData("a",
+                     "a",
+                     VariableType.text,
+                     None,
+                     None,
+                     None,
+                     None,
+                     None,
+                     None,
+                     None,
+                     None,
+                     Set()),
+    VariableMetaData("b",
+                     "b",
+                     VariableType.text,
+                     None,
+                     None,
+                     None,
+                     None,
+                     None,
+                     None,
+                     None,
+                     None,
+                     Set()),
+    VariableMetaData("c",
+                     "c",
+                     VariableType.text,
+                     None,
+                     None,
+                     None,
+                     None,
+                     None,
+                     None,
+                     None,
+                     None,
+                     Set()),
+    VariableMetaData("grp1",
+                     "grp1",
+                     VariableType.text,
+                     None,
+                     None,
+                     None,
+                     None,
+                     None,
+                     None,
+                     None,
+                     None,
+                     Set()),
+    VariableMetaData("grp2",
+                     "grp2",
+                     VariableType.text,
+                     None,
+                     None,
+                     None,
+                     None,
+                     None,
+                     None,
+                     None,
+                     None,
+                     Set())
+  )
 
   val jobsConf: JobsConfiguration = JobsConfiguration(
     node = "test",
@@ -128,7 +191,7 @@ class JobToChronosTest extends FlatSpec with Matchers {
       EnvironmentVariable("PARAM_grouping", "grp1,grp2"),
       EnvironmentVariable(
         "PARAM_meta",
-        """{"grp2":{"type":"string"},"a":{"type":"string"},"grp1":{"type":"string"},"b":{"type":"string"},"target":{"type":"string"},"c":{"type":"string"}}"""
+        """[{"code":"target","label":"target","type":"text"},{"code":"a","label":"a","type":"text"},{"code":"b","label":"b","type":"text"},{"code":"c","label":"c","type":"text"},{"code":"grp1","label":"grp1","type":"text"},{"code":"grp2","label":"grp2","type":"text"}]"""
       ),
       EnvironmentVariable("PARAM_covariables", "a,b,c"),
       EnvironmentVariable("IN_DBI_DRIVER", "PostgreSQL"),

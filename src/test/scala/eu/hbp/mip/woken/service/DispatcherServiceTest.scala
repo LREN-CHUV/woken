@@ -21,8 +21,9 @@ import akka.stream.ActorMaterializer
 import akka.testkit.TestKit
 import com.typesafe.config.{ Config, ConfigFactory }
 import eu.hbp.mip.woken.backends.woken.WokenService
-import eu.hbp.mip.woken.config.{ BasicAuthentication, DatasetsConfiguration, RemoteLocation }
+import eu.hbp.mip.woken.config.DatasetsConfiguration
 import ch.chuv.lren.woken.messages.datasets.DatasetId
+import ch.chuv.lren.woken.messages.remoting.{ BasicAuthentication, RemoteLocation }
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 
 class DispatcherServiceTest

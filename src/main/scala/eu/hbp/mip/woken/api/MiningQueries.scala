@@ -27,7 +27,6 @@ import eu.hbp.mip.woken.cromwell.core.ConfigUtil.Validation
 import eu.hbp.mip.woken.service.VariablesMetaService
 import eu.hbp.mip.woken.core.features.Queries._
 import eu.hbp.mip.woken.core.model.VariablesMeta
-import eu.hbp.mip.woken.cromwell.core.ConfigUtil.lift
 import cats.data._
 import cats.implicits._
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
@@ -84,18 +83,7 @@ object MiningQueries extends LazyLogging {
       NonEmptyList(s"Cannot find metadata for table $metadataKey", Nil)
     )
     val metadata: Validation[List[VariableMetaData]] =
-      variablesMeta.andThen(v => {
-        val vars          = query.dbAllVars
-        val variablesMeta = v.selectVariablesMeta(vars.contains)
-        if (variablesMeta.lengthCompare(vars.size) != 0) {
-          val missingVars = vars.diff(variablesMeta.map(_.code))
-          logger.warn(
-            s"Could not find all variables: ${variablesMeta.size} out of ${vars.size}. Missing ${missingVars
-              .mkString(",")}"
-          )
-        }
-        lift(variablesMeta)
-      })
+      variablesMeta.andThen(v => v.selectVariables(query.dbAllVars))
 
     jobId :: featuresDb :: featuresTable :: metadata :: HNil
   }

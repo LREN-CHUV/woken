@@ -17,7 +17,9 @@
 package eu.hbp.mip.woken.core.model
 
 import ch.chuv.lren.woken.messages.variables.{ GroupMetaData, VariableMetaData }
-import com.typesafe.scalalogging.Logger
+import com.typesafe.scalalogging.LazyLogging
+import eu.hbp.mip.woken.cromwell.core.ConfigUtil.{ Validation, lift }
+import cats.syntax.validated._
 
 /**
   * Meta description of variables
@@ -32,14 +34,25 @@ case class VariablesMeta(id: Int,
                          source: String,
                          hierarchy: GroupMetaData,
                          targetFeaturesTable: String,
-                         defaultHistogramGroupings: List[String]) {
+                         defaultHistogramGroupings: List[String])
+    extends LazyLogging {
 
-  val log = Logger(getClass)
+  def selectVariables(variables: List[String]): Validation[List[VariableMetaData]] = {
+    val variablesMeta = select(variables.contains)
+    if (variablesMeta.lengthCompare(variables.size) != 0) {
+      val missingVars = variables.diff(variablesMeta.map(_.code))
+      s"Found ${variablesMeta.size} out of ${variables.size} variables. Missing ${missingVars
+        .mkString(",")}".invalidNel
+    } else
+      lift(variablesMeta)
+  }
 
-  def selectVariablesMeta(filter: String => Boolean): List[VariableMetaData] = {
+  def select(filter: String => Boolean): List[VariableMetaData] = {
 
     def selectVars(group: GroupMetaData): List[VariableMetaData] =
-      group.groups.map(selectVars).reduce(_ ++ _) ++ group.variables.filter(v => filter(v.code))
+      group.groups.map(selectVars).reduceOption(_ ++ _).getOrElse(Nil) ++ group.variables.filter(
+        v => filter(v.code)
+      )
 
     selectVars(hierarchy)
 

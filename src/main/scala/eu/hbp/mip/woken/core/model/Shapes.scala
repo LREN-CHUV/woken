@@ -109,14 +109,19 @@ object Shapes {
     val values   = Set(compound, mime)
   }
 
-  /** Group results stored as Json documents in the base */
-  val visualisationJson: Set[Shape] = Set(highcharts, plotly, json, dataResource)
-  def getVisualisationJson(s: String): Option[Shape] =
-    visualisationJson.find(_.contains(s))
+  /** Results stored as PFA documents in the database */
+  val pfaResults: Set[Shape] = Set(pfa, pfaYaml, pfaExperiment)
 
-  /** Group results stored as generic documents (strings) in the base */
-  val visualisationOther: Set[Shape] = Set(html, svg, png, visjs)
-  def getVisualisationOther(s: String): Option[Shape] =
-    visualisationOther.find(_.contains(s))
+  /** Results stored as Json documents in the database */
+  val visualisationJsonResults: Set[Shape] = Set(highcharts, plotly, json, dataResource, compound)
+
+  /** Results stored as generic documents (strings) in the database */
+  val visualisationOtherResults: Set[Shape] = Set(html, svg, png, visjs)
+
+  val allResults
+    : Set[Shape] = pfaResults ++ visualisationJsonResults ++ visualisationOtherResults + error
+
+  def fromString(s: String): Option[Shape] =
+    allResults.find(_.contains(s))
 
 }

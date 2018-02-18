@@ -28,12 +28,12 @@ class ShapesTest extends WordSpec with Matchers {
       highcharts.contains("unknown") shouldBe false
     }
 
-    "categorize an html result as visualisation" in {
-      getVisualisationOther("html") shouldBe Some(html)
+    "return the shape from a short name" in {
+      fromString("html") shouldBe Some(html)
     }
 
-    "return the mime type " in {
-      getVisualisationOther("html") shouldBe Some(html)
+    "return the shape from a mime type" in {
+      fromString("application/plotly+json") shouldBe Some(plotly)
     }
   }
 }
