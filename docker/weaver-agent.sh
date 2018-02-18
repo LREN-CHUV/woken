@@ -2,4 +2,6 @@
 
 cd /opt/woken
 
-wget http://www.eclipse.org/downloads/download.php?file=/tools/aspectj/aspectj-1.8.13.jar&mirror_id=1190
+wget http://ftp.fau.de/eclipse/tools/aspectj/aspectj-1.8.13.jar
+
+unzip -p aspectj-1.8.13.jar lib/aspectjweaver.jar > aspectjweaver.jar
