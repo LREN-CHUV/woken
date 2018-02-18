@@ -46,7 +46,7 @@ object MiningService
 
 // this trait defines our service behavior independently from the service actor
 class MiningService(
-    val masterRouter: ActorRef,
+    val masterRouter: ActorRef, // could be removed.
     val experimentFlowHandler: ExperimentFlowHandler,
     val miningFlowHandler: MiningFlowHandler,
     val featuresDatabase: FeaturesDAL,
@@ -67,7 +67,6 @@ class MiningService(
 
   val routes: Route = mining ~ experiment ~ listMethods
 
-  import spray.json._
   import queryProtocol._
 
   implicit val jsonStreamingSupport: JsonEntityStreamingSupport =
@@ -110,15 +109,6 @@ class MiningService(
         case None =>
           post {
             entity(as[MiningQuery]) {
-              case query: MiningQuery
-                  if query.algorithm.code == "" || query.algorithm.code == "data" =>
-                ctx =>
-                  {
-                    ctx.complete(
-                      featuresDatabase.queryData(jobsConf.featuresTable, query.dbAllVars)
-                    )
-                  }
-
               case query: MiningQuery =>
                 val source: Source[QueryResult, NotUsed] =
                   Source
