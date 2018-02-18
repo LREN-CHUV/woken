@@ -17,8 +17,9 @@ scrape_configs:
 
     static_configs:
       - targets: ['localhost:9090']
+        labels:
+          group: 'prometheus'
 
-  - job_name: 'woken'
-    scrape_interval: 5s
-    static_configs:
       - targets: ['woken:9095']
+        labels:
+           group: 'woken'
