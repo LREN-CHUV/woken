@@ -32,7 +32,7 @@ lazy val `woken` =
           library.swaggerUI,
           library.sprayJson,
           library.slf4j,
-          library.log4jSlf4j,
+          //library.log4jSlf4j,
           library.disruptor,
           library.catsCore,
           library.kittens,
