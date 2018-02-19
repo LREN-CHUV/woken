@@ -105,9 +105,10 @@ class MiningService(
                   if query.algorithm.code == "" || query.algorithm.code == "data" =>
                 ctx =>
                   {
-                    ctx.complete(
-                      featuresDatabase.queryData(jobsConf.featuresTable, query.dbAllVars)
-                    )
+                    ctx.complete {
+                      val featuresTable = query.targetTable.getOrElse(jobsConf.featuresTable)
+                      featuresDatabase.queryData(featuresTable, query.dbAllVars)
+                    }
                   }
 
               case query: MiningQuery =>

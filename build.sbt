@@ -41,6 +41,7 @@ lazy val `woken` =
           library.scalaLogging,
           library.scalaCheck   % Test,
           library.scalaTest    % Test,
+          library.scalaMock    % Test,
           library.akkaTestkit  % Test
         ),
         includeFilter in (Compile, unmanagedResources) := "*.xml" || "*.conf" || "*.html",
@@ -58,6 +59,7 @@ lazy val library =
     object Version {
       val scalaCheck      = "1.13.5"
       val scalaTest       = "3.0.3"
+      val scalaMock       = "4.1.0"
       val akka            = "2.5.9"
       val akkaTracing     = "0.6.1"
       val akkaHttp        = "10.0.11"
@@ -79,6 +81,7 @@ lazy val library =
     }
     val scalaCheck: ModuleID   = "org.scalacheck"    %% "scalacheck"   % Version.scalaCheck
     val scalaTest: ModuleID    = "org.scalatest"     %% "scalatest"    % Version.scalaTest
+    val scalaMock:ModuleID     = "org.scalamock"     %% "scalamock"    % Version.scalaMock
     val akkaActor: ModuleID    = "com.typesafe.akka" %% "akka-actor"   % Version.akka
     val akkaRemote: ModuleID   = "com.typesafe.akka" %% "akka-remote"  % Version.akka
     val akkaCluster: ModuleID  = "com.typesafe.akka" %% "akka-cluster" % Version.akka

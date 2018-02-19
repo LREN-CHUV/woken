@@ -114,9 +114,10 @@ trait WebsocketSupport extends LazyLogging {
       .map(_.get)
       .mapAsync(1) { miningQuery: MiningQuery =>
         if (miningQuery.algorithm.code.isEmpty || miningQuery.algorithm.code == "data") {
-          Future.successful(
-            featuresDatabase.queryData(jobsConf.featuresTable, miningQuery.dbAllVars)
-          )
+          Future.successful {
+            val featuresTable = miningQuery.targetTable.getOrElse(jobsConf.featuresTable)
+            featuresDatabase.queryData(featuresTable, miningQuery.dbAllVars)
+          }
         } else {
           val result = (masterRouter ? miningQuery).mapTo[QueryResult]
           result.map(_.toJson)
