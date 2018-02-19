@@ -47,7 +47,7 @@ lazy val library =
       val akkaHttp      = "10.0.11"
       val sprayJson     = "1.3.4"
       val slf4j         = "1.7.25"
-      val log4j         = "2.9.1"
+      val log4j         = "2.10.0"
       val disruptor     = "3.3.7"
       val config        = "1.2.1"
       val wokenMessages = "2.4.6"
@@ -82,12 +82,13 @@ lazy val settings = commonSettings ++ scalafmtSettings
 lazy val commonSettings =
   Seq(
     scalaVersion := "2.11.11",
-    organization in ThisBuild := "eu.humanbrainproject.mip",
-    organizationName in ThisBuild := "Human Brain Project MIP by LREN CHUV",
-    licenses in ThisBuild := Seq("Apache-2.0" ->
-      url(s"https://github.com/sbt/${name.value}/blob/${version.value}/LICENSE")),
+    organization in ThisBuild := "ch.chuv.lren.woken",
+    organizationName in ThisBuild := "LREN CHUV for Human Brain Project",
+    homepage in ThisBuild := Some(url(s"https://github.com/HBPMedical/${name.value}/#readme")),
+    licenses in ThisBuild := Seq("AGPL-3.0" ->
+      url(s"https://github.com/LREN-CHUV/${name.value}/blob/${version.value}/LICENSE")),
     startYear in ThisBuild := Some(2017),
-    description in ThisBuild := "Woken - tests",
+    description in ThisBuild := "Woken - integration tests",
     developers in ThisBuild := List(
       Developer("ludovicc", "Ludovic Claude", "@ludovicc", url("https://github.com/ludovicc"))
     ),
@@ -108,7 +109,6 @@ lazy val commonSettings =
     unmanagedSourceDirectories.in(Compile) := Seq(scalaSource.in(Compile).value),
     unmanagedSourceDirectories.in(Test) := Seq(scalaSource.in(Test).value),
     wartremoverWarnings in (Compile, compile) ++= Warts.unsafe,
-    mainClass in Runtime := Some("eu.hbp.mip.woken.validation.Main"),
     fork in run := true,
     test in assembly := {},
     fork in Test := false,
