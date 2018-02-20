@@ -26,22 +26,19 @@ import akka.pattern.ask
 import akka.stream.Materializer
 import akka.stream.scaladsl.Flow
 import akka.util.Timeout
-import cats.syntax.list._
+import cats.data.{ NonEmptyList, Validated }
+import cats.implicits._
 import ch.chuv.lren.woken.backends.DockerJob
 import ch.chuv.lren.woken.config.AlgorithmDefinition
 import ch.chuv.lren.woken.core.features.QueryOffset
 import ch.chuv.lren.woken.core.{ CoordinatorActor, CoordinatorConfig }
 import ch.chuv.lren.woken.core.model.{ ErrorJobResult, PfaJobResult }
 import ch.chuv.lren.woken.core.features.Queries._
+import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query.{ MiningQuery, ValidationSpec }
-import ch.chuv.lren.woken.messages.validation.{
-  ScoringQuery,
-  ScoringResult,
-  ValidationQuery,
-  ValidationResult
-}
+import ch.chuv.lren.woken.messages.validation._
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
-import spray.json.{ JsObject, JsString }
+import spray.json.JsValue
 
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration._
@@ -62,7 +59,7 @@ object CrossValidationFlow {
   private[CrossValidationFlow] case class FoldContext[R](
       job: Job,
       response: R,
-      fold: String,
+      fold: Int,
       targetMetaData: VariableMetaData,
       validation: KFoldCrossValidation
   )
@@ -70,17 +67,17 @@ object CrossValidationFlow {
   private[CrossValidationFlow] case class FoldResult(
       job: Job,
       scores: ScoringResult,
-      validationResults: List[String],
-      groundTruth: List[String],
-      fold: String,
+      validationResults: List[JsValue],
+      groundTruth: List[JsValue],
+      fold: Int,
       targetMetaData: VariableMetaData
   )
 
   private[CrossValidationFlow] case class CrossValidationScore(
       job: Job,
       score: ScoringResult,
-      foldScores: Map[String, ScoringResult],
-      validations: List[String]
+      foldScores: Map[Int, ScoringResult],
+      validations: List[JsValue]
   )
 
 }
@@ -101,7 +98,7 @@ case class CrossValidationFlow(
 
   def crossValidate(
       parallelism: Int
-  ): Flow[CrossValidationFlow.Job, (CrossValidationFlow.Job, JsObject), NotUsed] =
+  ): Flow[CrossValidationFlow.Job, (CrossValidationFlow.Job, KFoldCrossValidationScore), NotUsed] =
     Flow[CrossValidationFlow.Job]
       .map { job =>
         val validation = job.validation
@@ -131,15 +128,16 @@ case class CrossValidationFlow(
         l :+ r
       }
       .mapAsync(1) { foldResults =>
-        scoreAll(foldResults.sortBy(_.fold.toInt))
+        scoreAll(foldResults.sortBy(_.fold))
       }
       .map { crossValidationScore =>
         // Aggregation of results from all folds
         (crossValidationScore.job,
-         JsObject(
-           "type"    -> JsString("KFoldCrossValidation"),
-           "average" -> crossValidationScore.score.scores,
-           "folds"   -> new JsObject(crossValidationScore.foldScores.mapValues(s => s.scores))
+         KFoldCrossValidationScore(
+           average = crossValidationScore.score.result.right.asInstanceOf[VariableScore],
+           folds = crossValidationScore.foldScores.map {
+             case (k, s) => (k.toString, s.result.right.asInstanceOf[VariableScore])
+           }
          ))
 
       }
@@ -158,7 +156,7 @@ case class CrossValidationFlow(
       job: Job,
       s: Int,
       n: Int,
-      fold: String,
+      fold: Int,
       validation: KFoldCrossValidation
   ): Future[FoldContext[CoordinatorActor.Response]] = {
 
@@ -198,7 +196,7 @@ case class CrossValidationFlow(
         log.info("Received result from local method.")
         val model    = pfa.model
         val fold     = context.fold
-        val testData = context.validation.getTestSet(fold)._1.map(d => d.compactPrint)
+        val testData = context.validation.getTestSet(fold)._1
 
         log.info(
           s"Send a validation work for fold $fold to validation worker: ${validationActor.pathString}"
@@ -234,44 +232,44 @@ case class CrossValidationFlow(
   private def scoreFoldValidationResponse(
       context: FoldContext[ValidationResult]
   ): Future[FoldResult] = {
+    import cats.syntax.list._
 
-    val results     = context.response.outputData
-    val groundTruth = context.validation.groundTruth(context.fold)
-    log.info(s"Ground truth: $groundTruth")
+    val resultsV: Validation[NonEmptyList[JsValue]] = Validated
+      .fromEither(context.response.result.leftMap(e => NonEmptyList(e, Nil)))
+      .andThen { v: List[JsValue] =>
+        Validated.fromOption(v.toNel, NonEmptyList(s"No results on fold ${context.fold}", Nil))
+      }
+    val groundTruthV: Validation[NonEmptyList[JsValue]] = Validated.fromOption(
+      context.validation.groundTruth(context.fold).toNel,
+      NonEmptyList(s"Empty test set on fold ${context.fold}", Nil)
+    )
 
-    (results.toNel, groundTruth.toNel) match {
-      case (Some(r), Some(gt)) =>
-        implicit val askTimeout: Timeout = Timeout(5 minutes)
-        (scoringActor ? ScoringQuery(r, gt, context.targetMetaData))
-          .mapTo[ScoringResult]
-          .map(
-            s =>
-              FoldResult(job = context.job,
-                         scores = s,
-                         validationResults = results,
-                         groundTruth = groundTruth,
-                         fold = context.fold,
-                         targetMetaData = context.targetMetaData)
+    def performScoring(algorithmOutput: NonEmptyList[JsValue],
+                       groundTruth: NonEmptyList[JsValue]): Future[FoldResult] = {
+      implicit val askTimeout: Timeout = Timeout(5 minutes)
+      (scoringActor ? ScoringQuery(algorithmOutput, groundTruth, context.targetMetaData))
+        .mapTo[ScoringResult]
+        .map(
+          s =>
+            FoldResult(
+              job = context.job,
+              scores = s,
+              validationResults = algorithmOutput.toList,
+              groundTruth = groundTruth.toList,
+              fold = context.fold,
+              targetMetaData = context.targetMetaData
           )
-
-      case (Some(_), None) =>
-        val message = s"No results on fold ${context.fold}"
-        log.error(message)
-        Future.failed[FoldResult](new IllegalStateException(message))
-
-      case (None, Some(_)) =>
-        val message = s"Empty test set on fold ${context.fold}"
-        log.error(message)
-        Future.failed[FoldResult](new IllegalStateException(message))
-
-      case _ =>
-        val message = s"No data selected during fold ${context.fold}"
-        log.error(message)
-        Future.failed[FoldResult](new IllegalStateException(message))
+        )
     }
+
+    val foldResultV = (resultsV, groundTruthV) mapN performScoring
+
+    foldResultV.valueOr(e => Future.failed(new Exception(e.toList.mkString(","))))
   }
 
   private def scoreAll(foldResults: Seq[FoldResult]): Future[CrossValidationScore] = {
+
+    import cats.syntax.list._
 
     val validations  = foldResults.flatMap(_.validationResults).toList
     val groundTruths = foldResults.flatMap(_.groundTruth).toList
@@ -294,10 +292,9 @@ case class CrossValidationFlow(
         val message =
           s"Final reduce for cross-validation uses empty datasets: Validations = $r, ground truths = $gt"
         log.error(message)
-        //Future.failed[CrossValidationScore](new IllegalStateException(message))
         Future(
           CrossValidationScore(job = foldResults.head.job,
-                               score = ScoringResult(JsObject()),
+                               score = ScoringResult(Left(message)),
                                foldScores = foldScores,
                                validations = validations)
         )

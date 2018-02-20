@@ -23,7 +23,7 @@ import spray.json.{ JsValue, _ }
 
 trait CrossValidation {
 
-  def partition: Map[String, (Int, Int)]
+  def partition: Map[Int, (Int, Int)]
 
 }
 
@@ -41,14 +41,14 @@ class KFoldCrossValidation(data: Stream[JsObject], labels: Stream[JsObject], fol
     * @return
     */
   // TODO: return None if data size < fold count
-  override def partition: Map[String, (Int, Int)] = {
-    val nb                                 = data.size
-    var partition: Map[String, (Int, Int)] = Map()
+  override def partition: Map[Int, (Int, Int)] = {
+    val nb                              = data.size
+    var partition: Map[Int, (Int, Int)] = Map()
     if (nb >= foldCount) {
       val t = nb.toFloat / foldCount.toFloat
       for (i: Int <- 0 until foldCount) {
-        partition += i.toString -> Tuple2(scala.math.round(i * t),
-                                          scala.math.round((i + 1) * t) - scala.math.round(i * t))
+        partition += i -> Tuple2(scala.math.round(i * t),
+                                 scala.math.round((i + 1) * t) - scala.math.round(i * t))
       }
     }
     partition
@@ -59,14 +59,14 @@ class KFoldCrossValidation(data: Stream[JsObject], labels: Stream[JsObject], fol
     * @param k
     * @return
     */
-  def getTestSet(k: String): (List[JsValue], List[JsValue]) =
+  def getTestSet(k: Int): (List[JsValue], List[JsValue]) =
     (
       data.toList.slice(partition(k)._1, partition(k)._1 + partition(k)._2),
       labels.toList.slice(partition(k)._1, partition(k)._1 + partition(k)._2)
     )
 
-  def groundTruth(fold: String): List[String] =
-    getTestSet(fold)._2.map(x => x.asJsObject.fields.toList.head._2.compactPrint)
+  def groundTruth(fold: Int): List[JsValue] =
+    getTestSet(fold)._2.map(x => x.asJsObject.fields.toList.head._2)
 
 }
 

@@ -62,10 +62,10 @@ object DatabaseConfiguration {
 
   def dbTransactor(dbConfig: DatabaseConfiguration): IO[HikariTransactor[IO]] =
     for {
-      xa <- HikariTransactor[IO](dbConfig.jdbcDriver,
-                                 dbConfig.jdbcUrl,
-                                 dbConfig.user,
-                                 dbConfig.password)
+      xa <- HikariTransactor.newHikariTransactor[IO](dbConfig.jdbcDriver,
+                                                     dbConfig.jdbcUrl,
+                                                     dbConfig.user,
+                                                     dbConfig.password)
       _ <- xa.configure(hx => IO(hx.setAutoCommit(false)))
     } yield xa
 
