@@ -131,14 +131,27 @@ case class CrossValidationFlow(
         scoreAll(foldResults.sortBy(_.fold))
       }
       .map { crossValidationScore =>
-        // Aggregation of results from all folds
-        (crossValidationScore.job,
-         KFoldCrossValidationScore(
-           average = crossValidationScore.score.result.right.asInstanceOf[VariableScore],
-           folds = crossValidationScore.foldScores.map {
-             case (k, s) => (k, s.result.right.asInstanceOf[VariableScore])
-           }
-         ))
+        crossValidationScore.score.result match {
+          case Right(score: VariableScore) =>
+            (crossValidationScore.job,
+             KFoldCrossValidationScore(
+               average = score,
+               folds = crossValidationScore.foldScores
+                 .filter {
+                   case (k, ScoringResult(Left(error))) =>
+                     log.warning(s"Fold $k failed with message $error")
+                     false
+                   case _ => true
+                 }
+                 .map {
+                   case (k, ScoringResult(Right(score: VariableScore))) => (k, score)
+                 }
+             ))
+          case Left(error) =>
+            log.warning(s"Global score failed with message $error")
+            throw new RuntimeException(error)
+        }
+      // Aggregation of results from all folds
 
       }
       .named("crossValidate")
