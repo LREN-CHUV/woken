@@ -136,7 +136,7 @@ case class CrossValidationFlow(
          KFoldCrossValidationScore(
            average = crossValidationScore.score.result.right.asInstanceOf[VariableScore],
            folds = crossValidationScore.foldScores.map {
-             case (k, s) => (k.toString, s.result.right.asInstanceOf[VariableScore])
+             case (k, s) => (k, s.result.right.asInstanceOf[VariableScore])
            }
          ))
 
