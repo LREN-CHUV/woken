@@ -95,9 +95,6 @@ echo "Build the project for distribution..."
 #./tests/test.sh
 echo "[ok] Done"
 
-git push
-git push --tags
-
 # Push on Docker Hub
 #  WARNING: Requires captain 1.1.0 to push user tags
 BUILD_DATE=$(date -Iseconds) \
@@ -105,6 +102,9 @@ BUILD_DATE=$(date -Iseconds) \
   VERSION=$updated_version \
   WORKSPACE=$WORKSPACE \
   $CAPTAIN push target_image --branch-tags=false --commit-tags=false --tag $updated_version
+
+git push
+git push --tags
 
 # Notify on slack
 sed "s/USER/${USER^}/" $WORKSPACE/slack.json > $WORKSPACE/.slack.json
