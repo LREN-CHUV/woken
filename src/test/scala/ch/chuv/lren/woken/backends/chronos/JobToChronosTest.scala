@@ -192,7 +192,7 @@ class JobToChronosTest extends FlatSpec with Matchers {
       EnvironmentVariable("PARAM_grouping", "grp1,grp2"),
       EnvironmentVariable(
         "PARAM_meta",
-        """[{"code":"target","label":"target","type":"text"},{"code":"a","label":"a","type":"text"},{"code":"b","label":"b","type":"text"},{"code":"c","label":"c","type":"text"},{"code":"grp1","label":"grp1","type":"text"},{"code":"grp2","label":"grp2","type":"text"}]"""
+        """{"grp2":{"code":"grp2","label":"grp2","type":"text"},"a":{"code":"a","label":"a","type":"text"},"grp1":{"code":"grp1","label":"grp1","type":"text"},"b":{"code":"b","label":"b","type":"text"},"target":{"code":"target","label":"target","type":"text"},"c":{"code":"c","label":"c","type":"text"}}"""
       ),
       EnvironmentVariable("PARAM_covariables", "a,b,c"),
       EnvironmentVariable("IN_DBI_DRIVER", "PostgreSQL"),

@@ -53,7 +53,7 @@ case class DockerJob(
       "PARAM_variables"   -> query.dbVariables.mkString(","),
       "PARAM_covariables" -> query.dbCovariables.mkString(","),
       "PARAM_grouping"    -> query.dbGrouping.mkString(","),
-      "PARAM_meta"        -> metadata.toJson.compactPrint
+      "PARAM_meta"        -> metadata.map(m => m.code -> m).toMap.toJson.compactPrint
     ) ++ algoParameters
 
   private[this] def algoParameters: Map[String, String] = {
