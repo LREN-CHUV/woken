@@ -25,8 +25,8 @@ class ShapesTest extends WordSpec with Matchers {
 
   "Shapes" should {
     "identify highcharts results" in {
-      highcharts.contains("application/highcharts+json") shouldBe true
-      highcharts.contains("unknown") shouldBe false
+      highcharts.isIdentifiedBy("application/highcharts+json") shouldBe true
+      highcharts.isIdentifiedBy("unknown") shouldBe false
     }
 
     "return the shape from a short name" in {

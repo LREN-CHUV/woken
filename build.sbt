@@ -39,10 +39,14 @@ lazy val `woken` =
           library.wokenMessages,
           //library.scalaCache,
           library.scalaLogging,
-          library.scalaCheck   % Test,
-          library.scalaTest    % Test,
-          library.scalaMock    % Test,
-          library.akkaTestkit  % Test
+          library.scalaCheck      % Test,
+          library.scalaTest       % Test,
+          library.scalaMock       % Test,
+          library.akkaTestkit     % Test,
+          library.doobieScalaTest % Test,
+          library.catsScalaTest   % Test,
+          library.dockerTestKitScalaTest % Test,
+          library.dockerTestKitSpotify   % Test
         ),
         includeFilter in (Compile, unmanagedResources) := "*.xml" || "*.conf" || "*.html",
         includeFilter in (Test, unmanagedResources) := "*.json" || "*.conf",
@@ -71,13 +75,15 @@ lazy val library =
       val disruptor       = "3.3.7"
       val cats            = "1.0.1"
       val kittens         = "1.0.0-RC2"
+      val catsScalaTest   = "2.3.1"
       val config          = "1.2.1"
       val doobie          = "0.5.0"
       val snakeyaml       = "1.17"
       val hadrian         = "0.8.5"
-      val wokenMessages   = "2.4.8"
       val scalaCache      = "0.21.0"
       val scalaLogging    = "3.7.2"
+      val dockerTestKit   = "0.9.5"
+      val wokenMessages   = "2.4.8"
     }
     val scalaCheck: ModuleID   = "org.scalacheck"    %% "scalacheck"   % Version.scalaCheck
     val scalaTest: ModuleID    = "org.scalatest"     %% "scalatest"    % Version.scalaTest
@@ -102,14 +108,18 @@ lazy val library =
     val disruptor: ModuleID    = "com.lmax"           % "disruptor"    % Version.disruptor
     val catsCore: ModuleID     = "org.typelevel"     %% "cats-core"    % Version.cats
     val kittens: ModuleID      = "org.typelevel"     %% "kittens"      % Version.kittens
+    val catsScalaTest: ModuleID = "com.ironcorelabs" %% "cats-scalatest" % Version.catsScalaTest
     val config: ModuleID       = "com.typesafe"       % "config"       % Version.config
     val doobieCore: ModuleID   = "org.tpolecat"      %% "doobie-core"  % Version.doobie
     val doobiePostgres: ModuleID = "org.tpolecat"    %% "doobie-postgres" % Version.doobie
     val doobieHikari: ModuleID = "org.tpolecat"      %% "doobie-hikari" % Version.doobie
+    val doobieScalaTest: ModuleID = "org.tpolecat" %% "doobie-scalatest" % Version.doobie
     val yaml: ModuleID         = "org.yaml"           % "snakeyaml"    % Version.snakeyaml
     val hadrian: ModuleID      = "com.opendatagroup" %  "hadrian"      % Version.hadrian
     val scalaCache: ModuleID   = "com.github.cb372"  %% "scalacache-core" % Version.scalaCache
     val scalaLogging: ModuleID = "com.typesafe.scala-logging" %% "scala-logging" % Version.scalaLogging
+    val dockerTestKitScalaTest: ModuleID = "com.whisk" %% "docker-testkit-scalatest" % Version.dockerTestKit
+    val dockerTestKitSpotify: ModuleID = "com.whisk" %% "docker-testkit-impl-spotify" % Version.dockerTestKit
     val wokenMessages: ModuleID = "ch.chuv.lren.woken" %% "woken-messages" % Version.wokenMessages
   }
 
