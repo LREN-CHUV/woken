@@ -111,14 +111,15 @@ object Shapes {
   object highcharts extends Shape {
     val highcharts = "highcharts"
     val json       = "highcharts_json"
-    val mime       = "application/highcharts+json"
-    val values     = Set(highcharts, json, mime)
+    val oldMime    = "application/highcharts+json"
+    val mime       = "application/vnd.highcharts+json"
+    val values     = Set(highcharts, json, oldMime, mime)
   }
 
   object visjs extends Shape {
     val visjs  = "visjs"
     val js     = "visjs_javascript"
-    val mime   = "application/visjs+javascript"
+    val mime   = "application/vnd.visjs+javascript"
     val values = Set(visjs, js, mime)
   }
 

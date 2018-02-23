@@ -34,7 +34,7 @@ class ShapesTest extends WordSpec with Matchers {
     }
 
     "return the shape from a mime type" in {
-      fromString("application/plotly+json") shouldBe Some(plotly)
+      fromString("application/vnd.plotly.v1+json") shouldBe Some(plotly)
     }
   }
 }
