@@ -160,9 +160,9 @@ services:
     depends_on:
       - db
 
-  sample_db_setup:
+  sample_data_db_setup:
     image: "hbpmip/sample-data-db-setup:0.5.0"
-    container_name: "data-db-setup"
+    container_name: "sample-data-db-setup"
     restart: "no"
     environment:
       FLYWAY_HOST: db
@@ -348,7 +348,7 @@ services:
       - wokencentral
 
   portalbackend:
-    image: "hbpmip/portal-backend:2.5.4"
+    image: "hbpmip/portal-backend:2.6.1"
     restart: "no"
     ports:
       - "65440:8080"
@@ -402,7 +402,9 @@ services:
       PORTAL_VIRTUAL_HOST: frontend
       PORTAL_BACKEND_SERVER: portalbackend:8080
       PORTAL_BACKEND_CONTEXT: services
-
+      MODE: federation
+      INSTANCE_NAME: DEV
+      VERSION: 2.7.0
 
 networks:
   default:
