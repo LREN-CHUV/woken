@@ -23,8 +23,8 @@ import akka.cluster.client.{ClusterClient, ClusterClientSettings}
 import akka.pattern.ask
 import akka.util.Timeout
 import com.typesafe.config.{Config, ConfigFactory}
-import eu.hbp.mip.woken.messages.query._
-import eu.hbp.mip.woken.messages.variables.VariableId
+import ch.chuv.lren.woken.messages.query._
+import ch.chuv.lren.woken.messages.variables.VariableId
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.scalatest.TryValues._
 import org.scalatest.tagobjects.Slow

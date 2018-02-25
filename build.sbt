@@ -10,7 +10,7 @@ lazy val `woken` =
     .settings(settings)
     .settings(
       Seq(
-        mainClass in Runtime := Some("eu.hbp.mip.woken.web.Web"),
+        mainClass in Runtime := Some("ch.chuv.lren.woken.web.Web"),
         libraryDependencies ++= Seq(
           library.akkaActor,
           library.akkaRemote,
@@ -78,10 +78,10 @@ lazy val library =
       val cats            = "1.0.1"
       val kittens         = "1.0.0-RC2"
       val config          = "1.2.1"
-      val doobie          = "0.5.0-M13"
+      val doobie          = "0.5.0"
       val snakeyaml       = "1.17"
       val hadrian         = "0.8.5"
-      val wokenMessages   = "2.3.2"
+      val wokenMessages   = "2.4.8"
       val scalaCache      = "0.21.0"
       val scalaLogging    = "3.7.2"
       val kamon           = "1.0.1"
@@ -122,7 +122,7 @@ lazy val library =
     val hadrian: ModuleID      = "com.opendatagroup" %  "hadrian"      % Version.hadrian
     val scalaCache: ModuleID   = "com.github.cb372"  %% "scalacache-core" % Version.scalaCache
     val scalaLogging: ModuleID = "com.typesafe.scala-logging" %% "scala-logging" % Version.scalaLogging
-    val wokenMessages: ModuleID = "eu.humanbrainproject.mip" %% "woken-messages" % Version.wokenMessages
+    val wokenMessages: ModuleID = "ch.chuv.lren.woken" %% "woken-messages" % Version.wokenMessages
   }
 
 resolvers += "HBPMedical Bintray Repo" at "https://dl.bintray.com/hbpmedical/maven/"
@@ -138,11 +138,11 @@ lazy val settings = commonSettings ++ gitSettings ++ scalafmtSettings
 lazy val commonSettings =
   Seq(
     scalaVersion := "2.11.11",
-    organization in ThisBuild := "eu.humanbrainproject.mip",
-    organizationName in ThisBuild := "Human Brain Project MIP by LREN CHUV",
+    organization in ThisBuild := "ch.chuv.lren.woken",
+    organizationName in ThisBuild := "LREN CHUV for Human Brain Project",
     homepage in ThisBuild := Some(url(s"https://github.com/HBPMedical/${name.value}/#readme")),
-    licenses in ThisBuild := Seq("Apache-2.0" ->
-      url(s"https://github.com/sbt/${name.value}/blob/${version.value}/LICENSE")),
+    licenses in ThisBuild := Seq("AGPL-3.0" ->
+      url(s"https://github.com/LREN-CHUV/${name.value}/blob/${version.value}/LICENSE")),
     startYear in ThisBuild := Some(2017),
     description in ThisBuild := "Woken - a FaaS for machine learning",
     developers in ThisBuild := List(

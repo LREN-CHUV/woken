@@ -1224,7 +1224,7 @@
                 "MSE": 251.68214549498433,
                 "R-squared": -1.533712874110555,
                 "RMSE": 15.864493231584309,
-                "type": "RegressionScores"
+                "type": "RegressionScore"
               },
               "folds": {
                 "0": {
@@ -1233,7 +1233,7 @@
                   "MSE": 215.32844299914836,
                   "R-squared": -17.553948664331887,
                   "RMSE": 14.67407383786617,
-                  "type": "RegressionScores"
+                  "type": "RegressionScore"
                 },
                 "1": {
                   "Explained variance": 190.04155142598864,
@@ -1241,10 +1241,10 @@
                   "MSE": 288.0358479908204,
                   "R-squared": -2.1000064686272637,
                   "RMSE": 16.971618897171254,
-                  "type": "RegressionScores"
+                  "type": "RegressionScore"
                 }
               },
-              "type": "KFoldCrossValidation"
+              "type": "KFoldCrossValidationScore"
             }
           }
         ]

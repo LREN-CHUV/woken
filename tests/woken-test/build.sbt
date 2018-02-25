@@ -50,7 +50,7 @@ lazy val library =
       val log4j         = "2.9.1"
       val disruptor     = "3.3.7"
       val config        = "1.2.1"
-      val wokenMessages = "2.3.2"
+      val wokenMessages = "2.4.6"
     }
     val scalaCheck: ModuleID       = "org.scalacheck"    %% "scalacheck"   % Version.scalaCheck
     val scalaTest: ModuleID        = "org.scalatest"     %% "scalatest"    % Version.scalaTest
@@ -67,7 +67,7 @@ lazy val library =
     val log4jSlf4j: ModuleID       = "org.apache.logging.log4j" % "log4j-slf4j-impl" % Version.log4j
     val disruptor: ModuleID        = "com.lmax"           % "disruptor"    % Version.disruptor
     val config: ModuleID           = "com.typesafe"       % "config"       % Version.config
-    val wokenMessages: ModuleID    = "eu.humanbrainproject.mip" %% "woken-messages" % Version.wokenMessages
+    val wokenMessages: ModuleID    = "ch.chuv.lren.woken" %% "woken-messages" % Version.wokenMessages
   }
 
 resolvers += "HBPMedical Bintray Repo" at "https://dl.bintray.com/hbpmedical/maven/"
