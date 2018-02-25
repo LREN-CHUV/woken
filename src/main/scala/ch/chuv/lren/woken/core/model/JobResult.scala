@@ -197,7 +197,7 @@ case class ErrorJobResult(jobId: String,
 sealed trait VisualisationJobResult extends JobResult
 
 /**
-  * A visualisaton result encoded in Json
+  * A visualisation result encoded in Json
   *
   * @param jobId Id of the job
   * @param node Node where the algorithm is executed
@@ -212,7 +212,11 @@ case class JsonDataJobResult(jobId: String,
                              shape: Shape,
                              algorithm: String,
                              data: JsValue)
-    extends VisualisationJobResult
+    extends VisualisationJobResult {
+
+  assert(Shapes.visualisationJsonResults.contains(shape))
+
+}
 
 /**
   * A visualisation or other type of user-facing information encoded as a string
@@ -230,7 +234,11 @@ case class OtherDataJobResult(jobId: String,
                               shape: Shape,
                               algorithm: String,
                               data: String)
-    extends VisualisationJobResult
+    extends VisualisationJobResult {
+
+  assert(Shapes.visualisationOtherResults.contains(shape))
+
+}
 
 object JobResult {
 

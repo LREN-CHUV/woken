@@ -160,6 +160,27 @@ object Shapes {
     val values   = Set(compound, mime)
   }
 
+  /** Serialization of an object in Python using pickle */
+  object pythonPickle extends Shape {
+    val pythonPickle = "python_pickle"
+    val mime      = "application/octet-stream+python-pickle;base64"
+    val values    = Set(pythonPickle, mime)
+  }
+
+  /** Serialization of an object in Java using Java serialization */
+  object javaSerialization extends Shape {
+    val javaSerialization = "java_serialization"
+    val mime      = "application/java-serialized-object;base64"
+    val values    = Set(javaSerialization, mime)
+  }
+
+  /** Serialization of an object in R using saveRDS */
+  object rdsSerialization extends Shape {
+    val rdsSerialization = "rds_serialization"
+    val mime      = "application/octet-stream+rds;base64"
+    val values    = Set(javaSerialization, mime)
+  }
+
   /** Results stored as PFA documents in the database */
   val pfaResults: Set[Shape] = Set(pfa, pfaYaml, pfaExperiment)
 
@@ -170,8 +191,12 @@ object Shapes {
   /** Results stored as generic documents (strings) in the database */
   val visualisationOtherResults: Set[Shape] = Set(html, svg, png, visjs)
 
+  /** Results containing a model stored in a native serialization formant in the database */
+  val serializedModelsResults: Set[Shape] =
+    Set(pythonPickle, javaSerialization, rdsSerialization)
+
   val allResults
-    : Set[Shape] = pfaResults ++ visualisationJsonResults ++ visualisationOtherResults + error
+    : Set[Shape] = pfaResults ++ visualisationJsonResults ++ visualisationOtherResults ++ serializedModelsResults + error
 
   def fromString(s: String): Option[Shape] =
     allResults.find(_.isIdentifiedBy(s))
