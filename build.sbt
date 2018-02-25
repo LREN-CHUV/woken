@@ -21,7 +21,6 @@ lazy val `woken` =
           library.akkaSlf4j,
           //library.akkaTracingCore,
           //library.akkaTracingAkkaHttp,
-          library.sigar,
           library.akkaHttp,
           library.akkaHttpJson,
           library.kamon,
@@ -89,7 +88,6 @@ lazy val library =
       val kamon           = "1.0.1"
       val kamonReporter   = "1.0.0"
       val kamonSystemMetrics = "1.0.0"
-      val sigar           = "1.6.4"
     }
     val scalaCheck: ModuleID   = "org.scalacheck"    %% "scalacheck"   % Version.scalaCheck
     val scalaTest: ModuleID    = "org.scalatest"     %% "scalatest"    % Version.scalaTest
@@ -112,7 +110,6 @@ lazy val library =
     val kamonSystemMetrics: ModuleID = "io.kamon" %% "kamon-system-metrics" % Version.kamonSystemMetrics
     val kamonPrometheus: ModuleID =   "io.kamon" %% "kamon-prometheus" % Version.kamonReporter
     val kamonZipkin: ModuleID  =  "io.kamon" %% "kamon-zipkin" % Version.kamonReporter
-    val sigar: ModuleID        = "org.hyperic" % "sigar" % Version.sigar
     val swaggerUI: ModuleID    = "org.webjars"        % "swagger-ui"   % Version.swaggerUI
     val sprayJson: ModuleID    = "io.spray"          %% "spray-json"   % Version.sprayJson
     val slf4j: ModuleID        = "org.slf4j"          % "slf4j-api"    % Version.slf4j
