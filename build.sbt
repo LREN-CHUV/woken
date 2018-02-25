@@ -21,6 +21,7 @@ lazy val `woken` =
           library.akkaSlf4j,
           //library.akkaTracingCore,
           //library.akkaTracingAkkaHttp,
+          library.sigar,
           library.akkaHttp,
           library.akkaHttpJson,
           library.kamon,
@@ -88,6 +89,7 @@ lazy val library =
       val kamon           = "1.0.1"
       val kamonReporter   = "1.0.0"
       val kamonSystemMetrics = "1.0.0"
+      val sigar           = "1.6.5.132-7"
     }
     val scalaCheck: ModuleID   = "org.scalacheck"    %% "scalacheck"   % Version.scalaCheck
     val scalaTest: ModuleID    = "org.scalatest"     %% "scalatest"    % Version.scalaTest
@@ -101,7 +103,7 @@ lazy val library =
     val akkaTestkit: ModuleID  = "com.typesafe.akka" %% "akka-testkit" % Version.akka
     val akkaTracingCore: ModuleID     = "com.github.levkhomich" %% "akka-tracing-core" % Version.akkaTracing
     val akkaTracingAkkaHttp: ModuleID = "com.github.levkhomich" %% "akka-tracing-http" % Version.akkaTracing
-    val akkaHttp: ModuleID = "com.typesafe.akka" %% "akka-http" % Version.akkaHttp
+    val akkaHttp: ModuleID     = "com.typesafe.akka" %% "akka-http" % Version.akkaHttp
     val akkaHttpJson: ModuleID = "com.typesafe.akka" %% "akka-http-spray-json" % Version.akkaHttp
     val akkaHttpSwagger: ModuleID = "com.github.swagger-akka-http"   %% "swagger-akka-http" % Version.akkaHttpSwagger
     val kamon: ModuleID        = "io.kamon" %% "kamon-core" % Version.kamon
@@ -109,7 +111,8 @@ lazy val library =
     val kamonAkkaHttp: ModuleID = "io.kamon" %% "kamon-akka-http-2.5" % Version.kamon
     val kamonSystemMetrics: ModuleID = "io.kamon" %% "kamon-system-metrics" % Version.kamonSystemMetrics
     val kamonPrometheus: ModuleID =   "io.kamon" %% "kamon-prometheus" % Version.kamonReporter
-    val kamonZipkin: ModuleID =  "io.kamon" %% "kamon-zipkin" % Version.kamonReporter
+    val kamonZipkin: ModuleID  =  "io.kamon" %% "kamon-zipkin" % Version.kamonReporter
+    val sigar: ModuleID        = "org.hyperic" % "sigar" % Version.sigar
     val swaggerUI: ModuleID    = "org.webjars"        % "swagger-ui"   % Version.swaggerUI
     val sprayJson: ModuleID    = "io.spray"          %% "spray-json"   % Version.sprayJson
     val slf4j: ModuleID        = "org.slf4j"          % "slf4j-api"    % Version.slf4j
