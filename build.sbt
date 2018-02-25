@@ -86,6 +86,7 @@ lazy val library =
       val scalaCache      = "0.21.0"
       val scalaLogging    = "3.7.2"
       val kamon           = "1.0.1"
+      val kamonAkkaHttp   = "1.1.0"
       val kamonReporter   = "1.0.0"
       val kamonSystemMetrics = "1.0.0"
     }
@@ -106,7 +107,7 @@ lazy val library =
     val akkaHttpSwagger: ModuleID = "com.github.swagger-akka-http"   %% "swagger-akka-http" % Version.akkaHttpSwagger
     val kamon: ModuleID        = "io.kamon" %% "kamon-core" % Version.kamon
     val kamonAkka: ModuleID    = "io.kamon" %% "kamon-akka-2.5" % Version.kamon
-    val kamonAkkaHttp: ModuleID = "io.kamon" %% "kamon-akka-http-2.5" % Version.kamon
+    val kamonAkkaHttp: ModuleID = "io.kamon" %% "kamon-akka-http-2.5" % Version.kamonAkkaHttp
     val kamonSystemMetrics: ModuleID = "io.kamon" %% "kamon-system-metrics" % Version.kamonSystemMetrics
     val kamonPrometheus: ModuleID =   "io.kamon" %% "kamon-prometheus" % Version.kamonReporter
     val kamonZipkin: ModuleID  =  "io.kamon" %% "kamon-zipkin" % Version.kamonReporter
