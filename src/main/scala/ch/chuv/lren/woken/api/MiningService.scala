@@ -140,16 +140,17 @@ class MiningService(
     path("mining" / "experiment") {
       authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { user =>
         optionalHeaderValueByType[UpgradeToWebSocket](()) {
-          operationName("experiment", Map("requestType" -> "websocket")) {
           case Some(upgrade) =>
-            complete(upgrade.handleMessages(experimentFlow.watchTermination() { (_, done) =>
-              done.onComplete {
-                case scala.util.Success(_) =>
-                  logger.info("WS experiment completed successfully.")
-                case Failure(ex) =>
-                  logger.error(s"WS experiment completed with failure : $ex")
-              }
-            }))
+            operationName("experiment", Map("requestType" -> "websocket")) {
+              complete(upgrade.handleMessages(experimentFlow.watchTermination() { (_, done) =>
+                done.onComplete {
+                  case scala.util.Success(_) =>
+                    logger.info("WS experiment completed successfully.")
+                  case Failure(ex) =>
+                    logger.error(s"WS experiment completed with failure : $ex")
+                }
+              }))
+            }
           case None =>
             post {
               operationName("experiment", Map("requestType" -> "http-post")) {
@@ -159,7 +160,7 @@ class MiningService(
                       .mapTo[QueryResult]
                       .map {
                         case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
-                        case qr if qr.data.nonEmpty => OK -> qr.toJson
+                        case qr if qr.data.nonEmpty  => OK         -> qr.toJson
                       }
                       .recoverWith {
                         case e =>
