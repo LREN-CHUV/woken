@@ -89,7 +89,7 @@ lazy val library =
       val kamon           = "1.0.1"
       val kamonReporter   = "1.0.0"
       val kamonSystemMetrics = "1.0.0"
-      val sigar           = "1.6.5.132-7"
+      val sigar           = "1.6.4"
     }
     val scalaCheck: ModuleID   = "org.scalacheck"    %% "scalacheck"   % Version.scalaCheck
     val scalaTest: ModuleID    = "org.scalatest"     %% "scalatest"    % Version.scalaTest
