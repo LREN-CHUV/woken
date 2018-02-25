@@ -18,11 +18,15 @@
 package ch.chuv.lren.woken.config
 
 import com.typesafe.config.ConfigFactory
-import org.scalatest.{Matchers, WordSpec}
-import cats.scalatest.{ValidatedMatchers, ValidatedValues}
+import org.scalatest.{ Matchers, WordSpec }
+import cats.scalatest.{ ValidatedMatchers, ValidatedValues }
 import AlgorithmsConfiguration._
 
-class AlgorithmsConfigurationTest extends WordSpec with Matchers with ValidatedMatchers with ValidatedValues {
+class AlgorithmsConfigurationTest
+    extends WordSpec
+    with Matchers
+    with ValidatedMatchers
+    with ValidatedValues {
 
   "Configuration for algorithms" should {
 

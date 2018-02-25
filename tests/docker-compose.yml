@@ -302,6 +302,11 @@ services:
       WOKEN_PORT: 8088
       WOKEN_PORT_8088_TCP_ADDR: woken
       WOKEN_AKKA_PATH: "/user/entrypoint"
+      EXAREME_URL: http://prozac.madgik.di.uoa.gr:9090/mining/query
+      LOGGING_LEVEL_WEB: DEBUG
+      LOGGING_LEVEL_HIBERNATE: WARN
+      SESSION_TIMEOUT: 2592000
+      DATASETS: desd-synthdata
     depends_on:
       - db
       - woken

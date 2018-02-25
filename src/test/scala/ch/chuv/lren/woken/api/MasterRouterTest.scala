@@ -63,10 +63,12 @@ class MasterRouterTest
 
   val noDbConfig =
     DatabaseConfiguration(dbiDriver = "DBI",
+                          dbApiDriver = "DBAPI",
                           jdbcDriver = "java.lang.String",
                           jdbcUrl = "",
                           host = "",
                           port = 0,
+                          database = "db",
                           user = "",
                           password = "")
   val noJobsConf =

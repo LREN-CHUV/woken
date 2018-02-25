@@ -29,10 +29,12 @@ object JobToChronos {
                                   prefix: String = ""): List[EnvironmentVariable] =
     List(
       EV(prefix + "DBI_DRIVER", conf.dbiDriver),
+      EV(prefix + "DBAPI_DRIVER", conf.dbApiDriver),
       EV(prefix + "JDBC_DRIVER", conf.jdbcDriver),
       EV(prefix + "JDBC_URL", conf.jdbcUrl),
       EV(prefix + "HOST", conf.host),
       EV(prefix + "PORT", conf.port.toString),
+      EV(prefix + "DATABASE", conf.database),
       EV(prefix + "USER", conf.user),
       EV(prefix + "PASSWORD", conf.password),
       // LATER: Compat, to remove eventually

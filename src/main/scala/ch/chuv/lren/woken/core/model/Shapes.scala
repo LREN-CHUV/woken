@@ -26,6 +26,7 @@ object Shapes {
     * The shape of data returned by an algorithm
     */
   sealed trait Shape {
+
     /**
       * @return the MIME type for the shape
       */
@@ -163,7 +164,8 @@ object Shapes {
   val pfaResults: Set[Shape] = Set(pfa, pfaYaml, pfaExperiment)
 
   /** Results stored as Json documents in the database */
-  val visualisationJsonResults: Set[Shape] = Set(highcharts, plotly, vega, vegaLite, tabularDataResource, json, compound)
+  val visualisationJsonResults: Set[Shape] =
+    Set(highcharts, plotly, vega, vegaLite, tabularDataResource, json, compound)
 
   /** Results stored as generic documents (strings) in the database */
   val visualisationOtherResults: Set[Shape] = Set(html, svg, png, visjs)
