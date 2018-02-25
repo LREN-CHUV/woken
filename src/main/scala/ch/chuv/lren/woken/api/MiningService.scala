@@ -136,10 +136,11 @@ class MiningService(
     }
   }
 
-  override def experiment: Route = operationName("experiment", Map.empty) {
+  override def experiment: Route =
     path("mining" / "experiment") {
       authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { user =>
         optionalHeaderValueByType[UpgradeToWebSocket](()) {
+          operationName("experiment", Map("requestType" -> "websocket")) {
           case Some(upgrade) =>
             complete(upgrade.handleMessages(experimentFlow.watchTermination() { (_, done) =>
               done.onComplete {
@@ -151,23 +152,25 @@ class MiningService(
             }))
           case None =>
             post {
-              entity(as[ExperimentQuery]) { query: ExperimentQuery =>
-                complete {
-                  (masterRouter ? query)
-                    .mapTo[QueryResult]
-                    .map {
-                      case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
-                      case qr if qr.data.nonEmpty  => OK         -> qr.toJson
-                    }
-                    .recoverWith {
-                      case e =>
-                        Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
-                    }
+              operationName("experiment", Map("requestType" -> "http-post")) {
+                entity(as[ExperimentQuery]) { query: ExperimentQuery =>
+                  complete {
+                    (masterRouter ? query)
+                      .mapTo[QueryResult]
+                      .map {
+                        case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
+                        case qr if qr.data.nonEmpty => OK -> qr.toJson
+                      }
+                      .recoverWith {
+                        case e =>
+                          Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
+                      }
+                  }
                 }
               }
             }
         }
       }
     }
-  }
+
 }
