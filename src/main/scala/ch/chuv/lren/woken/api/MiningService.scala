@@ -68,11 +68,11 @@ class MiningService(
   import queryProtocol._
 
   override def listMethods: Route =
-    operationName("listMethods", Map.empty) {
-      path("mining" / "methods") {
-        authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { _ =>
-          optionalHeaderValueByType[UpgradeToWebSocket](()) {
-            case Some(upgrade) =>
+    path("mining" / "methods") {
+      authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { _ =>
+        optionalHeaderValueByType[UpgradeToWebSocket](()) {
+          case Some(upgrade) =>
+            operationName("listMethods", Map("requestType" -> "websocket")) {
               complete(upgrade.handleMessages(listMethodsFlow.watchTermination() { (_, done) =>
                 done.onComplete {
                   case scala.util.Success(_) =>
@@ -81,20 +81,22 @@ class MiningService(
                     logger.error(s"WS get methods completed with failure : $ex")
                 }
               }))
-            case None =>
-              get {
+            }
+          case None =>
+            get {
+              operationName("listMethods", Map("requestType" -> "http-post")) {
                 complete(AlgorithmLibraryService().algorithms())
               }
-          }
+            }
         }
       }
     }
 
-  override def mining: Route = operationName("mining", Map.empty) {
-    path("mining" / "job") {
-      authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { user =>
-        optionalHeaderValueByType[UpgradeToWebSocket](()) {
-          case Some(upgrade) =>
+  override def mining: Route = path("mining" / "job") {
+    authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { user =>
+      optionalHeaderValueByType[UpgradeToWebSocket](()) {
+        case Some(upgrade) =>
+          operationName("mining", Map("requestType" -> "http-post")) {
             complete(upgrade.handleMessages(miningFlow.watchTermination() { (_, done) =>
               done.onComplete {
                 case scala.util.Success(_) =>
@@ -103,8 +105,10 @@ class MiningService(
                   logger.error(s"WS mining job completed with failure : $ex")
               }
             }))
-          case None =>
-            post {
+          }
+        case None =>
+          post {
+            operationName("mining", Map("requestType" -> "http-post")) {
               entity(as[MiningQuery]) {
                 case query: MiningQuery
                     if query.algorithm.code == "" || query.algorithm.code == "data" =>
@@ -131,7 +135,7 @@ class MiningService(
                     }
               }
             }
-        }
+          }
       }
     }
   }
