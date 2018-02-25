@@ -1,9 +1,0 @@
-# Creates a specific version of Prometheus for Woken.
-# Do not push this image to Docker hub.
-woken-prometheus:
-  build: Dockerfile
-  image: woken-prometheus
-  pre:
-    - echo "Building woken-prometheus image"
-  post:
-    - echo "Finished building woken-prometheus image"
