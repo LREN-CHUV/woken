@@ -33,7 +33,7 @@ trait CrossValidation {
   * @param data
   * @param foldCount
   */
-class KFoldCrossValidation(data: Stream[JsObject], labels: Stream[JsObject], foldCount: Int)
+class KFoldCrossValidation(data: List[JsObject], labels: List[JsObject], foldCount: Int)
     extends CrossValidation {
 
   /**
@@ -61,8 +61,8 @@ class KFoldCrossValidation(data: Stream[JsObject], labels: Stream[JsObject], fol
     */
   def getTestSet(k: Int): (List[JsValue], List[JsValue]) =
     (
-      data.toList.slice(partition(k)._1, partition(k)._1 + partition(k)._2),
-      labels.toList.slice(partition(k)._1, partition(k)._1 + partition(k)._2)
+      data.slice(partition(k)._1, partition(k)._1 + partition(k)._2),
+      labels.slice(partition(k)._1, partition(k)._1 + partition(k)._2)
     )
 
   def groundTruth(fold: Int): List[JsValue] =
@@ -91,7 +91,7 @@ object KFoldCrossValidation {
     val variables = query.dbVariables
     val features  = query.dbCovariables ++ query.dbGrouping
 
-    val (data, labels) = d
+    val (data, labels) = d.toList
       .map(
         o =>
           (JsObject(o.fields.filterKeys(features.contains(_))),
