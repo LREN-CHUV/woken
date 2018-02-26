@@ -163,22 +163,22 @@ object Shapes {
   /** Serialization of an object in Python using pickle */
   object pythonPickle extends Shape {
     val pythonPickle = "python_pickle"
-    val mime      = "application/octet-stream+python-pickle;base64"
-    val values    = Set(pythonPickle, mime)
+    val mime         = "application/octet-stream+python-pickle;base64"
+    val values       = Set(pythonPickle, mime)
   }
 
   /** Serialization of an object in Java using Java serialization */
   object javaSerialization extends Shape {
     val javaSerialization = "java_serialization"
-    val mime      = "application/java-serialized-object;base64"
-    val values    = Set(javaSerialization, mime)
+    val mime              = "application/java-serialized-object;base64"
+    val values            = Set(javaSerialization, mime)
   }
 
   /** Serialization of an object in R using saveRDS */
   object rdsSerialization extends Shape {
     val rdsSerialization = "rds_serialization"
-    val mime      = "application/octet-stream+rds;base64"
-    val values    = Set(javaSerialization, mime)
+    val mime             = "application/octet-stream+rds;base64"
+    val values           = Set(rdsSerialization, mime)
   }
 
   /** Results stored as PFA documents in the database */

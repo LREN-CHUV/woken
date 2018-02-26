@@ -28,6 +28,7 @@ lazy val `woken` =
           library.slf4j,
           library.log4jSlf4j,
           library.disruptor,
+          library.scalaLogging,
           library.catsCore,
           library.kittens,
           library.config,
@@ -38,7 +39,6 @@ lazy val `woken` =
           library.hadrian,
           library.wokenMessages,
           //library.scalaCache,
-          library.scalaLogging,
           library.scalaCheck      % Test,
           library.scalaTest       % Test,
           library.scalaMock       % Test,
@@ -73,6 +73,7 @@ lazy val library =
       val slf4j           = "1.7.25"
       val log4j           = "2.10.0"
       val disruptor       = "3.3.7"
+      val scalaLogging    = "3.7.2"
       val cats            = "1.0.1"
       val kittens         = "1.0.0-RC2"
       val catsScalaTest   = "2.3.1"
@@ -81,7 +82,6 @@ lazy val library =
       val snakeyaml       = "1.17"
       val hadrian         = "0.8.5"
       val scalaCache      = "0.21.0"
-      val scalaLogging    = "3.7.2"
       val dockerTestKit   = "0.9.5"
       val wokenMessages   = "2.4.8"
     }
@@ -106,6 +106,7 @@ lazy val library =
     val slf4j: ModuleID        = "org.slf4j"          % "slf4j-api"    % Version.slf4j
     val log4jSlf4j: ModuleID   = "org.apache.logging.log4j" % "log4j-slf4j-impl" % Version.log4j
     val disruptor: ModuleID    = "com.lmax"           % "disruptor"    % Version.disruptor
+    val scalaLogging: ModuleID = "com.typesafe.scala-logging" %% "scala-logging" % Version.scalaLogging
     val catsCore: ModuleID     = "org.typelevel"     %% "cats-core"    % Version.cats
     val kittens: ModuleID      = "org.typelevel"     %% "kittens"      % Version.kittens
     val catsScalaTest: ModuleID = "com.ironcorelabs" %% "cats-scalatest" % Version.catsScalaTest
@@ -117,7 +118,6 @@ lazy val library =
     val yaml: ModuleID         = "org.yaml"           % "snakeyaml"    % Version.snakeyaml
     val hadrian: ModuleID      = "com.opendatagroup" %  "hadrian"      % Version.hadrian
     val scalaCache: ModuleID   = "com.github.cb372"  %% "scalacache-core" % Version.scalaCache
-    val scalaLogging: ModuleID = "com.typesafe.scala-logging" %% "scala-logging" % Version.scalaLogging
     val dockerTestKitScalaTest: ModuleID = "com.whisk" %% "docker-testkit-scalatest" % Version.dockerTestKit
     val dockerTestKitSpotify: ModuleID = "com.whisk" %% "docker-testkit-impl-spotify" % Version.dockerTestKit
     val wokenMessages: ModuleID = "ch.chuv.lren.woken" %% "woken-messages" % Version.wokenMessages
