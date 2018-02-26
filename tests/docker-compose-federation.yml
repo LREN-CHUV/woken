@@ -189,8 +189,9 @@ services:
   # The zipkin process services the UI, and also exposes a POST endpoint that
   # instrumentation can send trace data to. Scribe is enabled by default.
   zipkin:
-    image: openzipkin/zipkin:2.3.1
+    image: openzipkin/zipkin:2.5.0
     container_name: zipkin
+    hostname: zipkin
     # Environment settings are defined here https://github.com/openzipkin/zipkin/tree/1.19.0/zipkin-server#environment-variables
     environment:
       - STORAGE_TYPE=mem
@@ -204,16 +205,16 @@ services:
       # Port used for the Zipkin UI and HTTP Api
       - 9411:9411
 
-  zipkin-ui:
-    image: openzipkin/zipkin-ui:2.3.1
-    container_name: zipkin-ui
-    environment:
-      # Change this if connecting to a different zipkin server
-      - ZIPKIN_BASE_URL=http://zipkin:9411
+  wokenprometheus:
+    image: prom/prometheus
+    volumes:
+      - ./prometheus/federation/prometheus.yml:/etc/prometheus/prometheus.yml
+    hostname: prometheus
     ports:
-      - 9080:80
+      - "9090:9090"
     depends_on:
       - zipkin
+
 
   wokennode1:
     image: hbpmip/woken
@@ -222,6 +223,7 @@ services:
     ports:
       - "18087:8087"
       - "18088:8088"
+      - "19095:9095"
     environment:
       CLUSTER_PORT: 8088
       CLUSTER_IP: wokennode1
@@ -229,6 +231,7 @@ services:
       WOKEN_PORT_8088_TCP_ADDR: wokennode1
     links:
       - zipkin
+      - wokenprometheus
     depends_on:
       - chronos
       - db
@@ -246,6 +249,7 @@ services:
       LOG_LEVEL: DEBUG
     links:
       - zipkin
+      - wokenprometheus
     depends_on:
       - wokennode1
 
@@ -266,6 +270,7 @@ services:
     ports:
       - "28087:8087"
       - "28088:8088"
+      - "29095:9095"
     environment:
       CLUSTER_PORT: 8088
       CLUSTER_IP: wokennode2
@@ -273,6 +278,7 @@ services:
       WOKEN_PORT_8088_TCP_ADDR: wokennode2
     links:
       - zipkin
+      - wokenprometheus
     depends_on:
       - chronos
       - db
@@ -310,6 +316,7 @@ services:
     ports:
       - "8087:8087"
       - "8088:8088"
+      - "9095:9095"
     environment:
       CLUSTER_PORT: 8088
       CLUSTER_IP: wokencentral
@@ -317,6 +324,7 @@ services:
       WOKEN_PORT_8088_TCP_ADDR: wokencentral
     links:
       - zipkin
+      - wokenprometheus
     depends_on:
       - chronos
       - db

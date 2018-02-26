@@ -44,6 +44,10 @@ import ch.chuv.lren.woken.ssl.WokenSSLConfiguration
 import akka.stream.{ ActorMaterializer, ActorMaterializerSettings, Supervision }
 import ch.chuv.lren.woken.backends.woken.WokenService
 import com.typesafe.scalalogging.LazyLogging
+import kamon.Kamon
+import kamon.prometheus.PrometheusReporter
+import kamon.system.SystemMetrics
+import kamon.zipkin.ZipkinReporter
 
 import scala.concurrent.{ ExecutionContextExecutor, Future }
 import scala.language.postfixOps
@@ -67,6 +71,10 @@ trait BootedCore
     .valueOr(configurationFailed)
 
   logger.info(s"Starting actor system ${appConfig.clusterSystemName}")
+
+  SystemMetrics.startCollecting()
+  Kamon.addReporter(new PrometheusReporter)
+  Kamon.addReporter(new ZipkinReporter)
 
   /**
     * Construct the ActorSystem we will use in our application
@@ -175,6 +183,7 @@ trait BootedCore
     * Ensure that the constructed ActorSystem is shut down when the JVM shuts down
     */
   val shutdownHook: ShutdownHookThread = sys.addShutdownHook {
+    SystemMetrics.stopCollecting()
     binding
       .flatMap(_.unbind())
       .flatMap(_ => system.terminate())
