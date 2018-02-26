@@ -1,3 +1,4 @@
+import sbtassembly.MergeStrategy
 // *****************************************************************************
 // Projects
 // *****************************************************************************
@@ -22,11 +23,17 @@ lazy val `woken` =
           //library.akkaTracingAkkaHttp,
           library.akkaHttp,
           library.akkaHttpJson,
+          library.kamon,
+          library.kamonAkka,
+          library.kamonAkkaHttp,
+          library.kamonPrometheus,
+          library.kamonZipkin,
+          library.kamonSystemMetrics,
           library.akkaHttpSwagger,
           library.swaggerUI,
           library.sprayJson,
           library.slf4j,
-          library.log4jSlf4j,
+          //library.log4jSlf4j,
           library.disruptor,
           library.catsCore,
           library.kittens,
@@ -45,6 +52,8 @@ lazy val `woken` =
         ),
         includeFilter in (Compile, unmanagedResources) := "*.xml" || "*.conf" || "*.html",
         includeFilter in (Test, unmanagedResources) := "*.json" || "*.conf",
+        // Use the customMergeStrategy in your settings
+        assemblyMergeStrategy in assembly := customMergeStrategy,
         assemblyJarName in assembly := "woken-all.jar"
       )
     )
@@ -76,6 +85,10 @@ lazy val library =
       val wokenMessages   = "2.4.8"
       val scalaCache      = "0.21.0"
       val scalaLogging    = "3.7.2"
+      val kamon           = "1.0.1"
+      val kamonAkkaHttp   = "1.1.0"
+      val kamonReporter   = "1.0.0"
+      val kamonSystemMetrics = "1.0.0"
     }
     val scalaCheck: ModuleID   = "org.scalacheck"    %% "scalacheck"   % Version.scalaCheck
     val scalaTest: ModuleID    = "org.scalatest"     %% "scalatest"    % Version.scalaTest
@@ -89,9 +102,15 @@ lazy val library =
     val akkaTestkit: ModuleID  = "com.typesafe.akka" %% "akka-testkit" % Version.akka
     val akkaTracingCore: ModuleID     = "com.github.levkhomich" %% "akka-tracing-core" % Version.akkaTracing
     val akkaTracingAkkaHttp: ModuleID = "com.github.levkhomich" %% "akka-tracing-http" % Version.akkaTracing
-    val akkaHttp: ModuleID = "com.typesafe.akka" %% "akka-http" % Version.akkaHttp
+    val akkaHttp: ModuleID     = "com.typesafe.akka" %% "akka-http" % Version.akkaHttp
     val akkaHttpJson: ModuleID = "com.typesafe.akka" %% "akka-http-spray-json" % Version.akkaHttp
     val akkaHttpSwagger: ModuleID = "com.github.swagger-akka-http"   %% "swagger-akka-http" % Version.akkaHttpSwagger
+    val kamon: ModuleID        = "io.kamon" %% "kamon-core" % Version.kamon
+    val kamonAkka: ModuleID    = "io.kamon" %% "kamon-akka-2.5" % Version.kamon
+    val kamonAkkaHttp: ModuleID = "io.kamon" %% "kamon-akka-http-2.5" % Version.kamonAkkaHttp
+    val kamonSystemMetrics: ModuleID = "io.kamon" %% "kamon-system-metrics" % Version.kamonSystemMetrics
+    val kamonPrometheus: ModuleID =   "io.kamon" %% "kamon-prometheus" % Version.kamonReporter
+    val kamonZipkin: ModuleID  =  "io.kamon" %% "kamon-zipkin" % Version.kamonReporter
     val swaggerUI: ModuleID    = "org.webjars"        % "swagger-ui"   % Version.swaggerUI
     val sprayJson: ModuleID    = "io.spray"          %% "spray-json"   % Version.sprayJson
     val slf4j: ModuleID        = "org.slf4j"          % "slf4j-api"    % Version.slf4j
@@ -112,6 +131,7 @@ lazy val library =
 
 resolvers += "HBPMedical Bintray Repo" at "https://dl.bintray.com/hbpmedical/maven/"
 resolvers += "opendatagroup maven" at "http://repository.opendatagroup.com/maven"
+
 
 // *****************************************************************************
 // Settings
@@ -171,3 +191,36 @@ lazy val scalafmtSettings =
     scalafmtOnCompile.in(Sbt) := false,
     scalafmtVersion := "1.4.0"
   )
+
+// Create a new MergeStrategy for aop.xml files
+val aopMerge: MergeStrategy = new MergeStrategy {
+  val name = "aopMerge"
+  import scala.xml._
+  import scala.xml.dtd._
+
+  def apply(tempDir: File, path: String, files: Seq[File]): Either[String, Seq[(File, String)]] = {
+    val dt = DocType("aspectj", PublicID("-//AspectJ//DTD//EN", "http://www.eclipse.org/aspectj/dtd/aspectj.dtd"), Nil)
+    val file = MergeStrategy.createMergeTarget(tempDir, path)
+    val xmls: Seq[Elem] = files.map(XML.loadFile)
+    val aspectsChildren: Seq[Node] = xmls.flatMap(_ \\ "aspectj" \ "aspects" \ "_")
+    val weaverChildren: Seq[Node] = xmls.flatMap(_ \\ "aspectj" \ "weaver" \ "_")
+    val options: String = xmls.map(x => (x \\ "aspectj" \ "weaver" \ "@options").text).mkString(" ").trim
+    val weaverAttr = if (options.isEmpty) Null else new UnprefixedAttribute("options", options, Null)
+    val aspects = new Elem(null, "aspects", Null, TopScope, false, aspectsChildren: _*)
+    val weaver = new Elem(null, "weaver", weaverAttr, TopScope, false, weaverChildren: _*)
+    val aspectj = new Elem(null, "aspectj", Null, TopScope, false, aspects, weaver)
+    XML.save(file.toString, aspectj, "UTF-8", xmlDecl = false, dt)
+    IO.append(file, IO.Newline.getBytes(IO.defaultCharset))
+    Right(Seq(file -> path))
+  }
+}
+
+// Use defaultMergeStrategy with a case for aop.xml
+// I like this better than the inline version mentioned in assembly's README
+val customMergeStrategy: String => MergeStrategy = {
+  case PathList("META-INF", "aop.xml") =>
+    aopMerge
+  case s =>
+    MergeStrategy.defaultMergeStrategy(s)
+}
+
