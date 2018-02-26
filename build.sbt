@@ -1,4 +1,5 @@
 import sbtassembly.MergeStrategy
+import sbt.ExclusionRule
 
 // *****************************************************************************
 // Projects
@@ -99,6 +100,9 @@ lazy val library =
       val dockerTestKit   = "0.9.5"
       val wokenMessages   = "2.4.8"
     }
+    object ExclusionRules {
+      val excludeLogback = ExclusionRule(organization = "ch.qos.logback", name = "logback-classic")
+    }
     val scalaCheck: ModuleID   = "org.scalacheck"    %% "scalacheck"   % Version.scalaCheck
     val scalaTest: ModuleID    = "org.scalatest"     %% "scalatest"    % Version.scalaTest
     val scalaMock:ModuleID     = "org.scalamock"     %% "scalamock"    % Version.scalaMock
@@ -115,12 +119,12 @@ lazy val library =
     val akkaHttp: ModuleID = "com.typesafe.akka" %% "akka-http" % Version.akkaHttp
     val akkaHttpJson: ModuleID = "com.typesafe.akka" %% "akka-http-spray-json" % Version.akkaHttp
     val akkaHttpSwagger: ModuleID = "com.github.swagger-akka-http"   %% "swagger-akka-http" % Version.akkaHttpSwagger
-    val kamon: ModuleID        = "io.kamon" %% "kamon-core" % Version.kamon
-    val kamonAkka: ModuleID    = "io.kamon" %% "kamon-akka-2.5" % Version.kamon
-    val kamonAkkaHttp: ModuleID = "io.kamon" %% "kamon-akka-http-2.5" % Version.kamonAkkaHttp
-    val kamonSystemMetrics: ModuleID = "io.kamon" %% "kamon-system-metrics" % Version.kamonSystemMetrics
-    val kamonPrometheus: ModuleID =   "io.kamon" %% "kamon-prometheus" % Version.kamonReporter
-    val kamonZipkin: ModuleID  =  "io.kamon" %% "kamon-zipkin" % Version.kamonReporter
+    val kamon: ModuleID        = "io.kamon" %% "kamon-core" % Version.kamon excludeAll ExclusionRules.excludeLogback
+    val kamonAkka: ModuleID    = "io.kamon" %% "kamon-akka-2.5" % Version.kamon excludeAll ExclusionRules.excludeLogback
+    val kamonAkkaHttp: ModuleID = "io.kamon" %% "kamon-akka-http-2.5" % Version.kamonAkkaHttp excludeAll ExclusionRules.excludeLogback
+    val kamonSystemMetrics: ModuleID = "io.kamon" %% "kamon-system-metrics" % Version.kamonSystemMetrics excludeAll ExclusionRules.excludeLogback
+    val kamonPrometheus: ModuleID =   "io.kamon" %% "kamon-prometheus" % Version.kamonReporter excludeAll ExclusionRules.excludeLogback
+    val kamonZipkin: ModuleID  =  "io.kamon" %% "kamon-zipkin" % Version.kamonReporter excludeAll ExclusionRules.excludeLogback
     val swaggerUI: ModuleID    = "org.webjars"        % "swagger-ui"   % Version.swaggerUI
     val sprayJson: ModuleID    = "io.spray"          %% "spray-json"   % Version.sprayJson
     val slf4j: ModuleID        = "org.slf4j"          % "slf4j-api"    % Version.slf4j
@@ -154,7 +158,7 @@ lazy val settings = commonSettings ++ gitSettings ++ scalafmtSettings
 
 lazy val commonSettings =
   Seq(
-    scalaVersion := "2.11.11",
+    scalaVersion := "2.11.12",
     organization in ThisBuild := "ch.chuv.lren.woken",
     organizationName in ThisBuild := "LREN CHUV for Human Brain Project",
     homepage in ThisBuild := Some(url(s"https://github.com/HBPMedical/${name.value}/#readme")),
