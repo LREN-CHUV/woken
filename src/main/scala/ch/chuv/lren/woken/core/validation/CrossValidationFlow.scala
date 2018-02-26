@@ -112,7 +112,8 @@ case class CrossValidationFlow(
         val crossValidation =
           KFoldCrossValidation(featuresQuery, foldCount, coordinatorConfig.featuresDatabase)
 
-        assert(crossValidation.partition.size == foldCount)
+        assert(crossValidation.partition.size == foldCount,
+          s"Excepted number of folds ($foldCount) to match the number of partitions (${crossValidation.partition.size})")
 
         // For every fold
         crossValidation.partition.toList.map((job, crossValidation, _))

@@ -19,7 +19,8 @@ package ch.chuv.lren.woken.core.validation
 
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.dao.FeaturesDAL
-import spray.json.{ JsValue, _ }
+import com.typesafe.scalalogging.LazyLogging
+import spray.json.{JsValue, _}
 
 trait CrossValidation {
 
@@ -76,7 +77,7 @@ class KFoldCrossValidation(data: List[JsObject], labels: List[JsObject], foldCou
   *
   * @author Arnaud Jutzeler
   */
-object KFoldCrossValidation {
+object KFoldCrossValidation extends LazyLogging {
 
   def apply(query: FeaturesQuery,
             foldCount: Int,
@@ -84,12 +85,19 @@ object KFoldCrossValidation {
 
     val sql = query.query
 
+    logger.info(s"Cross validation query: $query")
+
     // JSON objects with fieldname corresponding to variables names
     val (_, d) = featuresDAL.runQuery(featuresDAL.ldsmConnection, sql)
+
+    logger.info(s"Query response: ${d.mkString(",")}")
 
     // Separate features from labels
     val variables = query.dbVariables
     val features  = query.dbCovariables ++ query.dbGrouping
+
+    logger.info(s"Variables: ${variables.mkString(",")}")
+    logger.info(s"Features: ${features.mkString(",")}")
 
     val (data, labels) = d.toList
       .map(
@@ -98,6 +106,9 @@ object KFoldCrossValidation {
            JsObject(o.fields.filterKeys(variables.contains(_))))
       )
       .unzip
+
+    logger.info(s"Data: ${data.mkString(",")}")
+    logger.info(s"Labels: ${labels.mkString(",")}")
 
     new KFoldCrossValidation(data, labels, foldCount)
   }
