@@ -98,7 +98,7 @@ case class CrossValidationFlow(
 
   def crossValidate(
       parallelism: Int
-  ): Flow[CrossValidationFlow.Job, (CrossValidationFlow.Job, KFoldCrossValidationScore), NotUsed] =
+  ): Flow[CrossValidationFlow.Job, Option[(CrossValidationFlow.Job, Either[String, Score])], NotUsed] =
     Flow[CrossValidationFlow.Job]
       .map { job =>
         val validation = job.validation
@@ -112,8 +112,10 @@ case class CrossValidationFlow(
         val crossValidation =
           KFoldCrossValidation(featuresQuery, foldCount, coordinatorConfig.featuresDatabase)
 
-        assert(crossValidation.partition.size == foldCount,
-          s"Excepted number of folds ($foldCount) to match the number of partitions (${crossValidation.partition.size})")
+        assert(
+          crossValidation.partition.size == foldCount,
+          s"Excepted number of folds ($foldCount) to match the number of partitions (${crossValidation.partition.size})"
+        )
 
         // For every fold
         crossValidation.partition.toList.map((job, crossValidation, _))
@@ -129,28 +131,31 @@ case class CrossValidationFlow(
         l :+ r
       }
       .mapAsync(1) { foldResults =>
-        scoreAll(foldResults.sortBy(_.fold))
+        scoreAll(foldResults.sortBy(_.fold).toNel)
       }
-      .map { crossValidationScore =>
-        crossValidationScore.score.result match {
-          case Right(score: VariableScore) =>
-            (crossValidationScore.job,
-             KFoldCrossValidationScore(
-               average = score,
-               folds = crossValidationScore.foldScores
-                 .filter {
-                   case (k, ScoringResult(Left(error))) =>
-                     log.warning(s"Fold $k failed with message $error")
-                     false
-                   case _ => true
-                 }
-                 .map {
-                   case (k, ScoringResult(Right(score: VariableScore))) => (k, score)
-                 }
-             ))
-          case Left(error) =>
-            log.warning(s"Global score failed with message $error")
-            throw new RuntimeException(error)
+      .map { jobScoreOption =>
+        jobScoreOption.map { crossValidationScore =>
+          crossValidationScore.score.result match {
+            case Right(score: VariableScore) =>
+              crossValidationScore.job -> Right[String, Score](
+                KFoldCrossValidationScore(
+                  average = score,
+                  folds = crossValidationScore.foldScores
+                    .filter {
+                      case (k, ScoringResult(Left(error))) =>
+                        log.warning(s"Fold $k failed with message $error")
+                        false
+                      case _ => true
+                    }
+                    .map {
+                      case (k, ScoringResult(Right(score: VariableScore))) => (k, score)
+                    }
+                )
+              )
+            case Left(error) =>
+              log.warning(s"Global score failed with message $error")
+              crossValidationScore.job -> Left(error)
+          }
         }
       // Aggregation of results from all folds
 
@@ -281,40 +286,47 @@ case class CrossValidationFlow(
     foldResultV.valueOr(e => Future.failed(new Exception(e.toList.mkString(","))))
   }
 
-  private def scoreAll(foldResults: Seq[FoldResult]): Future[CrossValidationScore] = {
+  private def scoreAll(
+      foldResultsOption: Option[NonEmptyList[FoldResult]]
+  ): Future[Option[CrossValidationScore]] = {
 
     import cats.syntax.list._
 
-    val validations  = foldResults.flatMap(_.validationResults).toList
-    val groundTruths = foldResults.flatMap(_.groundTruth).toList
-    val foldScores = foldResults.map { s =>
-      s.fold -> s.scores
-    }.toMap
+    foldResultsOption.map { foldResults =>
+      val foldResultList = foldResults.toList
+      val validations    = foldResultList.flatMap(_.validationResults)
+      val groundTruths   = foldResultList.flatMap(_.groundTruth)
+      val foldScores = foldResultList.map { s =>
+        s.fold -> s.scores
+      }.toMap
 
-    (validations.toNel, groundTruths.toNel) match {
-      case (Some(r), Some(gt)) =>
-        implicit val askTimeout: Timeout = Timeout(5 minutes)
-        (scoringActor ? ScoringQuery(r, gt, foldResults.head.targetMetaData))
-          .mapTo[ScoringResult]
-          .map { score =>
-            CrossValidationScore(job = foldResults.head.job,
-                                 score = score,
+      val job            = foldResults.head.job
+      val targetMetaData = foldResults.head.targetMetaData
+
+      (validations.toNel, groundTruths.toNel) match {
+        case (Some(r), Some(gt)) =>
+          implicit val askTimeout: Timeout = Timeout(5 minutes)
+          (scoringActor ? ScoringQuery(r, gt, targetMetaData))
+            .mapTo[ScoringResult]
+            .map { score =>
+              CrossValidationScore(job = job,
+                                   score = score,
+                                   foldScores = foldScores,
+                                   validations = validations)
+            }
+        case (r, gt) =>
+          val message =
+            s"Final reduce for cross-validation uses empty datasets: Validations = $r, ground truths = $gt"
+          log.error(message)
+          Future(
+            CrossValidationScore(job = job,
+                                 score = ScoringResult(Left(message)),
                                  foldScores = foldScores,
                                  validations = validations)
-          }
-      case (r, gt) =>
-        val message =
-          s"Final reduce for cross-validation uses empty datasets: Validations = $r, ground truths = $gt"
-        log.error(message)
-        Future(
-          CrossValidationScore(job = foldResults.head.job,
-                               score = ScoringResult(Left(message)),
-                               foldScores = foldScores,
-                               validations = validations)
-        )
+          )
 
+      }
     }
-
-  }
+  }.sequence
 
 }

@@ -52,6 +52,7 @@ lazy val `woken` =
           library.scalaTest    % Test,
           library.scalaMock       % Test,
           library.akkaTestkit     % Test,
+          library.akkaStreamTestkit % Test,
           library.doobieScalaTest % Test,
           library.catsScalaTest   % Test,
           library.dockerTestKitScalaTest % Test,
@@ -114,6 +115,7 @@ lazy val library =
     val akkaContrib: ModuleID  = "com.typesafe.akka" %% "akka-contrib" % Version.akka
     val akkaSlf4j: ModuleID    = "com.typesafe.akka" %% "akka-slf4j"   % Version.akka
     val akkaTestkit: ModuleID  = "com.typesafe.akka" %% "akka-testkit" % Version.akka
+    val akkaStreamTestkit: ModuleID   = "com.typesafe.akka" %% "akka-stream-testkit" % Version.akka
     val akkaTracingCore: ModuleID     = "com.github.levkhomich" %% "akka-tracing-core" % Version.akkaTracing
     val akkaTracingAkkaHttp: ModuleID = "com.github.levkhomich" %% "akka-tracing-http" % Version.akkaTracing
     val akkaHttp: ModuleID = "com.typesafe.akka" %% "akka-http" % Version.akkaHttp

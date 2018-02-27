@@ -20,7 +20,7 @@ package ch.chuv.lren.woken.core.validation
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.dao.FeaturesDAL
 import com.typesafe.scalalogging.LazyLogging
-import spray.json.{JsValue, _}
+import spray.json.{ JsValue, _ }
 
 trait CrossValidation {
 
@@ -60,14 +60,14 @@ class KFoldCrossValidation(data: List[JsObject], labels: List[JsObject], foldCou
     * @param k
     * @return
     */
-  def getTestSet(k: Int): (List[JsValue], List[JsValue]) =
+  def getTestSet(k: Int): (List[JsObject], List[JsObject]) =
     (
       data.slice(partition(k)._1, partition(k)._1 + partition(k)._2),
       labels.slice(partition(k)._1, partition(k)._1 + partition(k)._2)
     )
 
   def groundTruth(fold: Int): List[JsValue] =
-    getTestSet(fold)._2.map(x => x.asJsObject.fields.toList.head._2)
+    getTestSet(fold)._2.map(x => x.fields.toList.head._2)
 
 }
 
