@@ -29,21 +29,29 @@ trait CrossValidation {
 }
 
 /**
-  * TODO In WP3 should be an Actor
+  * K-Fold cross validation
   *
-  * @param data
-  * @param foldCount
+  * @param features The features used for training. Each JsObject contains
+  * @param labels The labels used as the source of ground truth
+  * @param foldCount Number of folds
+  * @see https://en.wikipedia.org/wiki/Cross-validation_(statistics)#k-fold_cross-validation
   */
-class KFoldCrossValidation(data: List[JsObject], labels: List[JsObject], foldCount: Int)
+// TODO: list of features or even labels may be loaded from Woken-validation, here we should just
+// generate the SQL queries to access those parts of the dataset
+class KFoldCrossValidation(features: List[JsObject], labels: List[JsObject], foldCount: Int)
     extends CrossValidation {
 
+  assert(features.lengthCompare(labels.size) == 0,
+         "Features and labels should have the same number of elements")
+
   /**
+    * Generates the partition. It can be empty if the number of folds is greater than the length of the dataset
     *
-    * @return
+    * @return a map containing for each fold index the offset and the size of the partition
     */
-  // TODO: return None if data size < fold count
-  override def partition: Map[Int, (Int, Int)] = {
-    val nb                              = data.size
+  override lazy val partition: Map[Int, (Int, Int)] = {
+    val nb = features.size
+
     var partition: Map[Int, (Int, Int)] = Map()
     if (nb >= foldCount) {
       val t = nb.toFloat / foldCount.toFloat
@@ -57,13 +65,13 @@ class KFoldCrossValidation(data: List[JsObject], labels: List[JsObject], foldCou
 
   /**
     *
-    * @param k
+    * @param fold
     * @return
     */
-  def getTestSet(k: Int): (List[JsObject], List[JsObject]) =
+  def getTestSet(fold: Int): (List[JsObject], List[JsObject]) =
     (
-      data.slice(partition(k)._1, partition(k)._1 + partition(k)._2),
-      labels.slice(partition(k)._1, partition(k)._1 + partition(k)._2)
+      features.slice(partition(fold)._1, partition(fold)._1 + partition(fold)._2),
+      labels.slice(partition(fold)._1, partition(fold)._1 + partition(fold)._2)
     )
 
   def groundTruth(fold: Int): List[JsValue] =
@@ -99,7 +107,14 @@ object KFoldCrossValidation extends LazyLogging {
     logger.info(s"Variables: ${variables.mkString(",")}")
     logger.info(s"Features: ${features.mkString(",")}")
 
-    val (data, labels) = d.toList
+    apply(dataframe = d, variables = variables, features = features, foldCount = foldCount)
+  }
+
+  def apply(dataframe: Stream[JsObject],
+            variables: List[String],
+            features: List[String],
+            foldCount: Int): KFoldCrossValidation = {
+    val (data, labels) = dataframe.toList
       .map(
         o =>
           (JsObject(o.fields.filterKeys(features.contains(_))),

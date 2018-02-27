@@ -122,8 +122,8 @@ case class CrossValidationFlow(
       }
       .mapConcat(identity)
       .mapAsyncUnordered(parallelism) { f =>
-        val (job, crossValidation, (fold, (s, n))) = f
-        localJobForFold(job, s, n, fold, crossValidation)
+        val (job, crossValidation, (fold, (offsetStart, offsetCount))) = f
+        localJobForFold(job, offsetStart, offsetCount, fold, crossValidation)
       }
       .mapAsync(parallelism)(validateFoldJobResponse)
       .mapAsync(parallelism)(scoreFoldValidationResponse)
@@ -171,19 +171,17 @@ case class CrossValidationFlow(
       .getOrElse(throw new Exception("Problem with variables' meta data!"))
   }
 
-  private def localJobForFold(
-      job: Job,
-      s: Int,
-      n: Int,
-      fold: Int,
-      validation: KFoldCrossValidation
-  ): Future[FoldContext[CoordinatorActor.Response]] = {
+  private def localJobForFold(job: Job,
+                              offsetStart: Int,
+                              offsetCount: Int,
+                              fold: Int,
+                              validation: KFoldCrossValidation) = {
 
     // Spawn a LocalCoordinatorActor for that one particular fold
     val jobId = UUID.randomUUID().toString
     val featuresQuery = job.query.features(job.inputTable,
                                            !job.algorithmDefinition.supportsNullValues,
-                                           Some(QueryOffset(s, n)))
+                                           Some(QueryOffset(offsetStart, offsetCount)))
 
     val subJob = DockerJob(
       jobId = jobId,
