@@ -6,7 +6,7 @@
     "constraints": [],
     "container": {
       "forcePullImage": false,
-      "image": "hbpmip/java-rapidminer-knn:0.2.1",
+      "image": "hbpmip/java-rapidminer-knn:0.2.2",
       "network": "BRIDGE",
       "networkInfos": [],
       "parameters": [
@@ -34,7 +34,7 @@
       },
       {
         "name": "DOCKER_IMAGE",
-        "value": "hbpmip/java-rapidminer-knn:0.2.1"
+        "value": "hbpmip/java-rapidminer-knn:0.2.2"
       },
       {
         "name": "PARAM_variables",

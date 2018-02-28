@@ -200,11 +200,11 @@ algorithms {
     predictive = false
   }
   knn {
-    dockerImage = "hbpmip/java-rapidminer-knn:0.2.1"
+    dockerImage = "hbpmip/java-rapidminer-knn:0.2.2"
     predictive = true
   }
   naiveBayes {
-    dockerImage = "hbpmip/java-rapidminer-naivebayes:0.2.0"
+    dockerImage = "hbpmip/java-rapidminer-naivebayes:0.2.1"
     predictive = true
   }
   tSNE {
