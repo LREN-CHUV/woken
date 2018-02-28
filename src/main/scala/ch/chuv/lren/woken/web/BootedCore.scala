@@ -48,6 +48,8 @@ import kamon.Kamon
 import kamon.prometheus.PrometheusReporter
 import kamon.system.SystemMetrics
 import kamon.zipkin.ZipkinReporter
+import kamon.sigar.SigarProvisioner
+import org.hyperic.sigar.Sigar
 
 import scala.concurrent.{ ExecutionContextExecutor, Future }
 import scala.language.postfixOps
@@ -70,11 +72,17 @@ trait BootedCore
     .read(config)
     .valueOr(configurationFailed)
 
-  logger.info(s"Starting actor system ${appConfig.clusterSystemName}")
+  logger.info(s"Start metrics collection")
+
+  // Extract to default location: ${user.dir}/native
+  SigarProvisioner.provision()
+  private val _ = new Sigar()
 
   SystemMetrics.startCollecting()
   Kamon.addReporter(new PrometheusReporter)
   Kamon.addReporter(new ZipkinReporter)
+
+  logger.info(s"Start actor system ${appConfig.clusterSystemName}")
 
   /**
     * Construct the ActorSystem we will use in our application
@@ -168,6 +176,8 @@ trait BootedCore
     system.actorOf(mainRouterSupervisorProps, name = "entrypoint")
 
   ClusterClientReceptionist(system).registerService(mainRouter)
+
+  logger.info(s"Start web server on port ${appConfig.webServicesPort}")
 
   implicit val timeout: Timeout = Timeout(5.seconds)
 
