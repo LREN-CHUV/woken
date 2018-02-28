@@ -50,8 +50,6 @@ import kamon.Kamon
 import kamon.prometheus.PrometheusReporter
 import kamon.system.SystemMetrics
 import kamon.zipkin.ZipkinReporter
-import kamon.sigar.SigarProvisioner
-import org.hyperic.sigar.Sigar
 
 import scala.concurrent.{ ExecutionContextExecutor, Future }
 import scala.language.postfixOps
@@ -78,17 +76,6 @@ trait BootedCore
   logger.info(s"Start metrics collection")
 
   Kamon.reconfigure(config)
-  Try(
-    SigarProvisioner.provision(
-      new File(System.getProperty("user.home") + File.separator + ".native")
-    )
-  ).recover { case e: Exception => logger.warn("Cannot provision Sigar", e) }
-
-  if (SigarProvisioner.isNativeLoaded)
-    logger.info("Sigar metrics are available")
-  else
-    logger.warn("Sigar metrics are not available")
-
   SystemMetrics.startCollecting()
   Kamon.addReporter(new PrometheusReporter)
   Kamon.addReporter(new ZipkinReporter)

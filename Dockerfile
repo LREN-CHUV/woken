@@ -37,11 +37,17 @@ COPY docker/runner/woken.sh /opt/woken/
 ADD  docker/lets-encrypt-install.sh /opt/woken/
 ADD  docker/weaver-agent.sh /opt/woken/
 
-RUN  chmod +x /opt/woken/lets-encrypt-install.sh
-RUN  /opt/woken/lets-encrypt-install.sh
+RUN  chmod +x /opt/woken/lets-encrypt-install.sh \
+     && /opt/woken/lets-encrypt-install.sh
 
-RUN  chmod +x /opt/woken/weaver-agent.sh
-RUN  /opt/woken/weaver-agent.sh
+RUN  chmod +x /opt/woken/weaver-agent.sh \
+     && /opt/woken/weaver-agent.sh
+
+ENV SIGAR_VERSION=1.6.4
+ADD http://iweb.dl.sourceforge.net/project/sigar/sigar/1.6/hyperic-sigar-$SIGAR_VERSION.tar.gz /hyperic-sigar-$SIGAR_VERSION.tar.gz
+RUN tar zxvf /hyperic-sigar-$SIGAR_VERSION.tar.gz && \
+    mv /hyperic-sigar-$SIGAR_VERSION/sigar-bin/lib/libsigar-amd64-linux.so /lib/libsigar-amd64-linux.so && \
+    chmod +x /lib/libsigar-amd64-linux.so
 
 RUN adduser -D -u 1000 woken \
     && chmod +x /opt/woken/woken.sh \
