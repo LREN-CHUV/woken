@@ -26,6 +26,7 @@ lazy val `woken` =
           library.kamon,
           library.kamonAkka,
           library.kamonAkkaHttp,
+          library.kamonAkkaRemote,
           library.kamonPrometheus,
           library.kamonZipkin,
           library.kamonSystemMetrics,
@@ -81,6 +82,7 @@ lazy val library =
       val akkaHttpSwagger = "0.11.0"
       val kamon           = "1.1.0"
       val kamonAkka       = "1.0.1"
+      val kamonAkkaRemote = "1.0.1"
       val kamonAkkaHttp   = "1.1.0"
       val kamonReporter   = "1.0.0"
       val kamonSystemMetrics = "1.0.0"
@@ -122,9 +124,10 @@ lazy val library =
     val akkaHttpSwagger: ModuleID = "com.github.swagger-akka-http"   %% "swagger-akka-http" % Version.akkaHttpSwagger
     val kamon: ModuleID        = "io.kamon" %% "kamon-core" % Version.kamon excludeAll ExclusionRules.excludeLogback
     val kamonAkka: ModuleID    = "io.kamon" %% "kamon-akka-2.5" % Version.kamonAkka excludeAll ExclusionRules.excludeLogback
+    val kamonAkkaRemote: ModuleID = "io.kamon" %% "kamon-akka-remote-2.5" % Version.kamonAkkaRemote excludeAll ExclusionRules.excludeLogback
     val kamonAkkaHttp: ModuleID = "io.kamon" %% "kamon-akka-http-2.5" % Version.kamonAkkaHttp excludeAll ExclusionRules.excludeLogback
     val kamonSystemMetrics: ModuleID = "io.kamon" %% "kamon-system-metrics" % Version.kamonSystemMetrics excludeAll ExclusionRules.excludeLogback
-    val kamonPrometheus: ModuleID =   "io.kamon" %% "kamon-prometheus" % Version.kamonReporter excludeAll ExclusionRules.excludeLogback
+    val kamonPrometheus: ModuleID = "io.kamon" %% "kamon-prometheus" % Version.kamonReporter excludeAll ExclusionRules.excludeLogback
     val kamonZipkin: ModuleID  =  "io.kamon" %% "kamon-zipkin" % Version.kamonReporter excludeAll ExclusionRules.excludeLogback
     val kamonSigar: ModuleID   = "io.kamon"           % "sigar-loader" % Version.kamonSigar
     val swaggerUI: ModuleID    = "org.webjars"        % "swagger-ui"   % Version.swaggerUI

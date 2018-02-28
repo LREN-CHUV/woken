@@ -78,6 +78,7 @@ trait BootedCore
   SigarProvisioner.provision()
   private val _ = new Sigar()
 
+  Kamon.reconfigure(config)
   SystemMetrics.startCollecting()
   Kamon.addReporter(new PrometheusReporter)
   Kamon.addReporter(new ZipkinReporter)
