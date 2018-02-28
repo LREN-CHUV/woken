@@ -74,11 +74,14 @@ trait BootedCore
 
   logger.info(s"Start metrics collection")
 
+  Kamon.reconfigure(config)
   // Extract to default location: ${user.dir}/native
   SigarProvisioner.provision()
-  private val _ = new Sigar()
+  if (SigarProvisioner.isNativeLoaded)
+    logger.info("Sigar metrics are available")
+  else
+    logger.warn("Sigar metrics are not available")
 
-  Kamon.reconfigure(config)
   SystemMetrics.startCollecting()
   Kamon.addReporter(new PrometheusReporter)
   Kamon.addReporter(new ZipkinReporter)

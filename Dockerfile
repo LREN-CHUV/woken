@@ -43,8 +43,7 @@ RUN  /opt/woken/lets-encrypt-install.sh
 RUN  chmod +x /opt/woken/weaver-agent.sh
 RUN  /opt/woken/weaver-agent.sh
 
-
-RUN adduser -H -D -u 1000 woken \
+RUN adduser -D -u 1000 woken \
     && chmod +x /opt/woken/woken.sh \
     && ln -s /opt/woken/woken.sh /run.sh \
     && chown -R woken:woken /opt/woken \
@@ -53,6 +52,7 @@ RUN adduser -H -D -u 1000 woken \
 COPY --from=scala-build-env /build/target/scala-2.11/woken-all.jar /opt/woken/woken.jar
 
 USER woken
+ENV HOME=/home/woken
 
 # Health checks on http://host:8087/health
 # Akka on 8088
