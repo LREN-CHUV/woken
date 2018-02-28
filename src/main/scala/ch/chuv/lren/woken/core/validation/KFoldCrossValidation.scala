@@ -17,14 +17,14 @@
 
 package ch.chuv.lren.woken.core.validation
 
-import ch.chuv.lren.woken.core.features.FeaturesQuery
+import ch.chuv.lren.woken.core.features.{ FeaturesQuery, QueryOffset }
 import ch.chuv.lren.woken.dao.FeaturesDAL
 import com.typesafe.scalalogging.LazyLogging
 import spray.json.{ JsValue, _ }
 
 trait CrossValidation {
 
-  def partition: Map[Int, (Int, Int)]
+  def partition: Map[Int, QueryOffset]
 
 }
 
@@ -49,15 +49,15 @@ class KFoldCrossValidation(features: List[JsObject], labels: List[JsObject], fol
     *
     * @return a map containing for each fold index the offset and the size of the partition
     */
-  override lazy val partition: Map[Int, (Int, Int)] = {
+  override lazy val partition: Map[Int, QueryOffset] = {
     val nb = features.size
 
-    var partition: Map[Int, (Int, Int)] = Map()
+    var partition: Map[Int, QueryOffset] = Map()
     if (nb >= foldCount) {
       val t = nb.toFloat / foldCount.toFloat
       for (i: Int <- 0 until foldCount) {
-        partition += i -> Tuple2(scala.math.round(i * t),
-                                 scala.math.round((i + 1) * t) - scala.math.round(i * t))
+        partition += i -> QueryOffset(scala.math.round(i * t),
+                                      scala.math.round((i + 1) * t) - scala.math.round(i * t))
       }
     }
     partition
@@ -70,8 +70,8 @@ class KFoldCrossValidation(features: List[JsObject], labels: List[JsObject], fol
     */
   def getTestSet(fold: Int): (List[JsObject], List[JsObject]) =
     (
-      features.slice(partition(fold)._1, partition(fold)._1 + partition(fold)._2),
-      labels.slice(partition(fold)._1, partition(fold)._1 + partition(fold)._2)
+      features.slice(partition(fold).start, partition(fold).end),
+      labels.slice(partition(fold).start, partition(fold).end)
     )
 
   def groundTruth(fold: Int): List[JsValue] =

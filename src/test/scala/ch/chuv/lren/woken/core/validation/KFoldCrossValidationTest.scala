@@ -17,6 +17,7 @@
 
 package ch.chuv.lren.woken.core.validation
 
+import ch.chuv.lren.woken.core.features.QueryOffset
 import ch.chuv.lren.woken.util.JsonUtils
 import org.scalatest._
 import spray.json._
@@ -37,7 +38,9 @@ class KFoldCrossValidationTest extends WordSpec with Matchers with JsonUtils {
                                                        List("rightcerebralwhitematter"),
                                                        3)
 
-      crossValidation.partition shouldBe Map(0 -> (0 -> 5), 1 -> (5 -> 6), 2 -> (11 -> 5))
+      crossValidation.partition shouldBe Map(0 -> QueryOffset(0, 5),
+                                             1 -> QueryOffset(5, 6),
+                                             2 -> QueryOffset(11, 5))
 
       crossValidation.groundTruth(0) shouldBe List(3.6542, 3.3389, 3.6169, 3.7731, 2.5467).map(
         JsNumber.apply

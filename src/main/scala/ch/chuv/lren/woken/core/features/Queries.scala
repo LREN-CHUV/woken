@@ -22,7 +22,9 @@ import ch.chuv.lren.woken.messages.query.filters._
 import ch.chuv.lren.woken.messages.variables.{ FeatureIdentifier, VariableId }
 import org.postgresql.core.Utils
 
-case class QueryOffset(start: Int, count: Int)
+case class QueryOffset(start: Int, count: Int) {
+  def end: Int = start + count
+}
 
 object Queries {
   private val numberRegex = "[-+]?\\d+(\\.\\d+)?".r

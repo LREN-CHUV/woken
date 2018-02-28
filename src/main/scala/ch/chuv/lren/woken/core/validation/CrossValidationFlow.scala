@@ -122,8 +122,8 @@ case class CrossValidationFlow(
       }
       .mapConcat(identity)
       .mapAsyncUnordered(parallelism) { f =>
-        val (job, crossValidation, (fold, (offsetStart, offsetCount))) = f
-        localJobForFold(job, offsetStart, offsetCount, fold, crossValidation)
+        val (job, crossValidation, (fold, offset)) = f
+        localJobForFold(job, offset, fold, crossValidation)
       }
       .mapAsync(parallelism)(validateFoldJobResponse)
       .mapAsync(parallelism)(scoreFoldValidationResponse)
@@ -131,6 +131,7 @@ case class CrossValidationFlow(
         l :+ r
       }
       .mapAsync(1) { foldResults =>
+        if (foldResults.isEmpty) throw new Exception("No fold results received")
         scoreAll(foldResults.sortBy(_.fold).toNel)
       }
       .map { jobScoreOption =>
@@ -172,16 +173,14 @@ case class CrossValidationFlow(
   }
 
   private def localJobForFold(job: Job,
-                              offsetStart: Int,
-                              offsetCount: Int,
+                              offset: QueryOffset,
                               fold: Int,
                               validation: KFoldCrossValidation) = {
 
     // Spawn a LocalCoordinatorActor for that one particular fold
     val jobId = UUID.randomUUID().toString
-    val featuresQuery = job.query.features(job.inputTable,
-                                           !job.algorithmDefinition.supportsNullValues,
-                                           Some(QueryOffset(offsetStart, offsetCount)))
+    val featuresQuery =
+      job.query.features(job.inputTable, !job.algorithmDefinition.supportsNullValues, Some(offset))
 
     val subJob = DockerJob(
       jobId = jobId,
