@@ -29,6 +29,7 @@ lazy val `woken` =
           library.kamonPrometheus,
           library.kamonZipkin,
           library.kamonSystemMetrics,
+          library.kamonSigar,
           library.akkaHttpSwagger,
           library.swaggerUI,
           library.sprayJson,
@@ -83,6 +84,7 @@ lazy val library =
       val kamonAkkaHttp   = "1.1.0"
       val kamonReporter   = "1.0.0"
       val kamonSystemMetrics = "1.0.0"
+      val kamonSigar      = "1.6.6-rev002"
       val swaggerUI       = "2.0.12"
       val sprayJson       = "1.3.4"
       val slf4j           = "1.7.25"
@@ -124,6 +126,7 @@ lazy val library =
     val kamonSystemMetrics: ModuleID = "io.kamon" %% "kamon-system-metrics" % Version.kamonSystemMetrics excludeAll ExclusionRules.excludeLogback
     val kamonPrometheus: ModuleID =   "io.kamon" %% "kamon-prometheus" % Version.kamonReporter excludeAll ExclusionRules.excludeLogback
     val kamonZipkin: ModuleID  =  "io.kamon" %% "kamon-zipkin" % Version.kamonReporter excludeAll ExclusionRules.excludeLogback
+    val kamonSigar: ModuleID   = "io.kamon"           % "sigar-loader" % Version.kamonSigar
     val swaggerUI: ModuleID    = "org.webjars"        % "swagger-ui"   % Version.swaggerUI
     val sprayJson: ModuleID    = "io.spray"          %% "spray-json"   % Version.sprayJson
     val slf4j: ModuleID        = "org.slf4j"          % "slf4j-api"    % Version.slf4j
