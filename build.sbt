@@ -21,8 +21,6 @@ lazy val `woken` =
           library.akkaStream,
           library.akkaContrib,
           library.akkaSlf4j,
-          //library.akkaTracingCore,
-          //library.akkaTracingAkkaHttp,
           library.akkaHttp,
           library.akkaHttpJson,
           library.kamon,
@@ -80,7 +78,8 @@ lazy val library =
       val akkaTracing     = "0.6.1"
       val akkaHttp        = "10.0.11"
       val akkaHttpSwagger = "0.11.0"
-      val kamon           = "1.0.1"
+      val kamon           = "1.1.0"
+      val kamonAkka       = "1.0.1"
       val kamonAkkaHttp   = "1.1.0"
       val kamonReporter   = "1.0.0"
       val kamonSystemMetrics = "1.0.0"
@@ -116,13 +115,11 @@ lazy val library =
     val akkaSlf4j: ModuleID    = "com.typesafe.akka" %% "akka-slf4j"   % Version.akka
     val akkaTestkit: ModuleID  = "com.typesafe.akka" %% "akka-testkit" % Version.akka
     val akkaStreamTestkit: ModuleID   = "com.typesafe.akka" %% "akka-stream-testkit" % Version.akka
-    val akkaTracingCore: ModuleID     = "com.github.levkhomich" %% "akka-tracing-core" % Version.akkaTracing
-    val akkaTracingAkkaHttp: ModuleID = "com.github.levkhomich" %% "akka-tracing-http" % Version.akkaTracing
-    val akkaHttp: ModuleID = "com.typesafe.akka" %% "akka-http" % Version.akkaHttp
+    val akkaHttp: ModuleID     = "com.typesafe.akka" %% "akka-http" % Version.akkaHttp
     val akkaHttpJson: ModuleID = "com.typesafe.akka" %% "akka-http-spray-json" % Version.akkaHttp
     val akkaHttpSwagger: ModuleID = "com.github.swagger-akka-http"   %% "swagger-akka-http" % Version.akkaHttpSwagger
     val kamon: ModuleID        = "io.kamon" %% "kamon-core" % Version.kamon excludeAll ExclusionRules.excludeLogback
-    val kamonAkka: ModuleID    = "io.kamon" %% "kamon-akka-2.5" % Version.kamon excludeAll ExclusionRules.excludeLogback
+    val kamonAkka: ModuleID    = "io.kamon" %% "kamon-akka-2.5" % Version.kamonAkka excludeAll ExclusionRules.excludeLogback
     val kamonAkkaHttp: ModuleID = "io.kamon" %% "kamon-akka-http-2.5" % Version.kamonAkkaHttp excludeAll ExclusionRules.excludeLogback
     val kamonSystemMetrics: ModuleID = "io.kamon" %% "kamon-system-metrics" % Version.kamonSystemMetrics excludeAll ExclusionRules.excludeLogback
     val kamonPrometheus: ModuleID =   "io.kamon" %% "kamon-prometheus" % Version.kamonReporter excludeAll ExclusionRules.excludeLogback
