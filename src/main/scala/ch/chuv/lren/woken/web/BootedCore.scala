@@ -17,6 +17,8 @@
 
 package ch.chuv.lren.woken.web
 
+import java.io.File
+
 import scala.concurrent.duration._
 import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem }
 import akka.util.Timeout
@@ -54,6 +56,7 @@ import org.hyperic.sigar.Sigar
 import scala.concurrent.{ ExecutionContextExecutor, Future }
 import scala.language.postfixOps
 import scala.sys.ShutdownHookThread
+import scala.util.Try
 
 /**
   * This trait implements ``Core`` by starting the required ``ActorSystem`` and registering the
@@ -75,8 +78,12 @@ trait BootedCore
   logger.info(s"Start metrics collection")
 
   Kamon.reconfigure(config)
-  // Extract to default location: ${user.dir}/native
-  SigarProvisioner.provision()
+  Try(
+    SigarProvisioner.provision(
+      new File(System.getProperty("user.home") + File.separator + ".native")
+    )
+  ).recover { case e: Exception => logger.warn("Cannot provision Sigar", e) }
+
   if (SigarProvisioner.isNativeLoaded)
     logger.info("Sigar metrics are available")
   else
