@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+#
+# Execute the integration test suite
+#
+# Option:
+#   --all: execute the full suite of tests, including slow tests such as Chaos testing
+#
+
 set -o pipefail  # trace ERR through pipes
 set -o errtrace  # trace ERR through 'time command' and other functions
 set -o errexit   ## set -e : exit the script if any statement returns a non-true return value
@@ -20,12 +27,12 @@ get_script_dir () {
 
 cd "$(get_script_dir)"
 
-test_args=
+test_args="testOnly -- -l org.scalatest.tags.Slow"
 for param in "$@"
 do
-  if [ "--quick" == "$param" ]; then
-    test_args="testOnly -- -l org.scalatest.tags.Slow"
-    echo "INFO: ---quick option detected !"
+  if [ "--all" == "$param" ]; then
+    test_args=""
+    echo "INFO: ---all option detected !"
     break;
   fi
 done
@@ -104,7 +111,7 @@ echo "The Algorithm Factory is now running on your system"
 echo
 echo "Testing Akka API..."
 
-$DOCKER_COMPOSE run wokentest $test_args
+$DOCKER_COMPOSE run wokentest ${test_args}
 
 echo
 # Cleanup
