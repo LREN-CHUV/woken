@@ -20,6 +20,16 @@ get_script_dir () {
 
 cd "$(get_script_dir)"
 
+test_args=
+for param in "$@"
+do
+  if [ "--quick" == "$param" ]; then
+    test_args="testOnly -- -l org.scalatest.tags.Slow"
+    echo "INFO: ---quick option detected !"
+    break;
+  fi
+done
+
 if pgrep -lf sshuttle > /dev/null ; then
   echo "sshuttle detected. Please close this program as it messes with networking and prevents Docker links to work"
   exit 1
@@ -94,7 +104,7 @@ echo "The Algorithm Factory is now running on your system"
 echo
 echo "Testing Akka API..."
 
-$DOCKER_COMPOSE run wokentest
+$DOCKER_COMPOSE run wokentest $test_args
 
 echo
 # Cleanup
