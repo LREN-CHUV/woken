@@ -227,6 +227,13 @@ services:
       CLUSTER_PORT: 8088
       CLUSTER_IP: woken
       WOKEN_PORT_8088_TCP_ADDR: woken
+      DOCKER_BRIDGE_NETWORK: "tests_default"
+      LOG_LEVEL: DEBUG
+      KAMON_ENABLED: "yes"
+      ZIPKIN_ENABLED: "yes"
+      PROMETHEUS_ENABLED: "yes"
+      SIGAR_SYSTEM_METRICS: "no"
+      JVM_SYSTEM_METRICS: "yes"
     links:
       - zipkin
       - wokenprometheus

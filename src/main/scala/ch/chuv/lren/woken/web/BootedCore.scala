@@ -71,35 +71,45 @@ trait BootedCore
     with WokenSSLConfiguration
     with LazyLogging {
 
-  override def beforeBoot(): Unit = {
-    logger.info(s"Start monitoring...")
+  override def beforeBoot(): Unit =
+    if (config.getBoolean("kamon.enabled") || config.getBoolean("kamon.prometheus.enabled") || config
+          .getBoolean("kamon.zipkin.enabled")) {
+      logger.info(s"Start monitoring...")
 
-    Kamon.reconfigure(config)
+      Kamon.reconfigure(config)
 
-    if (config.getBoolean("kamon.system-metrics.host.enabled")) {
-      logger.info(s"Start Sigar metrics...")
-      Try {
-        val sigarLoader = new SigarLoader(classOf[Sigar])
-        sigarLoader.load()
+      if (config.getBoolean("kamon.system-metrics.host.enabled")) {
+        logger.info(s"Start Sigar metrics...")
+        Try {
+          val sigarLoader = new SigarLoader(classOf[Sigar])
+          sigarLoader.load()
+        }
+
+        Try(
+          SigarProvisioner.provision(
+            new File(System.getProperty("user.home") + File.separator + ".native")
+          )
+        ).recover { case e: Exception => logger.warn("Cannot provision Sigar", e) }
+
+        if (SigarProvisioner.isNativeLoaded)
+          logger.info("Sigar metrics are available")
+        else
+          logger.warn("Sigar metrics are not available")
       }
 
-      Try(
-        SigarProvisioner.provision(
-          new File(System.getProperty("user.home") + File.separator + ".native")
-        )
-      ).recover { case e: Exception => logger.warn("Cannot provision Sigar", e) }
+      if (config.getBoolean("kamon.system-metrics.host.enabled") || config.getBoolean(
+            "kamon.system-metrics.jvm.enabled"
+          )) {
+        logger.info(s"Start collection of system metrics...")
+        SystemMetrics.startCollecting()
+      }
 
-      if (SigarProvisioner.isNativeLoaded)
-        logger.info("Sigar metrics are available")
-      else
-        logger.warn("Sigar metrics are not available")
+      if (config.getBoolean("kamon.prometheus.enabled"))
+        Kamon.addReporter(new PrometheusReporter)
+
+      if (config.getBoolean("kamon.zipkin.enabled"))
+        Kamon.addReporter(new ZipkinReporter)
     }
-
-    logger.info(s"Start collection of system metrics...")
-    SystemMetrics.startCollecting()
-    Kamon.addReporter(new PrometheusReporter)
-    Kamon.addReporter(new ZipkinReporter)
-  }
 
   override lazy val appConfig: AppConfiguration = AppConfiguration
     .read(config)

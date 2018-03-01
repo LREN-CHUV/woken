@@ -229,6 +229,8 @@ services:
       CLUSTER_IP: wokennode1
       CLUSTER_NAME: woken-node1
       WOKEN_PORT_8088_TCP_ADDR: wokennode1
+      DOCKER_BRIDGE_NETWORK: "tests_default"
+      LOG_LEVEL: DEBUG
     links:
       - zipkin
       - wokenprometheus
@@ -276,6 +278,8 @@ services:
       CLUSTER_IP: wokennode2
       CLUSTER_NAME: woken-node2
       WOKEN_PORT_8088_TCP_ADDR: wokennode2
+      DOCKER_BRIDGE_NETWORK: "tests_default"
+      LOG_LEVEL: DEBUG
     links:
       - zipkin
       - wokenprometheus
@@ -322,6 +326,8 @@ services:
       CLUSTER_IP: wokencentral
       CLUSTER_NAME: woken-central
       WOKEN_PORT_8088_TCP_ADDR: wokencentral
+      DOCKER_BRIDGE_NETWORK: "tests_default"
+      LOG_LEVEL: DEBUG
     links:
       - zipkin
       - wokenprometheus

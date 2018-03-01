@@ -64,6 +64,7 @@ trait CoreActors {
         |  extensions += "akka.cluster.client.ClusterClientReceptionist"
         |}
       """.stripMargin)
+      .withFallback(ConfigFactory.parseResourcesAnySyntax("akka.conf"))
       .withFallback(ConfigFactory.parseResourcesAnySyntax("algorithms.conf"))
       .withFallback(ConfigFactory.parseResourcesAnySyntax("kamon.conf"))
       .withFallback(ConfigFactory.load())
