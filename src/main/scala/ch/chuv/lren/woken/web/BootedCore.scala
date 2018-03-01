@@ -20,38 +20,30 @@ package ch.chuv.lren.woken.web
 import java.io.File
 
 import scala.concurrent.duration._
-import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem }
+import akka.actor.{ActorRef, ActorRefFactory, ActorSystem}
 import akka.util.Timeout
 import akka.cluster.Cluster
 import akka.cluster.client.ClusterClientReceptionist
 import akka.http.scaladsl.Http
-import akka.pattern.{ Backoff, BackoffSupervisor }
+import akka.pattern.{Backoff, BackoffSupervisor}
 import cats.effect.IO
-import ch.chuv.lren.woken.api.{ Api, MasterRouter }
-import ch.chuv.lren.woken.config.{
-  AlgorithmsConfiguration,
-  AppConfiguration,
-  DatabaseConfiguration,
-  DatasetsConfiguration
-}
-import ch.chuv.lren.woken.core.{ CoordinatorConfig, Core, CoreActors }
-import ch.chuv.lren.woken.dao.{ FeaturesDAL, MetadataRepositoryDAO, WokenRepositoryDAO }
-import ch.chuv.lren.woken.service.{
-  AlgorithmLibraryService,
-  DispatcherService,
-  JobResultService,
-  VariablesMetaService
-}
+import ch.chuv.lren.woken.api.{Api, MasterRouter}
+import ch.chuv.lren.woken.config.{AlgorithmsConfiguration, AppConfiguration, DatabaseConfiguration, DatasetsConfiguration}
+import ch.chuv.lren.woken.core.{CoordinatorConfig, Core, CoreActors}
+import ch.chuv.lren.woken.dao.{FeaturesDAL, MetadataRepositoryDAO, WokenRepositoryDAO}
+import ch.chuv.lren.woken.service.{AlgorithmLibraryService, DispatcherService, JobResultService, VariablesMetaService}
 import ch.chuv.lren.woken.ssl.WokenSSLConfiguration
-import akka.stream.{ ActorMaterializer, ActorMaterializerSettings, Supervision }
+import akka.stream.{ActorMaterializer, ActorMaterializerSettings, Supervision}
 import ch.chuv.lren.woken.backends.woken.WokenService
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import kamon.prometheus.PrometheusReporter
+import kamon.sigar.SigarProvisioner
 import kamon.system.SystemMetrics
 import kamon.zipkin.ZipkinReporter
+import org.hyperic.sigar.{Sigar, SigarLoader}
 
-import scala.concurrent.{ ExecutionContextExecutor, Future }
+import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.language.postfixOps
 import scala.sys.ShutdownHookThread
 import scala.util.Try
@@ -76,6 +68,25 @@ trait BootedCore
   logger.info(s"Start metrics collection")
 
   Kamon.reconfigure(config)
+
+  if (config.getBoolean("kamon.system-metrics.host.enabled")) {
+    Try {
+      val sigarLoader = new SigarLoader(classOf[Sigar])
+      sigarLoader.load()
+    }
+
+    Try(
+      SigarProvisioner.provision(
+        new File(System.getProperty("user.home") + File.separator + ".native")
+      )
+    ).recover { case e: Exception => logger.warn("Cannot provision Sigar", e) }
+
+    if (SigarProvisioner.isNativeLoaded)
+      logger.info("Sigar metrics are available")
+    else
+      logger.warn("Sigar metrics are not available")
+  }
+
   SystemMetrics.startCollecting()
   Kamon.addReporter(new PrometheusReporter)
   Kamon.addReporter(new ZipkinReporter)
