@@ -24,6 +24,7 @@ import ch.chuv.lren.woken.dao.FeaturesDAL
 import ch.chuv.lren.woken.service.{ JobResultService, VariablesMetaService }
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
+import com.typesafe.scalalogging.LazyLogging
 
 /**
   * The REST API layer. It exposes the REST services, but does not provide any
@@ -31,7 +32,7 @@ import akka.http.scaladsl.server.Route
   * Notice that it requires to be mixed in with ``core.CoreActors``, which provides access
   * to the top-level actors that make up the system.
   */
-trait Api extends CoreActors with Core {
+trait Api extends CoreActors with Core with LazyLogging {
 
   val featuresDAL: FeaturesDAL
   val jobResultService: JobResultService

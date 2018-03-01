@@ -24,6 +24,7 @@ import cats.data.NonEmptyList
 import com.typesafe.config.{ Config, ConfigFactory }
 import ch.chuv.lren.woken.backends.chronos.ChronosThrottler
 import ch.chuv.lren.woken.config.JobsConfiguration
+import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -48,8 +49,9 @@ trait Core {
   * ``BootedCore`` for running code or ``TestKit`` for unit and integration tests.
   */
 trait CoreActors {
-  this: Core =>
+  this: Core with LazyLogging =>
 
+  @SuppressWarnings(Array("org.wartremover.warts.Throw"))
   protected def configurationFailed[B](e: NonEmptyList[String]): B =
     throw new IllegalStateException(s"Invalid configuration: ${e.toList.mkString(", ")}")
 
@@ -65,7 +67,19 @@ trait CoreActors {
     .read(config)
     .valueOr(configurationFailed)
 
-  private implicit val materializer: ActorMaterializer = ActorMaterializer()
+  beforeBoot()
+
+  val decider: Supervision.Decider = {
+    case err: RuntimeException =>
+      logger.error(err.getMessage)
+      Supervision.Resume
+    case _ =>
+      logger.error("Unknown error. Stopping the stream. ")
+      Supervision.Stop
+  }
+  protected lazy implicit val actorMaterializer: ActorMaterializer = ActorMaterializer(
+    ActorMaterializerSettings(system).withSupervisionStrategy(decider)
+  )
 
   private val chronosSupervisorProps = BackoffSupervisor.props(
     Backoff.onFailure(
@@ -77,6 +91,8 @@ trait CoreActors {
     )
   )
 
-  val chronosHttp: ActorRef = system.actorOf(chronosSupervisorProps, "chronosSupervisor")
+  lazy val chronosHttp: ActorRef = system.actorOf(chronosSupervisorProps, "chronosSupervisor")
+
+  def beforeBoot(): Unit = ()
 
 }
