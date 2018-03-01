@@ -102,7 +102,7 @@ lazy val library =
       val hadrian         = "0.8.5"
       val scalaCache      = "0.21.0"
       val dockerTestKit   = "0.9.5"
-      val wokenMessages   = "2.4.8"
+      val wokenMessages   = "2.4.9"
     }
     object ExclusionRules {
       val excludeLogback = ExclusionRule(organization = "ch.qos.logback", name = "logback-classic")
