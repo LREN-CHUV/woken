@@ -21,8 +21,8 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.testkit.TestKit
 import ch.chuv.lren.woken.util.JsonUtils
-import com.typesafe.config.{Config, ConfigFactory}
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import com.typesafe.config.{ Config, ConfigFactory }
+import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 
 class CrossValidationFlowTest
     extends TestKit(ActorSystem("MySpec"))
@@ -31,7 +31,7 @@ class CrossValidationFlowTest
     with BeforeAndAfterAll
     with JsonUtils {
 
-  val config: Config = ConfigFactory.load("test.conf")
+  val config: Config                           = ConfigFactory.load("test.conf")
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   override def afterAll {

@@ -56,13 +56,19 @@ trait CoreActors {
     throw new IllegalStateException(s"Invalid configuration: ${e.toList.mkString(", ")}")
 
   protected lazy val config: Config =
-    ConfigFactory.parseString("""
+    ConfigFactory
+      .parseString("""
         |akka {
         |  actor.provider = cluster
         |  extensions += "akka.cluster.pubsub.DistributedPubSub"
         |  extensions += "akka.cluster.client.ClusterClientReceptionist"
         |}
-      """.stripMargin).withFallback(ConfigFactory.load()).resolve()
+      """.stripMargin)
+      .withFallback(ConfigFactory.parseResourcesAnySyntax("algorithms.conf"))
+      .withFallback(ConfigFactory.parseResourcesAnySyntax("kamon.conf"))
+      .withFallback(ConfigFactory.load())
+      .resolve()
+
   protected lazy val jobsConf: JobsConfiguration = JobsConfiguration
     .read(config)
     .valueOr(configurationFailed)

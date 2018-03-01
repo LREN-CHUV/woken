@@ -32,7 +32,7 @@ class AlgorithmsConfigurationTest
 
     "read default list of algorithms" in {
 
-      val algoConfigs = factory(ConfigFactory.load())
+      val algoConfigs = factory(ConfigFactory.load("algorithms.conf"))
 
       algoConfigs("histograms") shouldBe valid
 
