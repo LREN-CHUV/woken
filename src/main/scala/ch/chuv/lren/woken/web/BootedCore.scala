@@ -69,9 +69,12 @@ trait BootedCore
     with WokenSSLConfiguration
     with LazyLogging {
 
-  override def beforeBoot(): Unit =
-    if (config.getBoolean("kamon.enabled") || config.getBoolean("kamon.prometheus.enabled") || config
-          .getBoolean("kamon.zipkin.enabled")) {
+  override def beforeBoot(): Unit = {
+
+    val kamonConfig = config.getConfig("kamon")
+
+    if (kamonConfig.getBoolean("enabled") || kamonConfig.getBoolean("prometheus.enabled") || kamonConfig
+          .getBoolean("zipkin.enabled")) {
 
       logger.info("Kamon configuration:")
       logger.info(config.getConfig("kamon").toString)
@@ -79,7 +82,8 @@ trait BootedCore
 
       Kamon.reconfigure(config)
 
-      if (config.getBoolean("kamon.system-metrics.host.enabled")) {
+      val hostSystemMetrics = kamonConfig.getBoolean("system-metrics.host.enabled")
+      if (hostSystemMetrics) {
         logger.info(s"Start Sigar metrics...")
         Try {
           val sigarLoader = new SigarLoader(classOf[Sigar])
@@ -98,19 +102,18 @@ trait BootedCore
           logger.warn("Sigar metrics are not available")
       }
 
-      if (config.getBoolean("kamon.system-metrics.host.enabled") || config.getBoolean(
-            "kamon.system-metrics.jvm.enabled"
-          )) {
+      if (hostSystemMetrics || kamonConfig.getBoolean("system-metrics.jvm.enabled")) {
         logger.info(s"Start collection of system metrics...")
         SystemMetrics.startCollecting()
       }
 
-      if (config.getBoolean("kamon.prometheus.enabled"))
+      if (kamonConfig.getBoolean("prometheus.enabled"))
         Kamon.addReporter(new PrometheusReporter)
 
-      if (config.getBoolean("kamon.zipkin.enabled"))
+      if (kamonConfig.getBoolean("zipkin.enabled"))
         Kamon.addReporter(new ZipkinReporter)
     }
+  }
 
   private lazy val resultsDbConfig = DatabaseConfiguration
     .factory(config)("woken")

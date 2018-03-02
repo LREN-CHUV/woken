@@ -234,7 +234,7 @@ services:
       ZIPKIN_ENABLED: "yes"
       PROMETHEUS_ENABLED: "yes"
       SIGAR_SYSTEM_METRICS: "no"
-      JVM_SYSTEM_METRICS: "yes"
+      JVM_SYSTEM_METRICS: "no"
       JAVA_OPTS: "-agentlib:jdwp=transport=dt_socket,address=8000,server=y,suspend=n"
     links:
       - zipkin
