@@ -47,7 +47,10 @@ trait Api extends CoreActors with Core {
       jobsConf
     )
 
-  val routes: Route = SwaggerService.routes ~ miningService.routes ~
+  lazy val metadataService =
+    new MetadataApiService(mainRouter, appConfig)
+
+  val routes: Route = SwaggerService.routes ~ miningService.routes ~ metadataService.routes ~
     pathPrefix("health") {
       get {
         // TODO: proper health check is required, check db connection, check cluster availability...
