@@ -19,7 +19,7 @@ package ch.chuv.lren.woken.api.swagger
 
 import javax.ws.rs.Path
 
-import akka.http.scaladsl.server.{Directives, Route}
+import akka.http.scaladsl.server.{ Directives, Route }
 import ch.chuv.lren.woken.messages.datasets.DatasetsResponse
 import io.swagger.annotations._
 

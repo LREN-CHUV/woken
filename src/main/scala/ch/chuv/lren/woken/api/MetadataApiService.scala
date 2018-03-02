@@ -50,17 +50,19 @@ class MetadataApiService(
   import ch.chuv.lren.woken.messages.datasets.datasetsProtocol._
 
   override def listDatasets: Route = path("datasets") {
-    get {
-      operationName("mining", Map("requestType" -> "http-post")) { ctx =>
-        ctx.complete {
-          (masterRouter ? DatasetsQuery)
-            .mapTo[DatasetsResponse]
-            .map { datasetResponse =>
-              OK -> datasetResponse.datasets.toJson
-            }
-            .recoverWith {
-              case e => Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
-            }
+    authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { user =>
+      get {
+        operationName("listDatasets", Map("requestType" -> "http-post")) { ctx =>
+          ctx.complete {
+            (masterRouter ? DatasetsQuery)
+              .mapTo[DatasetsResponse]
+              .map { datasetResponse =>
+                OK -> datasetResponse.datasets.toJson
+              }
+              .recoverWith {
+                case e => Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
+              }
+          }
         }
       }
     }
