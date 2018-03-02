@@ -43,7 +43,6 @@ import ch.chuv.lren.woken.service.{
   VariablesMetaService
 }
 import ch.chuv.lren.woken.ssl.WokenSSLConfiguration
-import akka.stream.{ ActorMaterializer, ActorMaterializerSettings, Supervision }
 import ch.chuv.lren.woken.backends.woken.WokenService
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
@@ -74,6 +73,9 @@ trait BootedCore
   override def beforeBoot(): Unit =
     if (config.getBoolean("kamon.enabled") || config.getBoolean("kamon.prometheus.enabled") || config
           .getBoolean("kamon.zipkin.enabled")) {
+
+      logger.info("Kamon configuration:")
+      logger.info(config.getConfig("kamon").toString)
       logger.info(s"Start monitoring...")
 
       Kamon.reconfigure(config)
@@ -114,8 +116,6 @@ trait BootedCore
   override lazy val appConfig: AppConfiguration = AppConfiguration
     .read(config)
     .valueOr(configurationFailed)
-
-  logger.info(s"Start actor system ${appConfig.clusterSystemName}...")
 
   /**
     * Construct the ActorSystem we will use in our application
@@ -197,33 +197,38 @@ trait BootedCore
   override lazy val mainRouter: ActorRef =
     system.actorOf(mainRouterSupervisorProps, name = "entrypoint")
 
-  ClusterClientReceptionist(system).registerService(mainRouter)
+  override def startActors(): Unit = {
+    logger.info(s"Start actor system ${appConfig.clusterSystemName}...")
+    ClusterClientReceptionist(system).registerService(mainRouter)
 
-  logger.info(s"Start web server on port ${appConfig.webServicesPort}")
-
-  implicit val timeout: Timeout = Timeout(5.seconds)
-
-  if (appConfig.webServicesHttps) Http().setDefaultServerHttpContext(https)
-
-  // start a new HTTP server on port 8080 with our service actor as the handler
-  val binding: Future[Http.ServerBinding] = Http().bindAndHandle(routes,
-                                                                 interface =
-                                                                   appConfig.networkInterface,
-                                                                 port = appConfig.webServicesPort)
-
-  /**
-    * Ensure that the constructed ActorSystem is shut down when the JVM shuts down
-    */
-  val shutdownHook: ShutdownHookThread = sys.addShutdownHook {
-    SystemMetrics.stopCollecting()
-    binding
-      .flatMap(_.unbind())
-      .flatMap(_ => system.terminate())
-      .onComplete(_ => ())
   }
 
-  logger.info("Woken startup complete")
+  override def startServices(): Unit = {
+    logger.info(s"Start web server on port ${appConfig.webServicesPort}")
 
-  ()
+    implicit val timeout: Timeout = Timeout(5.seconds)
+
+    if (appConfig.webServicesHttps) Http().setDefaultServerHttpContext(https)
+
+    // start a new HTTP server on port 8080 with our service actor as the handler
+    val binding: Future[Http.ServerBinding] = Http().bindAndHandle(routes,
+      interface =
+        appConfig.networkInterface,
+      port = appConfig.webServicesPort)
+
+    /**
+      * Ensure that the constructed ActorSystem is shut down when the JVM shuts down
+      */
+    val _: ShutdownHookThread = sys.addShutdownHook {
+      SystemMetrics.stopCollecting()
+      binding
+        .flatMap(_.unbind())
+        .flatMap(_ => system.terminate())
+        .onComplete(_ => ())
+    }
+
+    logger.info("Woken startup complete")
+
+  }
 
 }

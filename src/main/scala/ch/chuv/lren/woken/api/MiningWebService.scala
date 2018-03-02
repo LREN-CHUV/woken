@@ -69,7 +69,7 @@ class MiningWebService(
 
   override def listMethods: Route =
     path("mining" / "methods") {
-      authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { _: String =>
+      authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator).apply { _: String =>
         optionalHeaderValueByType[UpgradeToWebSocket](()) {
           case Some(upgrade) =>
             operationName("listMethods", Map("requestType" -> "websocket")) {
@@ -93,7 +93,7 @@ class MiningWebService(
     }
 
   override def mining: Route = path("mining" / "job") {
-    authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { _: String =>
+    authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator).apply { _: String =>
       optionalHeaderValueByType[UpgradeToWebSocket](()) {
         case Some(upgrade) =>
           operationName("mining", Map("requestType" -> "http-post")) {
@@ -142,7 +142,7 @@ class MiningWebService(
 
   override def experiment: Route =
     path("mining" / "experiment") {
-      authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { _: String =>
+      authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator).apply { _: String =>
         optionalHeaderValueByType[UpgradeToWebSocket](()) {
           case Some(upgrade) =>
             operationName("experiment", Map("requestType" -> "websocket")) {

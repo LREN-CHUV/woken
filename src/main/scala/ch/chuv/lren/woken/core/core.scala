@@ -70,11 +70,10 @@ trait CoreActors {
       .withFallback(ConfigFactory.load())
       .resolve()
 
+  config.origin()
   protected lazy val jobsConf: JobsConfiguration = JobsConfiguration
     .read(config)
     .valueOr(configurationFailed)
-
-  beforeBoot()
 
   val decider: Supervision.Decider = {
     case err: RuntimeException =>
@@ -100,6 +99,12 @@ trait CoreActors {
 
   lazy val chronosHttp: ActorRef = system.actorOf(chronosSupervisorProps, "chronosSupervisor")
 
+  beforeBoot()
+  startActors()
+  startServices()
+
   def beforeBoot(): Unit = ()
+  def startActors(): Unit = ()
+  def startServices(): Unit = ()
 
 }
