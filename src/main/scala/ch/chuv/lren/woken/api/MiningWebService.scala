@@ -139,10 +139,10 @@ class MiningWebService(
     )
 
   private def securePathWithWebSocket(pm: PathMatcher[Unit],
-                               wsFlow: Flow[Message, Message, Any],
-                               restRoute: Route): Route =
+                                      wsFlow: Flow[Message, Message, Any],
+                                      restRoute: Route): Route =
     path(pm) {
-      authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator).apply { _ =>
+      authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { _ =>
         optionalHeaderValueByType[UpgradeToWebSocket](()) {
           case Some(upgrade) =>
             operationName("listMethods", Map("requestType" -> "websocket")) {
@@ -155,7 +155,7 @@ class MiningWebService(
                 }
               }))
             }
-          case None => Route.seal(restRoute)
+          case None => restRoute
         }
       }
     }
