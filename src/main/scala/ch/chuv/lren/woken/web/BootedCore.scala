@@ -34,12 +34,7 @@ import ch.chuv.lren.woken.config.{
 }
 import ch.chuv.lren.woken.core.{ CoordinatorConfig, Core, CoreActors }
 import ch.chuv.lren.woken.dao.{ FeaturesDAL, MetadataRepositoryDAO, WokenRepositoryDAO }
-import ch.chuv.lren.woken.service.{
-  AlgorithmLibraryService,
-  DispatcherService,
-  JobResultService,
-  VariablesMetaService
-}
+import ch.chuv.lren.woken.service._
 import ch.chuv.lren.woken.ssl.WokenSSLConfiguration
 import akka.stream.{ ActorMaterializer, ActorMaterializerSettings, Supervision }
 import ch.chuv.lren.woken.backends.woken.WokenService
@@ -125,6 +120,8 @@ trait BootedCore
     VariablesMetaService(metaDb.variablesMeta)
   }
 
+  private lazy val datasetsService: DatasetService = ConfBasedDatasetService(config)
+
   override lazy val variablesMetaService: VariablesMetaService = vmsIO.unsafeRunSync()
 
   private lazy val algorithmLibraryService: AlgorithmLibraryService = AlgorithmLibraryService()
@@ -150,6 +147,7 @@ trait BootedCore
     Backoff.onFailure(
       MasterRouter.props(appConfig,
                          coordinatorConfig,
+                         datasetsService,
                          variablesMetaService,
                          dispatcherService,
                          algorithmLibraryService,
