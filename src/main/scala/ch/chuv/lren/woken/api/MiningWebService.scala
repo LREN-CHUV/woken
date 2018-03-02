@@ -21,7 +21,7 @@ import akka.actor.{ ActorRef, ActorSystem }
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.marshalling.PredefinedToResponseMarshallers
 import akka.pattern.ask
-import akka.http.scaladsl.server.{ Directive, PathMatcher, Route }
+import akka.http.scaladsl.server.{ PathMatcher, Route }
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.ws.{ Message, UpgradeToWebSocket }
 import akka.stream.scaladsl.Flow
@@ -69,7 +69,7 @@ class MiningWebService(
   import queryProtocol._
 
   override def listMethods: Route =
-    securePathWithWs(
+    securePathWithWebSocket(
       "mining" / "methods",
       listMethodsFlow,
       get {
@@ -80,7 +80,7 @@ class MiningWebService(
     )
 
   override def mining: Route =
-    securePathWithWs(
+    securePathWithWebSocket(
       "mining" / "job",
       miningFlow,
       post {
@@ -115,7 +115,7 @@ class MiningWebService(
     )
 
   override def experiment: Route =
-    securePathWithWs(
+    securePathWithWebSocket(
       "mining" / "experiment",
       experimentFlow,
       post {
@@ -138,7 +138,7 @@ class MiningWebService(
       }
     )
 
-  private def securePathWithWs(pm: PathMatcher[Unit],
+  private def securePathWithWebSocket(pm: PathMatcher[Unit],
                                wsFlow: Flow[Message, Message, Any],
                                restRoute: Route): Route =
     path(pm) {

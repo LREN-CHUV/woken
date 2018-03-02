@@ -223,6 +223,7 @@ services:
       - "8087:8087"
       - "8088:8088"
       - "9095:9095"
+      - "8000:8000"
     environment:
       CLUSTER_PORT: 8088
       CLUSTER_IP: woken
@@ -234,6 +235,7 @@ services:
       PROMETHEUS_ENABLED: "yes"
       SIGAR_SYSTEM_METRICS: "no"
       JVM_SYSTEM_METRICS: "yes"
+      JAVA_OPTS: "-agentlib:jdwp=transport=dt_socket,address=8000,server=y,suspend=n"
     links:
       - zipkin
       - wokenprometheus

@@ -80,7 +80,7 @@ ENV HOME=/home/woken
 # Akka on 8088
 EXPOSE 8087 8088 8088/UDP
 
-HEALTHCHECK CMD curl -v --silent http://localhost:8087/health 2>&1 | grep UP
+#HEALTHCHECK CMD curl -v --silent http://localhost:8087/health 2>&1 | grep UP
 
 LABEL org.label-schema.build-date=$BUILD_DATE \
       org.label-schema.name="hbpmip/woken" \
