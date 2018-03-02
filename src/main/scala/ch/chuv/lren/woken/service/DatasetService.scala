@@ -17,32 +17,16 @@
 
 package ch.chuv.lren.woken.service
 
-import ch.chuv.lren.woken.messages.datasets.{ AnonymisationLevel, Dataset, DatasetId }
+import ch.chuv.lren.woken.config.DatasetsConfiguration
+import ch.chuv.lren.woken.messages.datasets.Dataset
 import com.typesafe.config.Config
 
-import scala.collection.JavaConversions.iterableAsScalaIterable
 
 trait DatasetService {
   def datasets(): Set[Dataset]
 }
 
 case class ConfBasedDatasetService(config: Config) extends DatasetService {
-  private val datasetConfig = config.getConfig("datasets")
-
   override def datasets(): Set[Dataset] =
-    datasetConfig
-      .entrySet()
-      .map(datasetEntry => {
-        val confValue = datasetEntry.getValue.atKey(".")
-        Dataset(
-          DatasetId(datasetEntry.getKey),
-          confValue.getString("label"),
-          confValue.getString("description"),
-          confValue.getStringList("tables").toList,
-          AnonymisationLevel.withName(confValue.getString("anonymisationLevel")),
-          None
-        )
-      })
-      .toSet
-
+    DatasetsConfiguration.datasets(config).getOrElse(Map()).values.toSet
 }
