@@ -81,7 +81,7 @@ trait WebsocketSupport extends LazyLogging {
       .filter {
         case Success(_) => true
         case Failure(err) =>
-          logger.error("Deserilize failed", err)
+          logger.error("Deserialize failed", err)
           false
 
       }

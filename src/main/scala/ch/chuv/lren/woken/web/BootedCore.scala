@@ -212,9 +212,9 @@ trait BootedCore
 
     // start a new HTTP server on port 8080 with our service actor as the handler
     val binding: Future[Http.ServerBinding] = Http().bindAndHandle(routes,
-      interface =
-        appConfig.networkInterface,
-      port = appConfig.webServicesPort)
+                                                                   interface =
+                                                                     appConfig.networkInterface,
+                                                                   port = appConfig.webServicesPort)
 
     /**
       * Ensure that the constructed ActorSystem is shut down when the JVM shuts down

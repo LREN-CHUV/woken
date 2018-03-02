@@ -21,9 +21,10 @@ import akka.actor.{ ActorRef, ActorSystem }
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.marshalling.PredefinedToResponseMarshallers
 import akka.pattern.ask
-import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.server.{ Directive, PathMatcher, Route }
 import akka.http.scaladsl.model.StatusCodes._
-import akka.http.scaladsl.model.ws.UpgradeToWebSocket
+import akka.http.scaladsl.model.ws.{ Message, UpgradeToWebSocket }
+import akka.stream.scaladsl.Flow
 import ch.chuv.lren.woken.api.swagger.MiningServiceApi
 import ch.chuv.lren.woken.authentication.BasicAuthenticator
 import ch.chuv.lren.woken.config.{ AppConfiguration, JobsConfiguration }
@@ -68,113 +69,95 @@ class MiningWebService(
   import queryProtocol._
 
   override def listMethods: Route =
-    path("mining" / "methods") {
-      authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { _: String =>
+    securePathWithWs(
+      "mining" / "methods",
+      listMethodsFlow,
+      get {
+        operationName("listMethods", Map("requestType" -> "http-post")) {
+          complete(AlgorithmLibraryService().algorithms())
+        }
+      }
+    )
+
+  override def mining: Route =
+    securePathWithWs(
+      "mining" / "job",
+      miningFlow,
+      post {
+        operationName("mining", Map("requestType" -> "http-post")) {
+          entity(as[MiningQuery]) {
+            case query: MiningQuery
+                if query.algorithm.code == "" || query.algorithm.code == "data" =>
+              ctx =>
+                {
+                  ctx.complete(
+                    featuresDatabase.queryData(jobsConf.featuresTable, query.dbAllVars)
+                  )
+                }
+
+            case query: MiningQuery =>
+              ctx =>
+                ctx.complete {
+                  (masterRouter ? query)
+                    .mapTo[QueryResult]
+                    .map {
+                      case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
+                      case qr if qr.data.nonEmpty  => OK         -> qr.toJson
+                    }
+                    .recoverWith {
+                      case e =>
+                        Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
+                    }
+                }
+          }
+        }
+      }
+    )
+
+  override def experiment: Route =
+    securePathWithWs(
+      "mining" / "experiment",
+      experimentFlow,
+      post {
+        operationName("experiment", Map("requestType" -> "http-post")) {
+          entity(as[ExperimentQuery]) { query: ExperimentQuery =>
+            complete {
+              (masterRouter ? query)
+                .mapTo[QueryResult]
+                .map {
+                  case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
+                  case qr if qr.data.nonEmpty  => OK         -> qr.toJson
+                }
+                .recoverWith {
+                  case e =>
+                    Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
+                }
+            }
+          }
+        }
+      }
+    )
+
+  private def securePathWithWs(pm: PathMatcher[Unit],
+                               wsFlow: Flow[Message, Message, Any],
+                               restRoute: Route): Route =
+    path(pm) {
+      authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator).apply { _ =>
         optionalHeaderValueByType[UpgradeToWebSocket](()) {
           case Some(upgrade) =>
             operationName("listMethods", Map("requestType" -> "websocket")) {
-              complete(upgrade.handleMessages(listMethodsFlow.watchTermination() { (_, done) =>
+              complete(upgrade.handleMessages(wsFlow.watchTermination() { (_, done) =>
                 done.onComplete {
                   case scala.util.Success(_) =>
-                    logger.info("WS get methods completed successfully.")
+                    logger.info(s"WS $pm completed successfully.")
                   case Failure(ex) =>
-                    logger.error(s"WS get methods completed with failure : $ex")
+                    logger.error(s"WS $pm completed with failure : $ex")
                 }
               }))
             }
-          case None =>
-            get {
-              operationName("listMethods", Map("requestType" -> "http-post")) {
-                complete(AlgorithmLibraryService().algorithms())
-              }
-            }
+          case None => Route.seal(restRoute)
         }
       }
     }
 
-  override def mining: Route = path("mining" / "job") {
-    authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { _: String =>
-      optionalHeaderValueByType[UpgradeToWebSocket](()) {
-        case Some(upgrade) =>
-          operationName("mining", Map("requestType" -> "http-post")) {
-            complete(upgrade.handleMessages(miningFlow.watchTermination() { (_, done) =>
-              done.onComplete {
-                case scala.util.Success(_) =>
-                  logger.info("WS mining job completed successfully.")
-                case Failure(ex) =>
-                  logger.error(s"WS mining job completed with failure : $ex")
-              }
-            }))
-          }
-        case None =>
-          post {
-            operationName("mining", Map("requestType" -> "http-post")) {
-              entity(as[MiningQuery]) {
-                case query: MiningQuery
-                    if query.algorithm.code == "" || query.algorithm.code == "data" =>
-                  ctx =>
-                    {
-                      ctx.complete(
-                        featuresDatabase.queryData(jobsConf.featuresTable, query.dbAllVars)
-                      )
-                    }
-
-                case query: MiningQuery =>
-                  ctx =>
-                    ctx.complete {
-                      (masterRouter ? query)
-                        .mapTo[QueryResult]
-                        .map {
-                          case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
-                          case qr if qr.data.nonEmpty  => OK         -> qr.toJson
-                        }
-                        .recoverWith {
-                          case e =>
-                            Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
-                        }
-                    }
-              }
-            }
-          }
-      }
-    }
-  }
-
-  override def experiment: Route =
-    path("mining" / "experiment") {
-      authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { _: String =>
-        optionalHeaderValueByType[UpgradeToWebSocket](()) {
-          case Some(upgrade) =>
-            operationName("experiment", Map("requestType" -> "websocket")) {
-              complete(upgrade.handleMessages(experimentFlow.watchTermination() { (_, done) =>
-                done.onComplete {
-                  case scala.util.Success(_) =>
-                    logger.info("WS experiment completed successfully.")
-                  case Failure(ex) =>
-                    logger.error(s"WS experiment completed with failure : $ex")
-                }
-              }))
-            }
-          case None =>
-            post {
-              operationName("experiment", Map("requestType" -> "http-post")) {
-                entity(as[ExperimentQuery]) { query: ExperimentQuery =>
-                  complete {
-                    (masterRouter ? query)
-                      .mapTo[QueryResult]
-                      .map {
-                        case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
-                        case qr if qr.data.nonEmpty  => OK         -> qr.toJson
-                      }
-                      .recoverWith {
-                        case e =>
-                          Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
-                      }
-                  }
-                }
-              }
-            }
-        }
-      }
-    }
 }

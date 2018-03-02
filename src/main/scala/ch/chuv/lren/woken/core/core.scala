@@ -103,8 +103,8 @@ trait CoreActors {
   startActors()
   startServices()
 
-  def beforeBoot(): Unit = ()
-  def startActors(): Unit = ()
+  def beforeBoot(): Unit    = ()
+  def startActors(): Unit   = ()
   def startServices(): Unit = ()
 
 }
