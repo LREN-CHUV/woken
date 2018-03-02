@@ -33,7 +33,6 @@ do
   if [ "--all" == "$param" ]; then
     test_args=""
     echo "INFO: ---all option detected !"
-    break;
   fi
 done
 

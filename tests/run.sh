@@ -33,17 +33,14 @@ do
   if [ "--no-frontend" == "$param" ]; then
     frontend=0
     echo "INFO: --no-frontend option detected !"
-    break;
   fi
   if [ "--no-tests" == "$param" ]; then
     tests=0
     echo "INFO: --no-tests option detected !"
-    break;
   fi
   if [ "--all-tests" == "$param" ]; then
     test_args=""
     echo "INFO: --all-tests option detected !"
-    break;
   fi
 done
 

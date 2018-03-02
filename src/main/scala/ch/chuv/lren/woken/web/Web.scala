@@ -36,4 +36,8 @@ object Web extends App with BootedCore with Rest {
   override protected lazy val logger: Logger =
     Logger(LoggerFactory.getLogger("Woken"))
 
+  beforeBoot()
+  startActors()
+  startServices()
+
 }

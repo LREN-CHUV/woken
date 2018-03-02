@@ -34,7 +34,7 @@ import ch.chuv.lren.woken.dao.FeaturesDAL
 import ch.chuv.lren.woken.service.AlgorithmLibraryService
 import akka.util.Timeout
 import com.typesafe.scalalogging.LazyLogging
-import kamon.akka.http.TracingDirectives
+//import kamon.akka.http.TracingDirectives
 import spray.json.DefaultJsonProtocol
 
 import scala.concurrent.duration._
@@ -58,7 +58,8 @@ class MiningWebService(
     with BasicAuthenticator
     with WebsocketSupport
     with LazyLogging
-    with TracingDirectives {
+//    with TracingDirectives
+    {
 
   implicit val executionContext: ExecutionContext = system.dispatcher
   implicit val timeout: Timeout                   = Timeout(180.seconds)
@@ -73,9 +74,9 @@ class MiningWebService(
       "mining" / "methods",
       listMethodsFlow,
       get {
-        operationName("listMethods", Map("requestType" -> "http-post")) {
-          complete(AlgorithmLibraryService().algorithms())
-        }
+        //operationName("listMethods", Map("requestType" -> "http-post")) {
+        complete(AlgorithmLibraryService().algorithms())
+        //}
       }
     )
 
@@ -84,34 +85,33 @@ class MiningWebService(
       "mining" / "job",
       miningFlow,
       post {
-        operationName("mining", Map("requestType" -> "http-post")) {
-          entity(as[MiningQuery]) {
-            case query: MiningQuery
-                if query.algorithm.code == "" || query.algorithm.code == "data" =>
-              ctx =>
-                {
-                  ctx.complete(
-                    featuresDatabase.queryData(jobsConf.featuresTable, query.dbAllVars)
-                  )
-                }
+        //operationName("mining", Map("requestType" -> "http-post")) {
+        entity(as[MiningQuery]) {
+          case query: MiningQuery if query.algorithm.code == "" || query.algorithm.code == "data" =>
+            ctx =>
+              {
+                ctx.complete(
+                  featuresDatabase.queryData(jobsConf.featuresTable, query.dbAllVars)
+                )
+              }
 
-            case query: MiningQuery =>
-              ctx =>
-                ctx.complete {
-                  (masterRouter ? query)
-                    .mapTo[QueryResult]
-                    .map {
-                      case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
-                      case qr if qr.data.nonEmpty  => OK         -> qr.toJson
-                    }
-                    .recoverWith {
-                      case e =>
-                        logger.warn(s"Query $query failed with error $e")
-                        Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
-                    }
-                }
-          }
+          case query: MiningQuery =>
+            ctx =>
+              ctx.complete {
+                (masterRouter ? query)
+                  .mapTo[QueryResult]
+                  .map {
+                    case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
+                    case qr if qr.data.nonEmpty  => OK         -> qr.toJson
+                  }
+                  .recoverWith {
+                    case e =>
+                      logger.warn(s"Query $query failed with error $e")
+                      Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
+                  }
+              }
         }
+        //}
       }
     )
 
@@ -120,23 +120,23 @@ class MiningWebService(
       "mining" / "experiment",
       experimentFlow,
       post {
-        operationName("experiment", Map("requestType" -> "http-post")) {
-          entity(as[ExperimentQuery]) { query: ExperimentQuery =>
-            complete {
-              (masterRouter ? query)
-                .mapTo[QueryResult]
-                .map {
-                  case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
-                  case qr if qr.data.nonEmpty  => OK         -> qr.toJson
-                }
-                .recoverWith {
-                  case e =>
-                    logger.warn(s"Query $query failed with error $e")
-                    Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
-                }
-            }
+        //operationName("experiment", Map("requestType" -> "http-post")) {
+        entity(as[ExperimentQuery]) { query: ExperimentQuery =>
+          complete {
+            (masterRouter ? query)
+              .mapTo[QueryResult]
+              .map {
+                case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
+                case qr if qr.data.nonEmpty  => OK         -> qr.toJson
+              }
+              .recoverWith {
+                case e =>
+                  logger.warn(s"Query $query failed with error $e")
+                  Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
+              }
           }
         }
+        //}
       }
     )
 
@@ -147,16 +147,16 @@ class MiningWebService(
       authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { _ =>
         optionalHeaderValueByType[UpgradeToWebSocket](()) {
           case Some(upgrade) =>
-            operationName("listMethods", Map("requestType" -> "websocket")) {
-              complete(upgrade.handleMessages(wsFlow.watchTermination() { (_, done) =>
-                done.onComplete {
-                  case scala.util.Success(_) =>
-                    logger.info(s"WS $pm completed successfully.")
-                  case Failure(ex) =>
-                    logger.error(s"WS $pm completed with failure : $ex")
-                }
-              }))
-            }
+            //operationName("listMethods", Map("requestType" -> "websocket")) {
+            complete(upgrade.handleMessages(wsFlow.watchTermination() { (_, done) =>
+              done.onComplete {
+                case scala.util.Success(_) =>
+                  logger.info(s"WS $pm completed successfully.")
+                case Failure(ex) =>
+                  logger.error(s"WS $pm completed with failure : $ex")
+              }
+            }))
+          //}
           case None => restRoute
         }
       }

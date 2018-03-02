@@ -40,21 +40,23 @@ trait Api extends CoreActors with Core with LazyLogging {
   val appConfig: AppConfiguration
   val coordinatorConfig: CoordinatorConfig
 
-  lazy val miningService =
-    new MiningWebService(
-      mainRouter,
-      featuresDAL,
-      appConfig,
-      jobsConf
-    )
+  def routes: Route = {
+    val miningService =
+      new MiningWebService(
+        mainRouter,
+        featuresDAL,
+        appConfig,
+        jobsConf
+      )
 
-  val routes: Route = SwaggerService.routes ~ miningService.routes ~
-    pathPrefix("health") {
-      get {
-        // TODO: proper health check is required, check db connection, check cluster availability...
-        complete("OK")
+    SwaggerService.routes ~ miningService.routes ~
+      pathPrefix("health") {
+        get {
+          // TODO: proper health check is required, check db connection, check cluster availability...
+          complete("OK")
+        }
       }
-    }
+  }
 
 }
 

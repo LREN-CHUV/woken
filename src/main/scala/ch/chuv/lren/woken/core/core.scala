@@ -99,10 +99,6 @@ trait CoreActors {
 
   lazy val chronosHttp: ActorRef = system.actorOf(chronosSupervisorProps, "chronosSupervisor")
 
-  beforeBoot()
-  startActors()
-  startServices()
-
   def beforeBoot(): Unit    = ()
   def startActors(): Unit   = ()
   def startServices(): Unit = ()
