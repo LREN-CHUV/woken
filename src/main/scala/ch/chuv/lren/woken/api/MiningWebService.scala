@@ -106,6 +106,7 @@ class MiningWebService(
                     }
                     .recoverWith {
                       case e =>
+                        logger.warn(s"Query $query failed with error $e")
                         Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
                     }
                 }
@@ -130,6 +131,7 @@ class MiningWebService(
                 }
                 .recoverWith {
                   case e =>
+                    logger.warn(s"Query $query failed with error $e")
                     Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
                 }
             }
