@@ -85,7 +85,7 @@ object Shapes {
     */
   object tabularDataResource extends Shape {
     val json   = "tabular_data_resource_json"
-    val mime   = "application/vnd.tabular-data-resource+json"
+    val mime   = "application/vnd.dataresource+json"
     val values = Set(json, mime)
   }
 
