@@ -26,10 +26,9 @@ import com.typesafe.sslconfig.akka.AkkaSSLConfig
 
 trait WokenSSLConfiguration {
 
-  implicit val system: ActorSystem
-  val sslConfig = AkkaSSLConfig()
+  implicit def system: ActorSystem
 
-  val wokenSSLContext: SSLContext = {
+  def https: HttpsConnectionContext = {
     val keyStoreRes = "/woken.com.jks"
     val password    = "X9PYRiFaPV"
 
@@ -40,13 +39,11 @@ trait WokenSSLConfiguration {
     val trustManagerFactory = TrustManagerFactory.getInstance("SunX509")
     trustManagerFactory.init(keyStore)
 
-    val context = SSLContext.getInstance("TLS")
-    context.init(keyManagerFactory.getKeyManagers,
-                 trustManagerFactory.getTrustManagers,
-                 new SecureRandom)
+    val sslContext = SSLContext.getInstance("TLS")
+    sslContext.init(keyManagerFactory.getKeyManagers,
+                    trustManagerFactory.getTrustManagers,
+                    new SecureRandom)
 
-    context
+    ConnectionContext.https(sslContext)
   }
-
-  val https: HttpsConnectionContext = ConnectionContext.https(wokenSSLContext)
 }

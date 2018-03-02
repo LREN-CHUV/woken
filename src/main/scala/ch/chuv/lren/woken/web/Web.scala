@@ -31,13 +31,15 @@ import org.slf4j.LoggerFactory
   * Benefits of separate ``ActorSystem`` include the ability to use completely different
   * configuration, especially when it comes to the threading core.model.
   */
-object Web extends App with BootedCore with Rest {
+object Web extends BootedCore with Rest {
 
   override protected lazy val logger: Logger =
     Logger(LoggerFactory.getLogger("Woken"))
 
-  beforeBoot()
-  startActors()
-  startServices()
+  def main(args: Array[String]): Unit = {
+    beforeBoot()
+    startActors()
+    startServices()
+  }
 
 }

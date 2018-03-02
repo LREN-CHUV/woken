@@ -20,7 +20,7 @@ package ch.chuv.lren.woken.web
 import java.io.File
 
 import scala.concurrent.duration._
-import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem }
+import akka.actor.ActorRef
 import akka.util.Timeout
 import akka.cluster.Cluster
 import akka.cluster.client.ClusterClientReceptionist
@@ -30,7 +30,6 @@ import cats.effect.IO
 import ch.chuv.lren.woken.api.{ Api, MasterRouter }
 import ch.chuv.lren.woken.config.{
   AlgorithmsConfiguration,
-  AppConfiguration,
   DatabaseConfiguration,
   DatasetsConfiguration
 }
@@ -52,7 +51,7 @@ import kamon.system.SystemMetrics
 import kamon.zipkin.ZipkinReporter
 import org.hyperic.sigar.{ Sigar, SigarLoader }
 
-import scala.concurrent.{ ExecutionContextExecutor, Future }
+import scala.concurrent.Future
 import scala.language.postfixOps
 import scala.sys.ShutdownHookThread
 import scala.util.Try
@@ -113,23 +112,12 @@ trait BootedCore
         Kamon.addReporter(new ZipkinReporter)
     }
 
-  override lazy val appConfig: AppConfiguration = AppConfiguration
-    .read(config)
-    .valueOr(configurationFailed)
-
-  /**
-    * Construct the ActorSystem we will use in our application
-    */
-  override lazy implicit val system: ActorSystem          = ActorSystem(appConfig.clusterSystemName, config)
-  lazy val actorRefFactory: ActorRefFactory               = system
-  implicit val executionContext: ExecutionContextExecutor = system.dispatcher
-
   private lazy val resultsDbConfig = DatabaseConfiguration
     .factory(config)("woken")
     .valueOr(configurationFailed)
 
   private lazy val featuresDbConnection = DatabaseConfiguration
-    .factory(config)(jobsConf.featuresDb)
+    .factory(config)(jobsConfig.featuresDb)
     .valueOr(configurationFailed)
 
   override lazy val featuresDAL = FeaturesDAL(featuresDbConnection)
@@ -143,53 +131,51 @@ trait BootedCore
   }
   override lazy val jobResultService: JobResultService = jrsIO.unsafeRunSync()
 
-  private lazy val metaDbConfig = DatabaseConfiguration
-    .factory(config)(jobsConf.metaDb)
-    .valueOr(configurationFailed)
-
-  private lazy val vmsIO: IO[VariablesMetaService] = for {
-    xa <- DatabaseConfiguration.dbTransactor(metaDbConfig)
-    _  <- DatabaseConfiguration.testConnection[IO](xa)
-    metaDb = new MetadataRepositoryDAO[IO](xa)
-  } yield {
-    VariablesMetaService(metaDb.variablesMeta)
-  }
-
-  override lazy val variablesMetaService: VariablesMetaService = vmsIO.unsafeRunSync()
-
-  private lazy val algorithmLibraryService: AlgorithmLibraryService = AlgorithmLibraryService()
-
-  //Cluster(system).join(RemoteAddressExtension(system).getAddress())
-  lazy val cluster = Cluster(system)
-
   override lazy val coordinatorConfig = CoordinatorConfig(
     chronosHttp,
     appConfig.dockerBridgeNetwork,
     featuresDAL,
     jobResultService,
-    jobsConf,
+    jobsConfig,
     DatabaseConfiguration.factory(config)
   )
 
-  private lazy val wokenService: WokenService = WokenService(coordinatorConfig.jobsConf.node)
+  private def mainRouterSupervisorProps = {
 
-  private lazy val dispatcherService: DispatcherService =
-    DispatcherService(DatasetsConfiguration.datasets(config), wokenService)
+    val wokenService: WokenService = WokenService(coordinatorConfig.jobsConf.node)
+    val dispatcherService: DispatcherService =
+      DispatcherService(DatasetsConfiguration.datasets(config), wokenService)
+    val algorithmLibraryService: AlgorithmLibraryService = AlgorithmLibraryService()
 
-  private lazy val mainRouterSupervisorProps = BackoffSupervisor.props(
-    Backoff.onFailure(
-      MasterRouter.props(appConfig,
-                         coordinatorConfig,
-                         variablesMetaService,
-                         dispatcherService,
-                         algorithmLibraryService,
-                         AlgorithmsConfiguration.factory(config)),
-      childName = "mainRouter",
-      minBackoff = 100 milliseconds,
-      maxBackoff = 1 seconds,
-      randomFactor = 0.2
+    val metaDbConfig = DatabaseConfiguration
+      .factory(config)(jobsConfig.metaDb)
+      .valueOr(configurationFailed)
+
+    val vmsIO: IO[VariablesMetaService] = for {
+      xa <- DatabaseConfiguration.dbTransactor(metaDbConfig)
+      _  <- DatabaseConfiguration.testConnection[IO](xa)
+      metaDb = new MetadataRepositoryDAO[IO](xa)
+    } yield {
+      VariablesMetaService(metaDb.variablesMeta)
+    }
+
+    val variablesMetaService: VariablesMetaService = vmsIO.unsafeRunSync()
+
+    BackoffSupervisor.props(
+      Backoff.onFailure(
+        MasterRouter.props(appConfig,
+                           coordinatorConfig,
+                           variablesMetaService,
+                           dispatcherService,
+                           algorithmLibraryService,
+                           AlgorithmsConfiguration.factory(config)),
+        childName = "mainRouter",
+        minBackoff = 100 milliseconds,
+        maxBackoff = 1 seconds,
+        randomFactor = 0.2
+      )
     )
-  )
+  }
 
   /**
     * Create and start actor that acts as akka entry-point
@@ -197,8 +183,12 @@ trait BootedCore
   override lazy val mainRouter: ActorRef =
     system.actorOf(mainRouterSupervisorProps, name = "entrypoint")
 
+  override lazy val cluster: Cluster = Cluster(system)
+
   override def startActors(): Unit = {
     logger.info(s"Start actor system ${appConfig.clusterSystemName}...")
+    logger.info(s"Cluster has roles ${cluster.selfRoles.mkString(",")}")
+
     ClusterClientReceptionist(system).registerService(mainRouter)
 
   }

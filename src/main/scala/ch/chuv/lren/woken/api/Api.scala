@@ -18,10 +18,9 @@
 package ch.chuv.lren.woken.api
 
 import ch.chuv.lren.woken.api.swagger.SwaggerService
-import ch.chuv.lren.woken.config.AppConfiguration
 import ch.chuv.lren.woken.core.{ CoordinatorConfig, Core, CoreActors }
 import ch.chuv.lren.woken.dao.FeaturesDAL
-import ch.chuv.lren.woken.service.{ JobResultService, VariablesMetaService }
+import ch.chuv.lren.woken.service.JobResultService
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import com.typesafe.scalalogging.LazyLogging
@@ -34,11 +33,9 @@ import com.typesafe.scalalogging.LazyLogging
   */
 trait Api extends CoreActors with Core with LazyLogging {
 
-  val featuresDAL: FeaturesDAL
-  val jobResultService: JobResultService
-  val variablesMetaService: VariablesMetaService
-  val appConfig: AppConfiguration
-  val coordinatorConfig: CoordinatorConfig
+  def featuresDAL: FeaturesDAL
+  def jobResultService: JobResultService
+  def coordinatorConfig: CoordinatorConfig
 
   def routes: Route = {
     val miningService =
@@ -46,16 +43,16 @@ trait Api extends CoreActors with Core with LazyLogging {
         mainRouter,
         featuresDAL,
         appConfig,
-        jobsConf
+        jobsConfig
       )
 
     SwaggerService.routes ~ miningService.routes ~
-      pathPrefix("health") {
-        get {
-          // TODO: proper health check is required, check db connection, check cluster availability...
-          complete("OK")
-        }
+    pathPrefix("health") {
+      get {
+        // TODO: proper health check is required, check db connection, check cluster availability...
+        complete("OK")
       }
+    }
   }
 
 }
