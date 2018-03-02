@@ -41,7 +41,7 @@ trait Api extends CoreActors with Core with LazyLogging {
   val coordinatorConfig: CoordinatorConfig
 
   lazy val miningService =
-    new MiningService(
+    new MiningWebService(
       mainRouter,
       featuresDAL,
       appConfig,

@@ -25,7 +25,6 @@ import akka.pattern.{ ask, pipe }
 import akka.util.Timeout
 
 import scala.concurrent.{ ExecutionContext, Future }
-//import com.github.levkhomich.akka.tracing.ActorTracing
 
 import ch.chuv.lren.woken.backends.DockerJob
 import ch.chuv.lren.woken.backends.chronos.ChronosService
@@ -152,7 +151,6 @@ private[core] object CoordinatorStates {
 class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
     extends Actor
     with ActorLogging
-    /*with ActorTracing*/
     with LoggingFSM[CoordinatorStates.State, CoordinatorStates.StateData] {
 
   import CoordinatorActor._
