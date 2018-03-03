@@ -230,9 +230,10 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
         data.initiator ! errorResponse(data.job, msg)
         stop(Failure(msg))
       } else {
-        self ! CheckDb
         if (data.pollDbCount % 50 == 0) {
           self ! CheckChronos
+        } else {
+          self ! CheckDb
         }
         stay() forMax repeatDuration
       }

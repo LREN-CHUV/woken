@@ -144,7 +144,7 @@ class MiningWebService(
                                       wsFlow: Flow[Message, Message, Any],
                                       restRoute: Route): Route =
     path(pm) {
-      authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { _ =>
+      authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator).apply { _ =>
         optionalHeaderValueByType[UpgradeToWebSocket](()) {
           case Some(upgrade) =>
             //operationName("listMethods", Map("requestType" -> "websocket")) {

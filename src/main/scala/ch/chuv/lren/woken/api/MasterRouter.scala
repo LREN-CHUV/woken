@@ -236,7 +236,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
         dispatcherService.dispatchTo(query.trainingDatasets) match {
           case (_, true) => startExperimentJob(job, initiator)
           case _ =>
-            log.info("Dispatch mining query to remote workers...")
+            log.info("Dispatch experiment query to remote workers...")
 
             Source
               .single(query)
