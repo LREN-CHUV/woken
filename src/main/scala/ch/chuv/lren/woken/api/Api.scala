@@ -50,7 +50,12 @@ trait Api extends CoreActors with Core with LazyLogging {
     pathPrefix("health") {
       get {
         // TODO: proper health check is required, check db connection, check cluster availability...
-        complete("OK")
+        if (cluster.state.leader.isEmpty)
+          failWith(new Exception("No leader elected for the cluster"))
+        else if (!appConfig.disableWorkers && cluster.state.members.size < 2)
+          failWith(new Exception("Expected at least one worker (Woken validation server) in the cluster"))
+        else
+          complete("OK")
       }
     }
   }
