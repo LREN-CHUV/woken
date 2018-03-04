@@ -25,7 +25,7 @@ import akka.stream.scaladsl.{ Sink, Source }
 import akka.stream.testkit.scaladsl.TestSink
 import akka.testkit.{ TestKit, TestProbe }
 import ch.chuv.lren.woken.config.AlgorithmsConfiguration
-import ch.chuv.lren.woken.core.model.JobResult
+import ch.chuv.lren.woken.core.model.{ ErrorJobResult, JobResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query._
@@ -107,7 +107,15 @@ class ExperimentFlowTest
       experimentJob.isValid shouldBe true
       val testProbe = TestProbe()
       testProbe.send(experimentWrapper, experimentJob.toOption.get)
-      testProbe.expectMsgType[ExperimentResponse](20 seconds)
+      testProbe.expectMsgPF(20 seconds, "error") {
+        case response: ExperimentResponse =>
+          response.result.nonEmpty shouldBe true
+          response.result.head._1 shouldBe Nil
+          response.result.head._2 match {
+            case ejr: ErrorJobResult => ejr.error.nonEmpty shouldBe true
+            case _                   => fail("Response should be of type ErrorJobResponse")
+          }
+      }
 
     }
 
@@ -121,7 +129,15 @@ class ExperimentFlowTest
       experimentJob.isValid shouldBe true
       val testProbe = TestProbe()
       testProbe.send(experimentWrapper, experimentJob.toOption.get)
-      testProbe.expectMsgType[ExperimentResponse](20 seconds)
+      testProbe.expectMsgPF(20 seconds, "error") {
+        case response: ExperimentResponse =>
+          response.result.nonEmpty shouldBe true
+          response.result.head._1 shouldBe AlgorithmSpec("knn", List(CodeValue("k", "5")))
+          response.result.head._2 match {
+            case ejr: ErrorJobResult => ejr.error.nonEmpty shouldBe true
+            case _                   => fail("Response should be of type ErrorJobResponse")
+          }
+      }
     }
 
   }
@@ -142,7 +158,6 @@ class ExperimentFlowTest
           .runWith(TestSink.probe[Map[AlgorithmSpec, JobResult]])
           .request(1)
           .receiveWithin(10 seconds, 1)
-        println(result)
         originator ! ExperimentResponse(result.headOption.getOrElse(Map.empty))
     }
   }
