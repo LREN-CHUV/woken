@@ -21,7 +21,7 @@ import java.util.UUID
 
 import akka.actor.{ Actor, ActorSystem, Props }
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{ Sink, Source }
+import akka.stream.scaladsl.Source
 import akka.stream.testkit.scaladsl.TestSink
 import akka.testkit.{ TestKit, TestProbe }
 import ch.chuv.lren.woken.config.AlgorithmsConfiguration
@@ -36,18 +36,24 @@ import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+import scala.language.postfixOps
 
 /**
   * Experiment flow should always complete with success, but the error is reported inside the response.
   */
 class ExperimentFlowTest
-    extends TestKit(ActorSystem("ExperimentFlowTest"))
+    extends TestProbe(ActorSystem("ExperimentFlowTest"), "coordinatorActor")
     with WordSpecLike
     with Matchers
     with BeforeAndAfterAll
     with JsonUtils {
 
-  val config: Config                           = ConfigFactory.load("test.conf")
+  val config: Config =
+    ConfigFactory
+      .parseResourcesAnySyntax("algorithms.conf")
+      .withFallback(ConfigFactory.load("test.conf"))
+      .resolve()
+
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   val user: UserId                             = UserId("test")
 
@@ -86,9 +92,9 @@ class ExperimentFlowTest
 
   "Experiment flow" should {
 
-    "complete with success in case of invalid query" in {
+    "complete with success in case of a query with no algorithms" in {
       val experimentWrapper =
-        system.actorOf(ExperimentFlowWrapper.props, "ExperimentFlowProbeActor")
+        system.actorOf(ExperimentFlowWrapper.props)
       val experimentQuery = ExperimentQuery(
         user = user,
         variables = Nil,
@@ -109,8 +115,45 @@ class ExperimentFlowTest
       testProbe.send(experimentWrapper, experimentJob.toOption.get)
       testProbe.expectMsgPF(20 seconds, "error") {
         case response: ExperimentResponse =>
+          response.result.isEmpty shouldBe true
+      }
+
+    }
+
+    "complete with success in case of a query containing an invalid algorithm" in {
+      val experimentWrapper =
+        system.actorOf(ExperimentFlowWrapper.props)
+      val experiment    = experimentQuery("invalid-algo", Nil)
+      val experimentJob = experimentQuery2job(experiment)
+      experimentJob.isValid shouldBe true
+      val testProbe = TestProbe()
+      testProbe.send(experimentWrapper, experimentJob.toOption.get)
+      testProbe.expectMsgPF(20 seconds, "error") {
+        case response: ExperimentResponse =>
           response.result.nonEmpty shouldBe true
-          response.result.head._1 shouldBe Nil
+          response.result.head._1 shouldBe AlgorithmSpec("invalid-algo", Nil)
+          response.result.head._2 match {
+            case ejr: ErrorJobResult =>
+              ejr.error shouldBe "Could not find key: algorithms.invalid-algo"
+            case _ => fail("Response should be of type ErrorJobResponse")
+          }
+      }
+
+    }
+
+    "complete with success in case of a query containing a failing algorithm" in {
+      val experimentWrapper =
+        system.actorOf(ExperimentWithFailingAlgoFlowWrapper.props)
+      val experiment    = experimentQuery("knn", Nil)
+      val experimentJob = experimentQuery2job(experiment)
+      experimentJob.isValid shouldBe true
+      val testProbe = TestProbe()
+      testProbe.send(experimentWrapper, experimentJob.toOption.get)
+      testProbe.expectMsgPF(20 seconds, "error") {
+        case response: ExperimentResponse =>
+          print(response)
+          response.result.nonEmpty shouldBe true
+          response.result.head._1 shouldBe AlgorithmSpec("knn", Nil)
           response.result.head._2 match {
             case ejr: ErrorJobResult => ejr.error.nonEmpty shouldBe true
             case _                   => fail("Response should be of type ErrorJobResponse")
@@ -119,9 +162,9 @@ class ExperimentFlowTest
 
     }
 
-    "complete with success in case of a valid query " in {
+    "complete with success in case of a valid query" in {
       val experimentWrapper =
-        system.actorOf(ExperimentFlowWrapper.props, "ExperimentFlowProbeActor2")
+        system.actorOf(ExperimentFlowWrapper.props)
 
       val experiment = experimentQuery("knn", List(CodeValue("k", "5")))
 
@@ -131,6 +174,7 @@ class ExperimentFlowTest
       testProbe.send(experimentWrapper, experimentJob.toOption.get)
       testProbe.expectMsgPF(20 seconds, "error") {
         case response: ExperimentResponse =>
+          print(response)
           response.result.nonEmpty shouldBe true
           response.result.head._1 shouldBe AlgorithmSpec("knn", List(CodeValue("k", "5")))
           response.result.head._2 match {
@@ -144,10 +188,10 @@ class ExperimentFlowTest
 
   class ExperimentFlowWrapper extends Actor {
 
-    val chronosService    = testActor
-    val coordinatorConfig = FakeCoordinatorConfig.coordinatorConfig(testActor)
-    val algorithmLookup   = AlgorithmsConfiguration.factory(config)
-    val experimentFlow    = ExperimentFlow(coordinatorConfig, algorithmLookup, context)
+    private val coordinatorActor  = testActor
+    private val coordinatorConfig = FakeCoordinatorConfig.coordinatorConfig(coordinatorActor)
+    private val algorithmLookup   = AlgorithmsConfiguration.factory(config)
+    val experimentFlow            = ExperimentFlow(coordinatorConfig, algorithmLookup, context)
 
     override def receive: Receive = {
       case job: ExperimentActor.Job =>
@@ -163,6 +207,33 @@ class ExperimentFlowTest
   }
 
   object ExperimentFlowWrapper {
+    def props = Props(new ExperimentFlowWrapper)
+
+    case class ExperimentResponse(result: Map[AlgorithmSpec, JobResult])
+
+  }
+
+  class ExperimentWithFailingAlgoFlowWrapper extends Actor {
+
+    private val coordinatorActor  = testActor
+    private val coordinatorConfig = FakeCoordinatorConfig.coordinatorConfig(coordinatorActor)
+    private val algorithmLookup   = AlgorithmsConfiguration.factory(config)
+    val experimentFlow            = ExperimentFlow(coordinatorConfig, algorithmLookup, context)
+
+    override def receive: Receive = {
+      case job: ExperimentActor.Job =>
+        val originator = sender()
+        val result = Source
+          .single(job)
+          .via(experimentFlow.flow)
+          .runWith(TestSink.probe[Map[AlgorithmSpec, JobResult]])
+          .request(1)
+          .receiveWithin(10 seconds, 1)
+        originator ! ExperimentResponse(result.headOption.getOrElse(Map.empty))
+    }
+  }
+
+  object ExperimentWithFailingAlgoFlowWrapper {
     def props = Props(new ExperimentFlowWrapper)
 
     case class ExperimentResponse(result: Map[AlgorithmSpec, JobResult])
