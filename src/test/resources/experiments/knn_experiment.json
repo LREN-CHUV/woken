@@ -1,0 +1,42 @@
+{
+  "algorithms": [
+    {
+      "code": "knn",
+      "parameters": [
+        {
+          "code": "k",
+          "value": "5"
+        }
+      ]
+    }
+  ],
+  "covariables": [
+    {
+      "code": "score_test1"
+    },
+    {
+      "code": "college_math"
+    }
+  ],
+  "grouping": [],
+  "targetTable": "sample_data",
+  "user": {
+    "code": "user1"
+  },
+  "validations": [
+    {
+      "code": "kfold",
+      "parameters": [
+        {
+          "code": "k",
+          "value": "2"
+        }
+      ]
+    }
+  ],
+  "variables": [
+    {
+      "code": "cognitive_task2"
+    }
+  ]
+}

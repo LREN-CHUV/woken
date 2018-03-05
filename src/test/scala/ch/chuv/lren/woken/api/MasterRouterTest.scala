@@ -33,7 +33,7 @@ import ch.chuv.lren.woken.core.{
   FakeExperimentActor
 }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
-import ch.chuv.lren.woken.dao.FeaturesDAL
+import ch.chuv.lren.woken.util.FakeCoordinatorConfig._
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.service.{ AlgorithmLibraryService, DispatcherService }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil
@@ -60,28 +60,6 @@ class MasterRouterTest
   override def afterAll(): Unit = TestKit.shutdownActorSystem(system)
 
   import ch.chuv.lren.woken.service.TestServices._
-
-  val noDbConfig =
-    DatabaseConfiguration(dbiDriver = "DBI",
-                          dbApiDriver = "DBAPI",
-                          jdbcDriver = "java.lang.String",
-                          jdbcUrl = "",
-                          host = "",
-                          port = 0,
-                          database = "db",
-                          user = "",
-                          password = "")
-  val noJobsConf =
-    JobsConfiguration("none",
-                      "noone",
-                      "http://nowhere",
-                      "features",
-                      "features",
-                      "features",
-                      "results",
-                      "meta")
-
-  val fakeFeaturesDAL = FeaturesDAL(noDbConfig)
 
   def experimentQuery2job(query: ExperimentQuery): Validation[ExperimentActor.Job] =
     ConfigUtil.lift(
