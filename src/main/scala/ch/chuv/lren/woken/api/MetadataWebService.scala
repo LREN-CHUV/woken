@@ -27,6 +27,7 @@ import ch.chuv.lren.woken.api.swagger.MetadataServiceApi
 import ch.chuv.lren.woken.authentication.BasicAuthenticator
 import ch.chuv.lren.woken.config.AppConfiguration
 import ch.chuv.lren.woken.messages.datasets.{ DatasetsQuery, DatasetsResponse }
+//import kamon.akka.http.TracingDirectives
 
 import scala.concurrent.duration._
 import scala.concurrent.{ ExecutionContext, Future }

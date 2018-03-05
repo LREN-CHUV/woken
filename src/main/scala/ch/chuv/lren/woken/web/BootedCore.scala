@@ -129,20 +129,6 @@ trait BootedCore
   }
   override lazy val jobResultService: JobResultService = jrsIO.unsafeRunSync()
 
-  private lazy val metaDbConfig = DatabaseConfiguration
-    .factory(config)(jobsConfig.metaDb)
-    .valueOr(configurationFailed)
-
-  private lazy val vmsIO: IO[VariablesMetaService] = for {
-    xa <- DatabaseConfiguration.dbTransactor(metaDbConfig)
-    _  <- DatabaseConfiguration.testConnection[IO](xa)
-    metaDb = new MetadataRepositoryDAO[IO](xa)
-  } yield {
-    VariablesMetaService(metaDb.variablesMeta)
-  }
-
-  override lazy val variablesMetaService: VariablesMetaService = vmsIO.unsafeRunSync()
-
   override lazy val coordinatorConfig = CoordinatorConfig(
     chronosHttp,
     appConfig.dockerBridgeNetwork,

@@ -22,6 +22,7 @@ import java.util.UUID
 import akka.actor.{ ActorRef, ActorSystem, Props }
 import akka.stream.ActorMaterializer
 import akka.testkit.{ ImplicitSender, TestKit }
+import alleycats.syntax.empty.EmptyOps
 import com.typesafe.config.{ Config, ConfigFactory }
 import ch.chuv.lren.woken.api.MasterRouter.{ QueuesSize, RequestQueuesSize }
 import ch.chuv.lren.woken.backends.DockerJob
@@ -48,6 +49,7 @@ import ch.chuv.lren.woken.util.FakeActors
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import org.scalatest.tagobjects.Slow
 import cats.data.Validated._
+import ch.chuv.lren.woken.messages.datasets.{ DatasetsQuery, DatasetsResponse }
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -296,6 +298,16 @@ class MasterRouterTest
 
       waitForEmptyQueue(router, limit)
 
+    }
+
+    "return available datasets" in {
+
+      router ! DatasetsQuery
+
+      within(5 seconds) {
+        val msg = expectMsgType[DatasetsResponse]
+        msg.datasets should not be empty
+      }
     }
 
   }
