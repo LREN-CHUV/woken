@@ -38,7 +38,6 @@ trait Api extends CoreActors with Core with LazyLogging {
   def featuresDAL: FeaturesDAL
   def jobResultService: JobResultService
   def coordinatorConfig: CoordinatorConfig
-  def variablesMetaService: VariablesMetaService
 
   def routes: Route = {
     val miningService =
