@@ -22,6 +22,7 @@ lazy val `woken` =
           library.akkaContrib,
           library.akkaSlf4j,
           library.akkaHttp,
+          library.akkaHttpCors,
           library.akkaHttpJson,
           library.kamon,
           library.kamonAkka,
@@ -32,6 +33,7 @@ lazy val `woken` =
           library.kamonSystemMetrics,
           //library.kamonSigar,
           library.akkaHttpSwagger,
+          library.swaggerJaxrs,
           library.swaggerUI,
           library.sprayJson,
           library.slf4j,
@@ -79,7 +81,8 @@ lazy val library =
       val akka            = "2.5.9"
       val akkaTracing     = "0.6.1"
       val akkaHttp        = "10.1.0-RC2"
-      val akkaHttpSwagger = "0.11.0"
+      val akkaHttpCors    = "0.2.1"
+      val akkaHttpSwagger = "0.13.0"
       val kamon           = "1.1.0"
       val kamonAkka       = "1.0.1"
       val kamonAkkaRemote = "1.0.1"
@@ -87,7 +90,8 @@ lazy val library =
       val kamonReporter   = "1.0.0"
       val kamonSystemMetrics = "1.0.0"
       val kamonSigar      = "1.6.6-rev002"
-      val swaggerUI       = "2.0.12"
+      val swaggerJaxrs    = "1.5.18"
+      val swaggerUI       = "3.9.0"
       val sprayJson       = "1.3.4"
       val slf4j           = "1.7.25"
       val log4j           = "2.10.0"
@@ -121,6 +125,7 @@ lazy val library =
     val akkaStreamTestkit: ModuleID   = "com.typesafe.akka" %% "akka-stream-testkit" % Version.akka
     val akkaHttp: ModuleID     = "com.typesafe.akka" %% "akka-http" % Version.akkaHttp
     val akkaHttpJson: ModuleID = "com.typesafe.akka" %% "akka-http-spray-json" % Version.akkaHttp
+    val akkaHttpCors: ModuleID = "ch.megard"         %% "akka-http-cors" % Version.akkaHttpCors
     val akkaHttpSwagger: ModuleID = "com.github.swagger-akka-http"   %% "swagger-akka-http" % Version.akkaHttpSwagger
     val kamon: ModuleID        = "io.kamon" %% "kamon-core" % Version.kamon excludeAll ExclusionRules.excludeLogback
     val kamonAkka: ModuleID    = "io.kamon" %% "kamon-akka-2.5" % Version.kamonAkka excludeAll ExclusionRules.excludeLogback
@@ -130,6 +135,7 @@ lazy val library =
     val kamonPrometheus: ModuleID = "io.kamon" %% "kamon-prometheus" % Version.kamonReporter excludeAll ExclusionRules.excludeLogback
     val kamonZipkin: ModuleID  =  "io.kamon" %% "kamon-zipkin" % Version.kamonReporter excludeAll ExclusionRules.excludeLogback
     val kamonSigar: ModuleID   = "io.kamon"           % "sigar-loader" % Version.kamonSigar
+    val swaggerJaxrs: ModuleID  = "io.swagger"        % "swagger-jaxrs" % Version.swaggerJaxrs
     val swaggerUI: ModuleID    = "org.webjars"        % "swagger-ui"   % Version.swaggerUI
     val sprayJson: ModuleID    = "io.spray"          %% "spray-json"   % Version.sprayJson
     val slf4j: ModuleID        = "org.slf4j"          % "slf4j-api"    % Version.slf4j
