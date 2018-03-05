@@ -27,7 +27,7 @@ trait StaticResources {
     get {
       path("") {
         pathEndOrSingleSlash {
-          getFromResource("swagger-ui/index.html")
+          getFromResource("/swagger-ui/index.html")
         }
       } ~
       pathPrefix("webjars") {

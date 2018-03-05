@@ -53,13 +53,22 @@ trait Api extends CoreActors with Core with LazyLogging {
         if (cluster.state.leader.isEmpty)
           failWith(new Exception("No leader elected for the cluster"))
         else if (!appConfig.disableWorkers && cluster.state.members.size < 2)
-          complete("OK - Expected at least one worker (Woken validation server) in the cluster")
+          complete("UP - Expected at least one worker (Woken validation server) in the cluster")
         else
-          complete("OK")
+          complete("UP")
       }
     }
 
-    cors()(SwaggerService.routes ~ miningService.routes ~ healthRoute)
+    val readinessRoute = pathPrefix("readiness") {
+      get {
+        if (cluster.state.leader.isEmpty)
+          failWith(new Exception("No leader elected for the cluster"))
+        else
+          complete("READY")
+      }
+    }
+
+    cors()(SwaggerService.routes ~ miningService.routes ~ healthRoute ~ readinessRoute)
   }
 
 }
