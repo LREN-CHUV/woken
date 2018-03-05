@@ -18,13 +18,16 @@
 package ch.chuv.lren.woken.api.swagger
 
 import com.github.swagger.akka.SwaggerHttpService
+import com.github.swagger.akka.model.Info
 
+@SuppressWarnings(Array("org.wartremover.warts.Any"))
 object SwaggerService extends SwaggerHttpService {
 
-  //  override def apiTypes   = Seq(typeOf[MiningServiceApi])
-  //  override def apiVersion = "0.2"
-  //  override def baseUrl    = "/" // let swagger-ui determine the host and port
-  //  override def docsPath   = "api-docs"
-  //  override def apiInfo    = Some(new ApiInfo("Api users", "", "", "", "", ""))
-  override def apiClasses: Set[Class[_]] = Set(classOf[MiningServiceApi])
+  override val basePath    = "/"
+  override val apiDocsPath = "api-docs"
+  override val info        = Info(version = "0.1")
+
+  override val apiClasses: Set[Class[_]] = Set(classOf[MiningServiceApi])
+  override val unwantedDefinitions       = Seq("Function1", "Function1RequestContextFutureRouteResult")
+
 }
