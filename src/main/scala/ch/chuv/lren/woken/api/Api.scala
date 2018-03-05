@@ -23,6 +23,7 @@ import ch.chuv.lren.woken.dao.FeaturesDAL
 import ch.chuv.lren.woken.service.JobResultService
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
+import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 import com.typesafe.scalalogging.LazyLogging
 
 /**
@@ -46,20 +47,19 @@ trait Api extends CoreActors with Core with LazyLogging {
         jobsConfig
       )
 
-    SwaggerService.routes ~ miningService.routes ~
-    pathPrefix("health") {
+    val healthRoute = pathPrefix("health") {
       get {
         // TODO: proper health check is required, check db connection, check cluster availability...
         if (cluster.state.leader.isEmpty)
           failWith(new Exception("No leader elected for the cluster"))
         else if (!appConfig.disableWorkers && cluster.state.members.size < 2)
-          failWith(
-            new Exception("Expected at least one worker (Woken validation server) in the cluster")
-          )
+          complete("OK - Expected at least one worker (Woken validation server) in the cluster")
         else
           complete("OK")
       }
     }
+
+    cors()(SwaggerService.routes ~ miningService.routes ~ healthRoute)
   }
 
 }
