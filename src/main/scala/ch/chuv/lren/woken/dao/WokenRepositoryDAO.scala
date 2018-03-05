@@ -18,6 +18,7 @@
 package ch.chuv.lren.woken.dao
 
 import java.time.OffsetDateTime
+import java.util.Base64
 
 import doobie._
 import doobie.implicits._
@@ -95,6 +96,14 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
     case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
         if visualisationOtherResults.contains(shape) =>
       OtherDataJobResult(jobId, node, timestamp, shape, function, data)
+    case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
+        if serializedModelsResults.contains(shape) =>
+      SerializedModelJobResult(jobId,
+                               node,
+                               timestamp,
+                               shape,
+                               function,
+                               Base64.getDecoder.decode(data))
     case (jobId, node, timestamp, shape, function, data, error) =>
       val msg =
         s"Cannot handle job results of shape $shape produced by function $function with data $data, error $error"
@@ -132,6 +141,14 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
        None)
     case j: OtherDataJobResult =>
       (j.jobId, j.node.take(32), j.timestamp, j.shape, j.algorithm.take(255), Some(j.data), None)
+    case j: SerializedModelJobResult =>
+      (j.jobId,
+       j.node.take(32),
+       j.timestamp,
+       j.shape,
+       j.algorithm.take(255),
+       Some(Base64.getEncoder.encodeToString(j.data)),
+       None)
   }
 
   private implicit val JobResultComposite: Composite[JobResult] =

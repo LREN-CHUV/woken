@@ -31,7 +31,6 @@ import ch.chuv.lren.woken.messages.query._
 
 import scala.concurrent.{ ExecutionContext, Future }
 import com.typesafe.scalalogging.LazyLogging
-import cats.data._
 import cats.implicits._
 import spray.json._
 import queryProtocol._
@@ -87,7 +86,7 @@ case class WokenService(node: String)(implicit val system: ActorSystem,
       .mapAsync(1) {
         case (url, response) if response.status.isSuccess() =>
           (url.pure[Future], Unmarshal(response).to[QueryResult]).mapN((_, _))
-        case (url, response) =>
+        case (url, failure) =>
           (url,
            QueryResult("",
                        node,
@@ -95,7 +94,7 @@ case class WokenService(node: String)(implicit val system: ActorSystem,
                        Shapes.error.mime,
                        "dispatch",
                        None,
-                       Some(response.entity.toString))).pure[Future]
+                       Some(failure.entity.toString))).pure[Future]
       }
       .map(identity)
 

@@ -17,8 +17,10 @@
 
 package ch.chuv.lren.woken.web
 
+import java.io.File
+
 import scala.concurrent.duration._
-import akka.actor.{ ActorRef, ActorRefFactory, ActorSystem }
+import akka.actor.ActorRef
 import akka.util.Timeout
 import akka.cluster.Cluster
 import akka.cluster.client.ClusterClientReceptionist
@@ -28,7 +30,6 @@ import cats.effect.IO
 import ch.chuv.lren.woken.api.{ Api, MasterRouter }
 import ch.chuv.lren.woken.config.{
   AlgorithmsConfiguration,
-  AppConfiguration,
   DatabaseConfiguration,
   DatasetsConfiguration
 }
@@ -36,17 +37,19 @@ import ch.chuv.lren.woken.core.{ CoordinatorConfig, Core, CoreActors }
 import ch.chuv.lren.woken.dao.{ FeaturesDAL, MetadataRepositoryDAO, WokenRepositoryDAO }
 import ch.chuv.lren.woken.service._
 import ch.chuv.lren.woken.ssl.WokenSSLConfiguration
-import akka.stream.{ ActorMaterializer, ActorMaterializerSettings, Supervision }
 import ch.chuv.lren.woken.backends.woken.WokenService
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import kamon.prometheus.PrometheusReporter
+import kamon.sigar.SigarProvisioner
 import kamon.system.SystemMetrics
 import kamon.zipkin.ZipkinReporter
+import org.hyperic.sigar.{ Sigar, SigarLoader }
 
-import scala.concurrent.{ ExecutionContextExecutor, Future }
+import scala.concurrent.Future
 import scala.language.postfixOps
 import scala.sys.ShutdownHookThread
+import scala.util.Try
 
 /**
   * This trait implements ``Core`` by starting the required ``ActorSystem`` and registering the
@@ -61,40 +64,58 @@ trait BootedCore
     with WokenSSLConfiguration
     with LazyLogging {
 
-  override lazy val appConfig: AppConfiguration = AppConfiguration
-    .read(config)
-    .valueOr(configurationFailed)
+  override def beforeBoot(): Unit = {
 
-  logger.info(s"Starting actor system ${appConfig.clusterSystemName}")
+    val kamonConfig = config.getConfig("kamon")
 
-  SystemMetrics.startCollecting()
-  Kamon.addReporter(new PrometheusReporter)
-  Kamon.addReporter(new ZipkinReporter)
+    if (kamonConfig.getBoolean("enabled") || kamonConfig.getBoolean("prometheus.enabled") || kamonConfig
+          .getBoolean("zipkin.enabled")) {
 
-  /**
-    * Construct the ActorSystem we will use in our application
-    */
-  override lazy implicit val system: ActorSystem = ActorSystem(appConfig.clusterSystemName, config)
-  lazy val actorRefFactory: ActorRefFactory      = system
-  val decider: Supervision.Decider = {
-    case err: RuntimeException =>
-      logger.error(err.getMessage)
-      Supervision.Resume
-    case _ =>
-      logger.error("Unknown error. Stopping the stream. ")
-      Supervision.Stop
+      logger.info("Kamon configuration:")
+      logger.info(config.getConfig("kamon").toString)
+      logger.info(s"Start monitoring...")
+
+      Kamon.reconfigure(config)
+
+      val hostSystemMetrics = kamonConfig.getBoolean("system-metrics.host.enabled")
+      if (hostSystemMetrics) {
+        logger.info(s"Start Sigar metrics...")
+        Try {
+          val sigarLoader = new SigarLoader(classOf[Sigar])
+          sigarLoader.load()
+        }
+
+        Try(
+          SigarProvisioner.provision(
+            new File(System.getProperty("user.home") + File.separator + ".native")
+          )
+        ).recover { case e: Exception => logger.warn("Cannot provision Sigar", e) }
+
+        if (SigarProvisioner.isNativeLoaded)
+          logger.info("Sigar metrics are available")
+        else
+          logger.warn("Sigar metrics are not available")
+      }
+
+      if (hostSystemMetrics || kamonConfig.getBoolean("system-metrics.jvm.enabled")) {
+        logger.info(s"Start collection of system metrics...")
+        SystemMetrics.startCollecting()
+      }
+
+      if (kamonConfig.getBoolean("prometheus.enabled"))
+        Kamon.addReporter(new PrometheusReporter)
+
+      if (kamonConfig.getBoolean("zipkin.enabled"))
+        Kamon.addReporter(new ZipkinReporter)
+    }
   }
-  implicit lazy val actorMaterializer: ActorMaterializer = ActorMaterializer(
-    ActorMaterializerSettings(system).withSupervisionStrategy(decider)
-  )
-  implicit val executionContext: ExecutionContextExecutor = system.dispatcher
 
   private lazy val resultsDbConfig = DatabaseConfiguration
     .factory(config)("woken")
     .valueOr(configurationFailed)
 
   private lazy val featuresDbConnection = DatabaseConfiguration
-    .factory(config)(jobsConf.featuresDb)
+    .factory(config)(jobsConfig.featuresDb)
     .valueOr(configurationFailed)
 
   override lazy val featuresDAL = FeaturesDAL(featuresDbConnection)
@@ -108,56 +129,54 @@ trait BootedCore
   }
   override lazy val jobResultService: JobResultService = jrsIO.unsafeRunSync()
 
-  private lazy val metaDbConfig = DatabaseConfiguration
-    .factory(config)(jobsConf.metaDb)
-    .valueOr(configurationFailed)
-
-  private lazy val vmsIO: IO[VariablesMetaService] = for {
-    xa <- DatabaseConfiguration.dbTransactor(metaDbConfig)
-    _  <- DatabaseConfiguration.testConnection[IO](xa)
-    metaDb = new MetadataRepositoryDAO[IO](xa)
-  } yield {
-    VariablesMetaService(metaDb.variablesMeta)
-  }
-
-  private lazy val datasetsService: DatasetService = ConfBasedDatasetService(config)
-
-  override lazy val variablesMetaService: VariablesMetaService = vmsIO.unsafeRunSync()
-
-  private lazy val algorithmLibraryService: AlgorithmLibraryService = AlgorithmLibraryService()
-
-  //Cluster(system).join(RemoteAddressExtension(system).getAddress())
-  lazy val cluster = Cluster(system)
-
   override lazy val coordinatorConfig = CoordinatorConfig(
     chronosHttp,
     appConfig.dockerBridgeNetwork,
     featuresDAL,
     jobResultService,
-    jobsConf,
+    jobsConfig,
     DatabaseConfiguration.factory(config)
   )
 
-  private lazy val wokenService: WokenService = WokenService(coordinatorConfig.jobsConf.node)
+  private def mainRouterSupervisorProps = {
 
-  private lazy val dispatcherService: DispatcherService =
-    DispatcherService(DatasetsConfiguration.datasets(config), wokenService)
+    val wokenService: WokenService = WokenService(coordinatorConfig.jobsConf.node)
+    val dispatcherService: DispatcherService =
+      DispatcherService(DatasetsConfiguration.datasets(config), wokenService)
+    val algorithmLibraryService: AlgorithmLibraryService = AlgorithmLibraryService()
 
-  private lazy val mainRouterSupervisorProps = BackoffSupervisor.props(
-    Backoff.onFailure(
-      MasterRouter.props(appConfig,
-                         coordinatorConfig,
-                         datasetsService,
-                         variablesMetaService,
-                         dispatcherService,
-                         algorithmLibraryService,
-                         AlgorithmsConfiguration.factory(config)),
-      childName = "mainRouter",
-      minBackoff = 100 milliseconds,
-      maxBackoff = 1 seconds,
-      randomFactor = 0.2
+    val metaDbConfig = DatabaseConfiguration
+      .factory(config)(jobsConfig.metaDb)
+      .valueOr(configurationFailed)
+
+    val vmsIO: IO[VariablesMetaService] = for {
+      xa <- DatabaseConfiguration.dbTransactor(metaDbConfig)
+      _  <- DatabaseConfiguration.testConnection[IO](xa)
+      metaDb = new MetadataRepositoryDAO[IO](xa)
+    } yield {
+      VariablesMetaService(metaDb.variablesMeta)
+    }
+
+    val datasetsService: DatasetService = ConfBasedDatasetService(config)
+
+    val variablesMetaService: VariablesMetaService = vmsIO.unsafeRunSync()
+
+    BackoffSupervisor.props(
+      Backoff.onFailure(
+        MasterRouter.props(appConfig,
+                           coordinatorConfig,
+                           datasetsService,
+                           variablesMetaService,
+                           dispatcherService,
+                           algorithmLibraryService,
+                           AlgorithmsConfiguration.factory(config)),
+        childName = "mainRouter",
+        minBackoff = 100 milliseconds,
+        maxBackoff = 1 seconds,
+        randomFactor = 0.2
+      )
     )
-  )
+  }
 
   /**
     * Create and start actor that acts as akka entry-point
@@ -165,31 +184,42 @@ trait BootedCore
   override lazy val mainRouter: ActorRef =
     system.actorOf(mainRouterSupervisorProps, name = "entrypoint")
 
-  ClusterClientReceptionist(system).registerService(mainRouter)
+  override lazy val cluster: Cluster = Cluster(system)
 
-  implicit val timeout: Timeout = Timeout(5.seconds)
+  override def startActors(): Unit = {
+    logger.info(s"Start actor system ${appConfig.clusterSystemName}...")
+    logger.info(s"Cluster has roles ${cluster.selfRoles.mkString(",")}")
 
-  if (appConfig.webServicesHttps) Http().setDefaultServerHttpContext(https)
+    ClusterClientReceptionist(system).registerService(mainRouter)
 
-  // start a new HTTP server on port 8080 with our service actor as the handler
-  val binding: Future[Http.ServerBinding] = Http().bindAndHandle(routes,
-                                                                 interface =
-                                                                   appConfig.networkInterface,
-                                                                 port = appConfig.webServicesPort)
-
-  /**
-    * Ensure that the constructed ActorSystem is shut down when the JVM shuts down
-    */
-  val shutdownHook: ShutdownHookThread = sys.addShutdownHook {
-    SystemMetrics.stopCollecting()
-    binding
-      .flatMap(_.unbind())
-      .flatMap(_ => system.terminate())
-      .onComplete(_ => ())
   }
 
-  logger.info("Woken startup complete")
+  override def startServices(): Unit = {
+    logger.info(s"Start web server on port ${appConfig.webServicesPort}")
 
-  ()
+    implicit val timeout: Timeout = Timeout(5.seconds)
+
+    if (appConfig.webServicesHttps) Http().setDefaultServerHttpContext(https)
+
+    // start a new HTTP server on port 8080 with our service actor as the handler
+    val binding: Future[Http.ServerBinding] = Http().bindAndHandle(routes,
+                                                                   interface =
+                                                                     appConfig.networkInterface,
+                                                                   port = appConfig.webServicesPort)
+
+    /**
+      * Ensure that the constructed ActorSystem is shut down when the JVM shuts down
+      */
+    val _: ShutdownHookThread = sys.addShutdownHook {
+      SystemMetrics.stopCollecting()
+      binding
+        .flatMap(_.unbind())
+        .flatMap(_ => system.terminate())
+        .onComplete(_ => ())
+    }
+
+    logger.info("Woken startup complete")
+
+  }
 
 }

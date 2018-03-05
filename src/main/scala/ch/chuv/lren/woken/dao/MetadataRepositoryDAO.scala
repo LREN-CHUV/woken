@@ -23,7 +23,6 @@ import cats._
 import cats.implicits._
 import ch.chuv.lren.woken.messages.variables.{ GroupMetaData, variablesProtocol }
 import ch.chuv.lren.woken.core.model.VariablesMeta
-import spray.json.JsObject
 import variablesProtocol._
 
 import scala.collection.mutable
@@ -66,7 +65,7 @@ class VariablesMetaRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
     val v     = variablesMetaCache.get(table)
 
     v.fold(
-      sql"SELECT id, source, hierarchy, target_table, histogram_groupings FROM meta_variables WHERE target_table=$table"
+      sql"SELECT id, source, hierarchy, target_table, histogram_groupings FROM meta_variables WHERE UPPER(target_table)=UPPER($table)"
         .query[VariablesMeta]
         .option
         .transact(xa)

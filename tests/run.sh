@@ -1,5 +1,14 @@
 #!/usr/bin/env bash
 
+#
+# Start Woken and its full environment
+#
+# Option:
+#   --no-tests: skip the test suite
+#   --all-tests: execute the full suite of tests, including slow tests such as Chaos testing
+#   --no-frontend: do not start the frontend
+#
+
 set -e
 
 get_script_dir () {
@@ -18,17 +27,20 @@ cd "$(get_script_dir)"
 
 frontend=1
 tests=1
+test_args="testOnly -- -l org.scalatest.tags.Slow"
 for param in "$@"
 do
   if [ "--no-frontend" == "$param" ]; then
     frontend=0
     echo "INFO: --no-frontend option detected !"
-    break;
   fi
   if [ "--no-tests" == "$param" ]; then
     tests=0
     echo "INFO: --no-tests option detected !"
-    break;
+  fi
+  if [ "--all-tests" == "$param" ]; then
+    test_args=""
+    echo "INFO: --all-tests option detected !"
   fi
 done
 
@@ -70,7 +82,7 @@ echo "Migrate metadata database..."
 $DOCKER_COMPOSE run sample_meta_db_setup
 
 echo "Migrate features database..."
-$DOCKER_COMPOSE run sample_db_setup
+$DOCKER_COMPOSE run sample_data_db_setup
 
 echo "Run containers..."
 for i in 1 2 3 4 5 ; do
@@ -104,7 +116,7 @@ if [ $tests == 1 ]; then
     echo
     echo "Testing Akka API..."
 
-    $DOCKER_COMPOSE run wokentest
+    $DOCKER_COMPOSE run wokentest ${test_args}
 fi
 
 if [ $frontend == 1 ]; then

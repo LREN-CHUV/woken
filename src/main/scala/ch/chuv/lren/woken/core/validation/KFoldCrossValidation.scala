@@ -17,38 +17,47 @@
 
 package ch.chuv.lren.woken.core.validation
 
-import ch.chuv.lren.woken.core.features.FeaturesQuery
+import ch.chuv.lren.woken.core.features.{ FeaturesQuery, QueryOffset }
 import ch.chuv.lren.woken.dao.FeaturesDAL
+import com.typesafe.scalalogging.LazyLogging
 import spray.json.{ JsValue, _ }
 
 trait CrossValidation {
 
-  def partition: Map[Int, (Int, Int)]
+  def partition: Map[Int, QueryOffset]
 
 }
 
 /**
-  * TODO In WP3 should be an Actor
+  * K-Fold cross validation
   *
-  * @param data
-  * @param foldCount
+  * @param features The features used for training. Each JsObject contains
+  * @param labels The labels used as the source of ground truth
+  * @param foldCount Number of folds
+  * @see https://en.wikipedia.org/wiki/Cross-validation_(statistics)#k-fold_cross-validation
   */
-class KFoldCrossValidation(data: Stream[JsObject], labels: Stream[JsObject], foldCount: Int)
+// TODO: list of features or even labels may be loaded from Woken-validation, here we should just
+// generate the SQL queries to access those parts of the dataset
+class KFoldCrossValidation(features: List[JsObject], labels: List[JsObject], foldCount: Int)
     extends CrossValidation {
 
+  assert(features.lengthCompare(labels.size) == 0,
+         "Features and labels should have the same number of elements")
+
   /**
+    * Generates the partition. It can be empty if the number of folds is greater than the length of the dataset
     *
-    * @return
+    * @return a map containing for each fold index the offset and the size of the partition
     */
-  // TODO: return None if data size < fold count
-  override def partition: Map[Int, (Int, Int)] = {
-    val nb                              = data.size
-    var partition: Map[Int, (Int, Int)] = Map()
+  override lazy val partition: Map[Int, QueryOffset] = {
+    val nb = features.size
+
+    var partition: Map[Int, QueryOffset] = Map()
     if (nb >= foldCount) {
       val t = nb.toFloat / foldCount.toFloat
       for (i: Int <- 0 until foldCount) {
-        partition += i -> Tuple2(scala.math.round(i * t),
-                                 scala.math.round((i + 1) * t) - scala.math.round(i * t))
+        partition += i -> QueryOffset(scala.math.round(i * t),
+                                      scala.math.round((i + 1) * t) - scala.math.round(i * t))
       }
     }
     partition
@@ -56,17 +65,17 @@ class KFoldCrossValidation(data: Stream[JsObject], labels: Stream[JsObject], fol
 
   /**
     *
-    * @param k
+    * @param fold
     * @return
     */
-  def getTestSet(k: Int): (List[JsValue], List[JsValue]) =
+  def getTestSet(fold: Int): (List[JsObject], List[JsObject]) =
     (
-      data.toList.slice(partition(k)._1, partition(k)._1 + partition(k)._2),
-      labels.toList.slice(partition(k)._1, partition(k)._1 + partition(k)._2)
+      features.slice(partition(fold).start, partition(fold).end),
+      labels.slice(partition(fold).start, partition(fold).end)
     )
 
   def groundTruth(fold: Int): List[JsValue] =
-    getTestSet(fold)._2.map(x => x.asJsObject.fields.toList.head._2)
+    getTestSet(fold)._2.map(x => x.fields.toList.head._2)
 
 }
 
@@ -76,7 +85,7 @@ class KFoldCrossValidation(data: Stream[JsObject], labels: Stream[JsObject], fol
   *
   * @author Arnaud Jutzeler
   */
-object KFoldCrossValidation {
+object KFoldCrossValidation extends LazyLogging {
 
   def apply(query: FeaturesQuery,
             foldCount: Int,
@@ -84,20 +93,37 @@ object KFoldCrossValidation {
 
     val sql = query.query
 
+    logger.info(s"Cross validation query: $query")
+
     // JSON objects with fieldname corresponding to variables names
     val (_, d) = featuresDAL.runQuery(featuresDAL.ldsmConnection, sql)
+
+    logger.info(s"Query response: ${d.mkString(",")}")
 
     // Separate features from labels
     val variables = query.dbVariables
     val features  = query.dbCovariables ++ query.dbGrouping
 
-    val (data, labels) = d
+    logger.info(s"Variables: ${variables.mkString(",")}")
+    logger.info(s"Features: ${features.mkString(",")}")
+
+    apply(dataframe = d, variables = variables, features = features, foldCount = foldCount)
+  }
+
+  def apply(dataframe: Stream[JsObject],
+            variables: List[String],
+            features: List[String],
+            foldCount: Int): KFoldCrossValidation = {
+    val (data, labels) = dataframe.toList
       .map(
         o =>
           (JsObject(o.fields.filterKeys(features.contains(_))),
            JsObject(o.fields.filterKeys(variables.contains(_))))
       )
       .unzip
+
+    logger.info(s"Data: ${data.mkString(",")}")
+    logger.info(s"Labels: ${labels.mkString(",")}")
 
     new KFoldCrossValidation(data, labels, foldCount)
   }

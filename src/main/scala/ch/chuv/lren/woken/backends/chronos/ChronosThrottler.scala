@@ -46,17 +46,19 @@ class ChronosThrottler(jobsConfig: JobsConfiguration, implicit val materializer:
     extends Actor
     with ActorLogging {
 
-  private var chronosWorker: ActorRef = _
-  private var throttler: ActorRef     = _
+  private lazy val chronosWorker: ActorRef =
+    context.actorOf(ChronosService.props(jobsConfig), "chronos")
 
+  @SuppressWarnings(Array("org.wartremover.warts.Any"))
+  private lazy val throttler: ActorRef = Source
+    .actorRef(1000, OverflowStrategy.fail)
+    .throttle(1, 100.milliseconds, 1, ThrottleMode.shaping)
+    .to(Sink.actorRef(chronosWorker, NotUsed))
+    .withAttributes(ActorAttributes.supervisionStrategy(Supervision.resumingDecider))
+    .run()
+
+  @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
   override def preStart(): Unit = {
-    chronosWorker = context.actorOf(ChronosService.props(jobsConfig), "chronos")
-    throttler = Source
-      .actorRef(1000, OverflowStrategy.fail)
-      .throttle(1, 100.milliseconds, 1, ThrottleMode.shaping)
-      .to(Sink.actorRef(chronosWorker, NotUsed))
-      .withAttributes(ActorAttributes.supervisionStrategy(Supervision.resumingDecider))
-      .run()
     context.watch(chronosWorker)
     context.watch(throttler)
   }
@@ -66,6 +68,7 @@ class ChronosThrottler(jobsConfig: JobsConfiguration, implicit val materializer:
   override def preRestart(reason: Throwable, message: Option[Any]): Unit =
     postStop()
 
+  @SuppressWarnings(Array("org.wartremover.warts.Any"))
   override def receive: Receive = {
     // Cleanup requests do not need to be rate-limited
     case cleanup: ChronosService.Cleanup =>

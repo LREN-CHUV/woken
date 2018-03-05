@@ -15,13 +15,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.config
+package ch.chuv.lren.woken.dao
 
-import cats.data.NonEmptyList
+import org.scalamock.scalatest.MockFactory
+import org.scalatest.{ Matchers, WordSpec }
 
-trait ConfigurationLoader {
-
-  protected def configurationFailed[B](e: NonEmptyList[String]): B =
-    throw new IllegalStateException(s"Invalid configuration: ${e.toList.mkString(", ")}")
-
-}
+class MetadataRepositoryDAOTest extends WordSpec with Matchers with MockFactory {}

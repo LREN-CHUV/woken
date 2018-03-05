@@ -15,26 +15,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.core.model
+package ch.chuv.lren.woken.core.validation
 
-import org.scalatest.{ Matchers, WordSpec }
+import akka.actor.ActorSystem
+import akka.stream.ActorMaterializer
+import akka.testkit.TestKit
+import ch.chuv.lren.woken.util.JsonUtils
+import com.typesafe.config.{ Config, ConfigFactory }
+import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 
-import Shapes._
+class CrossValidationFlowTest
+    extends TestKit(ActorSystem("MySpec"))
+    with WordSpecLike
+    with Matchers
+    with BeforeAndAfterAll
+    with JsonUtils {
 
-class ShapesTest extends WordSpec with Matchers {
+  val config: Config                           = ConfigFactory.load("test.conf")
+  implicit val materializer: ActorMaterializer = ActorMaterializer()
 
-  "Shapes" should {
-    "identify highcharts results" in {
-      highcharts.isIdentifiedBy("application/highcharts+json") shouldBe true
-      highcharts.isIdentifiedBy("unknown") shouldBe false
-    }
-
-    "return the shape from a short name" in {
-      fromString("html") shouldBe Some(html)
-    }
-
-    "return the shape from a mime type" in {
-      fromString("application/vnd.plotly.v1+json") shouldBe Some(plotly)
-    }
+  override def afterAll {
+    TestKit.shutdownActorSystem(system)
   }
+
 }

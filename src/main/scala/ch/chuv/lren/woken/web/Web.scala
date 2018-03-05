@@ -17,6 +17,9 @@
 
 package ch.chuv.lren.woken.web
 
+import com.typesafe.scalalogging.Logger
+import org.slf4j.LoggerFactory
+
 /**
   * Provides the web server (spray-can) for the REST api in ``Api``, using the actor system
   * defined in ``Core``.
@@ -28,4 +31,15 @@ package ch.chuv.lren.woken.web
   * Benefits of separate ``ActorSystem`` include the ability to use completely different
   * configuration, especially when it comes to the threading core.model.
   */
-object Web extends App with BootedCore with Rest
+object Web extends BootedCore with Rest {
+
+  override protected lazy val logger: Logger =
+    Logger(LoggerFactory.getLogger("Woken"))
+
+  def main(args: Array[String]): Unit = {
+    beforeBoot()
+    startActors()
+    startServices()
+  }
+
+}

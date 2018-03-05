@@ -27,7 +27,6 @@ import ch.chuv.lren.woken.api.swagger.MetadataServiceApi
 import ch.chuv.lren.woken.authentication.BasicAuthenticator
 import ch.chuv.lren.woken.config.AppConfiguration
 import ch.chuv.lren.woken.messages.datasets.{ DatasetsQuery, DatasetsResponse }
-import kamon.akka.http.TracingDirectives
 
 import scala.concurrent.duration._
 import scala.concurrent.{ ExecutionContext, Future }
@@ -38,8 +37,7 @@ class MetadataApiService(
 )(implicit system: ActorSystem)
     extends MetadataServiceApi
     with SprayJsonSupport
-    with BasicAuthenticator
-    with TracingDirectives {
+    with BasicAuthenticator {
 
   implicit val executionContext: ExecutionContext = system.dispatcher
   implicit val timeout: Timeout                   = Timeout(180.seconds)
@@ -52,17 +50,15 @@ class MetadataApiService(
   override def listDatasets: Route = path("datasets") {
     authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator) { user =>
       get {
-        operationName("listDatasets", Map("requestType" -> "http-post")) { ctx =>
-          ctx.complete {
-            (masterRouter ? DatasetsQuery)
-              .mapTo[DatasetsResponse]
-              .map { datasetResponse =>
-                OK -> datasetResponse.datasets.toJson
-              }
-              .recoverWith {
-                case e => Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
-              }
-          }
+        complete {
+          (masterRouter ? DatasetsQuery)
+            .mapTo[DatasetsResponse]
+            .map { datasetResponse =>
+              OK -> datasetResponse.datasets.toJson
+            }
+            .recoverWith {
+              case e => Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
+            }
         }
       }
     }

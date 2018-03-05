@@ -29,11 +29,26 @@ import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
 
 import scala.language.higherKinds
 
+/**
+  * Connection configuration for a database
+  *
+  * @param dbiDriver R DBI driver, default to PostgreSQL
+  * @param dbApiDriver Python DBAPI driver, default to postgresql
+  * @param jdbcDriver Java JDBC driver, default to org.postgresql.Driver
+  * @param jdbcUrl Java JDBC URL
+  * @param host Database host
+  * @param port Database port
+  * @param database Name of the database, default to the user name
+  * @param user Database user
+  * @param password Database password
+  */
 final case class DatabaseConfiguration(dbiDriver: String,
+                                       dbApiDriver: String,
                                        jdbcDriver: String,
                                        jdbcUrl: String,
                                        host: String,
                                        port: Int,
+                                       database: String,
                                        user: String,
                                        password: String)
 
@@ -45,15 +60,18 @@ object DatabaseConfiguration {
     dbConfig.andThen { db =>
       val dbiDriver: Validation[String] =
         db.validateString("dbi_driver").orElse(lift("PostgreSQL"))
+      val dbApiDriver: Validation[String] =
+        db.validateString("dbapi_driver").orElse(lift("postgresql"))
       val jdbcDriver: Validation[String] =
         db.validateString("jdbc_driver").orElse(lift("org.postgresql.Driver"))
-      val jdbcUrl  = db.validateString("jdbc_url")
-      val host     = db.validateString("host")
-      val port     = db.validateInt("port")
-      val user     = db.validateString("user")
-      val password = db.validateString("password")
+      val jdbcUrl                      = db.validateString("jdbc_url")
+      val host                         = db.validateString("host")
+      val port                         = db.validateInt("port")
+      val user                         = db.validateString("user")
+      val password                     = db.validateString("password")
+      val database: Validation[String] = db.validateString("database").orElse(user)
 
-      (dbiDriver, jdbcDriver, jdbcUrl, host, port, user, password) mapN DatabaseConfiguration.apply
+      (dbiDriver, dbApiDriver, jdbcDriver, jdbcUrl, host, port, database, user, password) mapN DatabaseConfiguration.apply
     }
   }
 

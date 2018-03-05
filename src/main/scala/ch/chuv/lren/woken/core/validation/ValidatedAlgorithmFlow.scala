@@ -31,11 +31,7 @@ import ch.chuv.lren.woken.core.{ CoordinatorActor, CoordinatorConfig }
 import ch.chuv.lren.woken.core.model.{ ErrorJobResult, JobResult, PfaJobResult }
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.messages.query.{ AlgorithmSpec, MiningQuery, ValidationSpec }
-import ch.chuv.lren.woken.messages.validation.{
-  KFoldCrossValidationScore,
-  Score,
-  validationProtocol
-}
+import ch.chuv.lren.woken.messages.validation.{ Score, validationProtocol }
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
 import spray.json._
 import validationProtocol._
@@ -59,7 +55,7 @@ object ValidatedAlgorithmFlow {
     }
   }
 
-  type ValidationResults = Map[ValidationSpec, Either[String, KFoldCrossValidationScore]]
+  type ValidationResults = Map[ValidationSpec, Either[String, Score]]
 
   case class ResultResponse(algorithm: AlgorithmSpec, model: JobResult)
 
@@ -138,9 +134,11 @@ case class ValidatedAlgorithmFlow(
       }
       .mapConcat(identity)
       .via(crossValidationFlow.crossValidate(parallelism))
-      .map(t => t._1.validation -> Right(t._2))
-      .fold[Map[ValidationSpec, Either[String, KFoldCrossValidationScore]]](Map()) { (m, r) =>
-        m + r
+      .map(_.map(t => t._1.validation -> t._2))
+      .fold[Map[ValidationSpec, Either[String, Score]]](Map()) { (m, rOpt) =>
+        rOpt.fold(m) { r =>
+          m + r
+        }
       }
       .named("cross-validate")
 
@@ -153,7 +151,7 @@ case class ValidatedAlgorithmFlow(
             validations
               .map({
                 case (key, Right(value)) =>
-                  JsObject("code" -> JsString(key.code), "data" -> value.asInstanceOf[Score].toJson)
+                  JsObject("code" -> JsString(key.code), "data" -> value.toJson)
                 case (key, Left(message)) =>
                   JsObject("code" -> JsString(key.code), "error" -> JsString(message))
               })
