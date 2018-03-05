@@ -21,7 +21,6 @@ import ch.chuv.lren.woken.config.DatasetsConfiguration
 import ch.chuv.lren.woken.messages.datasets.Dataset
 import com.typesafe.config.Config
 
-
 trait DatasetService {
   def datasets(): Set[Dataset]
 }
