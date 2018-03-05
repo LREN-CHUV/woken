@@ -18,7 +18,6 @@
 package ch.chuv.lren.woken.core
 
 import akka.actor.{ Actor, ActorLogging, ActorRef, LoggingFSM }
-//import com.github.levkhomich.akka.tracing.ActorTracing
 import ch.chuv.lren.woken.backends.DockerJob
 
 import scala.concurrent.duration._
@@ -77,7 +76,6 @@ object FederationCoordinatorStates {
 class FederationCoordinatorActor()
     extends Actor
     with ActorLogging
-    /*with ActorTracing*/
     with LoggingFSM[FederationCoordinatorStates.State, FederationCoordinatorStates.StateData] {
   {
 

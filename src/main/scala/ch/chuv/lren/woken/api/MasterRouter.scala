@@ -30,7 +30,6 @@ import ch.chuv.lren.woken.messages.datasets.{ DatasetsQuery, DatasetsResponse }
 import ch.chuv.lren.woken.service.{ DatasetService, DispatcherService }
 
 import scala.concurrent.ExecutionContext
-//import com.github.levkhomich.akka.tracing.ActorTracing
 import ch.chuv.lren.woken.api.MasterRouter.QueuesSize
 import ch.chuv.lren.woken.backends.DockerJob
 import ch.chuv.lren.woken.core.model.ErrorJobResult
@@ -81,7 +80,6 @@ case class MasterRouter(appConfiguration: AppConfiguration,
                         experimentQuery2JobF: ExperimentQuery => Validation[ExperimentActor.Job],
                         miningQuery2JobF: MiningQuery => Validation[DockerJob])
     extends Actor
-    /*with ActorTracing*/
     with ActorLogging {
 
   import MasterRouter.RequestQueuesSize
@@ -105,7 +103,6 @@ case class MasterRouter(appConfiguration: AppConfiguration,
 
   def receive: PartialFunction[Any, Unit] = {
 
-    // TODO: MethodsQuery should be case object
     case MethodsQuery =>
       sender ! MethodsResponse(algorithmLibraryService.algorithms().compactPrint)
 
@@ -131,44 +128,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
                              errorMsg.reduceLeft(_ + ", " + _))
             initiator ! error.asQueryResult
           },
-          job =>
-            dispatcherService.dispatchTo(query.datasets) match {
-              case (_, true) => startMiningJob(job, initiator)
-              case _ =>
-                log.info("Dispatch mining query to remote workers...")
-
-                Source
-                  .single(query)
-                  .via(dispatcherService.remoteDispatchMiningFlow())
-                  .fold(List[QueryResult]()) {
-                    _ :+ _._2
-                  }
-                  .map {
-                    case List() =>
-                      ErrorJobResult("",
-                                     coordinatorConfig.jobsConf.node,
-                                     OffsetDateTime.now(),
-                                     query.algorithm.code,
-                                     "No results").asQueryResult
-
-                    case List(result) => result
-
-                    case listOfResults =>
-                      compoundResult(listOfResults)
-                  }
-                  .map { queryResult =>
-                    initiator ! queryResult
-                    queryResult
-                  }
-                  .runWith(Sink.last)
-                  .failed
-                  .foreach { e =>
-                    log.error(e, s"Cannot complete mining query $query")
-                    val error =
-                      ErrorJobResult("", "", OffsetDateTime.now(), "experiment", e.toString)
-                    initiator ! error.asQueryResult
-                  }
-          }
+          job => runMining(query, initiator, job)
         )
       } else {
         val error =
@@ -193,56 +153,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
       val initiator = sender()
       log.debug(s"Received message: $query")
       if (experimentJobsInFlight.size <= experimentActiveActorsLimit) {
-        val jobValidated = experimentQuery2JobF(query)
-        jobValidated.fold(
-          errorMsg => {
-            val error =
-              ErrorJobResult("",
-                             "",
-                             OffsetDateTime.now(),
-                             "experiment",
-                             errorMsg.reduceLeft(_ + ", " + _))
-            initiator ! error.asQueryResult
-          },
-          job =>
-            dispatcherService.dispatchTo(query.trainingDatasets) match {
-              case (_, true) => startExperimentJob(job, initiator)
-              case _ =>
-                log.info("Dispatch mining query to remote workers...")
-
-                Source
-                  .single(query)
-                  .via(dispatcherService.remoteDispatchExperimentFlow())
-                  .fold(List[QueryResult]()) {
-                    _ :+ _._2
-                  }
-                  .map {
-                    case List() =>
-                      ErrorJobResult("",
-                                     coordinatorConfig.jobsConf.node,
-                                     OffsetDateTime.now(),
-                                     "experiment",
-                                     "No results").asQueryResult
-
-                    case List(result) => result
-
-                    case listOfResults =>
-                      compoundResult(listOfResults)
-                  }
-                  .map { queryResult =>
-                    initiator ! queryResult
-                    queryResult
-                  }
-                  .runWith(Sink.last)
-                  .failed
-                  .foreach { e =>
-                    log.error(e, s"Cannot complete experiment query $query")
-                    val error =
-                      ErrorJobResult("", "", OffsetDateTime.now(), "experiment", e.toString)
-                    initiator ! error.asQueryResult
-                  }
-          }
-        )
+        runExperiment(query, initiator)
       } else {
         val error =
           ErrorJobResult("", "", OffsetDateTime.now(), "experiment", "Too busy to accept new jobs.")
@@ -275,6 +186,98 @@ case class MasterRouter(appConfiguration: AppConfiguration,
     case e =>
       log.warning(s"Received unhandled request $e of type ${e.getClass}")
 
+  }
+
+  private def runMining(query: MiningQuery, initiator: ActorRef, job: DockerJob): Unit =
+    dispatcherService.dispatchTo(query.datasets) match {
+      case (_, true) => startMiningJob(job, initiator)
+      case _ =>
+        log.info("Dispatch mining query to remote workers...")
+
+        Source
+          .single(query)
+          .via(dispatcherService.remoteDispatchMiningFlow())
+          .fold(List[QueryResult]()) {
+            _ :+ _._2
+          }
+          .map {
+            case List() =>
+              ErrorJobResult("",
+                             coordinatorConfig.jobsConf.node,
+                             OffsetDateTime.now(),
+                             query.algorithm.code,
+                             "No results").asQueryResult
+
+            case List(result) => result
+
+            case listOfResults =>
+              compoundResult(listOfResults)
+          }
+          .map { queryResult =>
+            initiator ! queryResult
+            queryResult
+          }
+          .runWith(Sink.last)
+          .failed
+          .foreach { e =>
+            log.error(e, s"Cannot complete mining query $query")
+            val error =
+              ErrorJobResult("", "", OffsetDateTime.now(), "experiment", e.toString)
+            initiator ! error.asQueryResult
+          }
+    }
+
+  private def runExperiment(query: ExperimentQuery, initiator: ActorRef): Unit = {
+    val jobValidated = experimentQuery2JobF(query)
+    jobValidated.fold(
+      errorMsg => {
+        val error =
+          ErrorJobResult("",
+                         "",
+                         OffsetDateTime.now(),
+                         "experiment",
+                         errorMsg.reduceLeft(_ + ", " + _))
+        initiator ! error.asQueryResult
+      },
+      job =>
+        dispatcherService.dispatchTo(query.trainingDatasets) match {
+          case (_, true) => startExperimentJob(job, initiator)
+          case _ =>
+            log.info("Dispatch experiment query to remote workers...")
+
+            Source
+              .single(query)
+              .via(dispatcherService.remoteDispatchExperimentFlow())
+              .fold(List[QueryResult]()) {
+                _ :+ _._2
+              }
+              .map {
+                case List() =>
+                  ErrorJobResult("",
+                                 coordinatorConfig.jobsConf.node,
+                                 OffsetDateTime.now(),
+                                 "experiment",
+                                 "No results").asQueryResult
+
+                case List(result) => result
+
+                case listOfResults =>
+                  compoundResult(listOfResults)
+              }
+              .map { queryResult =>
+                initiator ! queryResult
+                queryResult
+              }
+              .runWith(Sink.last)
+              .failed
+              .foreach { e =>
+                log.error(e, s"Cannot complete experiment query $query")
+                val error =
+                  ErrorJobResult("", "", OffsetDateTime.now(), "experiment", e.toString)
+                initiator ! error.asQueryResult
+              }
+      }
+    )
   }
 
   private def startMiningJob(job: DockerJob, initiator: ActorRef): Unit = {

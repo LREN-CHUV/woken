@@ -21,7 +21,6 @@
       "code": "node2"
     }
   ],
-  "filters": [],
   "grouping": [],
   "targetTable": "sample_data",
   "user": {

@@ -17,12 +17,33 @@
 
 package ch.chuv.lren.woken.core.model
 
+/**
+  * List of shapes (formats) for the results produced by the algorithms
+  */
 object Shapes {
 
+  /**
+    * The shape of data returned by an algorithm
+    */
   sealed trait Shape {
+
+    /**
+      * @return the MIME type for the shape
+      */
     def mime: String
+
+    /**
+      * @return the list of possible values identifying this shape
+      */
     def values: Set[String]
-    def contains(s: String): Boolean = values.contains(s)
+
+    /**
+      * Checks if the string is an identifier of the current shape
+      *
+      * @param s The string to check
+      * @return true if this shape can be identified by s
+      */
+    def isIdentifiedBy(s: String): Boolean = values.contains(s)
   }
 
   object error extends Shape {
@@ -31,6 +52,10 @@ object Shapes {
     val values = Set(error, mime)
   }
 
+  /**
+    * Portable Format for Analytics (PFA)
+    * @see http://dmg.org/pfa/
+    */
   object pfa extends Shape {
     val pfa    = "pfa"
     val json   = "pfa_json"
@@ -38,6 +63,10 @@ object Shapes {
     val values = Set(pfa, json, mime)
   }
 
+  /**
+    * PFA encoded in Yaml
+    * @see http://dmg.org/pfa/
+    */
   object pfaYaml extends Shape {
     val yaml   = "pfa_yaml"
     val mime   = "application/pfa+yaml"
@@ -50,8 +79,12 @@ object Shapes {
     val values = Set(json, mime)
   }
 
-  object dataResource extends Shape {
-    val json   = "data_resource_json"
+  /**
+    * Tabular data resource
+    * @see https://frictionlessdata.io/specs/tabular-data-resource/
+    */
+  object tabularDataResource extends Shape {
+    val json   = "tabular_data_resource_json"
     val mime   = "application/vnd.dataresource+json"
     val values = Set(json, mime)
   }
@@ -79,25 +112,42 @@ object Shapes {
   object highcharts extends Shape {
     val highcharts = "highcharts"
     val json       = "highcharts_json"
-    val mime       = "application/highcharts+json"
-    val values     = Set(highcharts, json, mime)
+    val oldMime    = "application/highcharts+json"
+    val mime       = "application/vnd.highcharts+json"
+    val values     = Set(highcharts, json, oldMime, mime)
   }
 
   object visjs extends Shape {
     val visjs  = "visjs"
     val js     = "visjs_javascript"
-    val mime   = "application/visjs+javascript"
+    val mime   = "application/vnd.visjs+javascript"
     val values = Set(visjs, js, mime)
   }
 
   object plotly extends Shape {
     val plotly = "plotly"
     val json   = "plotly_json"
-    val mime   = "application/plotly+json"
+    val mime   = "application/vnd.plotly.v1+json"
     val values = Set(plotly, json, mime)
   }
 
-  // Generic Json, for other types of visualisations
+  object vega extends Shape {
+    val vega   = "vega"
+    val json   = "vega_json"
+    val mime   = "application/vnd.vega+json"
+    val values = Set(vega, json, mime)
+  }
+
+  object vegaLite extends Shape {
+    val vegaLite = "vegaLite"
+    val json     = "vega_lite_json"
+    val mime     = "application/vnd.vegalite+json"
+    val values   = Set(vegaLite, json, mime)
+  }
+
+  /**
+    * Generic Json, for other types of visualisations
+    */
   object json extends Shape {
     val json   = "json"
     val mime   = "application/json"
@@ -110,19 +160,45 @@ object Shapes {
     val values   = Set(compound, mime)
   }
 
+  /** Serialization of an object in Python using pickle */
+  object pythonPickle extends Shape {
+    val pythonPickle = "python_pickle"
+    val mime         = "application/octet-stream+python-pickle;base64"
+    val values       = Set(pythonPickle, mime)
+  }
+
+  /** Serialization of an object in Java using Java serialization */
+  object javaSerialization extends Shape {
+    val javaSerialization = "java_serialization"
+    val mime              = "application/java-serialized-object;base64"
+    val values            = Set(javaSerialization, mime)
+  }
+
+  /** Serialization of an object in R using saveRDS */
+  object rdsSerialization extends Shape {
+    val rdsSerialization = "rds_serialization"
+    val mime             = "application/octet-stream+rds;base64"
+    val values           = Set(rdsSerialization, mime)
+  }
+
   /** Results stored as PFA documents in the database */
   val pfaResults: Set[Shape] = Set(pfa, pfaYaml, pfaExperiment)
 
   /** Results stored as Json documents in the database */
-  val visualisationJsonResults: Set[Shape] = Set(highcharts, plotly, json, dataResource, compound)
+  val visualisationJsonResults: Set[Shape] =
+    Set(highcharts, plotly, vega, vegaLite, tabularDataResource, json, compound)
 
   /** Results stored as generic documents (strings) in the database */
   val visualisationOtherResults: Set[Shape] = Set(html, svg, png, visjs)
 
+  /** Results containing a model stored in a native serialization formant in the database */
+  val serializedModelsResults: Set[Shape] =
+    Set(pythonPickle, javaSerialization, rdsSerialization)
+
   val allResults
-    : Set[Shape] = pfaResults ++ visualisationJsonResults ++ visualisationOtherResults + error
+    : Set[Shape] = pfaResults ++ visualisationJsonResults ++ visualisationOtherResults ++ serializedModelsResults + error
 
   def fromString(s: String): Option[Shape] =
-    allResults.find(_.contains(s))
+    allResults.find(_.isIdentifiedBy(s))
 
 }

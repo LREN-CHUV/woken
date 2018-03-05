@@ -30,7 +30,6 @@ import ch.chuv.lren.woken.core.validation.ValidatedAlgorithmFlow
 import scala.concurrent.ExecutionContext
 import scala.util.{ Failure, Success }
 
-//import com.github.levkhomich.akka.tracing.ActorTracing
 import ch.chuv.lren.woken.core.commands.JobCommands.StartExperimentJob
 import ch.chuv.lren.woken.config.AlgorithmDefinition
 import ch.chuv.lren.woken.core.model.{ ErrorJobResult, JobResult, PfaExperimentJobResult }
@@ -78,8 +77,7 @@ object ExperimentActor {
 class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
                       algorithmLookup: String => Validation[AlgorithmDefinition])
     extends Actor
-    with ActorLogging
-    /*with ActorTracing*/ {
+    with ActorLogging {
 
   import ExperimentActor._
 

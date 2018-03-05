@@ -148,7 +148,7 @@ services:
       - db
 
   sample_meta_db_setup:
-    image: "hbpmip/sample-meta-db-setup:0.4.2"
+    image: "hbpmip/sample-meta-db-setup:0.4.3"
     container_name: "sample-meta-db-setup"
     restart: "no"
     environment:
@@ -160,9 +160,9 @@ services:
     depends_on:
       - db
 
-  sample_db_setup:
+  sample_data_db_setup:
     image: "hbpmip/sample-data-db-setup:0.5.0"
-    container_name: "data-db-setup"
+    container_name: "sample-data-db-setup"
     restart: "no"
     environment:
       FLYWAY_HOST: db
@@ -229,6 +229,8 @@ services:
       CLUSTER_IP: wokennode1
       CLUSTER_NAME: woken-node1
       WOKEN_PORT_8088_TCP_ADDR: wokennode1
+      DOCKER_BRIDGE_NETWORK: "tests_default"
+      LOG_LEVEL: DEBUG
     links:
       - zipkin
       - wokenprometheus
@@ -237,7 +239,7 @@ services:
       - db
 
   wokenvalidationnode1:
-    image: hbpmip/woken-validation:2.2.6
+    image: hbpmip/woken-validation:2.2.9
     ports:
       - "18081:8081"
       - "18082:8082"
@@ -276,6 +278,8 @@ services:
       CLUSTER_IP: wokennode2
       CLUSTER_NAME: woken-node2
       WOKEN_PORT_8088_TCP_ADDR: wokennode2
+      DOCKER_BRIDGE_NETWORK: "tests_default"
+      LOG_LEVEL: DEBUG
     links:
       - zipkin
       - wokenprometheus
@@ -284,7 +288,7 @@ services:
       - db
 
   wokenvalidationnode2:
-    image: hbpmip/woken-validation:2.2.6
+    image: hbpmip/woken-validation:2.2.9
     ports:
       - "28081:8081"
       - "28082:8082"
@@ -322,6 +326,8 @@ services:
       CLUSTER_IP: wokencentral
       CLUSTER_NAME: woken-central
       WOKEN_PORT_8088_TCP_ADDR: wokencentral
+      DOCKER_BRIDGE_NETWORK: "tests_default"
+      LOG_LEVEL: DEBUG
     links:
       - zipkin
       - wokenprometheus
@@ -356,7 +362,7 @@ services:
       - wokencentral
 
   portalbackend:
-    image: "hbpmip/portal-backend:2.5.4"
+    image: "hbpmip/portal-backend:2.6.1"
     restart: "no"
     ports:
       - "65440:8080"
@@ -399,7 +405,7 @@ services:
       - portalbackend
 
   frontend:
-    image: hbpmip/portal-frontend:2.6.5
+    image: hbpmip/portal-frontend:2.7.0
     depends_on:
       - portalbackend
     ports:
@@ -410,7 +416,9 @@ services:
       PORTAL_VIRTUAL_HOST: frontend
       PORTAL_BACKEND_SERVER: portalbackend:8080
       PORTAL_BACKEND_CONTEXT: services
-
+      MODE: federation
+      INSTANCE_NAME: DEV
+      VERSION: 2.7.0
 
 networks:
   default:

@@ -19,29 +19,40 @@ package ch.chuv.lren.woken.config
 
 import com.typesafe.config.ConfigFactory
 import org.scalatest.{ Matchers, WordSpec }
+import cats.scalatest.{ ValidatedMatchers, ValidatedValues }
 import AlgorithmsConfiguration._
 
-class AlgorithmsConfigurationTest extends WordSpec with Matchers with ConfigurationLoader {
+class AlgorithmsConfigurationTest
+    extends WordSpec
+    with Matchers
+    with ValidatedMatchers
+    with ValidatedValues {
 
   "Configuration for algorithms" should {
 
     "read default list of algorithms" in {
 
-      val algoConfigs = factory(ConfigFactory.load())
+      val algoConfigs = factory(ConfigFactory.load("algorithms.conf"))
 
-      val histograms = algoConfigs("histograms").valueOr(configurationFailed)
+      algoConfigs("histograms") shouldBe valid
+
+      val histograms = algoConfigs("histograms").value
       histograms.code shouldBe "histograms"
       histograms.predictive shouldBe false
       histograms.supportsNullValues shouldBe true
       histograms.dockerImage.contains("hbpmip") shouldBe true
 
-      val anova = algoConfigs("anova").valueOr(configurationFailed)
+      algoConfigs("anova") shouldBe valid
+
+      val anova = algoConfigs("anova").value
       anova.code shouldBe "anova"
       anova.predictive shouldBe false
       anova.supportsNullValues shouldBe false
       anova.dockerImage.contains("hbpmip") shouldBe true
 
-      val knn = algoConfigs("knn").valueOr(configurationFailed)
+      algoConfigs("knn") shouldBe valid
+
+      val knn = algoConfigs("knn").value
       knn.code shouldBe "knn"
       knn.predictive shouldBe true
       knn.supportsNullValues shouldBe false

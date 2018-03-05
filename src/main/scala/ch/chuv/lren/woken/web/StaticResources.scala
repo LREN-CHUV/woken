@@ -23,11 +23,11 @@ import akka.http.scaladsl.server.Directives._
 
 trait StaticResources {
 
-  val staticResources: Route =
+  def staticResources: Route =
     get {
       path("") {
         pathEndOrSingleSlash {
-          getFromResource("swagger-ui/index.html")
+          getFromResource("/swagger-ui/index.html")
         }
       } ~
       pathPrefix("webjars") {

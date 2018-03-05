@@ -22,16 +22,18 @@ import java.time.{ OffsetDateTime, ZoneOffset }
 
 import doobie._
 import ch.chuv.lren.woken.config.DatabaseConfiguration
+import com.typesafe.scalalogging.LazyLogging
 import org.postgresql.util.PGobject
 import spray.json._
 
 import scala.language.higherKinds
 import scala.reflect.runtime.universe.TypeTag
+import scala.util.Try
 
 /**
   * Data Access Layer
   */
-trait Repository {
+trait Repository extends LazyLogging {
 
   protected implicit val JsObjectMeta: Meta[JsObject] =
     Meta
@@ -58,7 +60,10 @@ trait Repository {
 
   protected def codecMeta[A: RootJsonFormat: TypeTag]: Meta[A] =
     Meta[JsObject].xmap[A](
-      _.convertTo[A],
+      json =>
+        Try(json.convertTo[A])
+          .recover { case e: Exception => logger.warn(s"Cannot convert $json", e); throw e }
+          .getOrElse(throw new IllegalArgumentException(s"Invalid Json $json")),
       _.toJson.asJsObject
     )
 

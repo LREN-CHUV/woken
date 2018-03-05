@@ -46,7 +46,6 @@ case class DockerJob(
     (dockerImage.replaceAll("^.*?/", "").takeWhile(_ != ':') + "_" + jobId)
       .replaceAll("[/.-]", "_")
 
-  //
   def dockerParameters: Map[String, String] =
     Map[String, String](
       "PARAM_query"       -> query.query,

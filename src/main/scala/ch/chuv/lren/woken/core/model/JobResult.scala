@@ -18,6 +18,7 @@
 package ch.chuv.lren.woken.core.model
 
 import java.time.OffsetDateTime
+import java.util.Base64
 
 import ch.chuv.lren.woken.core.model.Shapes.{ pfa => pfaShape, _ }
 import ch.chuv.lren.woken.messages.query.{ AlgorithmSpec, QueryResult, queryProtocol }
@@ -148,6 +149,16 @@ object PfaExperimentJobResult {
                 "timestamp" -> timestamp.toJson,
                 "data"      -> JsString(data)
               )
+            case SerializedModelJobResult(jobId, node, timestamp, shape, algorithm, data) =>
+              JsObject(
+                "type"      -> JsString(shape.mime),
+                "algorithm" -> JsString(algorithm),
+                "code"      -> JsString(code),
+                "jobId"     -> JsString(jobId),
+                "node"      -> JsString(node),
+                "timestamp" -> timestamp.toJson,
+                "data"      -> JsString(Base64.getEncoder.encodeToString(data))
+              )
             case PfaExperimentJobResult(jobId, node, timestamp, models) =>
               JsObject(
                 "type"      -> JsString(Shapes.pfaExperiment.mime),
@@ -197,7 +208,7 @@ case class ErrorJobResult(jobId: String,
 sealed trait VisualisationJobResult extends JobResult
 
 /**
-  * A visualisaton result encoded in Json
+  * A visualisation result encoded in Json
   *
   * @param jobId Id of the job
   * @param node Node where the algorithm is executed
@@ -212,7 +223,11 @@ case class JsonDataJobResult(jobId: String,
                              shape: Shape,
                              algorithm: String,
                              data: JsValue)
-    extends VisualisationJobResult
+    extends VisualisationJobResult {
+
+  assert(Shapes.visualisationJsonResults.contains(shape))
+
+}
 
 /**
   * A visualisation or other type of user-facing information encoded as a string
@@ -230,7 +245,33 @@ case class OtherDataJobResult(jobId: String,
                               shape: Shape,
                               algorithm: String,
                               data: String)
-    extends VisualisationJobResult
+    extends VisualisationJobResult {
+
+  assert(Shapes.visualisationOtherResults.contains(shape))
+
+}
+
+/**
+  * A model serialized in binary
+  *
+  * @param jobId Id of the job
+  * @param node Node where the algorithm is executed
+  * @param timestamp Date of execution
+  * @param shape Shape of the data (mime type)
+  * @param algorithm Name of the algorithm
+  * @param data Binary for the serialized model
+  */
+case class SerializedModelJobResult(jobId: String,
+                                    node: String,
+                                    timestamp: OffsetDateTime,
+                                    shape: Shape,
+                                    algorithm: String,
+                                    data: Array[Byte])
+    extends VisualisationJobResult {
+
+  assert(Shapes.serializedModelsResults.contains(shape))
+
+}
 
 object JobResult {
 
@@ -274,6 +315,16 @@ object JobResult {
           shape = v.shape.mime,
           algorithm = v.algorithm,
           data = Some(JsString(v.data)),
+          error = None
+        )
+      case v: SerializedModelJobResult =>
+        QueryResult(
+          jobId = v.jobId,
+          node = v.node,
+          timestamp = v.timestamp,
+          shape = v.shape.mime,
+          algorithm = v.algorithm,
+          data = Some(JsString(Base64.getEncoder.encodeToString(v.data))),
           error = None
         )
       case e: ErrorJobResult =>

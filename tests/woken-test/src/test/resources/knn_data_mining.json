@@ -1105,7 +1105,8 @@
     "type": "record"
   },
   "metadata": {
-    "docker_image": "hbpmip/java-rapidminer-knn:0.2.1"
+    "accepts_missing_values": "false",
+    "docker_image": "hbpmip/java-rapidminer-knn:0.2.2"
   },
   "method": "map",
   "name": "rapidminer",
