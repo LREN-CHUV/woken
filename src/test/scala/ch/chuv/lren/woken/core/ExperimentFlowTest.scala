@@ -34,6 +34,7 @@ import ch.chuv.lren.woken.util.{ FakeCoordinatorConfig, JsonUtils }
 import com.typesafe.config.{ Config, ConfigFactory }
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 
+import scala.collection.immutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
@@ -119,7 +120,7 @@ class ExperimentFlowTest
 
     }
 
-    "complete with success in case of a valid query " in {
+    "complete with success when algorithm is not present " in {
       val experimentWrapper =
         system.actorOf(ExperimentFlowWrapper.props, "ExperimentFlowProbeActor2")
 
@@ -137,6 +138,33 @@ class ExperimentFlowTest
             case ejr: ErrorJobResult => ejr.error.nonEmpty shouldBe true
             case _                   => fail("Response should be of type ErrorJobResponse")
           }
+      }
+    }
+
+    "split flow should return validation failed" in {
+      val experimentWrapper =
+        system.actorOf(ExperimentFlowWrapper.props, "SplitFlowProbeActor")
+      val experimentQuery = ExperimentQuery(
+        user = user,
+        variables = Nil,
+        covariables = Nil,
+        grouping = Nil,
+        filters = None,
+        targetTable = None,
+        trainingDatasets = Set(),
+        testingDatasets = Set(),
+        validationDatasets = Set(),
+        algorithms = Nil,
+        validations = Nil,
+        executionPlan = None
+      )
+      val experimentJob = experimentQuery2job(experimentQuery)
+      experimentJob.isValid shouldBe true
+      val testProbe = TestProbe()
+      testProbe.send(experimentWrapper, SplitFlowCommand(experimentJob.toOption.get))
+      testProbe.expectMsgPF(20 seconds, "error") {
+        case response: SplitFlowResponse =>
+          response.algorithmMaybe.isDefined shouldBe true
       }
     }
 
@@ -159,6 +187,16 @@ class ExperimentFlowTest
           .request(1)
           .receiveWithin(10 seconds, 1)
         originator ! ExperimentResponse(result.headOption.getOrElse(Map.empty))
+
+      case SplitFlowCommand(job) =>
+        val originator = sender()
+        val result = Source
+          .single(job)
+          .via(experimentFlow.splitJob)
+          .runWith(TestSink.probe[AlgorithmValidationMaybe])
+          .request(1)
+          .receiveWithin(10 seconds, 1)
+        originator ! SplitFlowResponse(result.headOption)
     }
   }
 
@@ -166,6 +204,10 @@ class ExperimentFlowTest
     def props = Props(new ExperimentFlowWrapper)
 
     case class ExperimentResponse(result: Map[AlgorithmSpec, JobResult])
+
+    case class SplitFlowCommand(job: ExperimentActor.Job)
+
+    case class SplitFlowResponse(algorithmMaybe: Option[AlgorithmValidationMaybe])
 
   }
 

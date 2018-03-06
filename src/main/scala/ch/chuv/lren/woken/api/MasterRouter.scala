@@ -130,7 +130,8 @@ case class MasterRouter(appConfiguration: AppConfiguration,
       }
 
     case CoordinatorActor.Response(job, List(errorJob: ErrorJobResult)) =>
-      log.warning(s"Received error while mining ${job.query}: $errorJob")
+      log.info(s"Received error while mining ${job.query}: $errorJob")
+
       miningJobsInFlight.get(job).foreach(im => im._1 ! errorJob.asQueryResult)
       miningJobsInFlight -= job
 

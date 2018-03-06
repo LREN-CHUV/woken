@@ -17,11 +17,12 @@
 
 package ch.chuv.lren.woken.api
 
+import java.time.OffsetDateTime
 import java.util.UUID
 
 import akka.actor.{ ActorRef, ActorSystem, Props }
 import akka.stream.ActorMaterializer
-import akka.testkit.{ ImplicitSender, TestKit }
+import akka.testkit.{ ImplicitSender, TestActors, TestKit, TestProbe }
 import com.typesafe.config.{ Config, ConfigFactory }
 import ch.chuv.lren.woken.api.MasterRouter.{ QueuesSize, RequestQueuesSize }
 import ch.chuv.lren.woken.backends.DockerJob
@@ -43,6 +44,10 @@ import ch.chuv.lren.woken.util.FakeActors
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import org.scalatest.tagobjects.Slow
 import cats.data.Validated._
+import ch.chuv.lren.woken.core.CoordinatorActor.Response
+import ch.chuv.lren.woken.core.commands.JobCommands
+import ch.chuv.lren.woken.core.model.ErrorJobResult
+import ch.chuv.lren.woken.messages.variables.VariableId
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -111,6 +116,22 @@ class MasterRouterTest
 
     override def initScoringWorker: ActorRef =
       context.actorOf(FakeActors.echoActorProps)
+
+  }
+
+  class RouterWithProbeCoordinator(appConfiguration: AppConfiguration,
+                                   coordinatorConfig: CoordinatorConfig,
+                                   dispatcherService: DispatcherService,
+                                   algorithmLibraryService: AlgorithmLibraryService,
+                                   algorithmLookup: String => Validation[AlgorithmDefinition],
+                                   coordinatorActor: ActorRef)
+      extends MasterRouterUnderTest(appConfiguration,
+                                    coordinatorConfig,
+                                    dispatcherService,
+                                    algorithmLibraryService,
+                                    algorithmLookup) {
+
+    override def newCoordinatorActor: ActorRef = coordinatorActor
 
   }
 
@@ -266,13 +287,62 @@ class MasterRouterTest
 
     }
 
+    "fail starting a new mining job" in {
+
+      val errorMessage = "Fake error message"
+
+      val testCoordinatorActor = system.actorOf(Props(new FakeCoordinatorActor() {
+        override def startCoordinatorJob(originator: ActorRef, job: DockerJob): Unit =
+          originator ! Response(job,
+                                List(
+                                  ErrorJobResult(job.jobId,
+                                                 coordinatorConfig.jobsConf.node,
+                                                 OffsetDateTime.now(),
+                                                 job.algorithmSpec.code,
+                                                 errorMessage)
+                                ))
+
+      }))
+
+      val miningRouter = system.actorOf(
+        Props(
+          new RouterWithProbeCoordinator(appConfig,
+                                         coordinatorConfig,
+                                         dispatcherService,
+                                         algorithmLibraryService,
+                                         AlgorithmsConfiguration.factory(config),
+                                         testCoordinatorActor)
+        )
+      )
+
+      miningRouter !
+      MiningQuery(
+        user = UserId("test1"),
+        variables = List(VariableId("cognitive_task2")),
+        covariables = List(VariableId("score_math_course1")),
+        grouping = Nil,
+        filters = None,
+        targetTable = Some("sample_data"),
+        algorithm = AlgorithmSpec("knn", List(CodeValue("k", "5"))),
+        datasets = Set(),
+        executionPlan = None
+      )
+
+      expectMsgPF(10 seconds, "error message") {
+        case QueryResult(_, _, _, _, _, _, Some(error)) =>
+          error shouldBe errorMessage
+        case msg =>
+          fail(s"received unexpected message $msg")
+      }
+
+    }
+
   }
 
   private def waitForEmptyQueue(router: ActorRef, limit: Int): Unit =
     awaitAssert({
       router ! RequestQueuesSize
       val queues = expectMsgType[QueuesSize](5 seconds)
-      println(queues)
       queues.isEmpty shouldBe true
 
     }, max = limit seconds, interval = 200.millis)
