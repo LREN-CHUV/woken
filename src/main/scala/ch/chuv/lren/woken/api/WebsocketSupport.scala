@@ -19,8 +19,7 @@ package ch.chuv.lren.woken.api
 
 import akka.actor.ActorRef
 import akka.pattern.ask
-import akka.http.scaladsl.model.ws.TextMessage
-import akka.http.scaladsl.model.ws.Message
+import akka.http.scaladsl.model.ws.{Message, TextMessage}
 import akka.stream.scaladsl.Flow
 import akka.util.Timeout
 import ch.chuv.lren.woken.config.{AppConfiguration, JobsConfiguration}
@@ -33,7 +32,6 @@ import scala.concurrent.{ExecutionContext, Future}
 import spray.json._
 import queryProtocol._
 import akka.stream.{ActorAttributes, Supervision}
-import ch.chuv.lren.woken.messages.RemoteMessage
 import ch.chuv.lren.woken.messages.datasets.{DatasetsQuery, DatasetsResponse}
 import com.typesafe.scalalogging.LazyLogging
 

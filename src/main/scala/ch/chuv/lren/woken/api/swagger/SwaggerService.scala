@@ -27,7 +27,7 @@ object SwaggerService extends SwaggerHttpService {
   override val apiDocsPath = "api-docs"
   override val info        = Info(version = "0.1")
 
-  override val apiClasses: Set[Class[_]] = Set(classOf[MiningServiceApi])
+  override val apiClasses: Set[Class[_]] = Set(classOf[MiningServiceApi], classOf[MetadataServiceApi])
   override val unwantedDefinitions       = Seq("Function1", "Function1RequestContextFutureRouteResult")
 
 }

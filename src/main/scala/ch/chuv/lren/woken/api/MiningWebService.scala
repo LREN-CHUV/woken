@@ -21,12 +21,9 @@ import akka.actor.{ ActorRef, ActorSystem }
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.marshalling.PredefinedToResponseMarshallers
 import akka.pattern.ask
-import akka.http.scaladsl.server.{ PathMatcher, Route }
+import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.model.StatusCodes._
-import akka.http.scaladsl.model.ws.{ Message, UpgradeToWebSocket }
-import akka.stream.scaladsl.Flow
 import ch.chuv.lren.woken.api.swagger.MiningServiceApi
-import ch.chuv.lren.woken.authentication.BasicAuthenticator
 import ch.chuv.lren.woken.config.{ AppConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.core.features.Queries._
@@ -34,12 +31,10 @@ import ch.chuv.lren.woken.dao.FeaturesDAL
 import ch.chuv.lren.woken.service.AlgorithmLibraryService
 import akka.util.Timeout
 import com.typesafe.scalalogging.LazyLogging
-//import kamon.akka.http.TracingDirectives
 import spray.json.DefaultJsonProtocol
 
 import scala.concurrent.duration._
 import scala.concurrent.{ ExecutionContext, Future }
-import scala.util.Failure
 
 object MiningWebService
 
@@ -55,10 +50,9 @@ class MiningWebService(
     with DefaultJsonProtocol
     with SprayJsonSupport
     with PredefinedToResponseMarshallers
-    with BasicAuthenticator
+    with RouteFactory
     with WebsocketSupport
     with LazyLogging
-//    with TracingDirectives
     {
 
   implicit val executionContext: ExecutionContext = system.dispatcher
@@ -139,27 +133,4 @@ class MiningWebService(
         //}
       }
     )
-
-  private def securePathWithWebSocket(pm: PathMatcher[Unit],
-                                      wsFlow: Flow[Message, Message, Any],
-                                      restRoute: Route): Route =
-    path(pm) {
-      authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator).apply { _ =>
-        optionalHeaderValueByType[UpgradeToWebSocket](()) {
-          case Some(upgrade) =>
-            //operationName("listMethods", Map("requestType" -> "websocket")) {
-            complete(upgrade.handleMessages(wsFlow.watchTermination() { (_, done) =>
-              done.onComplete {
-                case scala.util.Success(_) =>
-                  logger.info(s"WS $pm completed successfully.")
-                case Failure(ex) =>
-                  logger.error(s"WS $pm completed with failure : $ex")
-              }
-            }))
-          //}
-          case None => restRoute
-        }
-      }
-    }
-
 }

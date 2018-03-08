@@ -17,16 +17,13 @@
 
 package ch.chuv.lren.woken.api
 
-import akka.http.scaladsl.server.{PathMatcher, Route}
+import akka.http.scaladsl.server.Route
 import akka.actor._
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.model.StatusCodes._
-import akka.http.scaladsl.model.ws.{Message, UpgradeToWebSocket}
 import akka.util.Timeout
 import akka.pattern.ask
-import akka.stream.scaladsl.Flow
 import ch.chuv.lren.woken.api.swagger.MetadataServiceApi
-import ch.chuv.lren.woken.authentication.BasicAuthenticator
 import ch.chuv.lren.woken.config.{AppConfiguration, JobsConfiguration}
 import ch.chuv.lren.woken.dao.FeaturesDAL
 import ch.chuv.lren.woken.messages.datasets.{DatasetsQuery, DatasetsResponse}
@@ -34,7 +31,6 @@ import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Failure
 
 class MetadataApiService(
     val masterRouter: ActorRef,
@@ -44,7 +40,7 @@ class MetadataApiService(
 )(implicit system: ActorSystem)
     extends MetadataServiceApi
     with SprayJsonSupport
-    with BasicAuthenticator
+    with RouteFactory
     with WebsocketSupport
     with LazyLogging {
 
@@ -71,25 +67,4 @@ class MetadataApiService(
         }
       }
     )
-
-  private def securePathWithWebSocket(pm: PathMatcher[Unit],
-                                      wsFlow: Flow[Message, Message, Any],
-                                      restRoute: Route): Route =
-    path(pm) {
-      authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator).apply { _ =>
-        optionalHeaderValueByType[UpgradeToWebSocket](()) {
-          case Some(upgrade) =>
-            complete(upgrade.handleMessages(wsFlow.watchTermination() { (_, done) =>
-              done.onComplete {
-                case scala.util.Success(_) =>
-                  logger.info(s"WS $pm completed successfully.")
-                case Failure(ex) =>
-                  logger.error(s"WS $pm completed with failure : $ex")
-              }
-            }))
-          //}
-          case None => restRoute
-        }
-      }
-    }
 }
