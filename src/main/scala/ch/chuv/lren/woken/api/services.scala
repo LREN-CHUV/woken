@@ -86,7 +86,7 @@ trait FailureHandling {
 
 }
 
-trait RouteFactory extends BasicAuthenticator with Directives with LazyLogging {
+trait RouteHelpers extends BasicAuthenticator with Directives with LazyLogging {
   implicit val executionContext: ExecutionContext
   implicit val timeout: Timeout
 

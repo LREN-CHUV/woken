@@ -50,7 +50,7 @@ class MiningWebService(
     with DefaultJsonProtocol
     with SprayJsonSupport
     with PredefinedToResponseMarshallers
-    with RouteFactory
+    with RouteHelpers
     with WebsocketSupport
     with LazyLogging {
 
