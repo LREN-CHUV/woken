@@ -18,12 +18,13 @@
 package ch.chuv.lren.woken.api
 
 import ch.chuv.lren.woken.api.swagger.SwaggerService
+import ch.chuv.lren.woken.config.AppConfiguration
 import ch.chuv.lren.woken.core.{ CoordinatorConfig, Core, CoreActors }
 import ch.chuv.lren.woken.dao.FeaturesDAL
-import ch.chuv.lren.woken.service.JobResultService
+import ch.chuv.lren.woken.service.{ JobResultService, VariablesMetaService }
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
+import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 import com.typesafe.scalalogging.LazyLogging
 
 /**
@@ -61,13 +62,24 @@ trait Api extends CoreActors with Core with LazyLogging {
         if (cluster.state.leader.isEmpty)
           failWith(new Exception("No leader elected for the cluster"))
         else if (!appConfig.disableWorkers && cluster.state.members.size < 2)
-          complete("OK - Expected at least one worker (Woken validation server) in the cluster")
+          complete("UP - Expected at least one worker (Woken validation server) in the cluster")
         else
-          complete("OK")
+          complete("UP")
       }
     }
 
-    cors()(SwaggerService.routes ~ miningService.routes ~ metadataService.routes ~ healthRoute)
+    val readinessRoute = pathPrefix("readiness") {
+      get {
+        if (cluster.state.leader.isEmpty)
+          failWith(new Exception("No leader elected for the cluster"))
+        else
+          complete("READY")
+      }
+    }
+
+    cors()(
+      SwaggerService.routes ~ miningService.routes ~ metadataService.routes ~ healthRoute ~ readinessRoute
+    )
   }
 
 }

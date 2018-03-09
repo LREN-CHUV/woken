@@ -109,7 +109,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
     case DatasetsQuery =>
       sender ! DatasetsResponse(datasetService.datasets())
 
-    //case MiningQuery(variables, covariables, groups, _, AlgorithmSpec(c, performQuery))
+    //case MiningQuery(variables, covariables, groups, _, AlgorithmSpec(c, p))
     //    if c == "" || c == "data" =>
     // TODO To be implemented
 
