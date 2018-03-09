@@ -52,8 +52,7 @@ class MiningWebService(
     with PredefinedToResponseMarshallers
     with RouteFactory
     with WebsocketSupport
-    with LazyLogging
-    {
+    with LazyLogging {
 
   implicit val executionContext: ExecutionContext = system.dispatcher
   implicit val timeout: Timeout                   = Timeout(180.seconds)

@@ -81,25 +81,25 @@ class WokenAkkaAPITest
   //TODO commented out until a new woken image with the datasets endpoint is pushed
 
   // Datasets available query
-//  "Woken" should "respond to a query for the list of available datasets" in {
-//
-//    val start = System.currentTimeMillis()
-//    val future = client ? ClusterClient.Send(entryPoint,
-//                                             DatasetsQuery,
-//                                             localAffinity = true)
-//    val result = waitFor[DatasetsResponse](future)
-//    val end = System.currentTimeMillis()
-//
-//    println(
-//      "List of datasets query complete in " + Duration(end - start,
-//                                                       TimeUnit.MILLISECONDS))
-//
-//    if (!result.isSuccess) {
-//      println(result)
-//    }
-//
-//    result.success.value.datasets shouldNot have size 0
-//  }
+  "Woken" should "respond to a query for the list of available datasets" in {
+
+    val start = System.currentTimeMillis()
+    val future = client ? ClusterClient.Send(entryPoint,
+                                             DatasetsQuery,
+                                             localAffinity = true)
+    val result = waitFor[DatasetsResponse](future)
+    val end = System.currentTimeMillis()
+
+    println(
+      "List of datasets query complete in " + Duration(end - start,
+                                                       TimeUnit.MILLISECONDS))
+
+    if (!result.isSuccess) {
+      println(result)
+    }
+
+    result.success.value.datasets shouldNot have size 0
+  }
 
   // Test mining query
   "Woken" should "respond to a data mining query" in {

@@ -24,13 +24,13 @@ import akka.http.scaladsl.model.StatusCodes._
 import akka.util.Timeout
 import akka.pattern.ask
 import ch.chuv.lren.woken.api.swagger.MetadataServiceApi
-import ch.chuv.lren.woken.config.{AppConfiguration, JobsConfiguration}
+import ch.chuv.lren.woken.config.{ AppConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.dao.FeaturesDAL
-import ch.chuv.lren.woken.messages.datasets.{DatasetsQuery, DatasetsResponse}
+import ch.chuv.lren.woken.messages.datasets.{ DatasetsQuery, DatasetsResponse }
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 
 class MetadataApiService(
     val masterRouter: ActorRef,
@@ -52,7 +52,9 @@ class MetadataApiService(
   import spray.json._
   import ch.chuv.lren.woken.messages.datasets.datasetsProtocol._
 
-  override def listDatasets: Route = securePathWithWebSocket("datasets",
+  override def listDatasets: Route =
+    securePathWithWebSocket(
+      "datasets",
       listDatasetsFlow,
       get {
         complete {

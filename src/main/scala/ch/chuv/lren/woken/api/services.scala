@@ -17,10 +17,10 @@
 
 package ch.chuv.lren.woken.api
 
-import akka.http.scaladsl.model.{HttpEntity, StatusCode, StatusCodes}
+import akka.http.scaladsl.model.{ HttpEntity, StatusCode, StatusCodes }
 import akka.http.scaladsl.server._
 import StatusCodes._
-import akka.http.scaladsl.model.ws.{Message, UpgradeToWebSocket}
+import akka.http.scaladsl.model.ws.{ Message, UpgradeToWebSocket }
 import akka.stream.scaladsl.Flow
 import akka.util.Timeout
 import ch.chuv.lren.woken.authentication.BasicAuthenticator
