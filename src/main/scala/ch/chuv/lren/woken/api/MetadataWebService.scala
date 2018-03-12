@@ -40,7 +40,7 @@ class MetadataApiService(
 )(implicit system: ActorSystem)
     extends MetadataServiceApi
     with SprayJsonSupport
-    with RouteHelpers
+    with SecuredRouteHelper
     with WebsocketSupport
     with LazyLogging {
 

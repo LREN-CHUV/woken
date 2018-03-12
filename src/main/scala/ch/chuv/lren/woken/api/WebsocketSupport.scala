@@ -42,7 +42,8 @@ import com.typesafe.scalalogging.LazyLogging
 
 import scala.util.{ Failure, Success, Try }
 
-trait WebsocketSupport extends LazyLogging {
+trait WebsocketSupport {
+  this: LazyLogging =>
 
   val masterRouter: ActorRef
   val featuresDatabase: FeaturesDAL
