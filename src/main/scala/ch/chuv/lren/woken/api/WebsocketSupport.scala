@@ -19,28 +19,24 @@ package ch.chuv.lren.woken.api
 
 import akka.actor.ActorRef
 import akka.pattern.ask
-import akka.http.scaladsl.model.ws.{ Message, TextMessage }
+import akka.http.scaladsl.model.ws.{Message, TextMessage}
 import akka.stream.scaladsl.Flow
 import akka.util.Timeout
-import ch.chuv.lren.woken.config.{ AppConfiguration, JobsConfiguration }
+import ch.chuv.lren.woken.config.{AppConfiguration, JobsConfiguration}
 import ch.chuv.lren.woken.dao.FeaturesDAL
 import ch.chuv.lren.woken.service.AlgorithmLibraryService
-import ch.chuv.lren.woken.messages.query.{
-  ExperimentQuery,
-  MiningQuery,
-  QueryResult,
-  queryProtocol
-}
+import ch.chuv.lren.woken.messages.query.{ExperimentQuery, MiningQuery, QueryResult, queryProtocol}
 import ch.chuv.lren.woken.core.features.Queries._
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ExecutionContext, Future}
 import spray.json._
 import queryProtocol._
-import akka.stream.{ ActorAttributes, Supervision }
-import ch.chuv.lren.woken.messages.datasets.{ DatasetsQuery, DatasetsResponse }
+import akka.stream.{ActorAttributes, Supervision}
+import ch.chuv.lren.woken.messages.datasets.{DatasetsQuery, DatasetsResponse}
+import ch.chuv.lren.woken.messages.variables.{VariablesForDatasetsQuery, VariablesForDatasetsResponse}
 import com.typesafe.scalalogging.LazyLogging
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 trait WebsocketSupport extends LazyLogging {
 
@@ -83,6 +79,28 @@ trait WebsocketSupport extends LazyLogging {
         TextMessage(result.toJson.compactPrint)
       }
       .named("List datasets flow")
+
+  def listVariableMetadataFlow: Flow[Message, Message, Any] =
+    Flow[Message]
+      .collect {
+        case TextMessage.Strict(jsonEncodedString) =>
+          Try {
+            jsonEncodedString.parseJson.convertTo[VariablesForDatasetsQuery]
+          }
+      }
+      .filter {
+        case Success(_) => true
+        case Failure(err) =>
+          logger.error("Deserialize failed", err)
+          false
+      }
+      .mapAsync(1) { query =>
+        (masterRouter ? query.get).mapTo[VariablesForDatasetsResponse]
+      }
+      .map { result =>
+        TextMessage(result.toJson.compactPrint)
+      }
+      .named("List variables")
 
   def experimentFlow: Flow[Message, Message, Any] =
     Flow[Message]

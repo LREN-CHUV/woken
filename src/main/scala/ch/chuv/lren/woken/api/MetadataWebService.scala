@@ -24,13 +24,14 @@ import akka.http.scaladsl.model.StatusCodes._
 import akka.util.Timeout
 import akka.pattern.ask
 import ch.chuv.lren.woken.api.swagger.MetadataServiceApi
-import ch.chuv.lren.woken.config.{ AppConfiguration, JobsConfiguration }
+import ch.chuv.lren.woken.config.{AppConfiguration, JobsConfiguration}
 import ch.chuv.lren.woken.dao.FeaturesDAL
-import ch.chuv.lren.woken.messages.datasets.{ DatasetsQuery, DatasetsResponse }
+import ch.chuv.lren.woken.messages.datasets.{DatasetId, DatasetsQuery, DatasetsResponse}
+import ch.chuv.lren.woken.messages.variables.{VariablesForDatasetsQuery, VariablesForDatasetsResponse}
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.duration._
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ExecutionContext, Future}
 
 class MetadataApiService(
     val masterRouter: ActorRef,
@@ -47,10 +48,10 @@ class MetadataApiService(
   implicit val executionContext: ExecutionContext = system.dispatcher
   implicit val timeout: Timeout                   = Timeout(180.seconds)
 
-  val routes: Route = listDatasets
+  val routes: Route = listDatasets ~ listVariables
 
   import spray.json._
-  import ch.chuv.lren.woken.messages.datasets.datasetsProtocol._
+  import ch.chuv.lren.woken.messages.variables.variablesProtocol._
 
   override def listDatasets: Route =
     securePathWithWebSocket(
@@ -62,6 +63,25 @@ class MetadataApiService(
             .mapTo[DatasetsResponse]
             .map { datasetResponse =>
               OK -> datasetResponse.datasets.toJson
+            }
+            .recoverWith {
+              case e => Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
+            }
+        }
+      }
+    )
+
+  override def listVariables: Route =
+    securePathWithWebSocket(
+      "variables",
+      listVariableMetadataFlow,
+      get{
+        complete {
+          (masterRouter ? VariablesForDatasetsQuery(datasets = Set(DatasetId("chuv")), includeNulls = true))
+            .mapTo[VariablesForDatasetsResponse]
+            .map { variablesResponse =>
+              logger.debug(s"got response $variablesResponse")
+              OK -> variablesResponse.variables.toJson
             }
             .recoverWith {
               case e => Future(BadRequest -> JsObject("error" -> JsString(e.toString)))

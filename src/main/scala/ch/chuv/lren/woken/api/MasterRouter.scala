@@ -19,25 +19,26 @@ package ch.chuv.lren.woken.api
 
 import java.time.OffsetDateTime
 
-import akka.actor.{ Actor, ActorLogging, ActorRef, Props, Terminated }
+import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
 import akka.routing.FromConfig
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{ Sink, Source }
+import akka.stream.scaladsl.{Sink, Source}
 import ch.chuv.lren.woken.core.model.Shapes
 import ch.chuv.lren.woken.messages.query._
-import ch.chuv.lren.woken.core.{ CoordinatorActor, CoordinatorConfig, ExperimentActor }
-import ch.chuv.lren.woken.messages.datasets.{ DatasetsQuery, DatasetsResponse }
-import ch.chuv.lren.woken.service.{ DatasetService, DispatcherService }
+import ch.chuv.lren.woken.core.{CoordinatorActor, CoordinatorConfig, ExperimentActor}
+import ch.chuv.lren.woken.messages.datasets.{DatasetsQuery, DatasetsResponse}
+import ch.chuv.lren.woken.service.{DatasetService, DispatcherService}
 
 import scala.concurrent.ExecutionContext
 import ch.chuv.lren.woken.api.MasterRouter.QueuesSize
 import ch.chuv.lren.woken.backends.DockerJob
 import ch.chuv.lren.woken.core.model.ErrorJobResult
-import ch.chuv.lren.woken.service.{ AlgorithmLibraryService, VariablesMetaService }
+import ch.chuv.lren.woken.service.{AlgorithmLibraryService, VariablesMetaService}
 import MiningQueries._
-import ch.chuv.lren.woken.config.{ AlgorithmDefinition, AppConfiguration }
-import ch.chuv.lren.woken.core.commands.JobCommands.{ StartCoordinatorJob, StartExperimentJob }
+import ch.chuv.lren.woken.config.{AlgorithmDefinition, AppConfiguration}
+import ch.chuv.lren.woken.core.commands.JobCommands.{StartCoordinatorJob, StartExperimentJob}
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
+import ch.chuv.lren.woken.messages.variables.{FeatureIdentifier, VariableId, VariablesForDatasetsQuery, VariablesForDatasetsResponse}
 
 object MasterRouter {
 
@@ -64,6 +65,7 @@ object MasterRouter {
         algorithmLibraryService,
         algorithmLookup,
         datasetService,
+        variablesMetaService,
         experimentQuery2Job(variablesMetaService, coordinatorConfig.jobsConf),
         miningQuery2Job(variablesMetaService, coordinatorConfig.jobsConf, algorithmLookup)
       )
@@ -77,6 +79,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
                         algorithmLibraryService: AlgorithmLibraryService,
                         algorithmLookup: String => Validation[AlgorithmDefinition],
                         datasetService: DatasetService,
+                        variablesMetaService: VariablesMetaService,
                         experimentQuery2JobF: ExperimentQuery => Validation[ExperimentActor.Job],
                         miningQuery2JobF: MiningQuery => Validation[DockerJob])
     extends Actor
@@ -108,6 +111,20 @@ case class MasterRouter(appConfiguration: AppConfiguration,
 
     case DatasetsQuery =>
       sender ! DatasetsResponse(datasetService.datasets())
+
+    case VariablesForDatasetsQuery(datasetIds, includeNulls) =>
+      log.debug("querying variables...")
+      val meta = datasetService.datasets()
+        .filter(ds => datasetIds.contains(ds.dataset))
+        .flatMap(_.tables)
+        .flatMap(table => variablesMetaService.get(table))
+        .flatMap(meta =>
+          meta.select(s => true)
+            .map(metaData => VariableId(metaData.code).asInstanceOf[FeatureIdentifier])
+        )
+
+      log.debug(s"sending var info: $meta")
+      sender ! VariablesForDatasetsResponse(meta)
 
     //case MiningQuery(variables, covariables, groups, _, AlgorithmSpec(c, p))
     //    if c == "" || c == "data" =>
