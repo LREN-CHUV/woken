@@ -15,20 +15,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.api.swagger
+package ch.chuv.lren.woken.service
 
-import com.github.swagger.akka.SwaggerHttpService
-import com.github.swagger.akka.model.Info
+import ch.chuv.lren.woken.config.DatasetsConfiguration
+import ch.chuv.lren.woken.messages.datasets.Dataset
+import com.typesafe.config.Config
 
-@SuppressWarnings(Array("org.wartremover.warts.Any"))
-object SwaggerService extends SwaggerHttpService {
+trait DatasetService {
+  def datasets(): Set[Dataset]
+}
 
-  override val basePath    = "/"
-  override val apiDocsPath = "api-docs"
-  override val info        = Info(version = "0.1")
-
-  override val apiClasses: Set[Class[_]] =
-    Set(classOf[MiningServiceApi], classOf[MetadataServiceApi])
-  override val unwantedDefinitions = Seq("Function1", "Function1RequestContextFutureRouteResult")
-
+case class ConfBasedDatasetService(config: Config) extends DatasetService {
+  override def datasets(): Set[Dataset] =
+    DatasetsConfiguration.datasets(config).getOrElse(Map()).values.toSet
 }
