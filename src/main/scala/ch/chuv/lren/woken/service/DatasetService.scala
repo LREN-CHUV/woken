@@ -15,30 +15,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.web
+package ch.chuv.lren.woken.service
 
-import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.server.Directives._
+import ch.chuv.lren.woken.config.DatasetsConfiguration
+import ch.chuv.lren.woken.messages.datasets.Dataset
+import com.typesafe.config.Config
 
-trait StaticResources {
+trait DatasetService {
+  def datasets(): Set[Dataset]
+}
 
-  def staticResources: Route =
-    get {
-      path("") {
-        pathEndOrSingleSlash {
-          getFromResource("/swagger-ui/index.html")
-        }
-      } ~
-      pathPrefix("webjars") {
-        getFromResourceDirectory("META-INF/resources/webjars")
-      } ~
-      path("favicon.ico") {
-        complete(StatusCodes.NotFound)
-      } ~
-      path(Remaining) { path =>
-        getFromResource("root/%s" format path)
-      }
-    }
-
+case class ConfBasedDatasetService(config: Config) extends DatasetService {
+  override def datasets(): Set[Dataset] =
+    DatasetsConfiguration.datasets(config).getOrElse(Map()).values.toSet
 }

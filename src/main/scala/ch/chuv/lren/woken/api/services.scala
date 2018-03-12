@@ -18,8 +18,16 @@
 package ch.chuv.lren.woken.api
 
 import akka.http.scaladsl.model.{ HttpEntity, StatusCode, StatusCodes }
-import akka.http.scaladsl.server.{ ExceptionHandler, RejectionHandler, RequestContext }
+import akka.http.scaladsl.server._
 import StatusCodes._
+import akka.http.scaladsl.model.ws.{ Message, UpgradeToWebSocket }
+import akka.stream.scaladsl.Flow
+import akka.util.Timeout
+import ch.chuv.lren.woken.authentication.BasicAuthenticator
+import com.typesafe.scalalogging.LazyLogging
+
+import scala.concurrent.ExecutionContext
+import scala.util.Failure
 
 /**
   * Holds potential error response with the HTTP status and optional body
@@ -76,4 +84,30 @@ trait FailureHandling {
     //log.error(thrown, ctx.request.toString)
     ctx.complete((error, message))
 
+}
+
+trait RouteHelpers extends BasicAuthenticator with Directives with LazyLogging {
+  implicit val executionContext: ExecutionContext
+  implicit val timeout: Timeout
+
+  def securePathWithWebSocket(pm: PathMatcher[Unit],
+                              wsFlow: Flow[Message, Message, Any],
+                              restRoute: Route): Route =
+    path(pm) {
+      authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator).apply { _ =>
+        optionalHeaderValueByType[UpgradeToWebSocket](()) {
+          case Some(upgrade) =>
+            complete(upgrade.handleMessages(wsFlow.watchTermination() { (_, done) =>
+              done.onComplete {
+                case scala.util.Success(_) =>
+                  logger.info(s"WS $pm completed successfully.")
+                case Failure(ex) =>
+                  logger.error(s"WS $pm completed with failure : $ex")
+              }
+            }))
+          //}
+          case None => restRoute
+        }
+      }
+    }
 }

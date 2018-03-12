@@ -22,6 +22,7 @@ import java.util.UUID
 import akka.actor.{ ActorRef, ActorSystem, Props }
 import akka.stream.ActorMaterializer
 import akka.testkit.{ ImplicitSender, TestKit }
+import alleycats.syntax.empty.EmptyOps
 import com.typesafe.config.{ Config, ConfigFactory }
 import ch.chuv.lren.woken.api.MasterRouter.{ QueuesSize, RequestQueuesSize }
 import ch.chuv.lren.woken.backends.DockerJob
@@ -35,7 +36,12 @@ import ch.chuv.lren.woken.core.{
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.dao.FeaturesDAL
 import ch.chuv.lren.woken.messages.query._
-import ch.chuv.lren.woken.service.{ AlgorithmLibraryService, DispatcherService }
+import ch.chuv.lren.woken.service.{
+  AlgorithmLibraryService,
+  ConfBasedDatasetService,
+  DatasetService,
+  DispatcherService
+}
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil
 import ch.chuv.lren.woken.backends.woken.WokenService
 import ch.chuv.lren.woken.core.features.Queries._
@@ -43,6 +49,7 @@ import ch.chuv.lren.woken.util.FakeActors
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import org.scalatest.tagobjects.Slow
 import cats.data.Validated._
+import ch.chuv.lren.woken.messages.datasets.{ DatasetsQuery, DatasetsResponse }
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -113,12 +120,14 @@ class MasterRouterTest
                               coordinatorConfig: CoordinatorConfig,
                               dispatcherService: DispatcherService,
                               algorithmLibraryService: AlgorithmLibraryService,
-                              algorithmLookup: String => Validation[AlgorithmDefinition])
+                              algorithmLookup: String => Validation[AlgorithmDefinition],
+                              datasetService: DatasetService)
       extends MasterRouter(appConfiguration,
                            coordinatorConfig,
                            dispatcherService,
                            algorithmLibraryService,
                            algorithmLookup,
+                           datasetService,
                            experimentQuery2job,
                            miningQuery2job) {
 
@@ -161,6 +170,8 @@ class MasterRouterTest
   val dispatcherService: DispatcherService =
     DispatcherService(DatasetsConfiguration.datasets(config), wokenService)
 
+  val datasetService: DatasetService = ConfBasedDatasetService(config)
+
   val user: UserId = UserId("test")
 
   "Master Actor " must {
@@ -172,7 +183,8 @@ class MasterRouterTest
                                     coordinatorConfig,
                                     dispatcherService,
                                     algorithmLibraryService,
-                                    AlgorithmsConfiguration.factory(config))
+                                    AlgorithmsConfiguration.factory(config),
+                                    datasetService)
         )
       )
 
@@ -286,6 +298,16 @@ class MasterRouterTest
 
       waitForEmptyQueue(router, limit)
 
+    }
+
+    "return available datasets" in {
+
+      router ! DatasetsQuery
+
+      within(5 seconds) {
+        val msg = expectMsgType[DatasetsResponse]
+        msg.datasets should not be empty
+      }
     }
 
   }

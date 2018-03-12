@@ -26,7 +26,8 @@ import akka.stream.scaladsl.{ Sink, Source }
 import ch.chuv.lren.woken.core.model.Shapes
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.core.{ CoordinatorActor, CoordinatorConfig, ExperimentActor }
-import ch.chuv.lren.woken.service.DispatcherService
+import ch.chuv.lren.woken.messages.datasets.{ DatasetsQuery, DatasetsResponse }
+import ch.chuv.lren.woken.service.{ DatasetService, DispatcherService }
 
 import scala.concurrent.ExecutionContext
 import ch.chuv.lren.woken.api.MasterRouter.QueuesSize
@@ -50,6 +51,7 @@ object MasterRouter {
 
   def props(appConfiguration: AppConfiguration,
             coordinatorConfig: CoordinatorConfig,
+            datasetService: DatasetService,
             variablesMetaService: VariablesMetaService,
             dispatcherService: DispatcherService,
             algorithmLibraryService: AlgorithmLibraryService,
@@ -61,6 +63,7 @@ object MasterRouter {
         dispatcherService,
         algorithmLibraryService,
         algorithmLookup,
+        datasetService,
         experimentQuery2Job(variablesMetaService, coordinatorConfig.jobsConf),
         miningQuery2Job(variablesMetaService, coordinatorConfig.jobsConf, algorithmLookup)
       )
@@ -73,6 +76,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
                         dispatcherService: DispatcherService,
                         algorithmLibraryService: AlgorithmLibraryService,
                         algorithmLookup: String => Validation[AlgorithmDefinition],
+                        datasetService: DatasetService,
                         experimentQuery2JobF: ExperimentQuery => Validation[ExperimentActor.Job],
                         miningQuery2JobF: MiningQuery => Validation[DockerJob])
     extends Actor
@@ -102,7 +106,10 @@ case class MasterRouter(appConfiguration: AppConfiguration,
     case MethodsQuery =>
       sender ! MethodsResponse(algorithmLibraryService.algorithms().compactPrint)
 
-    //case MiningQuery(variables, covariables, groups, _, AlgorithmSpec(c, performQuery))
+    case DatasetsQuery =>
+      sender ! DatasetsResponse(datasetService.datasets())
+
+    //case MiningQuery(variables, covariables, groups, _, AlgorithmSpec(c, p))
     //    if c == "" || c == "data" =>
     // TODO To be implemented
 
