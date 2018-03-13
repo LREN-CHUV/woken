@@ -26,12 +26,12 @@ lazy val `woken` =
           library.akkaHttpJson,
           library.kamon,
           library.kamonAkka,
-          //library.kamonAkkaHttp,
-          //library.kamonAkkaRemote,
+          library.kamonAkkaHttp,
+          library.kamonAkkaRemote,
           library.kamonPrometheus,
           library.kamonZipkin,
           library.kamonSystemMetrics,
-          //library.kamonSigar,
+          library.kamonSigar,
           library.akkaHttpSwagger,
           library.swaggerJaxrs,
           library.swaggerUI,
@@ -106,7 +106,7 @@ lazy val library =
       val hadrian         = "0.8.5"
       val scalaCache      = "0.21.0"
       val dockerTestKit   = "0.9.5"
-      val wokenMessages   = "2.4.9"
+      val wokenMessages   = "2.5.1"
     }
     object ExclusionRules {
       val excludeLogback = ExclusionRule(organization = "ch.qos.logback", name = "logback-classic")

@@ -42,7 +42,7 @@ import scala.language.postfixOps
   * Experiment flow should always complete with success, but the error is reported inside the response.
   */
 class ExperimentFlowTest
-    extends TestProbe(ActorSystem("ExperimentFlowTest"), "coordinatorActor")
+    extends TestKit(ActorSystem("ExperimentFlowTest"))
     with WordSpecLike
     with Matchers
     with BeforeAndAfterAll
@@ -81,8 +81,8 @@ class ExperimentFlowTest
     ConfigUtil.lift(
       ExperimentActor.Job(
         jobId = UUID.randomUUID().toString,
-        inputDb = "",
-        inputTable = "",
+        inputDb = "featuresDb",
+        inputTable = query.targetTable.getOrElse("sample_data"),
         query = query,
         metadata = Nil
       )
@@ -174,7 +174,6 @@ class ExperimentFlowTest
       testProbe.send(experimentWrapper, experimentJob.toOption.get)
       testProbe.expectMsgPF(20 seconds, "error") {
         case response: ExperimentResponse =>
-          print(response)
           response.result.nonEmpty shouldBe true
           response.result.head._1 shouldBe AlgorithmSpec("knn", List(CodeValue("k", "5")))
           response.result.head._2 match {
@@ -183,6 +182,44 @@ class ExperimentFlowTest
           }
       }
     }
+
+    "split flow should return validation failed" in {
+      val experimentWrapper =
+        system.actorOf(ExperimentFlowWrapper.props, "SplitFlowProbeActor")
+      val experimentQuery = ExperimentQuery(
+        user = user,
+        variables = Nil,
+        covariables = Nil,
+        grouping = Nil,
+        filters = None,
+        targetTable = None,
+        trainingDatasets = Set(),
+        testingDatasets = Set(),
+        validationDatasets = Set(),
+        algorithms = Nil,
+        validations = Nil,
+        executionPlan = None
+      )
+      val experimentJob = experimentQuery2job(experimentQuery)
+      experimentJob.isValid shouldBe true
+      val testProbe = TestProbe()
+      testProbe.send(experimentWrapper, SplitFlowCommand(experimentJob.toOption.get))
+      testProbe.expectMsgPF(20 seconds, "error") {
+        case response: SplitFlowResponse =>
+          response.algorithmMaybe.isDefined shouldBe true
+      }
+    }
+
+  }
+
+  object ExperimentFlowWrapper {
+    def props = Props(new ExperimentFlowWrapper)
+
+    case class ExperimentResponse(result: Map[AlgorithmSpec, JobResult])
+
+    case class SplitFlowCommand(job: ExperimentActor.Job)
+
+    case class SplitFlowResponse(algorithmMaybe: Option[AlgorithmValidationMaybe])
 
   }
 
@@ -203,14 +240,21 @@ class ExperimentFlowTest
           .request(1)
           .receiveWithin(10 seconds, 1)
         originator ! ExperimentResponse(result.headOption.getOrElse(Map.empty))
+
+      case SplitFlowCommand(job) =>
+        val originator = sender()
+        val result = Source
+          .single(job)
+          .via(experimentFlow.splitJob)
+          .runWith(TestSink.probe[AlgorithmValidationMaybe])
+          .request(1)
+          .receiveWithin(10 seconds, 1)
+        originator ! SplitFlowResponse(result.headOption)
     }
   }
 
-  object ExperimentFlowWrapper {
-    def props = Props(new ExperimentFlowWrapper)
-
-    case class ExperimentResponse(result: Map[AlgorithmSpec, JobResult])
-
+  object ExperimentWithFailingAlgoFlowWrapper {
+    def props = Props(new ExperimentWithFailingAlgoFlowWrapper)
   }
 
   class ExperimentWithFailingAlgoFlowWrapper extends Actor {
@@ -231,13 +275,6 @@ class ExperimentFlowTest
           .receiveWithin(10 seconds, 1)
         originator ! ExperimentResponse(result.headOption.getOrElse(Map.empty))
     }
-  }
-
-  object ExperimentWithFailingAlgoFlowWrapper {
-    def props = Props(new ExperimentFlowWrapper)
-
-    case class ExperimentResponse(result: Map[AlgorithmSpec, JobResult])
-
   }
 
 }

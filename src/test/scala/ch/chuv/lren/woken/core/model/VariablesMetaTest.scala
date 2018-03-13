@@ -58,7 +58,8 @@ class VariablesMetaTest extends WordSpec with Matchers with JsonUtils {
           length = None,
           minValue = None,
           maxValue = None,
-          datasets = Set()
+          datasets = Set(),
+          summaryStatistics = None
         ),
         VariableMetaData(
           code = "score_math_course1",
@@ -72,7 +73,8 @@ class VariablesMetaTest extends WordSpec with Matchers with JsonUtils {
           length = None,
           minValue = None,
           maxValue = None,
-          datasets = Set()
+          datasets = Set(),
+          summaryStatistics = None
         )
       )
 

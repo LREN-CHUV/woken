@@ -35,12 +35,7 @@ import ch.chuv.lren.woken.config.{
 }
 import ch.chuv.lren.woken.core.{ CoordinatorConfig, Core, CoreActors }
 import ch.chuv.lren.woken.dao.{ FeaturesDAL, MetadataRepositoryDAO, WokenRepositoryDAO }
-import ch.chuv.lren.woken.service.{
-  AlgorithmLibraryService,
-  DispatcherService,
-  JobResultService,
-  VariablesMetaService
-}
+import ch.chuv.lren.woken.service._
 import ch.chuv.lren.woken.ssl.WokenSSLConfiguration
 import ch.chuv.lren.woken.backends.woken.WokenService
 import com.typesafe.scalalogging.LazyLogging
@@ -162,12 +157,15 @@ trait BootedCore
       VariablesMetaService(metaDb.variablesMeta)
     }
 
+    val datasetsService: DatasetService = ConfBasedDatasetService(config)
+
     val variablesMetaService: VariablesMetaService = vmsIO.unsafeRunSync()
 
     BackoffSupervisor.props(
       Backoff.onFailure(
         MasterRouter.props(appConfig,
                            coordinatorConfig,
+                           datasetsService,
                            variablesMetaService,
                            dispatcherService,
                            algorithmLibraryService,

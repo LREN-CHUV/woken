@@ -19,18 +19,23 @@ package ch.chuv.lren.woken.core
 
 import java.time.OffsetDateTime
 
-import akka.actor.{ Actor, PoisonPill }
+import akka.actor.{ Actor, ActorRef, PoisonPill }
 import ch.chuv.lren.woken.core.model.PfaJobResult
 import spray.json._
 import CoordinatorActor._
+import ch.chuv.lren.woken.backends.DockerJob
 import ch.chuv.lren.woken.core.commands.JobCommands
 
 class FakeCoordinatorActor() extends Actor {
 
   override def receive: PartialFunction[Any, Unit] = {
     case JobCommands.StartCoordinatorJob(job) =>
-      val pfa =
-        """
+      startCoordinatorJob(sender(), job)
+  }
+
+  def startCoordinatorJob(originator: ActorRef, job: DockerJob): Unit = {
+    val pfa =
+      """
            {
              "input": [],
              "output": [],
@@ -39,13 +44,13 @@ class FakeCoordinatorActor() extends Actor {
            }
         """.stripMargin.parseJson.asJsObject
 
-      sender() ! Response(
-        job,
-        List(
-          PfaJobResult(job.jobId, "testNode", OffsetDateTime.now(), job.algorithmSpec.code, pfa)
-        )
+    originator ! Response(
+      job,
+      List(
+        PfaJobResult(job.jobId, "testNode", OffsetDateTime.now(), job.algorithmSpec.code, pfa)
       )
-      self ! PoisonPill
+    )
+    self ! PoisonPill
   }
 
 }

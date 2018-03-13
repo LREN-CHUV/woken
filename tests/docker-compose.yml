@@ -244,7 +244,7 @@ services:
       - db
 
   wokenvalidation:
-    image: hbpmip/woken-validation:2.2.9
+    image: hbpmip/woken-validation:2.2.15
     ports:
       - "8081:8081"
       - "8082:8082"
@@ -283,7 +283,7 @@ services:
       - woken
 
   portalbackend:
-    image: "hbpmip/portal-backend:2.6.1"
+    image: "hbpmip/portal-backend:2.6.2"
     restart: "no"
     ports:
       - "65440:8080"

@@ -18,9 +18,10 @@
 package ch.chuv.lren.woken.api
 
 import ch.chuv.lren.woken.api.swagger.SwaggerService
+import ch.chuv.lren.woken.config.AppConfiguration
 import ch.chuv.lren.woken.core.{ CoordinatorConfig, Core, CoreActors }
 import ch.chuv.lren.woken.dao.FeaturesDAL
-import ch.chuv.lren.woken.service.JobResultService
+import ch.chuv.lren.woken.service.{ JobResultService, VariablesMetaService }
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
@@ -42,7 +43,13 @@ trait Api extends CoreActors with Core with LazyLogging {
     val miningService =
       new MiningWebService(
         mainRouter,
-        featuresDAL,
+        appConfig,
+        jobsConfig
+      )
+
+    val metadataService =
+      new MetadataApiService(
+        mainRouter,
         appConfig,
         jobsConfig
       )
@@ -68,7 +75,9 @@ trait Api extends CoreActors with Core with LazyLogging {
       }
     }
 
-    cors()(SwaggerService.routes ~ miningService.routes ~ healthRoute ~ readinessRoute)
+    cors()(
+      SwaggerService.routes ~ miningService.routes ~ metadataService.routes ~ healthRoute ~ readinessRoute
+    )
   }
 
 }

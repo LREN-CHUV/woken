@@ -65,6 +65,12 @@ class WokenWebSocketAPITest
 
   }
 
+  "Woken" should "respond to a query for the list of datasets using websocket" in {
+
+    executeQuery(None, None, s"ws://$remoteHostName:8087/datasets")
+
+  }
+
   "Woken" should "respond to a mining query using websocket" in {
 
     executeQuery(Some("/knn_data_mining_query.json"),
