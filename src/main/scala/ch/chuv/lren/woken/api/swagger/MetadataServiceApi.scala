@@ -25,7 +25,7 @@ import io.swagger.annotations._
 
 @Api(value = "/", consumes = "application/json", produces = "application/json")
 trait MetadataServiceApi extends Directives {
-  @Path("/datasets")
+  @Path("/metadata/datasets")
   @ApiOperation(
     value = "Get dataset catalog",
     notes = "Get catalog containing available datasets",
