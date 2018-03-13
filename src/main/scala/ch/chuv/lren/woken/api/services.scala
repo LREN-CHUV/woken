@@ -17,18 +17,17 @@
 
 package ch.chuv.lren.woken.api
 
-import akka.http.scaladsl.model.{ HttpEntity, StatusCode, StatusCodes }
-import akka.http.scaladsl.server.{ ExceptionHandler, RejectionHandler, RequestContext }
+import akka.http.scaladsl.model.{ StatusCode, StatusCodes }
+import akka.http.scaladsl.server._
 import StatusCodes._
+import akka.http.scaladsl.model.ws.{ Message, UpgradeToWebSocket }
+import akka.stream.scaladsl.Flow
+import akka.util.Timeout
+import ch.chuv.lren.woken.authentication.BasicAuthenticator
+import com.typesafe.scalalogging.LazyLogging
 
-/**
-  * Holds potential error response with the HTTP status and optional body
-  *
-  * @param responseStatus the status code
-  * @param response       the optional body
-  */
-case class ErrorResponseException(responseStatus: StatusCode, response: Option[HttpEntity])
-    extends Exception
+import scala.concurrent.ExecutionContext
+import scala.util.Failure
 
 /**
   * Provides a hook to catch exceptions and rejections from routes, allowing custom
@@ -38,6 +37,7 @@ case class ErrorResponseException(responseStatus: StatusCode, response: Option[H
   * JSON API (e.g. see how Foursquare do it).
   */
 trait FailureHandling {
+  this: LazyLogging =>
 
   implicit def rejectionHandler: RejectionHandler = RejectionHandler.default
 
@@ -48,7 +48,7 @@ trait FailureHandling {
         loggedFailureResponse(
           ctx,
           e,
-          message = "The server was asked a question that didn't make sense: " + e.getMessage,
+          message = s"The server was asked a question that didn't make sense: ${e.getMessage}",
           error = StatusCodes.NotAcceptable
         )
 
@@ -72,8 +72,37 @@ trait FailureHandling {
       thrown: Throwable,
       message: String = "The server is having problems.",
       error: StatusCode = StatusCodes.InternalServerError
-  ) =
-    //log.error(thrown, ctx.request.toString)
+  ) = {
+    logger.error(ctx.request.toString, thrown)
     ctx.complete((error, message))
+  }
 
+}
+
+trait SecuredRouteHelper extends BasicAuthenticator with Directives {
+  this: LazyLogging =>
+
+  implicit val executionContext: ExecutionContext
+  implicit val timeout: Timeout
+
+  def securePathWithWebSocket(pm: PathMatcher[Unit],
+                              wsFlow: Flow[Message, Message, Any],
+                              restRoute: Route): Route =
+    path(pm) {
+      authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator).apply { _ =>
+        optionalHeaderValueByType[UpgradeToWebSocket](()) {
+          case Some(upgrade) =>
+            complete(upgrade.handleMessages(wsFlow.watchTermination() { (_, done) =>
+              done.onComplete {
+                case scala.util.Success(_) =>
+                  logger.info(s"WS $pm completed successfully.")
+                case Failure(ex) =>
+                  logger.error(s"WS $pm completed with failure : $ex")
+              }
+            }))
+          //}
+          case None => restRoute
+        }
+      }
+    }
 }
