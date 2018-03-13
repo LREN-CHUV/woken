@@ -17,9 +17,9 @@
 
 package ch.chuv.lren.woken.api
 
-import akka.http.scaladsl.server.Route
 import akka.actor._
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
+import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.model.StatusCodes._
 import akka.util.Timeout
 import akka.pattern.ask
@@ -54,7 +54,7 @@ class MetadataApiService(
 
   override def listDatasets: Route =
     securePathWithWebSocket(
-      "datasets",
+      "metadata" / "datasets",
       listDatasetsFlow,
       get {
         complete {
