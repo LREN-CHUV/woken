@@ -163,16 +163,16 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
 
 }
 
+case class AlgorithmValidationMaybe(job: ExperimentActor.Job,
+                                    algorithmSpec: AlgorithmSpec,
+                                    algorithmDefinition: Validation[AlgorithmDefinition],
+                                    validations: List[ValidationSpec])
 case class ExperimentFlow(
     coordinatorConfig: CoordinatorConfig,
     algorithmLookup: String => Validation[AlgorithmDefinition],
     context: ActorContext
 )(implicit materializer: Materializer, ec: ExecutionContext) {
 
-  private case class AlgorithmValidationMaybe(job: ExperimentActor.Job,
-                                              algorithmSpec: AlgorithmSpec,
-                                              algorithmDefinition: Validation[AlgorithmDefinition],
-                                              validations: List[ValidationSpec])
   private case class AlgorithmValidation(job: ExperimentActor.Job,
                                          algorithmSpec: AlgorithmSpec,
                                          subJob: ValidatedAlgorithmFlow.Job)
@@ -210,7 +210,7 @@ case class ExperimentFlow(
       })
       .named("run-experiment")
 
-  private def splitJob: Flow[ExperimentActor.Job, AlgorithmValidationMaybe, NotUsed] =
+  def splitJob: Flow[ExperimentActor.Job, AlgorithmValidationMaybe, NotUsed] =
     Flow[ExperimentActor.Job]
       .map { job =>
         val algorithms  = job.query.algorithms

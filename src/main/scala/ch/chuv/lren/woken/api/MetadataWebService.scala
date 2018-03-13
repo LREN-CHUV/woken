@@ -25,7 +25,6 @@ import akka.util.Timeout
 import akka.pattern.ask
 import ch.chuv.lren.woken.api.swagger.MetadataServiceApi
 import ch.chuv.lren.woken.config.{ AppConfiguration, JobsConfiguration }
-import ch.chuv.lren.woken.dao.FeaturesDAL
 import ch.chuv.lren.woken.messages.datasets.{ DatasetsQuery, DatasetsResponse }
 import com.typesafe.scalalogging.LazyLogging
 
@@ -34,7 +33,6 @@ import scala.concurrent.{ ExecutionContext, Future }
 
 class MetadataApiService(
     val masterRouter: ActorRef,
-    val featuresDatabase: FeaturesDAL,
     override val appConfiguration: AppConfiguration,
     val jobsConf: JobsConfiguration
 )(implicit system: ActorSystem)

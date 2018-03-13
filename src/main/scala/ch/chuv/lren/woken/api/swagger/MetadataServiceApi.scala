@@ -23,9 +23,10 @@ import akka.http.scaladsl.server.{ Directives, Route }
 import ch.chuv.lren.woken.messages.datasets.DatasetsResponse
 import io.swagger.annotations._
 
-@Api(value = "/", consumes = "application/json", produces = "application/json")
+@Api(value = "/metadata", consumes = "application/json", produces = "application/json")
 trait MetadataServiceApi extends Directives {
-  @Path("/metadata/datasets")
+
+  @Path("/datasets")
   @ApiOperation(
     value = "Get dataset catalog",
     notes = "Get catalog containing available datasets",
@@ -46,4 +47,5 @@ trait MetadataServiceApi extends Directives {
   )
   @Authorization(value = "BasicAuth")
   def listDatasets: Route
+
 }

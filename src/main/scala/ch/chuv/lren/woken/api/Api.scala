@@ -24,7 +24,7 @@ import ch.chuv.lren.woken.dao.FeaturesDAL
 import ch.chuv.lren.woken.service.{ JobResultService, VariablesMetaService }
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
+import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 import com.typesafe.scalalogging.LazyLogging
 
 /**
@@ -43,7 +43,6 @@ trait Api extends CoreActors with Core with LazyLogging {
     val miningService =
       new MiningWebService(
         mainRouter,
-        featuresDAL,
         appConfig,
         jobsConfig
       )
@@ -51,7 +50,6 @@ trait Api extends CoreActors with Core with LazyLogging {
     val metadataService =
       new MetadataApiService(
         mainRouter,
-        featuresDAL,
         appConfig,
         jobsConfig
       )
