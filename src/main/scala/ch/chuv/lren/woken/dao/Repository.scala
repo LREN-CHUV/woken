@@ -83,8 +83,6 @@ case class FeaturesDAL(featuresDbConnection: DatabaseConfiguration) extends Repo
                                 featuresDbConnection.password)
   }
 
-  case class ColumnMeta(index: Int, label: String, datatype: String)
-
   def runQuery(dbConnection: Connection, query: String): (List[ColumnMeta], Stream[JsObject]) = {
     // A transaction that sets a seed
     // TODO The seed must be passed as a query parameters and generated above
@@ -167,6 +165,7 @@ case class FeaturesDAL(featuresDbConnection: DatabaseConfiguration) extends Repo
     "java.lang.String"     -> JsString("string")
   )
 
+  // TODO: Not used
   def queryData(featuresTable: String, columns: Seq[String]): JsObject = {
     val (meta, data) = runQuery(
       ldsmConnection,
@@ -189,7 +188,7 @@ case class FeaturesDAL(featuresDbConnection: DatabaseConfiguration) extends Repo
                   meta.map(
                     col =>
                       JsObject("name" -> JsString(col.label),
-                               "type" -> resultsetJsTypes(col.datatype))
+                               "type" -> resultsetJsTypes(col.dataType))
                   ): _*
                 )
               )
