@@ -54,7 +54,7 @@ class JobToChronosTest extends FlatSpec with Matchers {
   )
 
   val featuresQuery: FeaturesQuery =
-    query.features("features_table", excludeNullValues = true, None)
+    query.filterNulls(true).features("features_table", None)
 
   val jdbcConfs: Map[String, ValidatedNel[String, DatabaseConfiguration]] = Map(
     "features_db" -> DatabaseConfiguration(

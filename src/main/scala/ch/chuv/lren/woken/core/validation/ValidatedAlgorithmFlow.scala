@@ -106,7 +106,9 @@ case class ValidatedAlgorithmFlow(
         // Spawn a CoordinatorActor
         val jobId = UUID.randomUUID().toString
         val featuresQuery =
-          job.query.features(job.inputTable, !job.algorithmDefinition.supportsNullValues, None)
+          job.query
+            .filterNulls(!job.algorithmDefinition.supportsNullValues)
+            .features(job.inputTable, None)
         val subJob =
           DockerJob(jobId,
                     job.algorithmDefinition.dockerImage,

@@ -17,7 +17,8 @@
 
 package ch.chuv.lren.woken.core.features
 
-import ch.chuv.lren.woken.messages.query.Query
+import ch.chuv.lren.woken.messages.datasets.DatasetId
+import ch.chuv.lren.woken.messages.query.{ ExperimentQuery, MiningQuery, Query }
 import ch.chuv.lren.woken.messages.query.filters._
 import ch.chuv.lren.woken.messages.query.filters.FilterRule._
 import ch.chuv.lren.woken.messages.variables.{ FeatureIdentifier, VariableId }
@@ -29,7 +30,7 @@ case class QueryOffset(start: Int, count: Int) {
 object Queries {
 
   // TODO: add support for GroupId as feature
-  implicit class QueryEnhanced(val query: Query) extends AnyVal {
+  implicit class QueryEnhanced[Q <: Query](val query: Q) extends AnyVal {
 
     /** Convert variable to lowercase as Postgres returns lowercase fields in its result set
       * Variables codes are sanitized to ensure valid database field names using the following conversions:
@@ -47,26 +48,75 @@ object Queries {
     def dbCovariables: List[String] = query.covariables.map(toField)
     def dbGrouping: List[String]    = query.grouping.map(toField)
 
-    def features(defaultInputTable: String,
-                 excludeNullValues: Boolean,
-                 shadowOffset: Option[QueryOffset]): FeaturesQuery = {
-
-      val inputTable        = query.targetTable.getOrElse(defaultInputTable)
-      val nonNullableFields = if (excludeNullValues) query.dbAllVars else query.dbVariables
+    /**
+      * Add a filter to remove null values, either partially, where rows containing null values in the target variables are excluded,
+      * or totally, where rows containing a null value in any field used by the query are excluded.
+      *
+      * @param excludeAllNulls If true, all fields containing null values are excluded, otherwise only the target variables are excluded
+      */
+    def filterNulls(excludeAllNulls: Boolean): Q = {
+      val nonNullableFields = if (excludeAllNulls) query.dbAllVars else query.dbVariables
       val notNullFilters: List[FilterRule] = nonNullableFields
         .map(v => SingleFilterRule(v, v, "string", InputType.text, Operator.isNotNull, Nil))
       val mergingQueryFilters =
-        query.filters.map(_.withAdaptedFieldName).fold(notNullFilters)(f => notNullFilters :+ f)
+        query.filters.fold(notNullFilters)(f => notNullFilters :+ f)
       val filters: FilterRule = mergingQueryFilters match {
         case List(f) => f
         case _       => CompoundFilterRule(Condition.and, mergingQueryFilters)
       }
+      query match {
+        case q: MiningQuery     => q.copy(filters = Some(filters)).asInstanceOf[Q]
+        case q: ExperimentQuery => q.copy(filters = Some(filters)).asInstanceOf[Q]
+      }
+    }
 
-      val selectNoPaging =
-        s"SELECT ${query.dbAllVars.map(_.identifier).mkString(",")} FROM $inputTable WHERE ${filters.toSqlWhere}"
+    /**
+      * Add a filter that returns only the rows that belong to one dataset defined in dataset property.
+      */
+    def filterDatasets: Q = {
+      val datasets: Set[DatasetId] = query match {
+        case q: MiningQuery     => q.datasets
+        case q: ExperimentQuery => q.trainingDatasets
+      }
 
-      val sqlQuery = shadowOffset.fold(selectNoPaging) { o =>
-        selectNoPaging + s" EXCEPT ALL (" + selectNoPaging + s" OFFSET ${o.start} LIMIT ${o.count})"
+      val datasetsFilter = SingleFilterRule("dataset",
+                                            "dataset",
+                                            "string",
+                                            InputType.text,
+                                            Operator.in,
+                                            datasets.map(_.code).toList)
+      val filters: FilterRule =
+        query.filters
+          .fold(datasetsFilter: FilterRule)(
+            f => CompoundFilterRule(Condition.and, List(datasetsFilter, f))
+          )
+
+      query match {
+        case q: MiningQuery     => q.copy(filters = Some(filters)).asInstanceOf[Q]
+        case q: ExperimentQuery => q.copy(filters = Some(filters)).asInstanceOf[Q]
+      }
+    }
+
+    /**
+      * Returns the database query for the selection of data features for training algorithms or mining data
+      *
+      * @param defaultInputTable The input table to use by default if no value is defined in the query
+      * @param offset Offset for the selection of data
+      * @return the database query for the selection of data features
+      */
+    def features(defaultInputTable: String, offset: Option[QueryOffset]): FeaturesQuery = {
+
+      val inputTable = query.targetTable.getOrElse(defaultInputTable)
+
+      val selectOnly =
+        s"SELECT ${query.dbAllVars.map(_.identifier).mkString(",")} FROM $inputTable"
+
+      val selectFiltered = query.filters.fold(selectOnly) { filters =>
+        s"$selectOnly WHERE ${filters.withAdaptedFieldName.toSqlWhere}"
+      }
+
+      val sqlQuery = offset.fold(selectFiltered) { o =>
+        s"$selectFiltered EXCEPT ALL ($selectFiltered OFFSET ${o.start} LIMIT ${o.count})"
       }
 
       FeaturesQuery(dbVariables, dbCovariables, dbGrouping, inputTable, sqlQuery)

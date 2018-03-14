@@ -106,7 +106,9 @@ case class CrossValidationFlow(
         val validation = job.validation
         val foldCount  = validation.parametersAsMap("k").toInt
         val featuresQuery =
-          job.query.features(job.inputTable, !job.algorithmDefinition.supportsNullValues, None)
+          job.query
+            .filterNulls(!job.algorithmDefinition.supportsNullValues)
+            .features(job.inputTable, None)
 
         log.info(s"List of folds: $foldCount")
 
@@ -184,7 +186,9 @@ case class CrossValidationFlow(
     // Spawn a LocalCoordinatorActor for that one particular fold
     val jobId = UUID.randomUUID().toString
     val featuresQuery =
-      job.query.features(job.inputTable, !job.algorithmDefinition.supportsNullValues, Some(offset))
+      job.query
+        .filterNulls(!job.algorithmDefinition.supportsNullValues)
+        .features(job.inputTable, Some(offset))
 
     val subJob = DockerJob(
       jobId = jobId,
