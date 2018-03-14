@@ -38,7 +38,7 @@ import MiningQueries._
 import ch.chuv.lren.woken.config.{AlgorithmDefinition, AppConfiguration}
 import ch.chuv.lren.woken.core.commands.JobCommands.{StartCoordinatorJob, StartExperimentJob}
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
-import ch.chuv.lren.woken.messages.variables.{FeatureIdentifier, VariableId, VariablesForDatasetsQuery, VariablesForDatasetsResponse}
+import ch.chuv.lren.woken.messages.variables._
 
 object MasterRouter {
 
@@ -112,19 +112,23 @@ case class MasterRouter(appConfiguration: AppConfiguration,
     case DatasetsQuery =>
       sender ! DatasetsResponse(datasetService.datasets())
 
-    case VariablesForDatasetsQuery(datasetIds, includeNulls) =>
+    case varsQuery: VariablesForDatasetsQuery =>
+      val initiator = sender()
       log.debug("querying variables...")
-      val meta = datasetService.datasets()
-        .filter(ds => datasetIds.contains(ds.dataset))
-        .flatMap(_.tables)
-        .flatMap(table => variablesMetaService.get(table))
-        .flatMap(meta =>
-          meta.select(s => true)
-            .map(metaData => VariableId(metaData.code).asInstanceOf[FeatureIdentifier])
-        )
 
-      log.debug(s"sending var info: $meta")
-      sender ! VariablesForDatasetsResponse(meta)
+      Source.single(varsQuery.copy(datasets = datasetService.datasets().map(_.dataset)))
+          .via(dispatcherService.dispatchVariablesQueryFlow(datasetService, variablesMetaService))
+          .fold(Set[VariableMetaData]()) {
+            println("folding")
+            _ ++ _.variables
+          }
+          .map { varsMetaData => {
+              log.debug(s"vars metadata $varsMetaData")
+              initiator ! VariablesForDatasetsResponse(varsMetaData)
+              VariablesForDatasetsResponse(varsMetaData)
+            }
+          }
+          .runWith(Sink.last)
 
     //case MiningQuery(variables, covariables, groups, _, AlgorithmSpec(c, p))
     //    if c == "" || c == "data" =>

@@ -77,11 +77,11 @@ class MetadataApiService(
       listVariableMetadataFlow,
       get{
         complete {
-          (masterRouter ? VariablesForDatasetsQuery(datasets = Set(DatasetId("chuv")), includeNulls = true))
+          (masterRouter ? VariablesForDatasetsQuery(datasets = Set(), includeNulls = true))
             .mapTo[VariablesForDatasetsResponse]
             .map { variablesResponse =>
               logger.debug(s"got response $variablesResponse")
-              OK -> variablesResponse.variables.toJson
+              OK -> variablesResponse.toJson
             }
             .recoverWith {
               case e => Future(BadRequest -> JsObject("error" -> JsString(e.toString)))

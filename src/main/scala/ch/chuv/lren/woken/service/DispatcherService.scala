@@ -18,16 +18,17 @@
 package ch.chuv.lren.woken.service
 
 import akka.NotUsed
-import akka.stream.OverflowStrategy
-import akka.stream.scaladsl.{ Flow, Source }
+import akka.stream.{FlowShape, OverflowStrategy}
+import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Merge, Source}
 import ch.chuv.lren.woken.fp.Traverse
-import ch.chuv.lren.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryResult }
+import ch.chuv.lren.woken.messages.query.{ExperimentQuery, MiningQuery, QueryResult}
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import cats.implicits.catsStdInstancesForOption
 import com.typesafe.scalalogging.Logger
 import ch.chuv.lren.woken.backends.woken.WokenService
-import ch.chuv.lren.woken.messages.datasets.{ Dataset, DatasetId }
+import ch.chuv.lren.woken.messages.datasets.{Dataset, DatasetId}
 import ch.chuv.lren.woken.messages.remoting.RemoteLocation
+import ch.chuv.lren.woken.messages.variables.{VariablesForDatasetsQuery, VariablesForDatasetsResponse}
 
 class DispatcherService(datasets: Map[DatasetId, Dataset], wokenService: WokenService) {
 
@@ -63,6 +64,61 @@ class DispatcherService(datasets: Map[DatasetId, Dataset], wokenService: WokenSe
         case (l, q) => l.copy(url = l.url.withPath(l.url.path / "mining" / "experiment")) -> q
       }
       .via(wokenService.queryFlow)
+
+
+  def dispatchVariablesQueryFlow(datasetService: DatasetService, variablesMetaService: VariablesMetaService):
+      Flow[VariablesForDatasetsQuery, VariablesForDatasetsResponse, NotUsed] = {
+
+    Flow.fromGraph(GraphDSL.create() { implicit builder =>
+      import GraphDSL.Implicits._
+
+      val partition = builder.add(Broadcast[VariablesForDatasetsQuery](2))
+      val merger = builder.add(Merge[VariablesForDatasetsResponse](2))
+
+      partition ~> remoteDispatchVariablesQueryFlow() ~> merger
+      partition ~> localVariablesQueryFlow(datasetService, variablesMetaService) ~> merger
+
+      FlowShape(partition.in, merger.out)
+    })
+  }
+
+  def remoteDispatchVariablesQueryFlow(): Flow[VariablesForDatasetsQuery, VariablesForDatasetsResponse, NotUsed] = {
+    println("remote dispatching flow...")
+
+    Flow[VariablesForDatasetsQuery]
+        .map(q => {
+          val target = dispatchTo(q.datasets)
+          println(s"target datasets $target")
+          target._1.map(location => location -> q)
+        })
+          .mapConcat(identity)
+          .buffer(100, OverflowStrategy.backpressure)
+          .map {
+            case (l, q) => {
+              println(s"remote location: ${l.url}")
+              l.copy(url = l.url.withPath(l.url.path / "variables")) -> q
+            }
+          }
+          .via(wokenService.variableMetaFlow)
+          .map(_._2)
+  }
+
+  def localVariablesQueryFlow(datasetService: DatasetService, variablesMetaService: VariablesMetaService):
+    Flow[VariablesForDatasetsQuery, VariablesForDatasetsResponse, NotUsed] = {
+
+    Flow[VariablesForDatasetsQuery]
+      .map(q => {
+        datasetService.datasets()
+          .filter(_.location.isEmpty)
+          .filter(ds => q.datasets.isEmpty || q.datasets.contains(ds.dataset))
+      })
+      .mapConcat(identity)
+      .map { ds =>
+        ds.dataset -> ds.tables.flatMap(variablesMetaService.get).flatMap(_.select(_ => true))
+      }
+      .map(varsForDs => varsForDs._2.map(_.copy(datasets = Set(varsForDs._1))))
+      .map(vars => VariablesForDatasetsResponse(vars.toSet))
+  }
 
   def localDispatchFlow(datasets: Set[DatasetId]): Source[QueryResult, NotUsed] = ???
 

@@ -119,14 +119,21 @@ case class WokenService(node: String)(implicit val system: ActorSystem,
 
   def variableMetaFlow: Flow[(RemoteLocation, VariablesForDatasetsQuery), (RemoteLocation, VariablesForDatasetsResponse), NotUsed] =
     Flow[(RemoteLocation, VariablesForDatasetsQuery)]
-      .map(query => sendReceive(Get(query._1.url)).map((query._1, _)))
-      .mapAsync(1)(identity)
-      .mapAsync(1) {
+      .map(query => sendReceive(Get(query._1)).map((query._1, _)))
+      .mapAsync(100)(identity)
+      .mapAsync(100) {
         case (url, response) if response.status.isSuccess() =>
-          (url.pure[Future], Unmarshal(response).to[VariablesForDatasetsResponse]).mapN((_, _))
+          val varResponse = Unmarshal(response).to[VariablesForDatasetsResponse]
+          println(s"url: $url response: $varResponse")
+          (url.pure[Future], varResponse).mapN((_, _))
         case (url, failure) =>
+          println(s"url: $url failure: $failure")
           (url, VariablesForDatasetsResponse(Set.empty)).pure[Future]
       }
-      .map(identity)
+        .map(q => {
+          println(s"received response $q")
+          q
+        })
+
 
 }
