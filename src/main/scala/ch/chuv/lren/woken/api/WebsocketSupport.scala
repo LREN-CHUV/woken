@@ -125,7 +125,8 @@ trait WebsocketSupport {
       .withAttributes(ActorAttributes.supervisionStrategy(decider))
       .filter(_.isSuccess)
       .map(_.get)
-      .mapAsync(1) { miningQuery: MiningQuery => {
+      .mapAsync(1) { miningQuery: MiningQuery =>
+        {
           val result = (masterRouter ? miningQuery).mapTo[QueryResult]
           result.map(_.toJson)
         }

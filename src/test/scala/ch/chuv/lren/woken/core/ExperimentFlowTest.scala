@@ -19,24 +19,26 @@ package ch.chuv.lren.woken.core
 
 import java.util.UUID
 
-import akka.actor.{ Actor, ActorSystem, Props }
+import akka.actor.{Actor, ActorSystem, Props}
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.Source
+import akka.stream.scaladsl.{Sink, Source}
 import akka.stream.testkit.scaladsl.TestSink
-import akka.testkit.{ TestKit, TestProbe }
+import akka.testkit.{TestKit, TestProbe}
 import ch.chuv.lren.woken.config.AlgorithmsConfiguration
-import ch.chuv.lren.woken.core.model.{ ErrorJobResult, JobResult }
+import ch.chuv.lren.woken.core.model.{ErrorJobResult, JobResult}
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables.VariableId
-import ch.chuv.lren.woken.util.{ FakeCoordinatorConfig, JsonUtils }
-import com.typesafe.config.{ Config, ConfigFactory }
-import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
+import ch.chuv.lren.woken.util.{FakeCoordinatorConfig, JsonUtils}
+import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.scalalogging.LazyLogging
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.util.{Failure, Success}
 
 /**
   * Experiment flow should always complete with success, but the error is reported inside the response.
@@ -46,7 +48,8 @@ class ExperimentFlowTest
     with WordSpecLike
     with Matchers
     with BeforeAndAfterAll
-    with JsonUtils {
+    with JsonUtils
+    with LazyLogging {
 
   val config: Config =
     ConfigFactory
@@ -223,12 +226,21 @@ class ExperimentFlowTest
 
   }
 
+  /**
+    * This actor provides the environment for executing experimentFlow
+    */
   class ExperimentFlowWrapper extends Actor {
 
-    private val coordinatorActor  = testActor
+    private val coordinatorActor  = context.actorOf(FakeCoordinatorActor.props)
     private val coordinatorConfig = FakeCoordinatorConfig.coordinatorConfig(coordinatorActor)
     private val algorithmLookup   = AlgorithmsConfiguration.factory(config)
-    val experimentFlow            = ExperimentFlow(coordinatorConfig, algorithmLookup, context)
+    val experimentFlow = ExperimentFlow(
+      FakeCoordinatorActor.executeFailingJobAsync("Algorithm failure"),
+      coordinatorConfig.featuresDatabase,
+      "testNode",
+      algorithmLookup,
+      context
+    )
 
     override def receive: Receive = {
       case job: ExperimentActor.Job =>
@@ -257,23 +269,38 @@ class ExperimentFlowTest
     def props = Props(new ExperimentWithFailingAlgoFlowWrapper)
   }
 
+  /**
+    * This actor provides the environment for executing experimentFlow where a failing algorithm is simulated by
+    * a coordinator actor returning failures.
+    */
   class ExperimentWithFailingAlgoFlowWrapper extends Actor {
 
     private val coordinatorActor  = testActor
     private val coordinatorConfig = FakeCoordinatorConfig.coordinatorConfig(coordinatorActor)
     private val algorithmLookup   = AlgorithmsConfiguration.factory(config)
-    val experimentFlow            = ExperimentFlow(coordinatorConfig, algorithmLookup, context)
+    val experimentFlow = ExperimentFlow(
+      FakeCoordinatorActor.executeFailingJobAsync("Algorithm failure"),
+      coordinatorConfig.featuresDatabase,
+      "testNode",
+      algorithmLookup,
+      context
+    )
 
     override def receive: Receive = {
       case job: ExperimentActor.Job =>
         val originator = sender()
-        val result = Source
+        Source
           .single(job)
           .via(experimentFlow.flow)
-          .runWith(TestSink.probe[Map[AlgorithmSpec, JobResult]])
-          .request(1)
-          .receiveWithin(10 seconds, 1)
-        originator ! ExperimentResponse(result.headOption.getOrElse(Map.empty))
+          .runWith(Sink.last)
+          .onComplete {
+            case Success(result) => originator ! ExperimentResponse(result)
+            case Failure(ex: Throwable) => logger.error("Failed", ex)
+          }
+
+          //.runWith(TestSink.probe[Map[AlgorithmSpec, JobResult]])
+          //request(1)
+          //.receiveWithin(10 seconds, 1)
     }
   }
 

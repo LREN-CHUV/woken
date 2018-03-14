@@ -38,7 +38,7 @@ object FakeCoordinatorConfig {
                           user = "",
                           password = "")
   val noJobsConf =
-    JobsConfiguration("none",
+    JobsConfiguration("testNode",
                       "noone",
                       "http://nowhere",
                       "features",

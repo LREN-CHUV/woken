@@ -17,7 +17,6 @@
 
 package ch.chuv.lren.woken.api
 
-import java.time.OffsetDateTime
 import java.util.UUID
 
 import akka.actor.{ ActorRef, ActorSystem, Props }
@@ -47,8 +46,6 @@ import ch.chuv.lren.woken.backends.woken.WokenService
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.util.FakeActors
 import ch.chuv.lren.woken.messages.datasets.{ DatasetsQuery, DatasetsResponse }
-import ch.chuv.lren.woken.core.CoordinatorActor.Response
-import ch.chuv.lren.woken.core.model.ErrorJobResult
 import ch.chuv.lren.woken.messages.variables.VariableId
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import org.scalatest.tagobjects.Slow
@@ -116,7 +113,7 @@ class MasterRouterTest
       system.actorOf(Props(new FakeExperimentActor()))
 
     override def newCoordinatorActor: ActorRef =
-      system.actorOf(Props(new FakeCoordinatorActor()))
+      system.actorOf(FakeCoordinatorActor.props)
 
     override def initValidationWorker: ActorRef =
       context.actorOf(FakeActors.echoActorProps)
@@ -301,18 +298,8 @@ class MasterRouterTest
 
       val errorMessage = "Fake error message"
 
-      val testCoordinatorActor = system.actorOf(Props(new FakeCoordinatorActor() {
-        override def startCoordinatorJob(originator: ActorRef, job: DockerJob): Unit =
-          originator ! Response(job,
-                                List(
-                                  ErrorJobResult(job.jobId,
-                                                 coordinatorConfig.jobsConf.node,
-                                                 OffsetDateTime.now(),
-                                                 job.algorithmSpec.code,
-                                                 errorMessage)
-                                ))
-
-      }))
+      val testCoordinatorActor =
+        system.actorOf(FakeCoordinatorActor.propsForFailingWithMsg(errorMessage))
 
       val miningRouter = system.actorOf(
         Props(

@@ -31,10 +31,11 @@ import cats.implicits._
 import ch.chuv.lren.woken.backends.DockerJob
 import ch.chuv.lren.woken.config.AlgorithmDefinition
 import ch.chuv.lren.woken.core.features.QueryOffset
-import ch.chuv.lren.woken.core.{ CoordinatorActor, CoordinatorConfig }
+import ch.chuv.lren.woken.core.CoordinatorActor
 import ch.chuv.lren.woken.core.model.{ ErrorJobResult, PfaJobResult }
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
+import ch.chuv.lren.woken.dao.FeaturesDAL
 import ch.chuv.lren.woken.messages.query.{ MiningQuery, ValidationSpec }
 import ch.chuv.lren.woken.messages.validation._
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
@@ -83,7 +84,8 @@ object CrossValidationFlow {
 }
 
 case class CrossValidationFlow(
-    coordinatorConfig: CoordinatorConfig,
+    executeJobAsync: CoordinatorActor.ExecuteJobAsync,
+    featuresDatabase: FeaturesDAL,
     context: ActorContext
 )(implicit materializer: Materializer, ec: ExecutionContext) {
 
@@ -94,7 +96,7 @@ case class CrossValidationFlow(
   private val scoringActor: ActorSelection =
     context.actorSelection("/user/entrypoint/mainRouter/scoringWorker")
 
-  import CrossValidationFlow._
+  import CrossValidationFlow.{ CrossValidationScore, FoldContext, FoldResult, Job }
 
   def crossValidate(
       parallelism: Int
@@ -110,7 +112,7 @@ case class CrossValidationFlow(
 
         // TODO For now only kfold cross-validation
         val crossValidation =
-          KFoldCrossValidation(featuresQuery, foldCount, coordinatorConfig.featuresDatabase)
+          KFoldCrossValidation(featuresQuery, foldCount, featuresDatabase)
 
         assert(
           crossValidation.partition.size == foldCount,
@@ -172,10 +174,12 @@ case class CrossValidationFlow(
       .getOrElse(throw new Exception("Problem with variables' meta data!"))
   }
 
-  private def localJobForFold(job: Job,
-                              offset: QueryOffset,
-                              fold: Int,
-                              validation: KFoldCrossValidation) = {
+  private def localJobForFold(
+      job: Job,
+      offset: QueryOffset,
+      fold: Int,
+      validation: KFoldCrossValidation
+  ): Future[FoldContext[CoordinatorActor.Response]] = {
 
     // Spawn a LocalCoordinatorActor for that one particular fold
     val jobId = UUID.randomUUID().toString
@@ -191,16 +195,14 @@ case class CrossValidationFlow(
       metadata = job.metadata
     )
 
-    CoordinatorActor
-      .future(subJob, coordinatorConfig, context)
-      .map(
-        response =>
-          FoldContext[CoordinatorActor.Response](job = job,
-                                                 response = response,
-                                                 fold = fold,
-                                                 targetMetaData = targetMetadata(job),
-                                                 validation = validation)
-      )
+    executeJobAsync(subJob).map(
+      response =>
+        FoldContext[CoordinatorActor.Response](job = job,
+                                               response = response,
+                                               fold = fold,
+                                               targetMetaData = targetMetadata(job),
+                                               validation = validation)
+    )
   }
 
   private def validateFoldJobResponse(
