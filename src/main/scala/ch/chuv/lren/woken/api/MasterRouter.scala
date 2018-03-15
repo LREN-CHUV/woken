@@ -106,8 +106,14 @@ case class MasterRouter(appConfiguration: AppConfiguration,
     case MethodsQuery =>
       sender ! MethodsResponse(algorithmLibraryService.algorithms().compactPrint)
 
-    case DatasetsQuery =>
-      sender ! DatasetsResponse(datasetService.datasets())
+    case ds: DatasetsQuery =>
+      val allDatasets = datasetService.datasets()
+      val table       = ds.table.getOrElse(coordinatorConfig.jobsConf.featuresTable)
+      val datasets =
+        if (table == "*") allDatasets
+        else allDatasets.filter(_.tables.contains(table))
+
+      sender ! DatasetsResponse(datasets.map(_.withoutAuthenticationDetails))
 
     //case MiningQuery(variables, covariables, groups, _, AlgorithmSpec(c, p))
     //    if c == "" || c == "data" =>

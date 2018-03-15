@@ -27,6 +27,7 @@ import ch.chuv.lren.woken.api.swagger.MetadataServiceApi
 import ch.chuv.lren.woken.config.{ AppConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.messages.datasets.{ DatasetsQuery, DatasetsResponse }
 import com.typesafe.scalalogging.LazyLogging
+import kamon.akka.http.TracingDirectives
 
 import scala.concurrent.duration._
 import scala.concurrent.{ ExecutionContext, Future }
@@ -40,6 +41,7 @@ class MetadataApiService(
     with SprayJsonSupport
     with SecuredRouteHelper
     with WebsocketSupport
+    with TracingDirectives
     with LazyLogging {
 
   implicit val executionContext: ExecutionContext = system.dispatcher
@@ -55,15 +57,19 @@ class MetadataApiService(
       "metadata" / "datasets",
       listDatasetsFlow,
       get {
-        complete {
-          (masterRouter ? DatasetsQuery)
-            .mapTo[DatasetsResponse]
-            .map { datasetResponse =>
-              OK -> datasetResponse.datasets.toJson
+        operationName("listDatasets", Map("requestType" -> "http-get")) {
+          parameters('table.?) { table =>
+            complete {
+              (masterRouter ? DatasetsQuery(table))
+                .mapTo[DatasetsResponse]
+                .map { datasetResponse =>
+                  OK -> datasetResponse.datasets.toJson
+                }
+                .recoverWith {
+                  case e => Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
+                }
             }
-            .recoverWith {
-              case e => Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
-            }
+          }
         }
       }
     )

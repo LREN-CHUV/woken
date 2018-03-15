@@ -45,11 +45,13 @@ import ch.chuv.lren.woken.cromwell.core.ConfigUtil
 import ch.chuv.lren.woken.backends.woken.WokenService
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.util.FakeActors
-import ch.chuv.lren.woken.messages.datasets.{ DatasetsQuery, DatasetsResponse }
+import ch.chuv.lren.woken.messages.datasets.{ Dataset, DatasetId, DatasetsQuery, DatasetsResponse }
+import ch.chuv.lren.woken.messages.datasets.AnonymisationLevel._
 import ch.chuv.lren.woken.messages.variables.VariableId
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import org.scalatest.tagobjects.Slow
 import cats.data.Validated._
+import ch.chuv.lren.woken.messages.remoting.RemoteLocation
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -337,11 +339,32 @@ class MasterRouterTest
 
     "return available datasets" in {
 
-      router ! DatasetsQuery
+      router ! DatasetsQuery(Some("DATA"))
 
       within(5 seconds) {
         val msg = expectMsgType[DatasetsResponse]
-        msg.datasets should not be empty
+        val expected = Set(
+          Dataset(DatasetId("remoteData1"),
+                  "Remote dataset #1",
+                  "Remote dataset #1",
+                  List("DATA"),
+                  Depersonalised,
+                  Some(RemoteLocation("http://service.remote/1", None))),
+          Dataset(DatasetId("remoteData2"),
+                  "Remote dataset #2",
+                  "Remote dataset #2",
+                  List("DATA"),
+                  Depersonalised,
+                  Some(RemoteLocation("http://service.remote/2", None))),
+          Dataset(DatasetId("remoteData3"),
+                  "Remote dataset #3",
+                  "Remote dataset #3",
+                  List("DATA"),
+                  Depersonalised,
+                  Some(RemoteLocation("wss://service.remote/3", None)))
+        )
+
+        msg.datasets shouldBe expected
       }
     }
 

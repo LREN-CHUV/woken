@@ -66,7 +66,7 @@ class MiningWebService(
       "mining" / ("algorithms" | "methods"),
       listAlgorithmsFlow,
       get {
-        operationName("listMethods", Map("requestType" -> "http-post")) {
+        operationName("listAlgorithms", Map("requestType" -> "http-get")) {
           complete(AlgorithmLibraryService().algorithms())
         }
       }
