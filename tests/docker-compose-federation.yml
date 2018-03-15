@@ -148,7 +148,7 @@ services:
       - db
 
   sample_meta_db_setup:
-    image: "hbpmip/sample-meta-db-setup:0.4.3"
+    image: "hbpmip/sample-meta-db-setup:0.4.4"
     container_name: "sample-meta-db-setup"
     restart: "no"
     environment:
@@ -239,7 +239,7 @@ services:
       - db
 
   wokenvalidationnode1:
-    image: hbpmip/woken-validation:2.2.9
+    image: hbpmip/woken-validation:2.2.16
     ports:
       - "18081:8081"
       - "18082:8082"
@@ -288,7 +288,7 @@ services:
       - db
 
   wokenvalidationnode2:
-    image: hbpmip/woken-validation:2.2.9
+    image: hbpmip/woken-validation:2.2.16
     ports:
       - "28081:8081"
       - "28082:8082"
@@ -362,7 +362,7 @@ services:
       - wokencentral
 
   portalbackend:
-    image: "hbpmip/portal-backend:2.6.1"
+    image: "hbpmip/portal-backend:2.6.2"
     restart: "no"
     ports:
       - "65440:8080"
@@ -404,7 +404,7 @@ services:
       - portalbackend
 
   frontend:
-    image: hbpmip/portal-frontend:2.7.0
+    image: hbpmip/portal-frontend:2.8.3
     depends_on:
       - portalbackend
     ports:
