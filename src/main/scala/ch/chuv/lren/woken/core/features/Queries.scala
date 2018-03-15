@@ -72,6 +72,8 @@ object Queries {
 
     /**
       * Add a filter that returns only the rows that belong to one dataset defined in dataset property.
+      *
+      * If the list of datasets is empty, this method does nothing.
       */
     def filterDatasets: Q = {
       val datasets: Set[DatasetId] = query match {
@@ -79,21 +81,24 @@ object Queries {
         case q: ExperimentQuery => q.trainingDatasets
       }
 
-      val datasetsFilter = SingleFilterRule("dataset",
-                                            "dataset",
-                                            "string",
-                                            InputType.text,
-                                            Operator.in,
-                                            datasets.map(_.code).toList)
-      val filters: FilterRule =
-        query.filters
-          .fold(datasetsFilter: FilterRule)(
-            f => CompoundFilterRule(Condition.and, List(datasetsFilter, f))
-          )
+      if (datasets.isEmpty) query
+      else {
+        val datasetsFilter = SingleFilterRule("dataset",
+                                              "dataset",
+                                              "string",
+                                              InputType.text,
+                                              Operator.in,
+                                              datasets.map(_.code).toList)
+        val filters: FilterRule =
+          query.filters
+            .fold(datasetsFilter: FilterRule)(
+              f => CompoundFilterRule(Condition.and, List(datasetsFilter, f))
+            )
 
-      query match {
-        case q: MiningQuery     => q.copy(filters = Some(filters)).asInstanceOf[Q]
-        case q: ExperimentQuery => q.copy(filters = Some(filters)).asInstanceOf[Q]
+        query match {
+          case q: MiningQuery     => q.copy(filters = Some(filters)).asInstanceOf[Q]
+          case q: ExperimentQuery => q.copy(filters = Some(filters)).asInstanceOf[Q]
+        }
       }
     }
 
