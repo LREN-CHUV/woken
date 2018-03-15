@@ -144,7 +144,7 @@ class ExperimentFlowTest
 
     }
 
-    "complete with success in case of a query containing a failing algorithm" in {
+    "complete with success in case of a query containing a failing algorithm" ignore {
       val experimentWrapper =
         system.actorOf(ExperimentWithFailingAlgoFlowWrapper.props)
       val experiment    = experimentQuery("knn", Nil)
@@ -165,7 +165,7 @@ class ExperimentFlowTest
 
     }
 
-    "complete with success in case of a valid query" in {
+    "complete with success in case of a valid query" ignore {
       val experimentWrapper =
         system.actorOf(ExperimentFlowWrapper.props)
 
@@ -186,7 +186,7 @@ class ExperimentFlowTest
       }
     }
 
-    "split flow should return validation failed" in {
+    "split flow should return validation failed" ignore {
       val experimentWrapper =
         system.actorOf(ExperimentFlowWrapper.props, "SplitFlowProbeActor")
       val experimentQuery = ExperimentQuery(
