@@ -61,7 +61,7 @@ trait WebsocketSupport {
   def listAlgorithmsFlow: Flow[Message, Message, Any] =
     Flow[Message]
       .collect {
-        case tm: TextMessage =>
+        case _: TextMessage =>
           AlgorithmLibraryService().algorithms()
       }
       .map { result =>
@@ -72,8 +72,10 @@ trait WebsocketSupport {
   def listDatasetsFlow: Flow[Message, Message, Any] =
     Flow[Message]
       .collect {
-        case tm: TextMessage =>
-          DatasetsQuery
+        case TextMessage.Strict("") =>
+          DatasetsQuery(None)
+        case TextMessage.Strict(table) =>
+          DatasetsQuery(Some(table))
       }
       .mapAsync(1) { query =>
         (masterRouter ? query).mapTo[DatasetsResponse]
@@ -109,10 +111,9 @@ trait WebsocketSupport {
   def miningFlow: Flow[Message, Message, Any] =
     Flow[Message]
       .collect {
-        case tm: TextMessage =>
-          val jsonEncodeStringMsg = tm.getStrictText
+        case TextMessage.Strict(jsonEncodedString) =>
           Try {
-            jsonEncodeStringMsg.parseJson.convertTo[MiningQuery]
+            jsonEncodedString.parseJson.convertTo[MiningQuery]
           }
       }
       .filter {
