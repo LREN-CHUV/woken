@@ -27,7 +27,7 @@ import scala.language.higherKinds
   */
 trait FeaturesRepository[F[_]] extends Repository {
 
-  def featuresTable(table: String): FeaturesTableRepository[F]
+  def featuresTable(table: String, seed: Double = 0.67): FeaturesTableRepository[F]
 
 }
 
@@ -37,6 +37,8 @@ trait FeaturesTableRepository[F[_]] extends Repository {
 
   def count: F[Int]
 
-  def features(query: FeaturesQuery): (List[ColumnMeta], Stream[JsObject])
+  type Headers = List[ColumnMeta]
+
+  def features(query: FeaturesQuery): F[(Headers, Stream[JsObject])]
 
 }

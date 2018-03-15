@@ -24,12 +24,12 @@ package ch.chuv.lren.woken.core.features
   * @param dbCovariables List of covariables (independent features)
   * @param dbGrouping List of fields to use in a group by statement (or equivalent when an algorithm supporting grouping is used)
   * @param dbTable Database table containing the data
-  * @param query Full SQL query, ready for execution
+  * @param sql Full SQL query, ready for execution
   */
 case class FeaturesQuery(
     dbVariables: List[String],
     dbCovariables: List[String],
     dbGrouping: List[String],
     dbTable: String,
-    query: String
+    sql: String
 )

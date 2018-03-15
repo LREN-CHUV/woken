@@ -51,15 +51,15 @@ class QueriesTest extends WordSpec with Matchers {
 
     "generate the SQL query" in {
       val featuresQuery = query.features("inputTable", None)
-      featuresQuery.query shouldBe
+      featuresQuery.sql shouldBe
       """SELECT "target","a","b","c","grp1","grp2" FROM inputTable WHERE "a" < 10"""
 
       val featuresQuery2 = query.filterNulls(false).features("inputTable", None)
-      featuresQuery2.query shouldBe
+      featuresQuery2.sql shouldBe
       """SELECT "target","a","b","c","grp1","grp2" FROM inputTable WHERE "target" IS NOT NULL AND "a" < 10"""
 
       val featuresQuery3 = query.filterNulls(true).features("inputTable", None)
-      featuresQuery3.query shouldBe
+      featuresQuery3.sql shouldBe
       """SELECT "target","a","b","c","grp1","grp2" FROM inputTable WHERE "target" IS NOT NULL AND "a" IS NOT NULL
           | AND "b" IS NOT NULL AND "c" IS NOT NULL AND "grp1" IS NOT NULL AND "grp2" IS NOT NULL AND "a" < 10""".stripMargin
         .replace("\n", "")
@@ -81,14 +81,14 @@ class QueriesTest extends WordSpec with Matchers {
       )
 
       val featuresQuery = badQuery.features("inputTable", None)
-      featuresQuery.query shouldBe
+      featuresQuery.sql shouldBe
       """SELECT "target_var","_1a","_12_b","c","grp1","grp2" FROM inputTable WHERE "_1a" < 10"""
     }
 
     "include offset information in query" in {
       val featuresQuery = query.features("inputTable", Some(QueryOffset(start = 0, count = 20)))
 
-      featuresQuery.query shouldBe
+      featuresQuery.sql shouldBe
       """SELECT "target","a","b","c","grp1","grp2" FROM inputTable WHERE "a" < 10
         | EXCEPT ALL (SELECT "target","a","b","c","grp1","grp2" FROM inputTable WHERE "a" < 10 OFFSET 0 LIMIT 20)""".stripMargin
         .replace("\n", "")
