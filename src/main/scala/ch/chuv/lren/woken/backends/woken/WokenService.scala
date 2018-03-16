@@ -23,20 +23,23 @@ import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.{ActorMaterializer, FlowShape}
+import akka.stream.{ ActorMaterializer, FlowShape }
 import akka.stream.scaladsl._
-import ch.chuv.lren.woken.backends.{AkkaClusterClient, HttpClient, WebSocketClient}
+import ch.chuv.lren.woken.backends.{ AkkaClusterClient, HttpClient, WebSocketClient }
 import ch.chuv.lren.woken.core.model.Shapes
 import ch.chuv.lren.woken.messages.query._
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 import com.typesafe.scalalogging.LazyLogging
 import cats.implicits._
 import spray.json._
 import queryProtocol._
 import HttpClient._
 import ch.chuv.lren.woken.messages.remoting.RemoteLocation
-import ch.chuv.lren.woken.messages.variables.{VariablesForDatasetsQuery, VariablesForDatasetsResponse}
+import ch.chuv.lren.woken.messages.variables.{
+  VariablesForDatasetsQuery,
+  VariablesForDatasetsResponse
+}
 
 case class WokenService(node: String)(implicit val system: ActorSystem,
                                       implicit val materializer: ActorMaterializer)
@@ -116,8 +119,9 @@ case class WokenService(node: String)(implicit val system: ActorSystem,
         case (location, query) => AkkaClusterClient.sendReceive(location, query).map((location, _))
       }
 
-
-  def variableMetaFlow: Flow[(RemoteLocation, VariablesForDatasetsQuery), (RemoteLocation, VariablesForDatasetsResponse), NotUsed] =
+  def variableMetaFlow: Flow[(RemoteLocation, VariablesForDatasetsQuery),
+                             (RemoteLocation, VariablesForDatasetsResponse),
+                             NotUsed] =
     Flow[(RemoteLocation, VariablesForDatasetsQuery)]
       .map(query => sendReceive(Get(query._1)).map((query._1, _)))
       .mapAsync(100)(identity)
@@ -128,12 +132,11 @@ case class WokenService(node: String)(implicit val system: ActorSystem,
           (url.pure[Future], varResponse).mapN((_, _))
         case (url, failure) =>
           println(s"url: $url failure: $failure")
-          (url, VariablesForDatasetsResponse(Set.empty)).pure[Future]
+          (url, VariablesForDatasetsResponse(Set.empty, None)).pure[Future]
       }
-        .map(q => {
-          println(s"received response $q")
-          q
-        })
-
+      .map(q => {
+        println(s"received response $q")
+        q
+      })
 
 }

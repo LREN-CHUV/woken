@@ -19,7 +19,7 @@ package ch.chuv.lren.woken.api.swagger
 
 import javax.ws.rs.Path
 
-import akka.http.scaladsl.server.{Directives, Route}
+import akka.http.scaladsl.server.{ Directives, Route }
 import ch.chuv.lren.woken.messages.datasets.DatasetsResponse
 import ch.chuv.lren.woken.messages.variables.VariablesForDatasetsResponse
 import io.swagger.annotations._
@@ -60,8 +60,8 @@ trait MetadataServiceApi extends Directives {
   @ApiResponses(
     Array(
       new ApiResponse(code = 200,
-        message = "Varialble metadata listing",
-        response = classOf[spray.json.JsObject]),
+                      message = "Varialble metadata listing",
+                      response = classOf[spray.json.JsObject]),
       new ApiResponse(code = 401, message = "Authentication required.", response = classOf[String]),
       new ApiResponse(code = 403, message = "Authentication failed.", response = classOf[String]),
       new ApiResponse(code = 500, message = "Internal server error", response = classOf[String])

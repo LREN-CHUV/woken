@@ -19,24 +19,24 @@ package ch.chuv.lren.woken.api
 
 import java.time.OffsetDateTime
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
+import akka.actor.{ Actor, ActorLogging, ActorRef, Props, Terminated }
 import akka.routing.FromConfig
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.scaladsl.{ Sink, Source }
 import ch.chuv.lren.woken.core.model.Shapes
 import ch.chuv.lren.woken.messages.query._
-import ch.chuv.lren.woken.core.{CoordinatorActor, CoordinatorConfig, ExperimentActor}
-import ch.chuv.lren.woken.messages.datasets.{DatasetsQuery, DatasetsResponse}
-import ch.chuv.lren.woken.service.{DatasetService, DispatcherService}
+import ch.chuv.lren.woken.core.{ CoordinatorActor, CoordinatorConfig, ExperimentActor }
+import ch.chuv.lren.woken.messages.datasets.{ DatasetsQuery, DatasetsResponse }
+import ch.chuv.lren.woken.service.{ DatasetService, DispatcherService }
 
 import scala.concurrent.ExecutionContext
 import ch.chuv.lren.woken.api.MasterRouter.QueuesSize
 import ch.chuv.lren.woken.backends.DockerJob
 import ch.chuv.lren.woken.core.model.ErrorJobResult
-import ch.chuv.lren.woken.service.{AlgorithmLibraryService, VariablesMetaService}
+import ch.chuv.lren.woken.service.{ AlgorithmLibraryService, VariablesMetaService }
 import MiningQueries._
-import ch.chuv.lren.woken.config.{AlgorithmDefinition, AppConfiguration}
-import ch.chuv.lren.woken.core.commands.JobCommands.{StartCoordinatorJob, StartExperimentJob}
+import ch.chuv.lren.woken.config.{ AlgorithmDefinition, AppConfiguration }
+import ch.chuv.lren.woken.core.commands.JobCommands.{ StartCoordinatorJob, StartExperimentJob }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.variables._
 
@@ -114,21 +114,26 @@ case class MasterRouter(appConfiguration: AppConfiguration,
 
     case varsQuery: VariablesForDatasetsQuery =>
       val initiator = sender()
-      log.debug("querying variables...")
 
-      Source.single(varsQuery.copy(datasets = datasetService.datasets().map(_.dataset)))
-          .via(dispatcherService.dispatchVariablesQueryFlow(datasetService, variablesMetaService))
-          .fold(Set[VariableMetaData]()) {
-            println("folding")
-            _ ++ _.variables
+      Source
+        .single(varsQuery.copy(datasets = datasetService.datasets().map(_.dataset)))
+        .via(dispatcherService.dispatchVariablesQueryFlow(datasetService, variablesMetaService))
+        .fold(Set[VariableMetaData]()) {
+          _ ++ _.variables
+        }
+        .map { varsMetaData =>
+          {
+            log.debug(s"vars metadata ${varsMetaData.size}")
+            initiator ! VariablesForDatasetsResponse(varsMetaData)
+            VariablesForDatasetsResponse(varsMetaData)
           }
-          .map { varsMetaData => {
-              log.debug(s"vars metadata $varsMetaData")
-              initiator ! VariablesForDatasetsResponse(varsMetaData)
-              VariablesForDatasetsResponse(varsMetaData)
-            }
-          }
-          .runWith(Sink.last)
+        }
+        .runWith(Sink.last)
+        .failed
+        .foreach { e =>
+          log.error(e, s"Cannot complete variable query $varsQuery")
+          initiator ! VariablesForDatasetsResponse(Set(), Some(e.getMessage))
+        }
 
     //case MiningQuery(variables, covariables, groups, _, AlgorithmSpec(c, p))
     //    if c == "" || c == "data" =>
