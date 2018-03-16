@@ -128,7 +128,6 @@ case class WokenService(node: String)(implicit val system: ActorSystem,
       .mapAsync(100) {
         case (url, response) if response.status.isSuccess() =>
           val varResponse = Unmarshal(response).to[VariablesForDatasetsResponse]
-          println(s"url: $url response: $varResponse")
           (url.pure[Future], varResponse).mapN((_, _))
         case (url, failure) =>
           println(s"url: $url failure: $failure")

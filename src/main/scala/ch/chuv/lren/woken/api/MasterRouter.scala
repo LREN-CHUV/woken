@@ -116,7 +116,12 @@ case class MasterRouter(appConfiguration: AppConfiguration,
       val initiator = sender()
 
       Source
-        .single(varsQuery.copy(datasets = datasetService.datasets().map(_.dataset)))
+        .single(
+          varsQuery.copy( datasets =
+            datasetService.datasets().map(_.dataset)
+              .filter(varsQuery.datasets.isEmpty || varsQuery.datasets.contains(_))
+          )
+        )
         .via(dispatcherService.dispatchVariablesQueryFlow(datasetService, variablesMetaService))
         .fold(Set[VariableMetaData]()) {
           _ ++ _.variables

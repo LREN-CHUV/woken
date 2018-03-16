@@ -20,6 +20,7 @@ package ch.chuv.lren.woken.api
 import akka.http.scaladsl.server.Route
 import akka.actor._
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
+import akka.http.scaladsl.unmarshalling.PredefinedFromStringUnmarshallers._
 import akka.http.scaladsl.model.StatusCodes._
 import akka.util.Timeout
 import akka.pattern.ask
@@ -79,10 +80,12 @@ class MetadataApiService(
       "variables",
       listVariableMetadataFlow,
       get {
-        parameters('datasets.?) { datasets =>
+        parameters('datasets.as(CsvSeq[String]).?) { datasets =>
           println(s"datasets: $datasets")
+          val datasetIds = datasets.map(_.map(DatasetId).toSet).getOrElse(Set())
+
           complete {
-            (masterRouter ? VariablesForDatasetsQuery(datasets = Set(), includeNulls = true))
+            (masterRouter ? VariablesForDatasetsQuery(datasets = datasetIds, includeNulls = true))
               .mapTo[VariablesForDatasetsResponse]
               .map {
                 case variablesResponse if variablesResponse.error.nonEmpty =>
