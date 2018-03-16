@@ -7,7 +7,7 @@ if [ -n "$TRACE" ]; then
   JAVA="strace java"
 fi
 
-exec ${JAVA} ${JAVA_OPTS} -javaagent:/opt/woken/aspectjweaver.jar \
+exec ${JAVA} ${JAVA_OPTIONS} -javaagent:/opt/woken/aspectjweaver.jar \
           -Djava.library.path=/lib \
           -Dconfig.file=/opt/woken/config/application.conf \
           -DLog4jContextSelector=org.apache.logging.log4j.core.async.AsyncLoggerContextSelector \
