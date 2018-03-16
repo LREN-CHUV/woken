@@ -75,7 +75,9 @@ class WokenAkkaAPITest
       println(result)
     }
 
-    result.success.value.methods shouldNot have size 0
+    val expected = loadJson("/list_algorithms.json")
+
+    result.success.value.methods shouldBe expected
   }
 
   // Datasets available query

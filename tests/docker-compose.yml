@@ -243,6 +243,16 @@ services:
       - chronos
       - db
 
+  wait_woken:
+    image: "waisbrot/wait"
+    restart: "no"
+    environment:
+      TARGETS: "woken:8087,chronos:4400"
+      TIMEOUT: 60
+    depends_on:
+      - woken
+      - chronos
+
   wokenvalidation:
     image: hbpmip/woken-validation:2.3.0
     ports:
@@ -258,11 +268,11 @@ services:
     depends_on:
       - woken
 
-  wait_woken:
+  wait_wokenvalidation:
     image: "waisbrot/wait"
     restart: "no"
     environment:
-      TARGETS: "woken:8087,chronos:4400,wokenvalidation:8081"
+      TARGETS: "wokenvalidation:8081"
       TIMEOUT: 60
     depends_on:
       - woken
@@ -274,9 +284,9 @@ services:
       dockerfile: Dockerfile
     hostname: "wokentest"
     ports:
-      - "8097:8097"
+      - "8197:8197"
     environment:
-      CLUSTER_PORT: 8097
+      CLUSTER_PORT: 8197
       CLUSTER_IP: wokentest
       WOKEN_PORT_8088_TCP_ADDR: woken
     depends_on:

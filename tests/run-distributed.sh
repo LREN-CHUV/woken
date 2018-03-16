@@ -93,9 +93,12 @@ for i in 1 2 3 4 5 ; do
   $DOCKER_COMPOSE stop chronos
 done
 
-$DOCKER_COMPOSE up -d wokennode1 wokennode2 wokenvalidationnode1 wokenvalidationnode2
+$DOCKER_COMPOSE up -d wokennode1 wokennode2
 $DOCKER_COMPOSE run wait_wokennode1
 $DOCKER_COMPOSE run wait_wokennode2
+$DOCKER_COMPOSE up -d wokenvalidationnode1 wokenvalidationnode2
+$DOCKER_COMPOSE run wait_wokenvalidationnode1
+$DOCKER_COMPOSE run wait_wokenvalidationnode2
 
 $DOCKER_COMPOSE up -d wokencentral
 

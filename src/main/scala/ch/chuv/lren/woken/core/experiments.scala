@@ -81,8 +81,13 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
 
   import ExperimentActor._
 
-  val decider: Supervision.Decider = { _ =>
-    Supervision.Stop
+  val decider: Supervision.Decider = {
+    case err: RuntimeException =>
+      log.error(err, "Runtime error detected")
+      Supervision.Resume
+    case err =>
+      log.error(err, "Unknown error. Stopping the stream.")
+      Supervision.Stop
   }
 
   implicit val materializer: ActorMaterializer = ActorMaterializer(

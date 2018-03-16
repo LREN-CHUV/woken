@@ -124,20 +124,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
     case query: MiningQuery =>
       val initiator = sender()
       if (miningJobsInFlight.size <= miningActiveActorsLimit) {
-        val jobValidated = miningQuery2JobF(query)
-
-        jobValidated.fold(
-          errorMsg => {
-            val error =
-              ErrorJobResult("",
-                             coordinatorConfig.jobsConf.node,
-                             OffsetDateTime.now(),
-                             query.algorithm.code,
-                             errorMsg.reduceLeft(_ + ", " + _))
-            initiator ! error.asQueryResult
-          },
-          job => runMining(query, initiator, job)
-        )
+        runMiningJob(query, initiator)
       } else {
         val error =
           ErrorJobResult("", "", OffsetDateTime.now(), "experiment", "Too busy to accept new jobs.")
@@ -197,7 +184,24 @@ case class MasterRouter(appConfiguration: AppConfiguration,
 
   }
 
-  private def runMining(query: MiningQuery, initiator: ActorRef, job: DockerJob): Unit =
+  private def runMiningJob(query: MiningQuery, initiator: ActorRef): Unit = {
+    val jobValidated = miningQuery2JobF(query)
+
+    jobValidated.fold(
+      errorMsg => {
+        val error =
+          ErrorJobResult("",
+                         coordinatorConfig.jobsConf.node,
+                         OffsetDateTime.now(),
+                         query.algorithm.code,
+                         errorMsg.reduceLeft(_ + ", " + _))
+        initiator ! error.asQueryResult
+      },
+      job => runMiningJob(query, initiator, job)
+    )
+  }
+
+  private def runMiningJob(query: MiningQuery, initiator: ActorRef, job: DockerJob): Unit =
     dispatcherService.dispatchTo(query.datasets) match {
       case (_, true) => startMiningJob(job, initiator)
       case _ =>

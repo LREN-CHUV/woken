@@ -69,7 +69,7 @@ object DatabaseConfiguration {
       val port                         = db.validateInt("port")
       val user                         = db.validateString("user")
       val password                     = db.validateString("password")
-      val database: Validation[String] = db.validateString("database").orElse(user)
+      val database: Validation[String] = db.validateString("database")
 
       (dbiDriver, dbApiDriver, jdbcDriver, jdbcUrl, host, port, database, user, password) mapN DatabaseConfiguration.apply
     }

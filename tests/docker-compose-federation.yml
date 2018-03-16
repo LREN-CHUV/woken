@@ -238,6 +238,16 @@ services:
       - chronos
       - db
 
+  wait_wokennode1:
+    image: "waisbrot/wait"
+    restart: "no"
+    environment:
+      TARGETS: "wokennode1:8087,chronos:4400"
+      TIMEOUT: 60
+    depends_on:
+      - wokennode1
+      - chronos
+
   wokenvalidationnode1:
     image: hbpmip/woken-validation:2.3.0
     ports:
@@ -255,15 +265,14 @@ services:
     depends_on:
       - wokennode1
 
-  wait_wokennode1:
+  wait_wokenvalidationnode1:
     image: "waisbrot/wait"
     restart: "no"
     environment:
-      TARGETS: "wokennode1:8087,chronos:4400"
+      TARGETS: "wokenvalidationnode1:8081"
       TIMEOUT: 60
     depends_on:
-      - wokennode1
-      - chronos
+      - wokenvalidationnode1
 
   wokennode2:
     image: hbpmip/woken
@@ -287,6 +296,16 @@ services:
       - chronos
       - db
 
+  wait_wokennode2:
+    image: "waisbrot/wait"
+    restart: "no"
+    environment:
+      TARGETS: "wokennode2:8087,chronos:4400"
+      TIMEOUT: 60
+    depends_on:
+      - wokennode2
+      - chronos
+
   wokenvalidationnode2:
     image: hbpmip/woken-validation:2.3.0
     ports:
@@ -303,15 +322,14 @@ services:
     depends_on:
       - wokennode2
 
-  wait_wokennode2:
+  wait_wokenvalidationnode2:
     image: "waisbrot/wait"
     restart: "no"
     environment:
-      TARGETS: "wokennode2:8087,chronos:4400"
+      TARGETS: "wokenvalidationnode2:8081"
       TIMEOUT: 60
     depends_on:
-      - wokennode2
-      - chronos
+      - wokenvalidationnode2
 
   wokencentral:
     image: hbpmip/woken
