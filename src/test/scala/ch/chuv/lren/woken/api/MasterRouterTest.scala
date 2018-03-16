@@ -22,7 +22,6 @@ import java.util.UUID
 import akka.actor.{ ActorRef, ActorSystem, Props }
 import akka.stream.ActorMaterializer
 import akka.testkit.{ ImplicitSender, TestKit }
-import alleycats.syntax.empty.EmptyOps
 import com.typesafe.config.{ Config, ConfigFactory }
 import ch.chuv.lren.woken.api.MasterRouter.{ QueuesSize, RequestQueuesSize }
 import ch.chuv.lren.woken.backends.DockerJob
@@ -34,7 +33,7 @@ import ch.chuv.lren.woken.core.{
   FakeExperimentActor
 }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
-import ch.chuv.lren.woken.dao.FeaturesDAL
+import ch.chuv.lren.woken.util.FakeCoordinatorConfig._
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.service.{
   AlgorithmLibraryService,
@@ -46,10 +45,13 @@ import ch.chuv.lren.woken.cromwell.core.ConfigUtil
 import ch.chuv.lren.woken.backends.woken.WokenService
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.util.FakeActors
+import ch.chuv.lren.woken.messages.datasets.{ Dataset, DatasetId, DatasetsQuery, DatasetsResponse }
+import ch.chuv.lren.woken.messages.datasets.AnonymisationLevel._
+import ch.chuv.lren.woken.messages.variables.VariableId
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import org.scalatest.tagobjects.Slow
 import cats.data.Validated._
-import ch.chuv.lren.woken.messages.datasets.{ DatasetsQuery, DatasetsResponse }
+import ch.chuv.lren.woken.messages.remoting.RemoteLocation
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -68,28 +70,6 @@ class MasterRouterTest
 
   import ch.chuv.lren.woken.service.TestServices._
 
-  val noDbConfig =
-    DatabaseConfiguration(dbiDriver = "DBI",
-                          dbApiDriver = "DBAPI",
-                          jdbcDriver = "java.lang.String",
-                          jdbcUrl = "",
-                          host = "",
-                          port = 0,
-                          database = "db",
-                          user = "",
-                          password = "")
-  val noJobsConf =
-    JobsConfiguration("none",
-                      "noone",
-                      "http://nowhere",
-                      "features",
-                      "features",
-                      "features",
-                      "results",
-                      "meta")
-
-  val fakeFeaturesDAL = FeaturesDAL(noDbConfig)
-
   def experimentQuery2job(query: ExperimentQuery): Validation[ExperimentActor.Job] =
     ConfigUtil.lift(
       ExperimentActor.Job(
@@ -102,7 +82,7 @@ class MasterRouterTest
     )
 
   def miningQuery2job(query: MiningQuery): Validation[DockerJob] = {
-    val featuresQuery = query.features("test", excludeNullValues = true, None)
+    val featuresQuery = query.filterNulls(true).features("test", None)
 
     ConfigUtil.lift(
       DockerJob(
@@ -135,13 +115,30 @@ class MasterRouterTest
       system.actorOf(Props(new FakeExperimentActor()))
 
     override def newCoordinatorActor: ActorRef =
-      system.actorOf(Props(new FakeCoordinatorActor()))
+      system.actorOf(FakeCoordinatorActor.props)
 
     override def initValidationWorker: ActorRef =
       context.actorOf(FakeActors.echoActorProps)
 
     override def initScoringWorker: ActorRef =
       context.actorOf(FakeActors.echoActorProps)
+  }
+
+  class RouterWithProbeCoordinator(appConfiguration: AppConfiguration,
+                                   coordinatorConfig: CoordinatorConfig,
+                                   dispatcherService: DispatcherService,
+                                   algorithmLibraryService: AlgorithmLibraryService,
+                                   algorithmLookup: String => Validation[AlgorithmDefinition],
+                                   datasetService: DatasetService,
+                                   coordinatorActor: ActorRef)
+      extends MasterRouterUnderTest(appConfiguration,
+                                    coordinatorConfig,
+                                    dispatcherService,
+                                    algorithmLibraryService,
+                                    algorithmLookup,
+                                    datasetService) {
+
+    override def newCoordinatorActor: ActorRef = coordinatorActor
 
   }
 
@@ -297,16 +294,77 @@ class MasterRouterTest
       }
 
       waitForEmptyQueue(router, limit)
+    }
+
+    "fail starting a new mining job" in {
+
+      val errorMessage = "Fake error message"
+
+      val testCoordinatorActor =
+        system.actorOf(FakeCoordinatorActor.propsForFailingWithMsg(errorMessage))
+
+      val miningRouter = system.actorOf(
+        Props(
+          new RouterWithProbeCoordinator(appConfig,
+                                         coordinatorConfig,
+                                         dispatcherService,
+                                         algorithmLibraryService,
+                                         AlgorithmsConfiguration.factory(config),
+                                         datasetService,
+                                         testCoordinatorActor)
+        )
+      )
+
+      miningRouter !
+      MiningQuery(
+        user = UserId("test1"),
+        variables = List(VariableId("cognitive_task2")),
+        covariables = List(VariableId("score_math_course1")),
+        grouping = Nil,
+        filters = None,
+        targetTable = Some("sample_data"),
+        algorithm = AlgorithmSpec("knn", List(CodeValue("k", "5"))),
+        datasets = Set(),
+        executionPlan = None
+      )
+
+      expectMsgPF(10 seconds, "error message") {
+        case QueryResult(_, _, _, _, _, _, Some(error)) =>
+          error shouldBe errorMessage
+        case msg =>
+          fail(s"received unexpected message $msg")
+      }
 
     }
 
     "return available datasets" in {
 
-      router ! DatasetsQuery
+      router ! DatasetsQuery(Some("DATA"))
 
       within(5 seconds) {
         val msg = expectMsgType[DatasetsResponse]
-        msg.datasets should not be empty
+        val expected = Set(
+          Dataset(DatasetId("remoteData1"),
+                  "Remote dataset #1",
+                  "Remote dataset #1",
+                  List("DATA"),
+                  Depersonalised,
+                  Some(RemoteLocation("http://service.remote/1", None))),
+          Dataset(DatasetId("remoteData2"),
+                  "Remote dataset #2",
+                  "Remote dataset #2",
+                  List("DATA"),
+                  Depersonalised,
+                  Some(RemoteLocation("http://service.remote/2", None))),
+          Dataset(DatasetId("remoteData3"),
+                  "Remote dataset #3",
+                  "Remote dataset #3",
+                  List("DATA"),
+                  Depersonalised,
+                  Some(RemoteLocation("wss://service.remote/3", None)))
+        )
+
+        msg.datasets shouldBe expected
       }
     }
 
@@ -316,7 +374,6 @@ class MasterRouterTest
     awaitAssert({
       router ! RequestQueuesSize
       val queues = expectMsgType[QueuesSize](5 seconds)
-      println(queues)
       queues.isEmpty shouldBe true
 
     }, max = limit seconds, interval = 200.millis)

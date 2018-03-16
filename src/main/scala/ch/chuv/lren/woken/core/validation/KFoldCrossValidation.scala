@@ -91,7 +91,7 @@ object KFoldCrossValidation extends LazyLogging {
             foldCount: Int,
             featuresDAL: FeaturesDAL): KFoldCrossValidation = {
 
-    val sql = query.query
+    val sql = query.sql
 
     logger.info(s"Cross validation query: $query")
 

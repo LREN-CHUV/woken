@@ -19,18 +19,63 @@ package ch.chuv.lren.woken.core
 
 import java.time.OffsetDateTime
 
-import akka.actor.{ Actor, PoisonPill }
-import ch.chuv.lren.woken.core.model.PfaJobResult
+import akka.actor.{ Actor, ActorContext, ActorRef, PoisonPill, Props }
+import akka.pattern.ask
+import ch.chuv.lren.woken.core.model.{ ErrorJobResult, PfaJobResult }
 import spray.json._
 import CoordinatorActor._
+import akka.util.Timeout
+import ch.chuv.lren.woken.backends.DockerJob
 import ch.chuv.lren.woken.core.commands.JobCommands
+import ch.chuv.lren.woken.core.commands.JobCommands.StartCoordinatorJob
 
-class FakeCoordinatorActor() extends Actor {
+import scala.concurrent.Future
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.language.postfixOps
+
+object FakeCoordinatorActor {
+
+  def props: Props = Props(new FakeCoordinatorActor(None))
+
+  def executeJobAsync(coordinatorConfig: CoordinatorConfig,
+                      context: ActorContext): ExecuteJobAsync = job => {
+    val worker = context.actorOf(props)
+
+    implicit val askTimeout: Timeout = Timeout(1 day)
+
+    (worker ? StartCoordinatorJob(job))
+      .mapTo[CoordinatorActor.Response]
+  }
+
+  def propsForFailingWithMsg(errorMessage: String): Props =
+    Props(new FakeCoordinatorActor(Some(errorMessage)))
+
+  def executeFailingJobAsync(errorMessage: String): CoordinatorActor.ExecuteJobAsync =
+    job =>
+      Future(
+        Response(job,
+                 List(
+                   ErrorJobResult(job.jobId,
+                                  "testNode",
+                                  OffsetDateTime.now(),
+                                  job.algorithmSpec.code,
+                                  errorMessage)
+                 ))
+    )
+
+}
+
+class FakeCoordinatorActor(errorMessage: Option[String]) extends Actor {
 
   override def receive: PartialFunction[Any, Unit] = {
     case JobCommands.StartCoordinatorJob(job) =>
-      val pfa =
-        """
+      startCoordinatorJob(sender(), job)
+  }
+
+  def startCoordinatorJob(originator: ActorRef, job: DockerJob): Unit = {
+    val pfa =
+      """
            {
              "input": [],
              "output": [],
@@ -39,13 +84,25 @@ class FakeCoordinatorActor() extends Actor {
            }
         """.stripMargin.parseJson.asJsObject
 
-      sender() ! Response(
+    errorMessage.fold {
+      originator ! Response(
         job,
         List(
           PfaJobResult(job.jobId, "testNode", OffsetDateTime.now(), job.algorithmSpec.code, pfa)
         )
       )
-      self ! PoisonPill
+    } { msg =>
+      originator ! errorResponse(job, msg)
+    }
+    self ! PoisonPill
   }
+
+  private def errorResponse(job: DockerJob, msg: String) =
+    Response(
+      job,
+      List(
+        ErrorJobResult(job.jobId, "testNode", OffsetDateTime.now(), job.algorithmSpec.code, msg)
+      )
+    )
 
 }

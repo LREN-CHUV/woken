@@ -23,7 +23,6 @@ import akka.http.scaladsl.model.ws.{ Message, TextMessage }
 import akka.stream.scaladsl.Flow
 import akka.util.Timeout
 import ch.chuv.lren.woken.config.{ AppConfiguration, JobsConfiguration }
-import ch.chuv.lren.woken.dao.FeaturesDAL
 import ch.chuv.lren.woken.service.AlgorithmLibraryService
 import ch.chuv.lren.woken.messages.query.{
   ExperimentQuery,
@@ -31,9 +30,8 @@ import ch.chuv.lren.woken.messages.query.{
   QueryResult,
   queryProtocol
 }
-import ch.chuv.lren.woken.core.features.Queries._
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.ExecutionContext
 import spray.json._
 import queryProtocol._
 import akka.stream.{ ActorAttributes, Supervision }
@@ -46,7 +44,6 @@ trait WebsocketSupport {
   this: LazyLogging =>
 
   val masterRouter: ActorRef
-  val featuresDatabase: FeaturesDAL
   val appConfiguration: AppConfiguration
   val jobsConf: JobsConfiguration
   implicit val timeout: Timeout
@@ -61,21 +58,24 @@ trait WebsocketSupport {
       Supervision.Stop
   }
 
-  def listMethodsFlow: Flow[Message, Message, Any] =
+  def listAlgorithmsFlow: Flow[Message, Message, Any] =
     Flow[Message]
       .collect {
-        case tm: TextMessage =>
+        case _: TextMessage =>
           AlgorithmLibraryService().algorithms()
       }
       .map { result =>
         TextMessage(result.compactPrint)
       }
+      .named("List algorithms WebSocket flow")
 
   def listDatasetsFlow: Flow[Message, Message, Any] =
     Flow[Message]
       .collect {
-        case tm: TextMessage =>
-          DatasetsQuery
+        case TextMessage.Strict("") =>
+          DatasetsQuery(None)
+        case TextMessage.Strict(table) =>
+          DatasetsQuery(Some(table))
       }
       .mapAsync(1) { query =>
         (masterRouter ? query).mapTo[DatasetsResponse]
@@ -83,7 +83,7 @@ trait WebsocketSupport {
       .map { result =>
         TextMessage(result.toJson.compactPrint)
       }
-      .named("List datasets flow")
+      .named("List datasets WebSocket flow")
 
   def experimentFlow: Flow[Message, Message, Any] =
     Flow[Message]
@@ -106,15 +106,14 @@ trait WebsocketSupport {
       .map { result =>
         TextMessage(result.toJson.compactPrint)
       }
-      .named("Experiment WS flow")
+      .named("Experiment WebSocket flow")
 
   def miningFlow: Flow[Message, Message, Any] =
     Flow[Message]
       .collect {
-        case tm: TextMessage =>
-          val jsonEncodeStringMsg = tm.getStrictText
+        case TextMessage.Strict(jsonEncodedString) =>
           Try {
-            jsonEncodeStringMsg.parseJson.convertTo[MiningQuery]
+            jsonEncodedString.parseJson.convertTo[MiningQuery]
           }
       }
       .filter {
@@ -128,12 +127,7 @@ trait WebsocketSupport {
       .filter(_.isSuccess)
       .map(_.get)
       .mapAsync(1) { miningQuery: MiningQuery =>
-        if (miningQuery.algorithm.code.isEmpty || miningQuery.algorithm.code == "data") {
-          Future.successful {
-            val featuresTable = miningQuery.targetTable.getOrElse(jobsConf.featuresTable)
-            featuresDatabase.queryData(featuresTable, miningQuery.dbAllVars)
-          }
-        } else {
+        {
           val result = (masterRouter ? miningQuery).mapTo[QueryResult]
           result.map(_.toJson)
         }
@@ -141,5 +135,5 @@ trait WebsocketSupport {
       .map { result =>
         TextMessage(result.compactPrint)
       }
-      .named("Mining WS flow.")
+      .named("Mining WebSocket flow")
 }

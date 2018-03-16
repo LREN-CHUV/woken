@@ -16,6 +16,7 @@ COPY .circleci/ /build/.circleci/
 COPY tests/ /build/tests/
 COPY docker/ /build/docker/
 COPY docs/ /build/docs/
+COPY dev/ /build/dev/
 COPY .*.cfg .*ignore .*.yaml .*.conf .gitattributes *.md *.sh *.yml *.json *.txt Dockerfile LICENSE /build/
 
 RUN /check-sources.sh

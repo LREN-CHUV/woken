@@ -59,7 +59,7 @@ trait MiningServiceApi extends Directives {
     )
   )
   @Authorization(value = "BasicAuth")
-  def mining: Route
+  def runMiningJob: Route
 
   @Path("/experiment")
   @ApiOperation(
@@ -90,12 +90,12 @@ trait MiningServiceApi extends Directives {
     )
   )
   @Authorization(value = "BasicAuth")
-  def experiment: Route
+  def runExperiment: Route
 
-  @Path("/methods")
+  @Path("/algorithms")
   @ApiOperation(
-    value = "Get mining method complete catalog",
-    notes = "Get catalog containing available mining methods",
+    value = "Get complete catalog of mining methods (algorithms)",
+    notes = "Get catalog containing available mining methods (algorithms)",
     httpMethod = "GET",
     consumes = "application/json",
     response = classOf[MethodsResponse]
@@ -113,6 +113,6 @@ trait MiningServiceApi extends Directives {
     )
   )
   @Authorization(value = "BasicAuth")
-  def listMethods: Route
+  def listAlgorithms: Route
 
 }

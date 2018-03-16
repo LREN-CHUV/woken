@@ -29,11 +29,11 @@ import ch.chuv.lren.woken.core.validation.ValidatedAlgorithmFlow
 
 import scala.concurrent.ExecutionContext
 import scala.util.{ Failure, Success }
-
 import ch.chuv.lren.woken.core.commands.JobCommands.StartExperimentJob
 import ch.chuv.lren.woken.config.AlgorithmDefinition
 import ch.chuv.lren.woken.core.model.{ ErrorJobResult, JobResult, PfaExperimentJobResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
+import ch.chuv.lren.woken.dao.FeaturesDAL
 import ch.chuv.lren.woken.messages.query.{
   AlgorithmSpec,
   ExperimentQuery,
@@ -91,7 +91,13 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
   implicit val ec: ExecutionContext = context.dispatcher
 
   lazy val experimentFlow: Flow[Job, Map[AlgorithmSpec, JobResult], NotUsed] =
-    ExperimentFlow(coordinatorConfig, algorithmLookup, context).flow
+    ExperimentFlow(
+      CoordinatorActor.executeJobAsync(coordinatorConfig, context),
+      coordinatorConfig.featuresDatabase,
+      coordinatorConfig.jobsConf.node,
+      algorithmLookup,
+      context
+    ).flow
 
   @SuppressWarnings(Array("org.wartremover.warts.Any", "org.wartremover.warts.NonUnitStatements"))
   override def receive: PartialFunction[Any, Unit] = {
@@ -163,21 +169,24 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
 
 }
 
+case class AlgorithmValidationMaybe(job: ExperimentActor.Job,
+                                    algorithmSpec: AlgorithmSpec,
+                                    algorithmDefinition: Validation[AlgorithmDefinition],
+                                    validations: List[ValidationSpec])
 case class ExperimentFlow(
-    coordinatorConfig: CoordinatorConfig,
+    executeJobAsync: CoordinatorActor.ExecuteJobAsync,
+    featuresDatabase: FeaturesDAL,
+    node: String,
     algorithmLookup: String => Validation[AlgorithmDefinition],
     context: ActorContext
 )(implicit materializer: Materializer, ec: ExecutionContext) {
 
-  private case class AlgorithmValidationMaybe(job: ExperimentActor.Job,
-                                              algorithmSpec: AlgorithmSpec,
-                                              algorithmDefinition: Validation[AlgorithmDefinition],
-                                              validations: List[ValidationSpec])
   private case class AlgorithmValidation(job: ExperimentActor.Job,
                                          algorithmSpec: AlgorithmSpec,
                                          subJob: ValidatedAlgorithmFlow.Job)
 
-  private val validatedAlgorithmFlow = ValidatedAlgorithmFlow(coordinatorConfig, context)
+  private val validatedAlgorithmFlow =
+    ValidatedAlgorithmFlow(executeJobAsync, featuresDatabase, context)
 
   @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
   def flow: Flow[ExperimentActor.Job, Map[AlgorithmSpec, JobResult], NotUsed] =
@@ -210,7 +219,7 @@ case class ExperimentFlow(
       })
       .named("run-experiment")
 
-  private def splitJob: Flow[ExperimentActor.Job, AlgorithmValidationMaybe, NotUsed] =
+  def splitJob: Flow[ExperimentActor.Job, AlgorithmValidationMaybe, NotUsed] =
     Flow[ExperimentActor.Job]
       .map { job =>
         val algorithms  = job.query.algorithms
@@ -227,7 +236,7 @@ case class ExperimentFlow(
       .map { a =>
         val errorMessage = a.algorithmDefinition.toEither.left.get
         a.algorithmSpec -> ErrorJobResult(UUID.randomUUID().toString,
-                                          coordinatorConfig.jobsConf.node,
+                                          node,
                                           OffsetDateTime.now(),
                                           a.algorithmSpec.code,
                                           errorMessage.reduceLeft(_ + ", " + _))

@@ -26,11 +26,10 @@ import akka.http.scaladsl.model.StatusCodes._
 import ch.chuv.lren.woken.api.swagger.MiningServiceApi
 import ch.chuv.lren.woken.config.{ AppConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.messages.query._
-import ch.chuv.lren.woken.core.features.Queries._
-import ch.chuv.lren.woken.dao.FeaturesDAL
 import ch.chuv.lren.woken.service.AlgorithmLibraryService
 import akka.util.Timeout
 import com.typesafe.scalalogging.LazyLogging
+import kamon.akka.http.TracingDirectives
 import spray.json.DefaultJsonProtocol
 
 import scala.concurrent.duration._
@@ -41,7 +40,6 @@ object MiningWebService
 // this trait defines our service behavior independently from the service actor
 class MiningWebService(
     val masterRouter: ActorRef,
-    val featuresDatabase: FeaturesDAL,
     override val appConfiguration: AppConfiguration,
     val jobsConf: JobsConfiguration
 )(implicit system: ActorSystem)
@@ -52,84 +50,75 @@ class MiningWebService(
     with PredefinedToResponseMarshallers
     with SecuredRouteHelper
     with WebsocketSupport
+    with TracingDirectives
     with LazyLogging {
 
   implicit val executionContext: ExecutionContext = system.dispatcher
   implicit val timeout: Timeout                   = Timeout(180.seconds)
 
-  val routes: Route = mining ~ experiment ~ listMethods
+  val routes: Route = runMiningJob ~ runExperiment ~ listAlgorithms
 
   import spray.json._
   import queryProtocol._
 
-  override def listMethods: Route =
+  override def listAlgorithms: Route =
     securePathWithWebSocket(
-      "mining" / "methods",
-      listMethodsFlow,
+      "mining" / ("algorithms" | "methods"),
+      listAlgorithmsFlow,
       get {
-        //operationName("listMethods", Map("requestType" -> "http-post")) {
-        complete(AlgorithmLibraryService().algorithms())
-        //}
+        operationName("listAlgorithms", Map("requestType" -> "http-get")) {
+          complete(AlgorithmLibraryService().algorithms())
+        }
       }
     )
 
-  override def mining: Route =
+  override def runMiningJob: Route =
     securePathWithWebSocket(
       "mining" / "job",
       miningFlow,
       post {
-        //operationName("mining", Map("requestType" -> "http-post")) {
-        entity(as[MiningQuery]) {
-          case query: MiningQuery if query.algorithm.code == "" || query.algorithm.code == "data" =>
-            ctx =>
-              {
-                ctx.complete(
-                  featuresDatabase.queryData(jobsConf.featuresTable, query.dbAllVars)
-                )
-              }
-
-          case query: MiningQuery =>
-            ctx =>
-              ctx.complete {
-                (masterRouter ? query)
-                  .mapTo[QueryResult]
-                  .map {
-                    case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
-                    case qr if qr.data.nonEmpty  => OK         -> qr.toJson
-                  }
-                  .recoverWith {
-                    case e =>
-                      logger.warn(s"Query $query failed with error $e")
-                      Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
-                  }
-              }
+        operationName("mining", Map("requestType" -> "http-post")) {
+          entity(as[MiningQuery]) { query: MiningQuery => ctx =>
+            ctx.complete {
+              (masterRouter ? query)
+                .mapTo[QueryResult]
+                .map {
+                  case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
+                  case qr if qr.data.nonEmpty  => OK         -> qr.toJson
+                }
+                .recoverWith {
+                  case e =>
+                    logger.warn(s"Query $query failed with error $e")
+                    Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
+                }
+            }
+          }
         }
-        //}
       }
     )
 
-  override def experiment: Route =
+  override def runExperiment: Route =
     securePathWithWebSocket(
       "mining" / "experiment",
       experimentFlow,
       post {
-        //operationName("experiment", Map("requestType" -> "http-post")) {
-        entity(as[ExperimentQuery]) { query: ExperimentQuery =>
-          complete {
-            (masterRouter ? query)
-              .mapTo[QueryResult]
-              .map {
-                case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
-                case qr if qr.data.nonEmpty  => OK         -> qr.toJson
-              }
-              .recoverWith {
-                case e =>
-                  logger.warn(s"Query $query failed with error $e")
-                  Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
-              }
+        operationName("experiment", Map("requestType" -> "http-post")) {
+          entity(as[ExperimentQuery]) { query: ExperimentQuery =>
+            complete {
+              (masterRouter ? query)
+                .mapTo[QueryResult]
+                .map {
+                  case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
+                  case qr if qr.data.nonEmpty  => OK         -> qr.toJson
+                }
+                .recoverWith {
+                  case e =>
+                    logger.warn(s"Query $query failed with error $e")
+                    Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
+                }
+            }
           }
         }
-        //}
       }
     )
 }

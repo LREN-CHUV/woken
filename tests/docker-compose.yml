@@ -148,7 +148,7 @@ services:
       - db
 
   sample_meta_db_setup:
-    image: "hbpmip/sample-meta-db-setup:0.4.3"
+    image: "hbpmip/sample-meta-db-setup:0.4.4"
     container_name: "sample-meta-db-setup"
     restart: "no"
     environment:
@@ -244,7 +244,7 @@ services:
       - db
 
   wokenvalidation:
-    image: hbpmip/woken-validation:2.2.15
+    image: hbpmip/woken-validation:2.2.16
     ports:
       - "8081:8081"
       - "8082:8082"
@@ -309,9 +309,8 @@ services:
       FRONTEND_AFTER_LOGOUT_URL: http://frontend/services/login/hbp
       CLUSTER_IP: portalbackend
       CLUSTER_PORT: 8089
-      WOKEN_HOST: woken
-      WOKEN_PORT: 8088
       WOKEN_PORT_8088_TCP_ADDR: woken
+      WOKEN_PORT_8088_TCP_PORT: 8088
       WOKEN_AKKA_PATH: "/user/entrypoint"
       EXAREME_URL: http://prozac.madgik.di.uoa.gr:9090/mining/query
       LOGGING_LEVEL_WEB: DEBUG
