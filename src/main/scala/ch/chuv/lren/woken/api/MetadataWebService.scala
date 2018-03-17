@@ -32,7 +32,7 @@ import kamon.akka.http.TracingDirectives
 import scala.concurrent.duration._
 import scala.concurrent.{ ExecutionContext, Future }
 
-class MetadataApiService(
+class MetadataWebService(
     val masterRouter: ActorRef,
     override val appConfiguration: AppConfiguration,
     val jobsConf: JobsConfiguration

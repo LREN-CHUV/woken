@@ -48,7 +48,7 @@ trait Api extends CoreActors with Core with LazyLogging {
       )
 
     val metadataService =
-      new MetadataApiService(
+      new MetadataWebService(
         mainRouter,
         appConfig,
         jobsConfig
