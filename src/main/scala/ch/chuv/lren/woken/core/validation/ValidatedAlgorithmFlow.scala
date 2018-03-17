@@ -27,9 +27,10 @@ import akka.stream.{ FlowShape, Materializer }
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Zip }
 import ch.chuv.lren.woken.backends.DockerJob
 import ch.chuv.lren.woken.config.AlgorithmDefinition
-import ch.chuv.lren.woken.core.{ CoordinatorActor, CoordinatorConfig }
+import ch.chuv.lren.woken.core.CoordinatorActor
 import ch.chuv.lren.woken.core.model.{ ErrorJobResult, JobResult, PfaJobResult }
 import ch.chuv.lren.woken.core.features.Queries._
+import ch.chuv.lren.woken.dao.FeaturesDAL
 import ch.chuv.lren.woken.messages.query.{ AlgorithmSpec, MiningQuery, ValidationSpec }
 import ch.chuv.lren.woken.messages.validation.{ Score, validationProtocol }
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
@@ -62,7 +63,8 @@ object ValidatedAlgorithmFlow {
 }
 
 case class ValidatedAlgorithmFlow(
-    coordinatorConfig: CoordinatorConfig,
+    executeJobAsync: CoordinatorActor.ExecuteJobAsync,
+    featuresDatabase: FeaturesDAL,
     context: ActorContext
 )(implicit materializer: Materializer, ec: ExecutionContext) {
 
@@ -70,7 +72,7 @@ case class ValidatedAlgorithmFlow(
 
   private val log = Logging(context.system, getClass)
 
-  private val crossValidationFlow = CrossValidationFlow(coordinatorConfig, context)
+  private val crossValidationFlow = CrossValidationFlow(executeJobAsync, featuresDatabase, context)
 
   @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
   def runAlgorithmAndValidate(
@@ -104,7 +106,9 @@ case class ValidatedAlgorithmFlow(
         // Spawn a CoordinatorActor
         val jobId = UUID.randomUUID().toString
         val featuresQuery =
-          job.query.features(job.inputTable, !job.algorithmDefinition.supportsNullValues, None)
+          job.query
+            .filterNulls(!job.algorithmDefinition.supportsNullValues)
+            .features(job.inputTable, None)
         val subJob =
           DockerJob(jobId,
                     job.algorithmDefinition.dockerImage,
@@ -112,7 +116,7 @@ case class ValidatedAlgorithmFlow(
                     featuresQuery,
                     job.query.algorithm,
                     job.metadata)
-        CoordinatorActor.future(subJob, coordinatorConfig, context)
+        executeJobAsync(subJob)
       }
       .named("learn-from-all-data")
 

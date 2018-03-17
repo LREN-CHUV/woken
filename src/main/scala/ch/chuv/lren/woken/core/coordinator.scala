@@ -73,9 +73,8 @@ object CoordinatorActor {
   def actorName(job: DockerJob): String =
     s"LocalCoordinatorActor_job_${job.jobId}_${job.jobName}"
 
-  def future(job: DockerJob,
-             coordinatorConfig: CoordinatorConfig,
-             context: ActorContext): Future[Response] = {
+  private[this] def future(coordinatorConfig: CoordinatorConfig,
+                           context: ActorContext)(job: DockerJob): Future[Response] = {
     val worker = context.actorOf(
       CoordinatorActor.props(coordinatorConfig)
     )
@@ -86,6 +85,12 @@ object CoordinatorActor {
       .mapTo[CoordinatorActor.Response]
 
   }
+
+  type ExecuteJobAsync = DockerJob => Future[Response]
+
+  def executeJobAsync(coordinatorConfig: CoordinatorConfig,
+                      context: ActorContext): ExecuteJobAsync = future(coordinatorConfig, context)
+
 }
 
 /** FSM States and internal data */

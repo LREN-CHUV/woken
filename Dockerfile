@@ -16,6 +16,7 @@ COPY .circleci/ /build/.circleci/
 COPY tests/ /build/tests/
 COPY docker/ /build/docker/
 COPY docs/ /build/docs/
+COPY dev/ /build/dev/
 COPY .*.cfg .*ignore .*.yaml .*.conf .gitattributes *.md *.sh *.yml *.json *.txt Dockerfile LICENSE /build/
 
 RUN /check-sources.sh
@@ -91,7 +92,7 @@ LABEL org.label-schema.build-date=$BUILD_DATE \
       org.label-schema.vcs-ref=$VCS_REF \
       org.label-schema.version="$VERSION" \
       org.label-schema.vendor="LREN CHUV" \
-      org.label-schema.license="Apache 2.0" \
+      org.label-schema.license="AGPLv3" \
       org.label-schema.docker.dockerfile="Dockerfile" \
       org.label-schema.memory-hint="2048" \
       org.label-schema.schema-version="1.0"

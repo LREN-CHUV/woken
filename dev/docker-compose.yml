@@ -186,166 +186,27 @@ services:
     depends_on:
       - db
 
-  # The zipkin process services the UI, and also exposes a POST endpoint that
-  # instrumentation can send trace data to. Scribe is enabled by default.
-  zipkin:
-    image: openzipkin/zipkin:2.5.0
-    container_name: zipkin
-    hostname: zipkin
-    # Environment settings are defined here https://github.com/openzipkin/zipkin/tree/1.19.0/zipkin-server#environment-variables
-    environment:
-      - STORAGE_TYPE=mem
-      # Uncomment to disable scribe
-      # - SCRIBE_ENABLED=false
-      # Uncomment to enable self-tracing
-      # - SELF_TRACING_ENABLED=true
-      # Uncomment to enable debug logging
-      # - JAVA_OPTS=-Dlogging.level.zipkin=DEBUG
-    ports:
-      # Port used for the Zipkin UI and HTTP Api
-      - 9411:9411
-
-  wokenprometheus:
-    image: prom/prometheus
-    volumes:
-      - ./prometheus/federation/prometheus.yml:/etc/prometheus/prometheus.yml
-    hostname: prometheus
-    ports:
-      - "9090:9090"
-    depends_on:
-      - zipkin
-
-
-  wokennode1:
+  woken:
     image: hbpmip/woken
     volumes:
-      - ./woken-worker1/config:/opt/woken/config
-    ports:
-      - "18087:8087"
-      - "18088:8088"
-      - "19095:9095"
-    environment:
-      CLUSTER_PORT: 8088
-      CLUSTER_IP: wokennode1
-      CLUSTER_NAME: woken-node1
-      WOKEN_PORT_8088_TCP_ADDR: wokennode1
-      DOCKER_BRIDGE_NETWORK: "tests_default"
-      LOG_LEVEL: DEBUG
-    links:
-      - zipkin
-      - wokenprometheus
-    depends_on:
-      - chronos
-      - db
-
-  wait_wokennode1:
-    image: "waisbrot/wait"
-    restart: "no"
-    environment:
-      TARGETS: "wokennode1:8087,chronos:4400"
-      TIMEOUT: 60
-    depends_on:
-      - wokennode1
-      - chronos
-
-  wokenvalidationnode1:
-    image: hbpmip/woken-validation:2.3.1
-    ports:
-      - "18081:8081"
-      - "18082:8082"
-    environment:
-      CLUSTER_PORT: 18082
-      CLUSTER_IP: wokenvalidationnode1
-      CLUSTER_NAME: woken-node1
-      WOKEN_PORT_8088_TCP_ADDR: wokennode1
-      LOG_LEVEL: DEBUG
-    links:
-      - zipkin
-      - wokenprometheus
-    depends_on:
-      - wokennode1
-
-  wait_wokenvalidationnode1:
-    image: "waisbrot/wait"
-    restart: "no"
-    environment:
-      TARGETS: "wokenvalidationnode1:8081"
-      TIMEOUT: 60
-    depends_on:
-      - wokenvalidationnode1
-
-  wokennode2:
-    image: hbpmip/woken
-    volumes:
-      - ./woken-worker2/config:/opt/woken/config
-    ports:
-      - "28087:8087"
-      - "28088:8088"
-      - "29095:9095"
-    environment:
-      CLUSTER_PORT: 8088
-      CLUSTER_IP: wokennode2
-      CLUSTER_NAME: woken-node2
-      WOKEN_PORT_8088_TCP_ADDR: wokennode2
-      DOCKER_BRIDGE_NETWORK: "tests_default"
-      LOG_LEVEL: DEBUG
-    links:
-      - zipkin
-      - wokenprometheus
-    depends_on:
-      - chronos
-      - db
-
-  wait_wokennode2:
-    image: "waisbrot/wait"
-    restart: "no"
-    environment:
-      TARGETS: "wokennode2:8087,chronos:4400"
-      TIMEOUT: 60
-    depends_on:
-      - wokennode2
-      - chronos
-
-  wokenvalidationnode2:
-    image: hbpmip/woken-validation:2.3.1
-    ports:
-      - "28081:8081"
-      - "28082:8082"
-    environment:
-      CLUSTER_PORT: 28082
-      CLUSTER_IP: wokenvalidationnode2
-      CLUSTER_NAME: woken-node2
-      WOKEN_PORT_8088_TCP_ADDR: wokennode2
-      LOG_LEVEL: DEBUG
-    links:
-      - zipkin
-    depends_on:
-      - wokennode2
-
-  wait_wokenvalidationnode2:
-    image: "waisbrot/wait"
-    restart: "no"
-    environment:
-      TARGETS: "wokenvalidationnode2:8081"
-      TIMEOUT: 60
-    depends_on:
-      - wokenvalidationnode2
-
-  wokencentral:
-    image: hbpmip/woken
-    volumes:
-      - ./woken-central/config:/opt/woken/config
+      - ./woken/config:/opt/woken/config
     ports:
       - "8087:8087"
       - "8088:8088"
       - "9095:9095"
+      - "8000:8000"
     environment:
       CLUSTER_PORT: 8088
-      CLUSTER_IP: wokencentral
-      CLUSTER_NAME: woken-central
-      WOKEN_PORT_8088_TCP_ADDR: wokencentral
+      CLUSTER_IP: woken
+      WOKEN_PORT_8088_TCP_ADDR: woken
       DOCKER_BRIDGE_NETWORK: "tests_default"
       LOG_LEVEL: DEBUG
+      KAMON_ENABLED: "no"
+      ZIPKIN_ENABLED: "yes"
+      PROMETHEUS_ENABLED: "yes"
+      SIGAR_SYSTEM_METRICS: "no"
+      JVM_SYSTEM_METRICS: "no"
+      JAVA_OPTS: "-agentlib:jdwp=transport=dt_socket,address=8000,server=y,suspend=n"
     links:
       - zipkin
       - wokenprometheus
@@ -353,31 +214,26 @@ services:
       - chronos
       - db
 
-  wait_wokencentral:
+  wokenvalidation:
+    image: hbpmip/woken-validation:2.3.1
+    ports:
+      - "8081:8081"
+      - "8082:8082"
+    environment:
+      CLUSTER_PORT: 8082
+      CLUSTER_IP: wokenvalidation
+      WOKEN_PORT_8088_TCP_ADDR: "${HOST}"
+      LOG_LEVEL: DEBUG
+
+  wait_woken:
     image: "waisbrot/wait"
     restart: "no"
     environment:
-      TARGETS: "wokencentral:8087,chronos:4400"
-      TIMEOUT: 60
+      TARGETS: "${HOST}:8087,chronos:4400,wokenvalidation:8081"
+      TIMEOUT: 600
     depends_on:
-      - wokencentral
+      - woken
       - chronos
-
-  wokencentraltest:
-    build:
-      context: ./woken-test
-      dockerfile: Dockerfile
-    hostname: "wokentest"
-    ports:
-      - "8097:8097"
-    environment:
-      CLUSTER_PORT: 8097
-      CLUSTER_IP: wokentest
-      CLUSTER_NAME: woken-central
-      WOKEN_PORT_8088_TCP_ADDR: wokencentral
-      LOG_LEVEL: DEBUG
-    depends_on:
-      - wokencentral
 
   portalbackend:
     image: "hbpmip/portal-backend:2.6.4"
@@ -406,12 +262,16 @@ services:
       FRONTEND_AFTER_LOGOUT_URL: http://frontend/services/login/hbp
       CLUSTER_IP: portalbackend
       CLUSTER_PORT: 8089
-      WOKEN_PORT_8088_TCP_ADDR: wokencentral
+      WOKEN_PORT_8088_TCP_ADDR: woken
       WOKEN_PORT_8088_TCP_PORT: 8088
       WOKEN_AKKA_PATH: "/user/entrypoint"
+      EXAREME_URL: http://prozac.madgik.di.uoa.gr:9090/mining/query
+      LOGGING_LEVEL_WEB: DEBUG
+      LOGGING_LEVEL_HIBERNATE: WARN
+      SESSION_TIMEOUT: 2592000
+      DATASETS: desd-synthdata
     depends_on:
       - db
-      - wokencentral
 
   wait_portal_backend:
     image: "waisbrot/wait"
@@ -422,7 +282,7 @@ services:
       - portalbackend
 
   frontend:
-    image: hbpmip/portal-frontend:2.8.4
+    image: hbpmip/portal-frontend
     depends_on:
       - portalbackend
     ports:
@@ -433,7 +293,7 @@ services:
       PORTAL_VIRTUAL_HOST: frontend
       PORTAL_BACKEND_SERVER: portalbackend:8080
       PORTAL_BACKEND_CONTEXT: services
-      MODE: federation
+      MODE: local
       INSTANCE_NAME: DEV
       VERSION: 2.7.0
 
@@ -442,4 +302,4 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.18.0.0/16
+        - subnet: 172.18.1.0/16

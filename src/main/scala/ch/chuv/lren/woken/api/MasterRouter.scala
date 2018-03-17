@@ -107,18 +107,26 @@ case class MasterRouter(appConfiguration: AppConfiguration,
   def receive: PartialFunction[Any, Unit] = {
 
     case MethodsQuery =>
-      sender ! MethodsResponse(algorithmLibraryService.algorithms().compactPrint)
+      sender ! MethodsResponse(algorithmLibraryService.algorithms())
 
-    case DatasetsQuery =>
-      sender ! DatasetsResponse(datasetService.datasets())
+    case ds: DatasetsQuery =>
+      val allDatasets = datasetService.datasets()
+      val table       = ds.table.getOrElse(coordinatorConfig.jobsConf.featuresTable)
+      val datasets =
+        if (table == "*") allDatasets
+        else allDatasets.filter(_.tables.contains(table))
+
+      sender ! DatasetsResponse(datasets.map(_.withoutAuthenticationDetails))
 
     case varsQuery: VariablesForDatasetsQuery =>
       val initiator = sender()
 
       Source
         .single(
-          varsQuery.copy( datasets =
-            datasetService.datasets().map(_.dataset)
+          varsQuery.copy(
+            datasets = datasetService
+              .datasets()
+              .map(_.dataset)
               .filter(varsQuery.datasets.isEmpty || varsQuery.datasets.contains(_))
           )
         )
@@ -142,25 +150,14 @@ case class MasterRouter(appConfiguration: AppConfiguration,
 
     //case MiningQuery(variables, covariables, groups, _, AlgorithmSpec(c, p))
     //    if c == "" || c == "data" =>
+    //case query: MiningQuery if query.algorithm.code == "" || query.algorithm.code == "data" =>
+    //  featuresDatabase.queryData(jobsConf.featuresTable, query.dbAllVars)
     // TODO To be implemented
 
     case query: MiningQuery =>
       val initiator = sender()
       if (miningJobsInFlight.size <= miningActiveActorsLimit) {
-        val jobValidated = miningQuery2JobF(query)
-
-        jobValidated.fold(
-          errorMsg => {
-            val error =
-              ErrorJobResult("",
-                             coordinatorConfig.jobsConf.node,
-                             OffsetDateTime.now(),
-                             query.algorithm.code,
-                             errorMsg.reduceLeft(_ + ", " + _))
-            initiator ! error.asQueryResult
-          },
-          job => runMining(query, initiator, job)
-        )
+        runMiningJob(query, initiator)
       } else {
         val error =
           ErrorJobResult("", "", OffsetDateTime.now(), "experiment", "Too busy to accept new jobs.")
@@ -169,6 +166,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
 
     case CoordinatorActor.Response(job, List(errorJob: ErrorJobResult)) =>
       log.warning(s"Received error while mining ${job.query}: $errorJob")
+
       miningJobsInFlight.get(job).foreach(im => im._1 ! errorJob.asQueryResult)
       miningJobsInFlight -= job
 
@@ -219,7 +217,24 @@ case class MasterRouter(appConfiguration: AppConfiguration,
 
   }
 
-  private def runMining(query: MiningQuery, initiator: ActorRef, job: DockerJob): Unit =
+  private def runMiningJob(query: MiningQuery, initiator: ActorRef): Unit = {
+    val jobValidated = miningQuery2JobF(query)
+
+    jobValidated.fold(
+      errorMsg => {
+        val error =
+          ErrorJobResult("",
+                         coordinatorConfig.jobsConf.node,
+                         OffsetDateTime.now(),
+                         query.algorithm.code,
+                         errorMsg.reduceLeft(_ + ", " + _))
+        initiator ! error.asQueryResult
+      },
+      job => runMiningJob(query, initiator, job)
+    )
+  }
+
+  private def runMiningJob(query: MiningQuery, initiator: ActorRef, job: DockerJob): Unit =
     dispatcherService.dispatchTo(query.datasets) match {
       case (_, true) => startMiningJob(job, initiator)
       case _ =>

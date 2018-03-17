@@ -17,15 +17,19 @@
 
 package ch.chuv.lren.woken.core.validation
 
-import akka.actor.ActorSystem
+import akka.actor.{ Actor, ActorSystem, Props }
 import akka.stream.ActorMaterializer
+import akka.stream.scaladsl.{ Sink, Source }
 import akka.testkit.TestKit
-import ch.chuv.lren.woken.util.JsonUtils
+import ch.chuv.lren.woken.core.FakeCoordinatorActor
+import ch.chuv.lren.woken.util.{ FakeCoordinatorConfig, JsonUtils }
 import com.typesafe.config.{ Config, ConfigFactory }
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 
+import scala.concurrent.ExecutionContext.Implicits.global
+
 class CrossValidationFlowTest
-    extends TestKit(ActorSystem("MySpec"))
+    extends TestKit(ActorSystem("CrossValidationFlowSpec"))
     with WordSpecLike
     with Matchers
     with BeforeAndAfterAll
@@ -36,6 +40,38 @@ class CrossValidationFlowTest
 
   override def afterAll {
     TestKit.shutdownActorSystem(system)
+  }
+
+  "CrossValidationFlow" should {
+
+    "complete with success if cross validation failed" ignore {
+      val probe = system.actorOf(WrapperActor.props, "crossValidationWrapper")
+      probe ! CrossValidationFlow.Job("test-1", "", "", ???, List.empty, ???, ???)
+    }
+
+  }
+
+  class WrapperActor extends Actor {
+    val chronosService    = testActor
+    val coordinatorConfig = FakeCoordinatorConfig.coordinatorConfig(testActor)
+
+    val crossValidationFlow = CrossValidationFlow(
+      FakeCoordinatorActor.executeJobAsync(coordinatorConfig, context),
+      coordinatorConfig.featuresDatabase,
+      context
+    )
+
+    override def receive: Receive = {
+      case job: CrossValidationFlow.Job =>
+        val replyTo = sender()
+        val result =
+          Source.single(job).via(crossValidationFlow.crossValidate(1)).runWith(Sink.ignore)
+        replyTo ! result
+    }
+  }
+
+  object WrapperActor {
+    def props = Props(new WrapperActor)
   }
 
 }

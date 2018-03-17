@@ -17,36 +17,36 @@
 
 package ch.chuv.lren.woken.api
 
-import akka.http.scaladsl.server.Route
 import akka.actor._
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
+import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.unmarshalling.PredefinedFromStringUnmarshallers._
 import akka.http.scaladsl.model.StatusCodes._
 import akka.util.Timeout
 import akka.pattern.ask
 import ch.chuv.lren.woken.api.swagger.MetadataServiceApi
 import ch.chuv.lren.woken.config.{ AppConfiguration, JobsConfiguration }
-import ch.chuv.lren.woken.dao.FeaturesDAL
 import ch.chuv.lren.woken.messages.datasets.{ DatasetId, DatasetsQuery, DatasetsResponse }
 import ch.chuv.lren.woken.messages.variables.{
   VariablesForDatasetsQuery,
   VariablesForDatasetsResponse
 }
 import com.typesafe.scalalogging.LazyLogging
+import kamon.akka.http.TracingDirectives
 
 import scala.concurrent.duration._
 import scala.concurrent.{ ExecutionContext, Future }
 
 class MetadataApiService(
     val masterRouter: ActorRef,
-    val featuresDatabase: FeaturesDAL,
     override val appConfiguration: AppConfiguration,
     val jobsConf: JobsConfiguration
 )(implicit system: ActorSystem)
     extends MetadataServiceApi
     with SprayJsonSupport
-    with RouteHelpers
+    with SecuredRouteHelper
     with WebsocketSupport
+    with TracingDirectives
     with LazyLogging {
 
   implicit val executionContext: ExecutionContext = system.dispatcher
@@ -59,43 +59,48 @@ class MetadataApiService(
 
   override def listDatasets: Route =
     securePathWithWebSocket(
-      "datasets",
+      "metadata" / "datasets",
       listDatasetsFlow,
       get {
-        complete {
-          (masterRouter ? DatasetsQuery)
-            .mapTo[DatasetsResponse]
-            .map { datasetResponse =>
-              OK -> datasetResponse.datasets.toJson
+        operationName("listDatasets", Map("requestType" -> "http-get")) {
+          parameters('table.?) { table =>
+            complete {
+              (masterRouter ? DatasetsQuery(table))
+                .mapTo[DatasetsResponse]
+                .map { datasetResponse =>
+                  OK -> datasetResponse.datasets.toJson
+                }
+                .recoverWith {
+                  case e => Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
+                }
             }
-            .recoverWith {
-              case e => Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
-            }
+          }
         }
       }
     )
 
   override def listVariables: Route =
     securePathWithWebSocket(
-      "variables",
+      "metadata" / "variables",
       listVariableMetadataFlow,
       get {
-        parameters('datasets.as(CsvSeq[String]).?) { datasets =>
-          println(s"datasets: $datasets")
-          val datasetIds = datasets.map(_.map(DatasetId).toSet).getOrElse(Set())
+        parameters('datasets.as(CsvSeq[String]).?) {
+          datasets =>
+            println(s"datasets: $datasets")
+            val datasetIds = datasets.map(_.map(DatasetId).toSet).getOrElse(Set())
 
-          complete {
-            (masterRouter ? VariablesForDatasetsQuery(datasets = datasetIds, includeNulls = true))
-              .mapTo[VariablesForDatasetsResponse]
-              .map {
-                case variablesResponse if variablesResponse.error.nonEmpty =>
-                  BadRequest -> variablesResponse.toJson
-                case variablesResponse => OK -> variablesResponse.toJson
-              }
-              .recoverWith {
-                case e => Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
-              }
-          }
+            complete {
+              (masterRouter ? VariablesForDatasetsQuery(datasets = datasetIds, includeNulls = true))
+                .mapTo[VariablesForDatasetsResponse]
+                .map {
+                  case variablesResponse if variablesResponse.error.nonEmpty =>
+                    BadRequest -> variablesResponse.toJson
+                  case variablesResponse => OK -> variablesResponse.toJson
+                }
+                .recoverWith {
+                  case e => Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
+                }
+            }
         }
       }
     )

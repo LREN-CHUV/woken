@@ -13,14 +13,7 @@
       "code": "score_math_course1"
     }
   ],
-  "datasets": [
-    {
-      "code": "node1"
-    },
-    {
-      "code": "node2"
-    }
-  ],
+  "datasets": [],
   "grouping": [],
   "targetTable": "sample_data",
   "user": {

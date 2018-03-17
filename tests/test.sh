@@ -93,9 +93,10 @@ for i in 1 2 3 4 5 ; do
   $DOCKER_COMPOSE stop chronos
 done
 
-$DOCKER_COMPOSE up -d woken wokenvalidation
-
+$DOCKER_COMPOSE up -d woken
 $DOCKER_COMPOSE run wait_woken
+$DOCKER_COMPOSE up -d wokenvalidation
+$DOCKER_COMPOSE run wait_wokenvalidation
 
 for i in 1 2 3 4 5 ; do
   $DOCKER_COMPOSE logs chronos | grep java.util.concurrent.TimeoutException || break

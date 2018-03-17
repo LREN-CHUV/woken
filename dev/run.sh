@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 
 #
-# Start Woken in a distributed mode with its full environment and two worker nodes using different datasets.
+# Start the environment for Woken: Mesos, Chronos, Postgres database with data, Woken validation, Portal frontend.
 #
 # Option:
-#   --no-tests: skip the test suite
-#   --all-tests: execute the full suite of tests, including slow tests such as Chaos testing
+#   --no-validation: do not start Woken validation
 #   --no-frontend: do not start the frontend
 #
 
@@ -25,22 +24,17 @@ get_script_dir () {
 
 cd "$(get_script_dir)"
 
+validation=1
 frontend=1
-tests=1
-test_args="testOnly -- -l org.scalatest.tags.Slow"
 for param in "$@"
 do
   if [ "--no-frontend" == "$param" ]; then
     frontend=0
     echo "INFO: --no-frontend option detected !"
   fi
-  if [ "--no-tests" == "$param" ]; then
-    tests=0
-    echo "INFO: --no-tests option detected !"
-  fi
-  if [ "--all-tests" == "$param" ]; then
-    test_args=""
-    echo "INFO: --all-tests option detected !"
+  if [ "--no-validation" == "$param" ]; then
+    validation=0
+    echo "INFO: --no-validation option detected !"
   fi
 done
 
@@ -51,10 +45,10 @@ fi
 
 if groups "$USER" | grep &>/dev/null '\bdocker\b'; then
   DOCKER="docker"
-  DOCKER_COMPOSE="docker-compose -f docker-compose-federation.yml"
+  DOCKER_COMPOSE="docker-compose"
 else
   DOCKER="sudo docker"
-  DOCKER_COMPOSE="sudo docker-compose -f docker-compose-federation.yml"
+  DOCKER_COMPOSE="sudo docker-compose"
 fi
 
 trap '$DOCKER_COMPOSE rm -f' SIGINT SIGQUIT
@@ -69,7 +63,7 @@ $DOCKER_COMPOSE run wait_zookeeper
 $DOCKER_COMPOSE up -d mesos_master
 $DOCKER_COMPOSE run wait_mesos_master
 $DOCKER_COMPOSE up -d mesos_slave
-$DOCKER_COMPOSE build wokencentraltest
+$DOCKER_COMPOSE build wokentest
 $DOCKER_COMPOSE run wait_dbs
 
 echo "Create databases..."
@@ -93,37 +87,23 @@ for i in 1 2 3 4 5 ; do
   $DOCKER_COMPOSE stop chronos
 done
 
-$DOCKER_COMPOSE up -d wokennode1 wokennode2
-$DOCKER_COMPOSE run wait_wokennode1
-$DOCKER_COMPOSE run wait_wokennode2
-$DOCKER_COMPOSE up -d wokenvalidationnode1 wokenvalidationnode2
-$DOCKER_COMPOSE run wait_wokenvalidationnode1
-$DOCKER_COMPOSE run wait_wokenvalidationnode2
+echo "Please start Woken from your IDE. It should use port 8087 for Akka cluster"
+read -p "Press enter to continue >"
 
-$DOCKER_COMPOSE up -d wokencentral
+if [ $validation == 1 ]; then
 
-$DOCKER_COMPOSE run wait_wokencentral
+    $DOCKER_COMPOSE up -d wokenvalidation
 
-for i in 1 2 3 4 5 ; do
-  $DOCKER_COMPOSE logs chronos | grep java.util.concurrent.TimeoutException || break
-  echo "Chronos failed to start, restarting..."
-  $DOCKER_COMPOSE stop chronos
-  $DOCKER_COMPOSE up -d chronos
-  $DOCKER_COMPOSE run wait_chronos
-done
+    $DOCKER_COMPOSE run wait_woken
 
-echo "The Algorithm Factory is now running on your system"
+    for i in 1 2 3 4 5 ; do
+      $DOCKER_COMPOSE logs chronos | grep java.util.concurrent.TimeoutException || break
+      echo "Chronos failed to start, restarting..."
+      $DOCKER_COMPOSE stop chronos
+      $DOCKER_COMPOSE up -d chronos
+      $DOCKER_COMPOSE run wait_chronos
+    done
 
-if [ $tests == 1 ]; then
-    echo
-    echo "Testing HTTP web services..."
-
-    ./http/query-knn-distributed.sh
-
-    echo
-    echo "Testing Akka API..."
-
-  $DOCKER_COMPOSE run wokencentraltest ${test_args}
 fi
 
 if [ $frontend == 1 ]; then

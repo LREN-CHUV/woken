@@ -87,10 +87,10 @@ trait CoreActors {
 
   val decider: Supervision.Decider = {
     case err: RuntimeException =>
-      logger.error(err.getMessage)
+      logger.error(err.getMessage, err)
       Supervision.Resume
-    case _ =>
-      logger.error("Unknown error. Stopping the stream. ")
+    case err =>
+      logger.error("Unknown error. Stopping the stream.", err)
       Supervision.Stop
   }
 

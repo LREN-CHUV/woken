@@ -48,7 +48,7 @@ case class DockerJob(
 
   def dockerParameters: Map[String, String] =
     Map[String, String](
-      "PARAM_query"       -> query.query,
+      "PARAM_query"       -> query.sql,
       "PARAM_variables"   -> query.dbVariables.mkString(","),
       "PARAM_covariables" -> query.dbCovariables.mkString(","),
       "PARAM_grouping"    -> query.dbGrouping.mkString(","),

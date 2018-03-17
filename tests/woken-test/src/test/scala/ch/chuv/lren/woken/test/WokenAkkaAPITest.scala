@@ -75,31 +75,42 @@ class WokenAkkaAPITest
       println(result)
     }
 
-    result.success.value.methods shouldNot have size 0
+    val expected = loadJson("/list_algorithms.json")
+
+    result.success.value.methods shouldBe expected
   }
 
-  //TODO commented out until a new woken image with the datasets endpoint is pushed
-
   // Datasets available query
-//  "Woken" should "respond to a query for the list of available datasets" in {
-//
-//    val start = System.currentTimeMillis()
-//    val future = client ? ClusterClient.Send(entryPoint,
-//                                             DatasetsQuery,
-//                                             localAffinity = true)
-//    val result = waitFor[DatasetsResponse](future)
-//    val end = System.currentTimeMillis()
-//
-//    println(
-//      "List of datasets query complete in " + Duration(end - start,
-//                                                       TimeUnit.MILLISECONDS))
-//
-//    if (!result.isSuccess) {
-//      println(result)
-//    }
-//
-//    result.success.value.datasets shouldNot have size 0
-//  }
+  "Woken" should "respond to a query for the list of available datasets" in {
+
+    val start = System.currentTimeMillis()
+    val future = client ? ClusterClient.Send(
+      entryPoint,
+      DatasetsQuery(Some("cde_features_a")),
+      localAffinity = true)
+    val result = waitFor[DatasetsResponse](future)
+    val end = System.currentTimeMillis()
+
+    println(
+      "List of datasets query complete in " + Duration(end - start,
+                                                       TimeUnit.MILLISECONDS))
+
+    if (!result.isSuccess) {
+      println(result)
+    }
+
+    result.success.value.datasets should have size 1
+
+    val expected = Set(
+      Dataset(DatasetId("chuv"),
+              "CHUV",
+              "Demo dataset for CHUV",
+              List("cde_features_a"),
+              AnonymisationLevel.Anonymised,
+              None))
+
+    result.success.value.datasets shouldBe expected
+  }
 
   // Test mining query
   "Woken" should "respond to a data mining query" in {

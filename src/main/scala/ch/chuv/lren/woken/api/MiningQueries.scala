@@ -50,7 +50,10 @@ object MiningQueries extends LazyLogging {
     val algorithm = algorithmLookup(query.algorithm.code)
 
     def createJob(mt: List[VariableMetaData], al: AlgorithmDefinition) = {
-      val featuresQuery = query.features(featuresTable, !al.supportsNullValues, None)
+      val featuresQuery = query.filterDatasets
+        .filterNulls(!al.supportsNullValues)
+        .features(featuresTable, None)
+
       DockerJob(jobId, al.dockerImage, featuresDb, featuresQuery, query.algorithm, metadata = mt)
     }
 
@@ -66,7 +69,9 @@ object MiningQueries extends LazyLogging {
       prepareQuery(variablesMetaService, jobsConfiguration, query)
 
     metadata.andThen { mt: List[VariableMetaData] =>
-      ExperimentActor.Job(jobId, featuresDb, featuresTable, query, metadata = mt).validNel[String]
+      ExperimentActor
+        .Job(jobId, featuresDb, featuresTable, query.filterDatasets, metadata = mt)
+        .validNel[String]
     }
   }
 

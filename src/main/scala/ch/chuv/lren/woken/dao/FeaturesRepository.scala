@@ -15,21 +15,30 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.core.features
+package ch.chuv.lren.woken.dao
+
+import ch.chuv.lren.woken.core.features.FeaturesQuery
+import spray.json.JsObject
+
+import scala.language.higherKinds
 
 /**
-  * A query for selecting data features in a table
-  *
-  * @param dbVariables List of variables (dependent features)
-  * @param dbCovariables List of covariables (independent features)
-  * @param dbGrouping List of fields to use in a group by statement (or equivalent when an algorithm supporting grouping is used)
-  * @param dbTable Database table containing the data
-  * @param sql Full SQL query, ready for execution
+  * The interface to Features database
   */
-case class FeaturesQuery(
-    dbVariables: List[String],
-    dbCovariables: List[String],
-    dbGrouping: List[String],
-    dbTable: String,
-    sql: String
-)
+trait FeaturesRepository[F[_]] extends Repository {
+
+  def featuresTable(table: String, seed: Double = 0.67): FeaturesTableRepository[F]
+
+}
+
+case class ColumnMeta(index: Int, label: String, dataType: String)
+
+trait FeaturesTableRepository[F[_]] extends Repository {
+
+  def count: F[Int]
+
+  type Headers = List[ColumnMeta]
+
+  def features(query: FeaturesQuery): F[(Headers, Stream[JsObject])]
+
+}

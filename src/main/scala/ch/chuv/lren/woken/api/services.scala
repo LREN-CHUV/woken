@@ -17,7 +17,7 @@
 
 package ch.chuv.lren.woken.api
 
-import akka.http.scaladsl.model.{ HttpEntity, StatusCode, StatusCodes }
+import akka.http.scaladsl.model.{ StatusCode, StatusCodes }
 import akka.http.scaladsl.server._
 import StatusCodes._
 import akka.http.scaladsl.model.ws.{ Message, UpgradeToWebSocket }
@@ -30,15 +30,6 @@ import scala.concurrent.ExecutionContext
 import scala.util.Failure
 
 /**
-  * Holds potential error response with the HTTP status and optional body
-  *
-  * @param responseStatus the status code
-  * @param response       the optional body
-  */
-case class ErrorResponseException(responseStatus: StatusCode, response: Option[HttpEntity])
-    extends Exception
-
-/**
   * Provides a hook to catch exceptions and rejections from routes, allowing custom
   * responses to be provided, logs to be captured, and potentially remedial actions.
   *
@@ -46,6 +37,7 @@ case class ErrorResponseException(responseStatus: StatusCode, response: Option[H
   * JSON API (e.g. see how Foursquare do it).
   */
 trait FailureHandling {
+  this: LazyLogging =>
 
   implicit def rejectionHandler: RejectionHandler = RejectionHandler.default
 
@@ -56,7 +48,7 @@ trait FailureHandling {
         loggedFailureResponse(
           ctx,
           e,
-          message = "The server was asked a question that didn't make sense: " + e.getMessage,
+          message = s"The server was asked a question that didn't make sense: ${e.getMessage}",
           error = StatusCodes.NotAcceptable
         )
 
@@ -80,13 +72,16 @@ trait FailureHandling {
       thrown: Throwable,
       message: String = "The server is having problems.",
       error: StatusCode = StatusCodes.InternalServerError
-  ) =
-    //log.error(thrown, ctx.request.toString)
+  ) = {
+    logger.error(ctx.request.toString, thrown)
     ctx.complete((error, message))
+  }
 
 }
 
-trait RouteHelpers extends BasicAuthenticator with Directives with LazyLogging {
+trait SecuredRouteHelper extends BasicAuthenticator with Directives {
+  this: LazyLogging =>
+
   implicit val executionContext: ExecutionContext
   implicit val timeout: Timeout
 

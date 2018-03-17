@@ -22,6 +22,7 @@ import spray.json._
 // TODO: merge/provide with AlgorithmLookup ?
 
 class AlgorithmLibraryService {
+
   // TODO Gather this information from all the containers
   private val methods_mock =
     """
@@ -33,7 +34,7 @@ class AlgorithmLibraryService {
                 "type": ["statistics"],
                 "environment": "Python",
                 "description": "Histograms...",
-                "docker_image": "hbpmip/python-histograms:7be184a",
+                "docker_image": "hbpmip/python-histograms:0.3.6",
                 "constraints": {
                     "variable": {
                       "real": true,
@@ -49,7 +50,7 @@ class AlgorithmLibraryService {
                 "type": ["statistics"],
                 "environment": "python",
                 "description": "Statistics Summary...",
-                "docker_image": "hbpmip/python-summary-statistics:0.1.1",
+                "docker_image": "hbpmip/python-summary-statistics:0.1.4",
                 "constraints": {
                     "variable": {
                       "real": true,
@@ -63,8 +64,8 @@ class AlgorithmLibraryService {
                 "code": "linearRegression",
                 "label": "Linear Regression",
                 "type": ["statistics"],
-                "docker_image": "hbpmip/r-linear-regression:52198fd",
-                "environment": "R",
+                "docker_image": "hbpmip/python-linear-regression:0.0.7",
+                "environment": "Python",
                 "description": "Standard Linear Regression...",
                 "parameters": [],
                 "constraints": {
@@ -122,7 +123,7 @@ class AlgorithmLibraryService {
                 "code": "knn",
                 "label": "K-nearest neighbors",
                 "type": ["predictive_model"],
-                "docker_image": "hbpmip/java-rapidminer-knn:latest",
+                "docker_image": "hbpmip/java-rapidminer-knn:0.2.2",
                 "environment": "Java/RapidMiner",
                 "description": "K-nearest neighbors...",
                 "parameters": [{
@@ -186,7 +187,7 @@ class AlgorithmLibraryService {
                 "code": "naiveBayes",
                 "label": "Naive Bayes",
                 "type": ["predictive_model"],
-                "docker_image": "hbpmip/java-rapidminer-naivebayes:latest",
+                "docker_image": "hbpmip/java-rapidminer-naivebayes:0.2.1",
                 "environment": "Java/RapidMiner",
                 "description": "Naive Bayes...",
                 "parameters": [],
@@ -214,7 +215,7 @@ class AlgorithmLibraryService {
                 "disable": false,
                 "type": ["features_extraction"],
                 "maturity": "experimental",
-                "docker_image": "hbpmip/python-tsne:latest",
+                "docker_image": "hbpmip/python-tsne:0.3.3",
                 "environment": "Python",
                 "description": "tSNE...",
                 "parameters": [],
@@ -242,7 +243,7 @@ class AlgorithmLibraryService {
                 "disable": false,
                 "type": ["dataset_exploration"],
                 "maturity": "experimental",
-                "docker_image": "hbpmip/r-ggparci:latest",
+                "docker_image": "hbpmip/r-ggparci:0.2.0",
                 "environment": "R",
                 "description": "Parallel coordinate plot with added confidence interval bands",
                 "parameters": [],

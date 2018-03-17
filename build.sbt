@@ -26,12 +26,12 @@ lazy val `woken` =
           library.akkaHttpJson,
           library.kamon,
           library.kamonAkka,
-          //library.kamonAkkaHttp,
-          //library.kamonAkkaRemote,
+          library.kamonAkkaHttp,
+          library.kamonAkkaRemote,
           library.kamonPrometheus,
           library.kamonZipkin,
           library.kamonSystemMetrics,
-          //library.kamonSigar,
+          library.kamonSigar,
           library.akkaHttpSwagger,
           library.swaggerJaxrs,
           library.swaggerUI,
@@ -101,12 +101,12 @@ lazy val library =
       val kittens         = "1.0.0-RC2"
       val catsScalaTest   = "2.3.1"
       val config          = "1.2.1"
-      val doobie          = "0.5.0"
+      val doobie          = "0.5.1"
       val snakeyaml       = "1.17"
       val hadrian         = "0.8.5"
       val scalaCache      = "0.21.0"
       val dockerTestKit   = "0.9.5"
-      val wokenMessages   = "2.5.3"
+      val wokenMessages   = "2.6.2-SNAPSHOT"
     }
     object ExclusionRules {
       val excludeLogback = ExclusionRule(organization = "ch.qos.logback", name = "logback-classic")

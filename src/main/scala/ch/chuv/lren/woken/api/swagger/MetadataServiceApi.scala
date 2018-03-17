@@ -24,8 +24,9 @@ import ch.chuv.lren.woken.messages.datasets.DatasetsResponse
 import ch.chuv.lren.woken.messages.variables.VariablesForDatasetsResponse
 import io.swagger.annotations._
 
-@Api(value = "/", consumes = "application/json", produces = "application/json")
+@Api(value = "/metadata", consumes = "application/json", produces = "application/json")
 trait MetadataServiceApi extends Directives {
+
   @Path("/datasets")
   @ApiOperation(
     value = "Get dataset catalog",
