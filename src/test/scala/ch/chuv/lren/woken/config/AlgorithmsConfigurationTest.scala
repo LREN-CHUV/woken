@@ -40,7 +40,7 @@ class AlgorithmsConfigurationTest
       histograms.code shouldBe "histograms"
       histograms.predictive shouldBe false
       histograms.supportsNullValues shouldBe true
-      histograms.dockerImage.contains("hbpmip") shouldBe true
+      histograms.dockerImage.contains("-histograms") shouldBe true
 
       algoConfigs("anova") shouldBe valid
 
@@ -56,7 +56,7 @@ class AlgorithmsConfigurationTest
       knn.code shouldBe "knn"
       knn.predictive shouldBe true
       knn.supportsNullValues shouldBe false
-      knn.dockerImage.contains("hbpmip") shouldBe true
+      knn.dockerImage.contains("-knn") shouldBe true
     }
   }
 
