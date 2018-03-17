@@ -19,14 +19,19 @@ package ch.chuv.lren.woken.api
 
 import java.util.UUID
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{ ActorRef, ActorSystem, Props }
 import akka.stream.ActorMaterializer
-import akka.testkit.{ImplicitSender, TestKit}
-import com.typesafe.config.{Config, ConfigFactory}
+import akka.testkit.{ ImplicitSender, TestKit }
+import com.typesafe.config.{ Config, ConfigFactory }
 import ch.chuv.lren.woken.api.MasterRouter.{ QueuesSize, RequestQueuesSize }
 import ch.chuv.lren.woken.backends.DockerJob
 import ch.chuv.lren.woken.config._
-import ch.chuv.lren.woken.core.{CoordinatorConfig, ExperimentActor, FakeCoordinatorActor, FakeExperimentActor}
+import ch.chuv.lren.woken.core.{
+  CoordinatorConfig,
+  ExperimentActor,
+  FakeCoordinatorActor,
+  FakeExperimentActor
+}
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.util.FakeCoordinatorConfig._
 import ch.chuv.lren.woken.messages.query._
@@ -93,15 +98,17 @@ class MasterRouterTest
                               algorithmLookup: String => Validation[AlgorithmDefinition],
                               datasetService: DatasetService,
                               variablesMetaService: VariablesMetaService)
-      extends MasterRouter(appConfiguration,
-                           coordinatorConfig,
-                           dispatcherService,
-                           algorithmLibraryService,
-                           algorithmLookup,
-                           datasetService,
-                           variablesMetaService,
-                           experimentQuery2job,
-                           miningQuery2job) {
+      extends MasterRouter(
+        appConfiguration,
+        coordinatorConfig,
+        dispatcherService,
+        algorithmLibraryService,
+        algorithmLookup,
+        datasetService,
+        variablesMetaService,
+        experimentQuery2job,
+        miningQuery2job
+      ) {
 
     override def newExperimentActor: ActorRef =
       system.actorOf(Props(new FakeExperimentActor()))
@@ -122,13 +129,15 @@ class MasterRouterTest
                                    algorithmLibraryService: AlgorithmLibraryService,
                                    algorithmLookup: String => Validation[AlgorithmDefinition],
                                    datasetService: DatasetService,
+                                   variablesMetaService: VariablesMetaService,
                                    coordinatorActor: ActorRef)
       extends MasterRouterUnderTest(appConfiguration,
                                     coordinatorConfig,
                                     dispatcherService,
                                     algorithmLibraryService,
                                     algorithmLookup,
-                                    datasetService) {
+                                    datasetService,
+                                    variablesMetaService) {
 
     override def newCoordinatorActor: ActorRef = coordinatorActor
 
@@ -298,13 +307,16 @@ class MasterRouterTest
 
       val miningRouter = system.actorOf(
         Props(
-          new RouterWithProbeCoordinator(appConfig,
-                                         coordinatorConfig,
-                                         dispatcherService,
-                                         algorithmLibraryService,
-                                         AlgorithmsConfiguration.factory(config),
-                                         datasetService,
-                                         testCoordinatorActor)
+          new RouterWithProbeCoordinator(
+            appConfig,
+            coordinatorConfig,
+            dispatcherService,
+            algorithmLibraryService,
+            AlgorithmsConfiguration.factory(config),
+            datasetService,
+            variablesMetaService,
+            testCoordinatorActor
+          )
         )
       )
 
