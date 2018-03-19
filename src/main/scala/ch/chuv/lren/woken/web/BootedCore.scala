@@ -34,7 +34,12 @@ import ch.chuv.lren.woken.config.{
   DatasetsConfiguration
 }
 import ch.chuv.lren.woken.core.{ CoordinatorConfig, Core, CoreActors }
-import ch.chuv.lren.woken.dao.{ FeaturesDAL, MetadataRepositoryDAO, WokenRepositoryDAO }
+import ch.chuv.lren.woken.dao.{
+  FeaturesDAL,
+  FeaturesRepositoryDAO,
+  MetadataRepositoryDAO,
+  WokenRepositoryDAO
+}
 import ch.chuv.lren.woken.service._
 import ch.chuv.lren.woken.ssl.WokenSSLConfiguration
 import ch.chuv.lren.woken.backends.woken.WokenService
@@ -120,6 +125,15 @@ trait BootedCore
 
   override lazy val featuresDAL = FeaturesDAL(featuresDbConnection)
 
+  private lazy val fsIO: IO[FeaturesService] = for {
+    xa <- DatabaseConfiguration.dbTransactor(featuresDbConnection)
+    _  <- DatabaseConfiguration.testConnection[IO](xa)
+    featuresDb = new FeaturesRepositoryDAO[IO](xa)
+  } yield {
+    FeaturesService(featuresDb)
+  }
+  private lazy val featuresService: FeaturesService = fsIO.unsafeRunSync()
+
   private lazy val jrsIO: IO[JobResultService] = for {
     xa <- DatabaseConfiguration.dbTransactor(resultsDbConfig)
     _  <- DatabaseConfiguration.testConnection[IO](xa)
@@ -137,6 +151,8 @@ trait BootedCore
     jobsConfig,
     DatabaseConfiguration.factory(config)
   )
+
+  private lazy val datasetsService: DatasetService = ConfBasedDatasetService(config)
 
   private def mainRouterSupervisorProps = {
 
@@ -156,8 +172,6 @@ trait BootedCore
     } yield {
       VariablesMetaService(metaDb.variablesMeta)
     }
-
-    val datasetsService: DatasetService = ConfBasedDatasetService(config)
 
     val variablesMetaService: VariablesMetaService = vmsIO.unsafeRunSync()
 
@@ -218,8 +232,22 @@ trait BootedCore
         .onComplete(_ => ())
     }
 
-    logger.info("Woken startup complete")
-
   }
 
+  override def selfChecks(): Unit = {
+    logger.info("Self checks...")
+
+    logger.info("Check configuration of datasets...")
+
+    val featuresTable = featuresService.featuresTable(jobsConfig.featuresTable)
+    datasetsService.datasets().filter(_.location.isEmpty).foreach { dataset =>
+      if (featuresTable.count(dataset.dataset) == 0) {
+        logger.error(
+          s"Table ${jobsConfig.featuresTable} contains no value for dataset ${dataset.dataset.code}"
+        )
+        System.exit(1)
+      }
+    }
+
+  }
 }

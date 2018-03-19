@@ -48,6 +48,7 @@ trait Core {
   def beforeBoot(): Unit
   def startActors(): Unit
   def startServices(): Unit
+  def selfChecks(): Unit
 
 }
 

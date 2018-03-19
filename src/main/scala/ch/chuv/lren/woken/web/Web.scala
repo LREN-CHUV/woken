@@ -40,6 +40,8 @@ object Web extends BootedCore with Rest {
     beforeBoot()
     startActors()
     startServices()
+    selfChecks()
+    logger.info("Woken startup complete")
   }
 
 }

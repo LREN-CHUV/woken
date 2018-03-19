@@ -18,6 +18,7 @@
 package ch.chuv.lren.woken.dao
 
 import ch.chuv.lren.woken.core.features.FeaturesQuery
+import ch.chuv.lren.woken.messages.datasets.DatasetId
 import spray.json.JsObject
 
 import scala.language.higherKinds
@@ -36,6 +37,8 @@ case class ColumnMeta(index: Int, label: String, dataType: String)
 trait FeaturesTableRepository[F[_]] extends Repository {
 
   def count: F[Int]
+
+  def count(dataset: DatasetId): F[Int]
 
   type Headers = List[ColumnMeta]
 

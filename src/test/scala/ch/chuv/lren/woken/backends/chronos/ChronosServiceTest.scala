@@ -67,6 +67,8 @@ class ChronosServiceTest
 
   override def startServices(): Unit = ()
 
+  override def selfChecks(): Unit = ()
+
   class MockChronosServer extends HttpApp with Directives {
     val shutdownPromise: Promise[Done]         = Promise[Done]()
     val bindingPromise: Promise[ServerBinding] = Promise[ServerBinding]()
