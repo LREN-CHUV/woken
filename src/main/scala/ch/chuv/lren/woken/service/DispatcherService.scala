@@ -99,7 +99,7 @@ class DispatcherService(datasets: Map[DatasetId, Dataset], wokenService: WokenSe
       .map {
         case (l, q) => {
           println(s"remote location: ${l.url}")
-          l.copy(url = l.url.withPath(l.url.path / "variables")) -> q
+          l.copy(url = l.url.withPath(l.url.path / "metadata" / "variables")) -> q
         }
       }
       .via(wokenService.variableMetaFlow)

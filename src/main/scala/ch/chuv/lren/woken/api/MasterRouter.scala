@@ -120,25 +120,25 @@ case class MasterRouter(appConfiguration: AppConfiguration,
 
     case varsQuery: VariablesForDatasetsQuery =>
       val initiator = sender()
+      val targetDatasets = datasetService.datasets().map(_.dataset)
+        .filter(varsQuery.datasets.isEmpty || varsQuery.datasets.contains(_))
 
       Source
-        .single(
-          varsQuery.copy(
-            datasets = datasetService
-              .datasets()
-              .map(_.dataset)
-              .filter(varsQuery.datasets.isEmpty || varsQuery.datasets.contains(_))
-          )
-        )
+        .single(varsQuery.copy(datasets = targetDatasets))
         .via(dispatcherService.dispatchVariablesQueryFlow(datasetService, variablesMetaService))
-        .fold(Set[VariableMetaData]()) {
-          _ ++ _.variables
-        }
+        .fold(Set[VariableMetaData]()) {_ ++ _.variables}
         .map { varsMetaData =>
           {
-            log.debug(s"vars metadata ${varsMetaData.size}")
-            initiator ! VariablesForDatasetsResponse(varsMetaData)
-            VariablesForDatasetsResponse(varsMetaData)
+            val groupedVars = varsMetaData.groupBy(_.code)
+              .filter(!varsQuery.exhaustive || _._2.size == targetDatasets.size)
+
+            val varsMetadataWithDatasetInfo = groupedVars.map {
+              case (_, vars) => vars.head.copy(datasets = vars.flatMap(_.datasets))
+            }.toSet
+
+            log.debug(s"vars metadata ${varsMetadataWithDatasetInfo.size}")
+            initiator ! VariablesForDatasetsResponse(varsMetadataWithDatasetInfo)
+            VariablesForDatasetsResponse(varsMetadataWithDatasetInfo)
           }
         }
         .runWith(Sink.last)
