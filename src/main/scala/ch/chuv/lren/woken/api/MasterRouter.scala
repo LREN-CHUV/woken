@@ -136,7 +136,6 @@ case class MasterRouter(appConfiguration: AppConfiguration,
               case (_, vars) => vars.head.copy(datasets = vars.flatMap(_.datasets))
             }.toSet
 
-            log.debug(s"vars metadata ${varsMetadataWithDatasetInfo.size}")
             initiator ! VariablesForDatasetsResponse(varsMetadataWithDatasetInfo)
             VariablesForDatasetsResponse(varsMetadataWithDatasetInfo)
           }

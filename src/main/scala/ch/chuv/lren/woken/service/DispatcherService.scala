@@ -86,19 +86,16 @@ class DispatcherService(datasets: Map[DatasetId, Dataset], wokenService: WokenSe
 
   def remoteDispatchVariablesQueryFlow()
     : Flow[VariablesForDatasetsQuery, VariablesForDatasetsResponse, NotUsed] = {
-    println("remote dispatching flow...")
 
     Flow[VariablesForDatasetsQuery]
       .map(q => {
         val target = dispatchTo(q.datasets)
-        println(s"target datasets $target")
         target._1.map(location => location -> q)
       })
       .mapConcat(identity)
       .buffer(100, OverflowStrategy.backpressure)
       .map {
         case (l, q) => {
-          println(s"remote location: ${l.url}")
           l.copy(url = l.url.withPath(l.url.path / "metadata" / "variables")) -> q
         }
       }

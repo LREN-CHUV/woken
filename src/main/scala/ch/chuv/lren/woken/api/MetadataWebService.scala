@@ -86,7 +86,6 @@ class MetadataApiService(
       get {
         parameters('datasets.as(CsvSeq[String]).?, 'exhaustive.as[Boolean].?) {
           (datasets, exhaustive) =>
-            println(s"datasets: $datasets")
             val datasetIds = datasets.map(_.map(DatasetId).toSet).getOrElse(Set())
 
             complete {

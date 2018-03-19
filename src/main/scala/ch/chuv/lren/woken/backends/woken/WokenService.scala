@@ -130,12 +130,8 @@ case class WokenService(node: String)(implicit val system: ActorSystem,
           val varResponse = Unmarshal(response).to[VariablesForDatasetsResponse]
           (url.pure[Future], varResponse).mapN((_, _))
         case (url, failure) =>
-          println(s"url: $url failure: $failure")
           (url, VariablesForDatasetsResponse(Set.empty, None)).pure[Future]
       }
-      .map(q => {
-        println(s"received response $q")
-        q
-      })
+      .map(identity)
 
 }
