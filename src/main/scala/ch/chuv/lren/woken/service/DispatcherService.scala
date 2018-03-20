@@ -25,11 +25,11 @@ import ch.chuv.lren.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryRe
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import cats.implicits.catsStdInstancesForOption
 import com.typesafe.scalalogging.Logger
-import ch.chuv.lren.woken.backends.woken.WokenService
+import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.messages.datasets.{ Dataset, DatasetId }
 import ch.chuv.lren.woken.messages.remoting.RemoteLocation
 
-class DispatcherService(datasets: Map[DatasetId, Dataset], wokenService: WokenService) {
+class DispatcherService(datasets: Map[DatasetId, Dataset], wokenClientService: WokenClientService) {
 
   def dispatchTo(dataset: DatasetId): Option[RemoteLocation] =
     if (datasets.isEmpty)
@@ -45,15 +45,16 @@ class DispatcherService(datasets: Map[DatasetId, Dataset], wokenService: WokenSe
     (maybeSet.getOrElse(Set.empty), local)
   }
 
-  def remoteDispatchMiningFlow(): Flow[MiningQuery, (RemoteLocation, QueryResult), NotUsed] =
+  def dispatchRemoteMiningFlow(): Flow[MiningQuery, (RemoteLocation, QueryResult), NotUsed] =
     Flow[MiningQuery]
       .map(q => dispatchTo(q.datasets)._1.map(ds => ds -> q))
       .mapConcat(identity)
       .buffer(100, OverflowStrategy.backpressure)
       .map { case (l, q) => l.copy(url = l.url.withPath(l.url.path / "mining" / "job")) -> q }
-      .via(wokenService.queryFlow)
+      .via(wokenClientService.queryFlow)
+      .named("dispatch-remote-mining")
 
-  def remoteDispatchExperimentFlow()
+  def dispatchRemoteExperimentFlow()
     : Flow[ExperimentQuery, (RemoteLocation, QueryResult), NotUsed] =
     Flow[ExperimentQuery]
       .map(q => dispatchTo(q.trainingDatasets)._1.map(ds => ds -> q))
@@ -62,7 +63,8 @@ class DispatcherService(datasets: Map[DatasetId, Dataset], wokenService: WokenSe
       .map {
         case (l, q) => l.copy(url = l.url.withPath(l.url.path / "mining" / "experiment")) -> q
       }
-      .via(wokenService.queryFlow)
+      .via(wokenClientService.queryFlow)
+      .named("dispatch-remote-experiment")
 
   def localDispatchFlow(datasets: Set[DatasetId]): Source[QueryResult, NotUsed] = ???
 
@@ -81,7 +83,7 @@ object DispatcherService {
     }, identity)
 
   def apply(datasets: Validation[Map[DatasetId, Dataset]],
-            wokenService: WokenService): DispatcherService =
+            wokenService: WokenClientService): DispatcherService =
     new DispatcherService(loadDatasets(datasets), wokenService)
 
 }

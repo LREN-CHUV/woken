@@ -42,7 +42,7 @@ import ch.chuv.lren.woken.service.{
   DispatcherService
 }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil
-import ch.chuv.lren.woken.backends.woken.WokenService
+import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.util.FakeActors
 import ch.chuv.lren.woken.messages.datasets.{ Dataset, DatasetId, DatasetsQuery, DatasetsResponse }
@@ -164,7 +164,7 @@ class MasterRouterTest
 
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
-  val wokenService: WokenService = WokenService("test")
+  val wokenService: WokenClientService = WokenClientService("test")
 
   val dispatcherService: DispatcherService =
     DispatcherService(DatasetsConfiguration.datasets(config), wokenService)

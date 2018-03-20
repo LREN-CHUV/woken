@@ -37,8 +37,8 @@ import queryProtocol._
 import HttpClient._
 import ch.chuv.lren.woken.messages.remoting.RemoteLocation
 
-case class WokenService(node: String)(implicit val system: ActorSystem,
-                                      implicit val materializer: ActorMaterializer)
+case class WokenClientService(node: String)(implicit val system: ActorSystem,
+                                            implicit val materializer: ActorMaterializer)
     extends DefaultJsonProtocol
     with SprayJsonSupport
     with LazyLogging {

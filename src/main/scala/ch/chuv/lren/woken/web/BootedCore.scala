@@ -42,7 +42,7 @@ import ch.chuv.lren.woken.dao.{
 }
 import ch.chuv.lren.woken.service._
 import ch.chuv.lren.woken.ssl.WokenSSLConfiguration
-import ch.chuv.lren.woken.backends.woken.WokenService
+import ch.chuv.lren.woken.backends.woken.WokenClientService
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import kamon.prometheus.PrometheusReporter
@@ -156,7 +156,7 @@ trait BootedCore
 
   private def mainRouterSupervisorProps = {
 
-    val wokenService: WokenService = WokenService(coordinatorConfig.jobsConf.node)
+    val wokenService: WokenClientService = WokenClientService(coordinatorConfig.jobsConf.node)
     val dispatcherService: DispatcherService =
       DispatcherService(DatasetsConfiguration.datasets(config), wokenService)
     val algorithmLibraryService: AlgorithmLibraryService = AlgorithmLibraryService()
