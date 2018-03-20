@@ -189,14 +189,17 @@ class ChronosService(jobsConfig: JobsConfiguration) extends Actor with ActorLogg
       implicit val actorSystem: ActorSystem                   = context.system
       val pipeline: HttpRequest => Future[HttpResponse]       = HttpClient.sendReceive
 
-      val url                        = s"${jobsConfig.chronosServerUrl}/v1/scheduler/job/${job.name}"
-      val chronosResponse: Future[_] = pipeline(HttpClient.Delete(url))
-      chronosResponse.onComplete {
-        case Success(_)   =>
-        case Failure(err) => log.error("Chronos Cleanup job response error.", err)
-      }
+      val url = s"${jobsConfig.chronosServerUrl}/v1/scheduler/job/${job.name}"
 
-    // We don't care about the response
+      val chronosResponse: Future[_] = pipeline(HttpClient.Delete(url))
+      chronosResponse.map {
+        case HttpResponse(statusCode: StatusCode, _, entity, _) =>
+          statusCode match {
+            case _: StatusCodes.Success =>
+              entity.discardBytes()
+            case _ =>
+              log.error(s"Chronos Cleanup job response error $statusCode: ${entity.toString}")
+      }
 
     case e => log.error(s"Unhandled message: $e")
   }
