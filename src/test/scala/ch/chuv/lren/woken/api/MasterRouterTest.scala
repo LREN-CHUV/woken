@@ -115,7 +115,7 @@ class MasterRouterTest
       system.actorOf(Props(new FakeExperimentActor()))
 
     override def newCoordinatorActor: ActorRef =
-      system.actorOf(FakeCoordinatorActor.props)
+      system.actorOf(FakeCoordinatorActor.props("knn", None))
 
     override def initValidationWorker: ActorRef =
       context.actorOf(FakeActors.echoActorProps)

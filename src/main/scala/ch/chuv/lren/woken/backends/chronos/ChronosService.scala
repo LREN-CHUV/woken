@@ -20,13 +20,13 @@ package ch.chuv.lren.woken.backends.chronos
 import akka.actor.{ Actor, ActorLogging, ActorRef, ActorSystem, Props, Status }
 import akka.http.scaladsl.model._
 import akka.pattern.{ AskTimeoutException, pipe }
+import akka.stream.{ ActorMaterializer, ActorMaterializerSettings, Materializer }
 import akka.util.Timeout
 import ch.chuv.lren.woken.backends.HttpClient
 import ch.chuv.lren.woken.config.JobsConfiguration
 
 import scala.concurrent.duration._
 import scala.concurrent.{ ExecutionContextExecutor, Future }
-import scala.util.{ Failure, Success }
 
 object ChronosService {
 
@@ -70,13 +70,18 @@ class ChronosService(jobsConfig: JobsConfiguration) extends Actor with ActorLogg
 
   import ChronosService._
 
+  private implicit val executionContext: ExecutionContextExecutor = context.dispatcher
+  private implicit val actorSystem: ActorSystem                   = context.system
+  private implicit val materializer: Materializer = ActorMaterializer(
+    ActorMaterializerSettings(actorSystem)
+  )
+
   def receive: PartialFunction[Any, Unit] = {
 
     case Schedule(job, originator) =>
       import ChronosJob._
-      implicit val executionContext: ExecutionContextExecutor = context.dispatcher
-      implicit val timeout: Timeout                           = Timeout(30.seconds)
-      implicit val actorSystem: ActorSystem                   = context.system
+
+      implicit val timeout: Timeout = Timeout(30.seconds)
 
       log.debug(s"Send job to Chronos: ${chronosJobFormat.write(job).prettyPrint}")
 
@@ -90,10 +95,11 @@ class ChronosService(jobsConfig: JobsConfiguration) extends Actor with ActorLogg
 
           case HttpResponse(statusCode: StatusCode, _, entity, _) =>
             statusCode match {
-              case _: StatusCodes.Success => {
+
+              case _: StatusCodes.Success =>
                 log.debug("Chronos says success")
                 Ok
-              }
+
               case _ =>
                 log.warning(
                   s"Post schedule to Chronos on $url returned error $statusCode: $entity"
@@ -121,10 +127,8 @@ class ChronosService(jobsConfig: JobsConfiguration) extends Actor with ActorLogg
     // TODO: could use supervisedPipe here: http://pauljamescleary.github.io/futures-in-akka/
 
     case Check(jobId, job, originator) =>
-      implicit val executionContext: ExecutionContextExecutor = context.dispatcher
-      implicit val timeout: Timeout                           = Timeout(10.seconds)
-      implicit val actorSystem: ActorSystem                   = context.system
-      val pipeline: HttpRequest => Future[HttpResponse]       = HttpClient.sendReceive
+      implicit val timeout: Timeout                     = Timeout(10.seconds)
+      val pipeline: HttpRequest => Future[HttpResponse] = HttpClient.sendReceive
 
       val originalSender             = originator
       val url                        = s"${jobsConfig.chronosServerUrl}/v1/scheduler/jobs/search?name=${job.name}"
@@ -184,10 +188,8 @@ class ChronosService(jobsConfig: JobsConfiguration) extends Actor with ActorLogg
         } pipeTo originalSender
 
     case Cleanup(job) =>
-      implicit val executionContext: ExecutionContextExecutor = context.dispatcher
-      implicit val timeout: Timeout                           = Timeout(10.seconds)
-      implicit val actorSystem: ActorSystem                   = context.system
-      val pipeline: HttpRequest => Future[HttpResponse]       = HttpClient.sendReceive
+      implicit val timeout: Timeout                     = Timeout(10.seconds)
+      val pipeline: HttpRequest => Future[HttpResponse] = HttpClient.sendReceive
 
       val url = s"${jobsConfig.chronosServerUrl}/v1/scheduler/job/${job.name}"
 
@@ -199,6 +201,7 @@ class ChronosService(jobsConfig: JobsConfiguration) extends Actor with ActorLogg
               entity.discardBytes()
             case _ =>
               log.error(s"Chronos Cleanup job response error $statusCode: ${entity.toString}")
+          }
       }
 
     case e => log.error(s"Unhandled message: $e")

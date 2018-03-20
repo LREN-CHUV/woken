@@ -24,6 +24,7 @@ import akka.NotUsed
 import akka.actor.{ Actor, ActorContext, ActorLogging, Props }
 import akka.stream._
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Merge, Partition, Sink, Source, Zip }
+import cats.data.NonEmptyList
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
 import ch.chuv.lren.woken.core.validation.ValidatedAlgorithmFlow
 
@@ -202,12 +203,20 @@ case class ExperimentFlow(
         // prepare graph elements
         val jobSplitter = builder.add(splitJob)
         val partition = builder.add(
-          Partition[AlgorithmValidationMaybe](2,
-                                              a =>
-                                                if (a.algorithmDefinition.isValid) 0
-                                                else 1)
+          Partition[AlgorithmValidationMaybe](
+            3,
+            partitioner = algoMaybe => {
+              algoMaybe.algorithmDefinition.fold(
+                { _: NonEmptyList[String] =>
+                  2
+                }, { algoDef: AlgorithmDefinition =>
+                  if (algoDef.predictive) 0 else 1
+                }
+              )
+            }
+          )
         )
-        val merge = builder.add(Merge[(AlgorithmSpec, JobResult)](2))
+        val merge = builder.add(Merge[(AlgorithmSpec, JobResult)](3))
         val toMap =
           builder.add(Flow[(AlgorithmSpec, JobResult)].fold[Map[AlgorithmSpec, JobResult]](Map()) {
             (m, r) =>
@@ -216,8 +225,12 @@ case class ExperimentFlow(
 
         // connect the graph
         jobSplitter ~> partition.in
+        // Algorithm with validation
         partition.out(0) ~> prepareMiningQuery ~> algorithmWithValidation ~> merge
-        partition.out(1) ~> failJob ~> merge
+        // Algorithm without validation
+        partition.out(1) ~> prepareMiningQuery ~> algorithmOnly ~> merge
+        // Invalid algorithm
+        partition.out(2) ~> failJob ~> merge
         merge ~> toMap
 
         FlowShape(jobSplitter.in, toMap.out)
@@ -301,5 +314,37 @@ case class ExperimentFlow(
         FlowShape(broadcast.in, zip.out)
       })
       .named("algorithm-with-validation")
+
+  private def algorithmOnly: Flow[AlgorithmValidation, (AlgorithmSpec, JobResult), NotUsed] =
+    Flow
+      .fromGraph(GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
+        import GraphDSL.Implicits._
+
+        val broadcast    = builder.add(Broadcast[AlgorithmValidation](2))
+        val takeSpec     = Flow[AlgorithmValidation].map(_.algorithmSpec)
+        val takeSubjob   = Flow[AlgorithmValidation].map(_.subJob)
+        val runAlgorithm = validatedAlgorithmFlow.runAlgoInDocker
+        val takeModel    = Flow[CoordinatorActor.Response].map(extractResult)
+        val zip          = builder.add(Zip[AlgorithmSpec, JobResult]())
+
+        broadcast.out(0) ~> takeSpec ~> zip.in0
+        broadcast.out(1) ~> takeSubjob ~> runAlgorithm ~> takeModel ~> zip.in1
+
+        FlowShape(broadcast.in, zip.out)
+      })
+      .named("algorithm-only")
+
+  private def extractResult(response: CoordinatorActor.Response): JobResult = {
+    val algorithm = response.job.algorithmSpec
+    response.results.headOption match {
+      case Some(model) => model
+      case None =>
+        ErrorJobResult(response.job.jobId,
+                       node = "",
+                       OffsetDateTime.now(),
+                       algorithm.code,
+                       "No results")
+    }
+  }
 
 }

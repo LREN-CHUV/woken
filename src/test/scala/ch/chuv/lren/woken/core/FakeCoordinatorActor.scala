@@ -36,10 +36,10 @@ import scala.language.postfixOps
 
 object FakeCoordinatorActor {
 
-  def props: Props = Props(new FakeCoordinatorActor(None))
+  def props(expectedAlgorithm: String, errorMessage: Option[String]): Props =
+    Props(new FakeCoordinatorActor(expectedAlgorithm, errorMessage))
 
-  def executeJobAsync(coordinatorConfig: CoordinatorConfig,
-                      context: ActorContext): ExecuteJobAsync = job => {
+  def executeJobAsync(props: Props, context: ActorContext): ExecuteJobAsync = job => {
     val worker = context.actorOf(props)
 
     implicit val askTimeout: Timeout = Timeout(1 day)
@@ -49,7 +49,7 @@ object FakeCoordinatorActor {
   }
 
   def propsForFailingWithMsg(errorMessage: String): Props =
-    Props(new FakeCoordinatorActor(Some(errorMessage)))
+    Props(new FakeCoordinatorActor("", Some(errorMessage)))
 
   def executeFailingJobAsync(errorMessage: String): CoordinatorActor.ExecuteJobAsync =
     job =>
@@ -66,7 +66,7 @@ object FakeCoordinatorActor {
 
 }
 
-class FakeCoordinatorActor(errorMessage: Option[String]) extends Actor {
+class FakeCoordinatorActor(expectedAlgorithm: String, errorMessage: Option[String]) extends Actor {
 
   override def receive: PartialFunction[Any, Unit] = {
     case JobCommands.StartCoordinatorJob(job) =>
@@ -85,12 +85,15 @@ class FakeCoordinatorActor(errorMessage: Option[String]) extends Actor {
         """.stripMargin.parseJson.asJsObject
 
     errorMessage.fold {
-      originator ! Response(
-        job,
-        List(
-          PfaJobResult(job.jobId, "testNode", OffsetDateTime.now(), job.algorithmSpec.code, pfa)
+      if (job.algorithmSpec.code == expectedAlgorithm) {
+        originator ! Response(
+          job,
+          List(
+            PfaJobResult(job.jobId, "testNode", OffsetDateTime.now(), job.algorithmSpec.code, pfa)
+          )
         )
-      )
+      } else
+        originator ! errorResponse(job, s"Unexpected algorithm: ${job.algorithmSpec.code}")
     } { msg =>
       originator ! errorResponse(job, msg)
     }
