@@ -1,0 +1,300 @@
+{
+  "variables": [
+    {
+      "sql_type": "varchar",
+      "enumerations": [
+        {
+          "code": "no",
+          "label": "no"
+        },
+        {
+          "code": "yes",
+          "label": "yes"
+        }
+      ],
+      "description": "Vmail plan",
+      "methodology": "test",
+      "label": "VMail plan",
+      "datasets": [
+        {
+          "code": "churn"
+        }
+      ],
+      "code": "vmail_plan",
+      "type": "polynominal"
+    },
+    {
+      "description": "Area code",
+      "methodology": "test",
+      "label": "Area code",
+      "datasets": [
+        {
+          "code": "churn"
+        }
+      ],
+      "code": "area_code",
+      "type": "text"
+    },
+    {
+      "description": "Number of VMail message",
+      "methodology": "test",
+      "label": "VMail message",
+      "datasets": [
+        {
+          "code": "churn"
+        }
+      ],
+      "code": "vmail_message",
+      "type": "integer"
+    },
+    {
+      "sql_type": "varchar",
+      "enumerations": [
+        {
+          "code": "no",
+          "label": "no"
+        },
+        {
+          "code": "yes",
+          "label": "yes"
+        }
+      ],
+      "description": "International plan",
+      "methodology": "test",
+      "label": "International plan",
+      "datasets": [
+        {
+          "code": "churn"
+        }
+      ],
+      "code": "intl_plan",
+      "type": "polynominal"
+    },
+    {
+      "sql_type": "varchar",
+      "enumerations": [
+        {
+          "code": "False",
+          "label": "no"
+        },
+        {
+          "code": "True",
+          "label": "yes"
+        }
+      ],
+      "description": "Churn",
+      "methodology": "test",
+      "label": "Churn",
+      "datasets": [
+        {
+          "code": "churn"
+        }
+      ],
+      "code": "churn",
+      "type": "polynominal"
+    },
+    {
+      "description": "Evening calls",
+      "methodology": "test",
+      "label": "Evening calls",
+      "datasets": [
+        {
+          "code": "churn"
+        }
+      ],
+      "code": "eve_calls",
+      "type": "real"
+    },
+    {
+      "description": "Night calls",
+      "methodology": "test",
+      "label": "Night calls",
+      "datasets": [
+        {
+          "code": "churn"
+        }
+      ],
+      "code": "night_calls",
+      "type": "real"
+    },
+    {
+      "description": "State",
+      "methodology": "test",
+      "label": "State",
+      "datasets": [
+        {
+          "code": "churn"
+        }
+      ],
+      "code": "state",
+      "type": "text"
+    },
+    {
+      "description": "Day charge",
+      "methodology": "test",
+      "label": "Day charge",
+      "datasets": [
+        {
+          "code": "churn"
+        }
+      ],
+      "code": "day_charge",
+      "type": "real"
+    },
+    {
+      "description": "Evening minutes",
+      "methodology": "test",
+      "label": "Evening minutes",
+      "datasets": [
+        {
+          "code": "churn"
+        }
+      ],
+      "code": "eve_mins",
+      "type": "real"
+    },
+    {
+      "description": "International minutes",
+      "methodology": "test",
+      "label": "International minutes",
+      "datasets": [
+        {
+          "code": "churn"
+        }
+      ],
+      "code": "intl_mins",
+      "type": "real"
+    },
+    {
+      "sql_type": "varchar",
+      "enumerations": [
+        {
+          "code": "no",
+          "label": "no"
+        },
+        {
+          "code": "yes",
+          "label": "yes"
+        }
+      ],
+      "description": "Phone",
+      "methodology": "test",
+      "label": "Phone",
+      "datasets": [
+        {
+          "code": "churn"
+        }
+      ],
+      "code": "phone",
+      "type": "polynominal"
+    },
+    {
+      "description": "Day minutes",
+      "methodology": "test",
+      "label": "Day minutes",
+      "datasets": [
+        {
+          "code": "churn"
+        }
+      ],
+      "code": "day_mins",
+      "type": "real"
+    },
+    {
+      "description": "International charge",
+      "methodology": "test",
+      "label": "International charge",
+      "datasets": [
+        {
+          "code": "churn"
+        }
+      ],
+      "code": "intl_charge",
+      "type": "real"
+    },
+    {
+      "description": "Night charge",
+      "methodology": "test",
+      "label": "Night charge",
+      "datasets": [
+        {
+          "code": "churn"
+        }
+      ],
+      "code": "night_charge",
+      "type": "real"
+    },
+    {
+      "description": "Customer service calls",
+      "methodology": "test",
+      "label": "Customer service calls",
+      "datasets": [
+        {
+          "code": "churn"
+        }
+      ],
+      "code": "custserv_calls",
+      "type": "integer"
+    },
+    {
+      "description": "Evening charge",
+      "methodology": "test",
+      "label": "Evening charge",
+      "datasets": [
+        {
+          "code": "churn"
+        }
+      ],
+      "code": "eve_charge",
+      "type": "real"
+    },
+    {
+      "description": "Day calls",
+      "methodology": "test",
+      "label": "Day calls",
+      "datasets": [
+        {
+          "code": "churn"
+        }
+      ],
+      "code": "day_calls",
+      "type": "real"
+    },
+    {
+      "description": "International calls",
+      "methodology": "test",
+      "label": "International calls",
+      "datasets": [
+        {
+          "code": "churn"
+        }
+      ],
+      "code": "intl_calls",
+      "type": "real"
+    },
+    {
+      "description": "Account length",
+      "methodology": "test",
+      "label": "Account length",
+      "datasets": [
+        {
+          "code": "churn"
+        }
+      ],
+      "code": "account_length",
+      "type": "integer"
+    },
+    {
+      "description": "Night minutes",
+      "methodology": "test",
+      "label": "Night minutes",
+      "datasets": [
+        {
+          "code": "churn"
+        }
+      ],
+      "code": "night_mins",
+      "type": "real"
+    }
+  ]
+}

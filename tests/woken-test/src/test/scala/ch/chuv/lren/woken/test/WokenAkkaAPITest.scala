@@ -25,9 +25,14 @@ import akka.pattern.ask
 import akka.util.Timeout
 import com.typesafe.config.{Config, ConfigFactory}
 import ch.chuv.lren.woken.messages.datasets._
+import ch.chuv.lren.woken.messages.variables.variablesProtocol._
 import ch.chuv.lren.woken.messages.query._
-import ch.chuv.lren.woken.messages.variables.VariableId
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import ch.chuv.lren.woken.messages.variables.{
+  VariableId,
+  VariablesForDatasetsQuery,
+  VariablesForDatasetsResponse
+}
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
 import org.scalatest.TryValues._
 import org.scalatest.tagobjects.Slow
 
@@ -37,7 +42,7 @@ import scala.language.postfixOps
 import scala.util.Try
 
 class WokenAkkaAPITest
-    extends FlatSpec
+    extends WordSpec
     with Matchers
     with Queries
     with BeforeAndAfterAll {
@@ -57,211 +62,271 @@ class WokenAkkaAPITest
     }
   }
 
-  // Test methods query
-  "Woken" should "respond to a query for the list of methods" in {
+  "Woken" should {
 
-    val start = System.currentTimeMillis()
-    val future = client ? ClusterClient.Send(entryPoint,
-                                             MethodsQuery,
-                                             localAffinity = true)
-    val result = waitFor[MethodsResponse](future)
-    val end = System.currentTimeMillis()
+    // Test methods query
+    "respond to a query for the list of methods" in {
 
-    println(
-      "List of methods query complete in " + Duration(end - start,
-                                                      TimeUnit.MILLISECONDS))
+      val start = System.currentTimeMillis()
+      val future = client ? ClusterClient.Send(entryPoint,
+                                               MethodsQuery,
+                                               localAffinity = true)
+      val result = waitFor[MethodsResponse](future)
+      val end = System.currentTimeMillis()
 
-    if (!result.isSuccess) {
-      println(result)
+      println(
+        "List of methods query complete in " + Duration(end - start,
+                                                        TimeUnit.MILLISECONDS))
+
+      if (!result.isSuccess) {
+        println(result)
+      }
+
+      val expected = loadJson("/list_algorithms.json")
+
+      result.success.value.methods shouldBe expected
     }
 
-    val expected = loadJson("/list_algorithms.json")
+    // Datasets available query
+    "respond to a query for the list of available datasets" in {
 
-    result.success.value.methods shouldBe expected
-  }
+      val start = System.currentTimeMillis()
+      val future = client ? ClusterClient.Send(
+        entryPoint,
+        DatasetsQuery(Some("cde_features_a")),
+        localAffinity = true)
+      val result = waitFor[DatasetsResponse](future)
+      val end = System.currentTimeMillis()
 
-  // Datasets available query
-  "Woken" should "respond to a query for the list of available datasets" in {
+      println(
+        "List of datasets query complete in " + Duration(end - start,
+                                                         TimeUnit.MILLISECONDS))
 
-    val start = System.currentTimeMillis()
-    val future = client ? ClusterClient.Send(
-      entryPoint,
-      DatasetsQuery(Some("cde_features_a")),
-      localAffinity = true)
-    val result = waitFor[DatasetsResponse](future)
-    val end = System.currentTimeMillis()
+      if (!result.isSuccess) {
+        println(result)
+      }
 
-    println(
-      "List of datasets query complete in " + Duration(end - start,
-                                                       TimeUnit.MILLISECONDS))
+      result.success.value.datasets should have size 1
 
-    if (!result.isSuccess) {
-      println(result)
+      val expected = Set(
+        Dataset(DatasetId("chuv"),
+                "CHUV",
+                "Demo dataset for CHUV",
+                List("cde_features_a"),
+                AnonymisationLevel.Anonymised,
+                None))
+
+      result.success.value.datasets shouldBe expected
     }
 
-    result.success.value.datasets should have size 1
+    // Available variables query
+    "respond to a query for the list of available variables" which {
 
-    val expected = Set(
-      Dataset(DatasetId("chuv"),
-              "CHUV",
-              "Demo dataset for CHUV",
-              List("cde_features_a"),
-              AnonymisationLevel.Anonymised,
-              None))
+      "return all variables if no datasets specified" in {
 
-    result.success.value.datasets shouldBe expected
-  }
+        val start = System.currentTimeMillis()
+        val future = client ? ClusterClient.Send(
+          entryPoint,
+          VariablesForDatasetsQuery(Set(), exhaustive = false),
+          localAffinity = true)
+        val result = waitFor[VariablesForDatasetsResponse](future)
+        val end = System.currentTimeMillis()
 
-  // Test mining query
-  "Woken" should "respond to a data mining query" in {
+        println(
+          "List of variables query complete in " + Duration(
+            end - start,
+            TimeUnit.MILLISECONDS))
 
-    val start = System.currentTimeMillis()
-    val query = MiningQuery(
-      user = UserId("test1"),
-      variables = List(VariableId("cognitive_task2")),
-      covariables = List(VariableId("score_math_course1")),
-      grouping = Nil,
-      filters = None,
-      targetTable = Some("sample_data"),
-      algorithm = AlgorithmSpec("knn", List(CodeValue("k", "5"))),
-      datasets = Set(),
-      executionPlan = None
-    )
+        println(result)
 
-    val future = client ? ClusterClient.Send(entryPoint,
-                                             query,
-                                             localAffinity = true)
-    val result = waitFor[QueryResult](future)
-    val end = System.currentTimeMillis()
+        if (!result.isSuccess) {
+          println(result)
+        }
 
-    println(
-      "Data mining query complete in " + Duration(end - start,
-                                                  TimeUnit.MILLISECONDS))
+        result.success.value.variables should have size 199
+      }
 
-    if (!result.isSuccess) {
-      println(result)
-    }
+      "return only variables for datasets if a set is passed with the query" in {
 
-    result.success.value.data should not be empty
+        val start = System.currentTimeMillis()
+        val future = client ? ClusterClient.Send(
+          entryPoint,
+          VariablesForDatasetsQuery(Set(DatasetId("churn")),
+                                    exhaustive = false),
+          localAffinity = true)
+        val result = waitFor[VariablesForDatasetsResponse](future)
+        val end = System.currentTimeMillis()
 
-    val json = result.success.value.data.get
-    val expected = loadJson("/knn_data_mining.json")
+        println(
+          "List of variables query complete in " + Duration(
+            end - start,
+            TimeUnit.MILLISECONDS))
 
-    assertResult(approximate(expected))(approximate(json))
-  }
+        if (!result.isSuccess) {
+          println(result)
+        }
 
-  "Woken" should "respond to a data mining query with visualisation" in {
+        result.success.value.variables should have size 21
+        val expected = loadJson("/list_churn_variables.json")
+          .convertTo[VariablesForDatasetsResponse]
+        val returnedVars = result.success.value
 
-    val start = System.currentTimeMillis()
-    val query = MiningQuery(
-      user = UserId("test1"),
-      variables = List(VariableId("cognitive_task2")),
-      covariables =
-        List("score_math_course1", "score_math_course2").map(VariableId),
-      grouping = Nil,
-      filters = None,
-      targetTable = Some("sample_data"),
-      algorithm = AlgorithmSpec("histograms", Nil),
-      datasets = Set(),
-      executionPlan = None
-    )
-
-    val future = client ? ClusterClient.Send(entryPoint,
-                                             query,
-                                             localAffinity = true)
-    val result = waitFor[QueryResult](future)
-    val end = System.currentTimeMillis()
-
-    println(
-      "Data mining query with visualisation complete in " + Duration(
-        end - start,
-        TimeUnit.MILLISECONDS))
-
-    if (!result.isSuccess) {
-      println(result)
-    }
-
-    result.success.value.data should not be empty
-
-    val json = result.success.value.data.get
-    val expected = loadJson("/histograms.json")
-
-    assertResult(approximate(expected))(approximate(json))
-  }
-
-  // Test experiment query
-  "Woken" should "respond to an experiment query" in {
-
-    val start = System.currentTimeMillis()
-    val query = experimentQuery("knn", List(CodeValue("k", "5")))
-    val future = client ? ClusterClient.Send(entryPoint,
-                                             query,
-                                             localAffinity = true)
-    val result = waitFor[QueryResult](future)
-    val end = System.currentTimeMillis()
-
-    println(
-      "Experiment query complete in " + Duration(end - start,
-                                                 TimeUnit.MILLISECONDS))
-
-    if (!result.isSuccess) {
-      println(result)
-    }
-
-    val data = result.success.value.data
-
-    data should not be empty
-
-    val json = data.get
-    val expected = loadJson("/knn_experiment.json")
-
-    assertResult(approximate(expected))(approximate(json))
-  }
-
-  //Test resiliency
-  "Woken" should "recover from multiple failed experiments" taggedAs Slow in {
-
-    // TODO: add no_results, never_end
-    val failures = List("training_fails",
-                        "invalid_json",
-                        "invalid_pfa_syntax",
-                        "invalid_pfa_semantics")
-
-    val queries = failures.map(failure =>
-      experimentQuery("chaos", List(CodeValue("failure", failure))))
-
-    val futures = queries.map(query =>
-      client ? ClusterClient.Send(entryPoint, query, localAffinity = true))
-
-    futures.foreach { f =>
-      println("Waiting for result from chaos algorithm...")
-      val result = waitFor[QueryResult](f)
-      if (result.isFailure) {
-        println(s"Chaos algorithm failed with ${result.failed.get}")
-      } else {
-        println(s"Chaos algorithm returned ${result.success.value}")
+        returnedVars shouldBe expected
       }
     }
 
-    val knnQuery = experimentQuery("knn", List(CodeValue("k", "5")))
-    val successfulFuture = client ? ClusterClient.Send(entryPoint,
-                                                       knnQuery,
-                                                       localAffinity = true)
-    val result = waitFor[QueryResult](successfulFuture)
+    // Test mining query
+    "respond to a data mining query" in {
+      implicit
 
-    if (!result.isSuccess) {
-      println(result)
+      val start = System.currentTimeMillis()
+      val query = MiningQuery(
+        user = UserId("test1"),
+        variables = List(VariableId("cognitive_task2")),
+        covariables = List(VariableId("score_math_course1")),
+        grouping = Nil,
+        filters = None,
+        targetTable = Some("sample_data"),
+        algorithm = AlgorithmSpec("knn", List(CodeValue("k", "5"))),
+        datasets = Set(),
+        executionPlan = None
+      )
+
+      val future = client ? ClusterClient.Send(entryPoint,
+                                               query,
+                                               localAffinity = true)
+      val result = waitFor[QueryResult](future)
+      val end = System.currentTimeMillis()
+
+      println(
+        "Data mining query complete in " + Duration(end - start,
+                                                    TimeUnit.MILLISECONDS))
+
+      if (!result.isSuccess) {
+        println(result)
+      }
+
+      result.success.value.data should not be empty
+
+      val json = result.success.value.data.get
+      val expected = loadJson("/knn_data_mining.json")
+
+      assertResult(approximate(expected))(approximate(json))
     }
 
-    val data = result.success.value.data
+    "respond to a data mining query with visualisation" in {
 
-    data should not be empty
+      val start = System.currentTimeMillis()
+      val query = MiningQuery(
+        user = UserId("test1"),
+        variables = List(VariableId("cognitive_task2")),
+        covariables =
+          List("score_math_course1", "score_math_course2").map(VariableId),
+        grouping = Nil,
+        filters = None,
+        targetTable = Some("sample_data"),
+        algorithm = AlgorithmSpec("histograms", Nil),
+        datasets = Set(),
+        executionPlan = None
+      )
 
-    val json = data.get
-    val expected = loadJson("/knn_experiment.json")
+      val future = client ? ClusterClient.Send(entryPoint,
+                                               query,
+                                               localAffinity = true)
+      val result = waitFor[QueryResult](future)
+      val end = System.currentTimeMillis()
 
-    assertResult(approximate(expected))(approximate(json))
+      println(
+        "Data mining query with visualisation complete in " + Duration(
+          end - start,
+          TimeUnit.MILLISECONDS))
 
+      if (!result.isSuccess) {
+        println(result)
+      }
+
+      result.success.value.data should not be empty
+
+      val json = result.success.value.data.get
+      val expected = loadJson("/histograms.json")
+
+      assertResult(approximate(expected))(approximate(json))
+    }
+
+    // Test experiment query
+    "respond to an experiment query" in {
+
+      val start = System.currentTimeMillis()
+      val query = experimentQuery("knn", List(CodeValue("k", "5")))
+      val future = client ? ClusterClient.Send(entryPoint,
+                                               query,
+                                               localAffinity = true)
+      val result = waitFor[QueryResult](future)
+      val end = System.currentTimeMillis()
+
+      println(
+        "Experiment query complete in " + Duration(end - start,
+                                                   TimeUnit.MILLISECONDS))
+
+      if (!result.isSuccess) {
+        println(result)
+      }
+
+      val data = result.success.value.data
+
+      data should not be empty
+
+      val json = data.get
+      val expected = loadJson("/knn_experiment.json")
+
+      assertResult(approximate(expected))(approximate(json))
+    }
+
+    //Test resiliency
+    "recover from multiple failed experiments" taggedAs Slow in {
+
+      // TODO: add no_results, never_end
+      val failures = List("training_fails",
+                          "invalid_json",
+                          "invalid_pfa_syntax",
+                          "invalid_pfa_semantics")
+
+      val queries = failures.map(failure =>
+        experimentQuery("chaos", List(CodeValue("failure", failure))))
+
+      val futures = queries.map(query =>
+        client ? ClusterClient.Send(entryPoint, query, localAffinity = true))
+
+      futures.foreach { f =>
+        println("Waiting for result from chaos algorithm...")
+        val result = waitFor[QueryResult](f)
+        if (result.isFailure) {
+          println(s"Chaos algorithm failed with ${result.failed.get}")
+        } else {
+          println(s"Chaos algorithm returned ${result.success.value}")
+        }
+      }
+
+      val knnQuery = experimentQuery("knn", List(CodeValue("k", "5")))
+      val successfulFuture = client ? ClusterClient.Send(entryPoint,
+                                                         knnQuery,
+                                                         localAffinity = true)
+      val result = waitFor[QueryResult](successfulFuture)
+
+      if (!result.isSuccess) {
+        println(result)
+      }
+
+      val data = result.success.value.data
+
+      data should not be empty
+
+      val json = data.get
+      val expected = loadJson("/knn_experiment.json")
+
+      assertResult(approximate(expected))(approximate(json))
+
+    }
   }
 
   private def waitFor[T](future: Future[Any])(
