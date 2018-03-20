@@ -39,7 +39,7 @@ class AlgorithmsConfigurationTest
       val histograms = algoConfigs("histograms").value
       histograms.code shouldBe "histograms"
       histograms.predictive shouldBe false
-      histograms.supportsNullValues shouldBe true
+      histograms.covariablesCanBeNull shouldBe true
       histograms.dockerImage.contains("-histograms") shouldBe true
 
       algoConfigs("anova") shouldBe valid
@@ -47,7 +47,7 @@ class AlgorithmsConfigurationTest
       val anova = algoConfigs("anova").value
       anova.code shouldBe "anova"
       anova.predictive shouldBe false
-      anova.supportsNullValues shouldBe false
+      anova.covariablesCanBeNull shouldBe false
       anova.dockerImage.contains("hbpmip") shouldBe true
 
       algoConfigs("knn") shouldBe valid
@@ -55,7 +55,7 @@ class AlgorithmsConfigurationTest
       val knn = algoConfigs("knn").value
       knn.code shouldBe "knn"
       knn.predictive shouldBe true
-      knn.supportsNullValues shouldBe false
+      knn.covariablesCanBeNull shouldBe false
       knn.dockerImage.contains("-knn") shouldBe true
     }
   }

@@ -25,7 +25,8 @@ import cats.implicits._
 case class AlgorithmDefinition(code: String,
                                dockerImage: String,
                                predictive: Boolean,
-                               supportsNullValues: Boolean)
+                               variablesCanBeNull: Boolean,
+                               covariablesCanBeNull: Boolean)
 
 // TODO: this should feed AlgorithmLibraryService with metadata
 
@@ -35,12 +36,13 @@ object AlgorithmsConfiguration {
     val algoConfig = config.validateConfig(path.mkString("."))
 
     algoConfig.andThen { c: Config =>
-      val code               = path.lastOption.map(lift).getOrElse("Empty path".invalidNel[String])
-      val dockerImage        = c.validateString("dockerImage")
-      val predictive         = c.validateBoolean("predictive")
-      val supportsNullValues = c.validateBoolean("supportsNullValues")
+      val code                 = path.lastOption.map(lift).getOrElse("Empty path".invalidNel[String])
+      val dockerImage          = c.validateString("dockerImage")
+      val predictive           = c.validateBoolean("predictive")
+      val variablesCanBeNull   = c.validateBoolean("variablesCanBeNull")
+      val covariablesCanBeNull = c.validateBoolean("covariablesCanBeNull")
 
-      (code, dockerImage, predictive, supportsNullValues) mapN AlgorithmDefinition.apply
+      (code, dockerImage, predictive, variablesCanBeNull, covariablesCanBeNull) mapN AlgorithmDefinition.apply
     }
   }
 

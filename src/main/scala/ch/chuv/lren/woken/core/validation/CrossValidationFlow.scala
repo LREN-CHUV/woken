@@ -107,7 +107,8 @@ case class CrossValidationFlow(
         val foldCount  = validation.parametersAsMap("k").toInt
         val featuresQuery =
           job.query
-            .filterNulls(!job.algorithmDefinition.supportsNullValues)
+            .filterNulls(job.algorithmDefinition.variablesCanBeNull,
+                         job.algorithmDefinition.covariablesCanBeNull)
             .features(job.inputTable, None)
 
         log.info(s"List of folds: $foldCount")
@@ -187,7 +188,8 @@ case class CrossValidationFlow(
     val jobId = UUID.randomUUID().toString
     val featuresQuery =
       job.query
-        .filterNulls(!job.algorithmDefinition.supportsNullValues)
+        .filterNulls(job.algorithmDefinition.variablesCanBeNull,
+                     job.algorithmDefinition.covariablesCanBeNull)
         .features(job.inputTable, Some(offset))
 
     val subJob = DockerJob(

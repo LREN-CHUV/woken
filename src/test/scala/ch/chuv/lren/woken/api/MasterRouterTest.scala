@@ -82,7 +82,9 @@ class MasterRouterTest
     )
 
   def miningQuery2job(query: MiningQuery): Validation[DockerJob] = {
-    val featuresQuery = query.filterNulls(true).features("test", None)
+    val featuresQuery = query
+      .filterNulls(variablesCanBeNull = true, covariablesCanBeNull = true)
+      .features("test", None)
 
     ConfigUtil.lift(
       DockerJob(
