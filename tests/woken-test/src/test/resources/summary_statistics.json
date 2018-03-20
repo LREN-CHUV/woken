@@ -1,0 +1,89 @@
+{
+  "data": [
+    {
+      "25%": 42.7354818081,
+      "50%": 47.0656661866,
+      "75%": 53.5290071048,
+      "EX^2": 2599.3333333331,
+      "count": 150,
+      "group": [
+        "all"
+      ],
+      "group_variables": [],
+      "index": "cognitive_task2",
+      "max": 80.4738996627,
+      "mean": 50.0,
+      "min": 35.3848051833,
+      "null_count": 0,
+      "std": 10.0
+    }
+  ],
+  "schema": {
+    "field": [
+      {
+        "name": "group_variables",
+        "type": "list"
+      },
+      {
+        "name": "group",
+        "type": "list"
+      },
+      {
+        "name": "index",
+        "type": "string"
+      },
+      {
+        "name": "count",
+        "type": "int"
+      },
+      {
+        "name": "null_count",
+        "type": "int"
+      },
+      {
+        "name": "unique",
+        "type": "int"
+      },
+      {
+        "name": "top",
+        "type": "string"
+      },
+      {
+        "name": "frequency",
+        "type": "object"
+      },
+      {
+        "name": "mean",
+        "type": "number"
+      },
+      {
+        "name": "std",
+        "type": "number"
+      },
+      {
+        "name": "EX^2",
+        "type": "number"
+      },
+      {
+        "name": "min",
+        "type": "number"
+      },
+      {
+        "name": "max",
+        "type": "number"
+      },
+      {
+        "name": "25%",
+        "type": "number"
+      },
+      {
+        "name": "50%",
+        "type": "number"
+      },
+      {
+        "name": "75%",
+        "type": "number"
+      }
+    ]
+  }
+}

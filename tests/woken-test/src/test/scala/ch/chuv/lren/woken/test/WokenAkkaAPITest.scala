@@ -102,7 +102,7 @@ class WokenAkkaAPITest
     result.success.value.datasets should have size 1
 
     val expected = Set(
-      Dataset(DatasetId("chuv"),
+      Dataset(DatasetId("desd-synthdata"),
               "CHUV",
               "Demo dataset for CHUV",
               List("cde_features_a"),
@@ -113,7 +113,7 @@ class WokenAkkaAPITest
   }
 
   // Test mining query
-  "Woken" should "respond to a data mining query" in {
+  "Woken" should "respond to a data mining query for k-NN algorithm" in {
 
     val start = System.currentTimeMillis()
     val query = MiningQuery(
@@ -150,7 +150,7 @@ class WokenAkkaAPITest
     assertResult(approximate(expected))(approximate(json))
   }
 
-  "Woken" should "respond to a data mining query with visualisation" in {
+  "Woken" should "respond to a data mining query with visualisation (histogram algorithm)" in {
 
     val start = System.currentTimeMillis()
     val query = MiningQuery(
@@ -185,6 +185,44 @@ class WokenAkkaAPITest
 
     val json = result.success.value.data.get
     val expected = loadJson("/histograms.json")
+
+    assertResult(approximate(expected))(approximate(json))
+  }
+
+  "Woken" should "respond to a data mining query with table results (summary statistics algorithm)" in {
+
+    val start = System.currentTimeMillis()
+    val query = MiningQuery(
+      user = UserId("test1"),
+      variables = List(VariableId("cognitive_task2")),
+      covariables = List(),
+      grouping = Nil,
+      filters = None,
+      targetTable = Some("sample_data"),
+      algorithm = AlgorithmSpec("statisticsSummary", Nil),
+      datasets = Set(),
+      executionPlan = None
+    )
+
+    val future = client ? ClusterClient.Send(entryPoint,
+                                             query,
+                                             localAffinity = true)
+    val result = waitFor[QueryResult](future)
+    val end = System.currentTimeMillis()
+
+    println(
+      "Data mining query with visualisation complete in " + Duration(
+        end - start,
+        TimeUnit.MILLISECONDS))
+
+    if (!result.isSuccess) {
+      println(result)
+    }
+
+    result.success.value.data should not be empty
+
+    val json = result.success.value.data.get
+    val expected = loadJson("/summary_statistics.json")
 
     assertResult(approximate(expected))(approximate(json))
   }
