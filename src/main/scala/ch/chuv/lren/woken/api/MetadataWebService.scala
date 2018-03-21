@@ -66,7 +66,9 @@ class MetadataWebService(
                   OK -> datasetResponse.datasets.toJson
                 }
                 .recoverWith {
-                  case e => Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
+                  case e =>
+                    logger.error(s"Cannot list datasets for table $table", e)
+                    Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
                 }
             }
           }
