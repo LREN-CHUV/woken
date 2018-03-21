@@ -43,6 +43,17 @@ object HttpClient extends DefaultJsonProtocol with SprayJsonSupport {
     uri = url
   )
 
+  def Get(location: RemoteLocation): HttpRequest = {
+    val request = HttpRequest(
+      method = HttpMethods.GET,
+      uri = location.url
+    ).addHeader(Host(location.url.authority.host.address(), location.url.authority.port))
+
+    location.credentials.foldLeft(request)(
+      (r, creds) => r.addHeader(Authorization(BasicHttpCredentials(creds.user, creds.password)))
+    )
+  }
+
   def Get(url: String): HttpRequest = Get(Uri(url))
 
   def Get(url: Uri): HttpRequest =

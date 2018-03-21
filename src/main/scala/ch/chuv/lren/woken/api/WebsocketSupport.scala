@@ -36,6 +36,10 @@ import spray.json._
 import queryProtocol._
 import akka.stream.{ ActorAttributes, Supervision }
 import ch.chuv.lren.woken.messages.datasets.{ DatasetsQuery, DatasetsResponse }
+import ch.chuv.lren.woken.messages.variables.{
+  VariablesForDatasetsQuery,
+  VariablesForDatasetsResponse
+}
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.util.{ Failure, Success, Try }
@@ -84,6 +88,28 @@ trait WebsocketSupport {
         TextMessage(result.toJson.compactPrint)
       }
       .named("List datasets WebSocket flow")
+
+  def listVariableMetadataFlow: Flow[Message, Message, Any] =
+    Flow[Message]
+      .collect {
+        case TextMessage.Strict(jsonEncodedString) =>
+          Try {
+            jsonEncodedString.parseJson.convertTo[VariablesForDatasetsQuery]
+          }
+      }
+      .filter {
+        case Success(_) => true
+        case Failure(err) =>
+          logger.error("Deserialize failed", err)
+          false
+      }
+      .mapAsync(1) { query =>
+        (masterRouter ? query.get).mapTo[VariablesForDatasetsResponse]
+      }
+      .map { result =>
+        TextMessage(result.toJson.compactPrint)
+      }
+      .named("List variables")
 
   def experimentFlow: Flow[Message, Message, Any] =
     Flow[Message]

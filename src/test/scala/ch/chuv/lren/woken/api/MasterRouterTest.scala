@@ -35,12 +35,7 @@ import ch.chuv.lren.woken.core.{
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.util.FakeCoordinatorConfig._
 import ch.chuv.lren.woken.messages.query._
-import ch.chuv.lren.woken.service.{
-  AlgorithmLibraryService,
-  ConfBasedDatasetService,
-  DatasetService,
-  DispatcherService
-}
+import ch.chuv.lren.woken.service._
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil
 import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.core.features.Queries._
@@ -103,15 +98,19 @@ class MasterRouterTest
                               dispatcherService: DispatcherService,
                               algorithmLibraryService: AlgorithmLibraryService,
                               algorithmLookup: String => Validation[AlgorithmDefinition],
-                              datasetService: DatasetService)
-      extends MasterRouter(appConfiguration,
-                           coordinatorConfig,
-                           dispatcherService,
-                           algorithmLibraryService,
-                           algorithmLookup,
-                           datasetService,
-                           experimentQuery2job,
-                           miningQuery2job) {
+                              datasetService: DatasetService,
+                              variablesMetaService: VariablesMetaService)
+      extends MasterRouter(
+        appConfiguration,
+        coordinatorConfig,
+        dispatcherService,
+        algorithmLibraryService,
+        algorithmLookup,
+        datasetService,
+        variablesMetaService,
+        experimentQuery2job,
+        miningQuery2job
+      ) {
 
     override def newExperimentActor: ActorRef =
       system.actorOf(Props(new FakeExperimentActor()))
@@ -132,13 +131,15 @@ class MasterRouterTest
                                    algorithmLibraryService: AlgorithmLibraryService,
                                    algorithmLookup: String => Validation[AlgorithmDefinition],
                                    datasetService: DatasetService,
+                                   variablesMetaService: VariablesMetaService,
                                    coordinatorActor: ActorRef)
       extends MasterRouterUnderTest(appConfiguration,
                                     coordinatorConfig,
                                     dispatcherService,
                                     algorithmLibraryService,
                                     algorithmLookup,
-                                    datasetService) {
+                                    datasetService,
+                                    variablesMetaService) {
 
     override def newCoordinatorActor: ActorRef = coordinatorActor
 
@@ -183,7 +184,8 @@ class MasterRouterTest
                                     dispatcherService,
                                     algorithmLibraryService,
                                     AlgorithmsConfiguration.factory(config),
-                                    datasetService)
+                                    datasetService,
+                                    variablesMetaService)
         )
       )
 
@@ -307,13 +309,16 @@ class MasterRouterTest
 
       val miningRouter = system.actorOf(
         Props(
-          new RouterWithProbeCoordinator(appConfig,
-                                         coordinatorConfig,
-                                         dispatcherService,
-                                         algorithmLibraryService,
-                                         AlgorithmsConfiguration.factory(config),
-                                         datasetService,
-                                         testCoordinatorActor)
+          new RouterWithProbeCoordinator(
+            appConfig,
+            coordinatorConfig,
+            dispatcherService,
+            algorithmLibraryService,
+            AlgorithmsConfiguration.factory(config),
+            datasetService,
+            variablesMetaService,
+            testCoordinatorActor
+          )
         )
       )
 

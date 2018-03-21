@@ -38,6 +38,7 @@ import MiningQueries._
 import ch.chuv.lren.woken.config.{ AlgorithmDefinition, AppConfiguration }
 import ch.chuv.lren.woken.core.commands.JobCommands.{ StartCoordinatorJob, StartExperimentJob }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
+import ch.chuv.lren.woken.messages.variables._
 
 object MasterRouter {
 
@@ -64,6 +65,7 @@ object MasterRouter {
         algorithmLibraryService,
         algorithmLookup,
         datasetService,
+        variablesMetaService,
         experimentQuery2Job(variablesMetaService, coordinatorConfig.jobsConf),
         miningQuery2Job(variablesMetaService, coordinatorConfig.jobsConf, algorithmLookup)
       )
@@ -77,6 +79,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
                         algorithmLibraryService: AlgorithmLibraryService,
                         algorithmLookup: String => Validation[AlgorithmDefinition],
                         datasetService: DatasetService,
+                        variablesMetaService: VariablesMetaService,
                         experimentQuery2JobF: ExperimentQuery => Validation[ExperimentActor.Job],
                         miningQuery2JobF: MiningQuery => Validation[DockerJob])
     extends Actor
@@ -114,6 +117,36 @@ case class MasterRouter(appConfiguration: AppConfiguration,
         else allDatasets.filter(_.tables.contains(table))
 
       sender ! DatasetsResponse(datasets.map(_.withoutAuthenticationDetails))
+
+    case varsQuery: VariablesForDatasetsQuery =>
+      val initiator = sender()
+
+      Source
+        .single(
+          varsQuery.copy(
+            datasets = datasetService
+              .datasets()
+              .map(_.dataset)
+              .filter(varsQuery.datasets.isEmpty || varsQuery.datasets.contains(_))
+          )
+        )
+        .via(dispatcherService.dispatchVariablesQueryFlow(datasetService, variablesMetaService))
+        .fold(Set[VariableMetaData]()) {
+          _ ++ _.variables
+        }
+        .map { varsMetaData =>
+          {
+            log.debug(s"vars metadata ${varsMetaData.size}")
+            initiator ! VariablesForDatasetsResponse(varsMetaData)
+            VariablesForDatasetsResponse(varsMetaData)
+          }
+        }
+        .runWith(Sink.last)
+        .failed
+        .foreach { e =>
+          log.error(e, s"Cannot complete variable query $varsQuery")
+          initiator ! VariablesForDatasetsResponse(Set(), Some(e.getMessage))
+        }
 
     //case MiningQuery(variables, covariables, groups, _, AlgorithmSpec(c, p))
     //    if c == "" || c == "data" =>

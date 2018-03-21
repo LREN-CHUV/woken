@@ -36,6 +36,10 @@ import spray.json._
 import queryProtocol._
 import HttpClient._
 import ch.chuv.lren.woken.messages.remoting.RemoteLocation
+import ch.chuv.lren.woken.messages.variables.{
+  VariablesForDatasetsQuery,
+  VariablesForDatasetsResponse
+}
 
 case class WokenClientService(node: String)(implicit val system: ActorSystem,
                                             implicit val materializer: ActorMaterializer)
@@ -114,5 +118,24 @@ case class WokenClientService(node: String)(implicit val system: ActorSystem,
       .mapAsync(100) {
         case (location, query) => AkkaClusterClient.sendReceive(location, query).map((location, _))
       }
+
+  def variableMetaFlow: Flow[(RemoteLocation, VariablesForDatasetsQuery),
+                             (RemoteLocation, VariablesForDatasetsResponse),
+                             NotUsed] =
+    Flow[(RemoteLocation, VariablesForDatasetsQuery)]
+      .map(query => sendReceive(Get(query._1)).map((query._1, _)))
+      .mapAsync(100)(identity)
+      .mapAsync(100) {
+        case (url, response) if response.status.isSuccess() =>
+          val varResponse = Unmarshal(response).to[VariablesForDatasetsResponse]
+          (url.pure[Future], varResponse).mapN((_, _))
+        case (url, failure) =>
+          println(s"url: $url failure: $failure")
+          (url, VariablesForDatasetsResponse(Set.empty, None)).pure[Future]
+      }
+      .map(q => {
+        println(s"received response $q")
+        q
+      })
 
 }
