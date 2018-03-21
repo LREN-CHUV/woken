@@ -30,5 +30,6 @@ case class ConfBasedDatasetService(config: Config) extends DatasetService {
     DatasetsConfiguration
       .datasets(config)
       .valueOr(nel => throw new IllegalStateException(s"Cannot load datasets: $nel"))
-      .values.toSet
+      .values
+      .toSet
 }

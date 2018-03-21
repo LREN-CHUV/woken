@@ -24,15 +24,15 @@ import akka.http.scaladsl.model.StatusCodes._
 import akka.util.Timeout
 import akka.pattern.ask
 import ch.chuv.lren.woken.api.swagger.MetadataServiceApi
-import ch.chuv.lren.woken.config.{AppConfiguration, JobsConfiguration}
-import ch.chuv.lren.woken.messages.datasets.{DatasetsProtocol, DatasetsQuery, DatasetsResponse}
+import ch.chuv.lren.woken.config.{ AppConfiguration, JobsConfiguration }
+import ch.chuv.lren.woken.messages.datasets.{ DatasetsProtocol, DatasetsQuery, DatasetsResponse }
 import ch.chuv.lren.woken.messages.remoting.RemotingProtocol
 import com.typesafe.scalalogging.LazyLogging
 import kamon.akka.http.TracingDirectives
 import spray.json.DefaultJsonProtocol
 
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 
 class MetadataWebService(
     val masterRouter: ActorRef,
