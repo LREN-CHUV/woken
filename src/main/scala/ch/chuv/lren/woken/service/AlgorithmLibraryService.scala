@@ -215,7 +215,7 @@ class AlgorithmLibraryService {
                 "disable": false,
                 "type": ["features_extraction"],
                 "maturity": "experimental",
-                "docker_image": "hbpmip/python-tsne:ee68446",
+                "docker_image": "hbpmip/python-tsne:0.4.0",
                 "environment": "Python",
                 "description": "tSNE...",
                 "parameters": [],

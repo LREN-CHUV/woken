@@ -229,7 +229,7 @@
       },
       "description": "tSNE...",
       "disable": false,
-      "docker_image": "hbpmip/python-tsne:ee68446",
+      "docker_image": "hbpmip/python-tsne:0.4.0",
       "environment": "Python",
       "label": "tSNE",
       "maturity": "experimental",
