@@ -186,34 +186,6 @@ services:
     depends_on:
       - db
 
-  woken:
-    image: hbpmip/woken
-    volumes:
-      - ./woken/config:/opt/woken/config
-    ports:
-      - "8087:8087"
-      - "8088:8088"
-      - "9095:9095"
-      - "8000:8000"
-    environment:
-      CLUSTER_PORT: 8088
-      CLUSTER_IP: woken
-      WOKEN_PORT_8088_TCP_ADDR: woken
-      DOCKER_BRIDGE_NETWORK: "tests_default"
-      LOG_LEVEL: DEBUG
-      KAMON_ENABLED: "no"
-      ZIPKIN_ENABLED: "yes"
-      PROMETHEUS_ENABLED: "yes"
-      SIGAR_SYSTEM_METRICS: "no"
-      JVM_SYSTEM_METRICS: "no"
-      JAVA_OPTS: "-agentlib:jdwp=transport=dt_socket,address=8000,server=y,suspend=n"
-    links:
-      - zipkin
-      - wokenprometheus
-    depends_on:
-      - chronos
-      - db
-
   wokenvalidation:
     image: hbpmip/woken-validation:2.3.1
     ports:
@@ -225,14 +197,14 @@ services:
       WOKEN_PORT_8088_TCP_ADDR: "${HOST}"
       LOG_LEVEL: DEBUG
 
-  wait_woken:
+  wait_wokenvalidation:
     image: "waisbrot/wait"
     restart: "no"
     environment:
-      TARGETS: "${HOST}:8087,chronos:4400,wokenvalidation:8081"
+      TARGETS: "chronos:4400,wokenvalidation:8081"
       TIMEOUT: 600
     depends_on:
-      - woken
+      - wokenvalidation
       - chronos
 
   portalbackend:
@@ -262,7 +234,7 @@ services:
       FRONTEND_AFTER_LOGOUT_URL: http://frontend/services/login/hbp
       CLUSTER_IP: portalbackend
       CLUSTER_PORT: 8089
-      WOKEN_PORT_8088_TCP_ADDR: woken
+      WOKEN_PORT_8088_TCP_ADDR: ${HOST}
       WOKEN_PORT_8088_TCP_PORT: 8088
       WOKEN_AKKA_PATH: "/user/entrypoint"
       EXAREME_URL: http://prozac.madgik.di.uoa.gr:9090/mining/query

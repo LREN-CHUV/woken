@@ -63,7 +63,6 @@ $DOCKER_COMPOSE run wait_zookeeper
 $DOCKER_COMPOSE up -d mesos_master
 $DOCKER_COMPOSE run wait_mesos_master
 $DOCKER_COMPOSE up -d mesos_slave
-$DOCKER_COMPOSE build wokentest
 $DOCKER_COMPOSE run wait_dbs
 
 echo "Create databases..."
@@ -94,7 +93,7 @@ if [ $validation == 1 ]; then
 
     $DOCKER_COMPOSE up -d wokenvalidation
 
-    $DOCKER_COMPOSE run wait_woken
+    $DOCKER_COMPOSE run wait_wokenvalidation
 
     for i in 1 2 3 4 5 ; do
       $DOCKER_COMPOSE logs chronos | grep java.util.concurrent.TimeoutException || break
