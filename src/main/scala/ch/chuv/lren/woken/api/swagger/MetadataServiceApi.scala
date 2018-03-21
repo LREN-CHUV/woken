@@ -57,7 +57,22 @@ trait MetadataServiceApi extends Directives {
     consumes = "application/json",
     response = classOf[VariablesForDatasetsResponse]
   )
-  @ApiImplicitParams(Array())
+  @ApiParam
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(
+      name = "datasets",
+      value = "comma separated list of datasets IDs where variables should be fetched from",
+      dataType = "string",
+      allowMultiple = true,
+      paramType = "query",
+      required = false)),
+    new ApiImplicitParam(
+      name = "exhaustive",
+      value = "if set to true variables returned should be present in all datasets",
+      dataType = "boolean",
+      paramType = "query",
+      required = false)
+  )
   @ApiResponses(
     Array(
       new ApiResponse(code = 200,

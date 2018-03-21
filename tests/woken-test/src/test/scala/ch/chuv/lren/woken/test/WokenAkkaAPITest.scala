@@ -173,6 +173,30 @@ class WokenAkkaAPITest
 
         returnedVars shouldBe expected
       }
+
+      "return only variables present in all datasets if exhaustive mode set to true" in {
+
+        val start = System.currentTimeMillis()
+        val future = client ? ClusterClient.Send(
+          entryPoint,
+          VariablesForDatasetsQuery(Set(), exhaustive = true),
+          localAffinity = true)
+        val result = waitFor[VariablesForDatasetsResponse](future)
+        val end = System.currentTimeMillis()
+
+        println(
+          "List of variables query complete in " + Duration(
+            end - start,
+            TimeUnit.MILLISECONDS))
+
+        println(result)
+
+        if (!result.isSuccess) {
+          println(result)
+        }
+
+        result.success.value.variables should have size 0
+      }
     }
 
     // Test mining query
