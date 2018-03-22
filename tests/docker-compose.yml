@@ -236,8 +236,6 @@ services:
       SIGAR_SYSTEM_METRICS: "no"
       JVM_SYSTEM_METRICS: "no"
       JAVA_OPTS: "-agentlib:jdwp=transport=dt_socket,address=8000,server=y,suspend=n"
-      PYTHON_HISTOGRAMS_IMAGE: "hbpmip/python-histograms:0.4.0"
-      PYTHON_SUMMARY_STATISTICS_IMAGE: "hbpmip/python-summary-statistics:0.2.0"
     links:
       - zipkin
       - wokenprometheus
