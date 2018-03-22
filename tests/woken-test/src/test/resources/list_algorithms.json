@@ -11,7 +11,7 @@
         }
       },
       "description": "Histograms...",
-      "docker_image": "hbpmip/python-histograms:0.3.7",
+      "docker_image": "hbpmip/python-histograms:0.4.0",
       "environment": "Python",
       "label": "Histograms",
       "type": [
@@ -29,7 +29,7 @@
         }
       },
       "description": "Statistics Summary...",
-      "docker_image": "hbpmip/python-summary-statistics:0.4.0",
+      "docker_image": "hbpmip/python-summary-statistics:0.3.0",
       "environment": "python",
       "label": "Statistics Summary",
       "type": [

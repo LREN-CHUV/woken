@@ -11,6 +11,7 @@
       ],
       "group_variables": [],
       "index": "cognitive_task2",
+      "label": "Cognitive Task 2",
       "max": 80.4738996627,
       "mean": 50.0,
       "min": 35.3848051833,
@@ -19,30 +20,34 @@
     }
   ],
   "schema": {
-    "field": [
+    "fields": [
       {
         "name": "group_variables",
-        "type": "list"
+        "type": "array"
       },
       {
         "name": "group",
-        "type": "list"
+        "type": "array"
       },
       {
         "name": "index",
         "type": "string"
       },
       {
+        "name": "label",
+        "type": "string"
+      },
+      {
         "name": "count",
-        "type": "int"
+        "type": "integer"
       },
       {
         "name": "null_count",
-        "type": "int"
+        "type": "integer"
       },
       {
         "name": "unique",
-        "type": "int"
+        "type": "integer"
       },
       {
         "name": "top",
@@ -50,7 +55,7 @@
       },
       {
         "name": "frequency",
-        "type": "object"
+        "type": "any"
       },
       {
         "name": "mean",
