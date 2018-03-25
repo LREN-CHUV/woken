@@ -49,7 +49,7 @@ class DispatcherService(datasets: Map[DatasetId, Dataset], wokenClientService: W
     (maybeSet.getOrElse(Set.empty), local)
   }
 
-  def dispatchRemoteMiningFlow(): Flow[MiningQuery, (RemoteLocation, QueryResult), NotUsed] =
+  lazy val dispatchRemoteMiningFlow: Flow[MiningQuery, (RemoteLocation, QueryResult), NotUsed] =
     Flow[MiningQuery]
       .map(q => dispatchTo(q.datasets)._1.map(ds => ds -> q))
       .mapConcat(identity)
@@ -58,7 +58,7 @@ class DispatcherService(datasets: Map[DatasetId, Dataset], wokenClientService: W
       .via(wokenClientService.queryFlow)
       .named("dispatch-remote-mining")
 
-  def dispatchRemoteExperimentFlow()
+  lazy val dispatchRemoteExperimentFlow
     : Flow[ExperimentQuery, (RemoteLocation, QueryResult), NotUsed] =
     Flow[ExperimentQuery]
       .map(q => dispatchTo(q.trainingDatasets)._1.map(ds => ds -> q))

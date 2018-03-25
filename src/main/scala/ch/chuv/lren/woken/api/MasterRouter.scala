@@ -242,7 +242,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
 
         Source
           .single(query)
-          .via(dispatcherService.dispatchRemoteMiningFlow())
+          .via(dispatcherService.dispatchRemoteMiningFlow)
           .fold(List[QueryResult]()) {
             _ :+ _._2
           }
@@ -293,7 +293,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
 
             Source
               .single(query)
-              .via(dispatcherService.dispatchRemoteExperimentFlow())
+              .via(dispatcherService.dispatchRemoteExperimentFlow)
               .fold(List[QueryResult]()) {
                 _ :+ _._2
               }
