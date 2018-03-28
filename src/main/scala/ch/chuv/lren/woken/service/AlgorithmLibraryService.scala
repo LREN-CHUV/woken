@@ -123,8 +123,8 @@ class AlgorithmLibraryService {
                 "code": "knn",
                 "label": "K-nearest neighbors",
                 "type": ["predictive_model"],
-                "docker_image": "hbpmip/java-rapidminer-knn:0.2.2",
-                "environment": "Java/RapidMiner",
+                "docker_image": "hbpmip/python-knn:0.2.0",
+                "environment": "Python",
                 "description": "K-nearest neighbors...",
                 "parameters": [{
                     "code": "k",
