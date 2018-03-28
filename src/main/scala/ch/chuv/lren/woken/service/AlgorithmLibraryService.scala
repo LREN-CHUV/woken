@@ -87,6 +87,94 @@ class AlgorithmLibraryService {
                 }
             },
             {
+                "code": "sgdLinearModel",
+                "label": "SGD Linear model",
+                "type": ["predictive_model"],
+                "docker_image": "hbpmip/python-sgd-linear-model:0.1.1",
+                "environment": "Python",
+                "description": "Linear model using Stochastic Gradient Descent...",
+                "parameters": [],
+                "constraints": {
+                    "variable": {
+                      "real": true,
+                      "integer": true,
+                      "binominal": true,
+                      "polynominal": true
+                    },
+                    "groupings": {
+                        "min_count": 0,
+                        "max_count": 1
+                    },
+                    "covariables": {
+                        "min_count": 0,
+                        "max_count": null
+                    },
+                    "mixed": true
+                }
+            },
+            {
+                "code": "sgdNaiveBayes",
+                "label": "SGD Naive Bayes",
+                "type": ["predictive_model"],
+                "docker_image": "hbpmip/python-sgd-naive-bayes:0.1.1",
+                "environment": "Python",
+                "description": "Naive Bayes using Stochastic Gradient Descent...",
+                "parameters": [{
+                    "code": "alpha",
+                    "label": "alpha",
+                    "default_value": 5,
+                    "type": "int",
+                    "constraints": {
+                        "min": 1,
+                        "max": null
+                   },
+                    "description": "TODO"
+                }],
+                "constraints": {
+                    "variable": {
+                      "real": false,
+                      "integer": false,
+                      "binominal": true,
+                      "polynominal": true
+                    },
+                    "groupings": {
+                        "min_count": 0,
+                        "max_count": 1
+                    },
+                    "covariables": {
+                        "min_count": 0,
+                        "max_count": null
+                    },
+                    "mixed": true
+                }
+            },
+            {
+                "code": "sgdNeuralNetwork",
+                "label": "SGD Neural Network",
+                "type": ["predictive_model"],
+                "docker_image": "hbpmip/python-sgd-neural-network:0.1.1",
+                "environment": "Python",
+                "description": "Neural Network using Stochastic Gradient Descent...",
+                "parameters": [],
+                "constraints": {
+                    "variable": {
+                      "real": true,
+                      "integer": true,
+                      "binominal": true,
+                      "polynominal": true
+                    },
+                    "groupings": {
+                        "min_count": 0,
+                        "max_count": 1
+                    },
+                    "covariables": {
+                        "min_count": 0,
+                        "max_count": null
+                    },
+                    "mixed": true
+                }
+            },
+            {
                 "code": "anova",
                 "label": "Anova",
                 "type": ["statistics"],
@@ -123,7 +211,7 @@ class AlgorithmLibraryService {
                 "code": "knn",
                 "label": "K-nearest neighbors",
                 "type": ["predictive_model"],
-                "docker_image": "hbpmip/python-knn:0.2.0",
+                "docker_image": "hbpmip/python-knn:0.2.1",
                 "environment": "Python",
                 "description": "K-nearest neighbors...",
                 "parameters": [{
@@ -153,6 +241,22 @@ class AlgorithmLibraryService {
                         "max_count": null
                     },
                     "mixed": false
+                }
+            },
+            {
+                "code": "correlationHeatmap",
+                "label": "Correlation heatmap",
+                "type": ["statistics"],
+                "environment": "python",
+                "description": "Correlation heatmap...",
+                "docker_image": "hbpmip/python-correlation-heatmap:0.1.0",
+                "constraints": {
+                    "variable": {
+                      "real": true,
+                      "integer": true,
+                      "binominal": true,
+                      "polynominal": true
+                    }
                 }
             },
             {
