@@ -187,7 +187,7 @@ services:
       - db
 
   wokenvalidation:
-    image: hbpmip/woken-validation:2.3.2
+    image: hbpmip/woken-validation:2.4.1
     ports:
       - "8081:8081"
       - "8082:8082"

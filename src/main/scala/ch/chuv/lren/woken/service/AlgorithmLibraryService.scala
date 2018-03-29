@@ -34,7 +34,7 @@ class AlgorithmLibraryService {
                 "type": ["statistics"],
                 "environment": "Python",
                 "description": "Histograms...",
-                "docker_image": "hbpmip/python-histograms:0.4.0",
+                "docker_image": "hbpmip/python-histograms:0.4.1",
                 "constraints": {
                     "variable": {
                       "real": true,
@@ -64,7 +64,7 @@ class AlgorithmLibraryService {
                 "code": "linearRegression",
                 "label": "Linear Regression",
                 "type": ["statistics"],
-                "docker_image": "hbpmip/python-linear-regression:0.0.7",
+                "docker_image": "hbpmip/python-linear-regression:0.1.0",
                 "environment": "Python",
                 "description": "Standard Linear Regression...",
                 "parameters": [],
@@ -178,7 +178,7 @@ class AlgorithmLibraryService {
                 "code": "anova",
                 "label": "Anova",
                 "type": ["statistics"],
-                "docker_image": "hbpmip/python-anova:0.3.6",
+                "docker_image": "hbpmip/python-anova:0.4.0",
                 "environment": "Python",
                 "description": "ANOVA...",
                 "parameters": [{
@@ -257,6 +257,49 @@ class AlgorithmLibraryService {
                       "binominal": true,
                       "polynominal": true
                     }
+                }
+            },
+            {
+                "code": "hinmine",
+                "label": "JSI HinMine",
+                "type": ["predictive_model"],
+                "docker_image": "hbpmip/python-jsi-hinmine:0.2.2",
+                "environment": "Python",
+                "description": "The HinMine algorithm is an algorithm designed to construct network-analysis-based feature vectors for data instances that can be either nodes in a network or standard data instances with a fixed set of numeric features. In this implementation, the input for the algorithm is a set of data instances, and the output of the algorithm is a new data set with the same instances, but new features constructed out of them.",
+                "parameters": [{
+                    "code": "damping",
+                    "label": "damping",
+                    "default_value": 0.1,
+                    "type": "number",
+                    "constraints": {
+                        "min": 0.0,
+                        "max": 1.0
+                    },
+                    "description": "The variable *p* used in the construction of the P-PR vectors during propositionalization. The value of this variable can be any real number between *0* and *1*. Smaller values of the damping factor ensure faster calculation of the feature vectors, however larger values of *p* mean that the algorithm is capable of performing longer walks, exploring more of the structure of the data."
+                },{
+                    "code": "normalize",
+                    "label": "normalize",
+                    "default_value": "False",
+                    "type": "enumeration",
+                    "values": ["False", "True"],
+                    "description": "This variable determines whether the feature values of the input data instances should be normalized or not. If True, then the values of each feature are normalized to be between 0 and 1. This allows the algorithm to fairly compare two features measured with incomparable units. The value of this variable should be False if the difference in the size of the features carries inherent meaning."
+                }],
+                "constraints": {
+                    "variable": {
+                      "real": true,
+                      "integer": true,
+                      "binominal": true,
+                      "polynominal": true
+                    },
+                    "groupings": {
+                        "min_count": 0,
+                        "max_count": 0
+                    },
+                    "covariables": {
+                        "min_count": "1",
+                        "max_count": null
+                    },
+                    "mixed": false
                 }
             },
             {

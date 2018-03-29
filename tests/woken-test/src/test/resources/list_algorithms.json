@@ -11,7 +11,7 @@
         }
       },
       "description": "Histograms...",
-      "docker_image": "hbpmip/python-histograms:0.4.0",
+      "docker_image": "hbpmip/python-histograms:0.4.1",
       "environment": "Python",
       "label": "Histograms",
       "type": [
@@ -56,7 +56,7 @@
         }
       },
       "description": "Standard Linear Regression...",
-      "docker_image": "hbpmip/python-linear-regression:0.0.7",
+      "docker_image": "hbpmip/python-linear-regression:0.1.0",
       "environment": "Python",
       "label": "Linear Regression",
       "parameters": [],
@@ -84,7 +84,7 @@
         }
       },
       "description": "ANOVA...",
-      "docker_image": "hbpmip/python-anova:0.3.6",
+      "docker_image": "hbpmip/python-anova:0.4.0",
       "environment": "Python",
       "label": "Anova",
       "parameters": [
@@ -124,7 +124,7 @@
         }
       },
       "description": "K-nearest neighbors...",
-      "docker_image": "hbpmip/python-knn:0.2.0",
+      "docker_image": "hbpmip/python-knn:0.2.1",
       "environment": "Python",
       "label": "K-nearest neighbors",
       "parameters": [
