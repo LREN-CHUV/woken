@@ -34,7 +34,7 @@ class AlgorithmLibraryService {
                 "type": ["statistics"],
                 "environment": "Python",
                 "description": "Histograms...",
-                "docker_image": "hbpmip/python-histograms:0.4.1",
+                "docker_image": "hbpmip/python-histograms:0.4.2",
                 "constraints": {
                     "variable": {
                       "real": true,
