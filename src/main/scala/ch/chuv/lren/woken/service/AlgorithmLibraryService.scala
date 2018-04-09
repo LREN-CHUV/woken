@@ -34,7 +34,7 @@ class AlgorithmLibraryService {
                 "type": ["statistics"],
                 "environment": "Python",
                 "description": "Histograms...",
-                "docker_image": "hbpmip/python-histograms:0.4.2",
+                "docker_image": "hbpmip/python-histograms:0.4.3",
                 "constraints": {
                     "variable": {
                       "real": true,
@@ -249,7 +249,7 @@ class AlgorithmLibraryService {
                 "type": ["statistics"],
                 "environment": "python",
                 "description": "Correlation heatmap...",
-                "docker_image": "hbpmip/python-correlation-heatmap:0.1.0",
+                "docker_image": "hbpmip/python-correlation-heatmap:0.1.2",
                 "constraints": {
                     "variable": {
                       "real": true,
@@ -262,7 +262,7 @@ class AlgorithmLibraryService {
             {
                 "code": "hinmine",
                 "label": "JSI HinMine",
-                "type": ["predictive_model"],
+                "type": ["features_extraction"],
                 "docker_image": "hbpmip/python-jsi-hinmine:0.2.2",
                 "environment": "Python",
                 "description": "The HinMine algorithm is an algorithm designed to construct network-analysis-based feature vectors for data instances that can be either nodes in a network or standard data instances with a fixed set of numeric features. In this implementation, the input for the algorithm is a set of data instances, and the output of the algorithm is a new data set with the same instances, but new features constructed out of them.",
@@ -283,6 +283,52 @@ class AlgorithmLibraryService {
                     "type": "enumeration",
                     "values": ["False", "True"],
                     "description": "This variable determines whether the feature values of the input data instances should be normalized or not. If True, then the values of each feature are normalized to be between 0 and 1. This allows the algorithm to fairly compare two features measured with incomparable units. The value of this variable should be False if the difference in the size of the features carries inherent meaning."
+                }],
+                "constraints": {
+                    "variable": {
+                      "real": true,
+                      "integer": true,
+                      "binominal": true,
+                      "polynominal": true
+                    },
+                    "groupings": {
+                        "min_count": 0,
+                        "max_count": 0
+                    },
+                    "covariables": {
+                        "min_count": "1",
+                        "max_count": null
+                    },
+                    "mixed": false
+                }
+            },
+            {
+                "code": "hedwig",
+                "label": "JSI Hedwig",
+                "type": ["features_extraction"],
+                "docker_image": "hbpmip/python-jsi-hedwig:1.0.3",
+                "environment": "Python",
+                "description": "The Hedwig algorithm for subgroup discovery is a data mining algorithm designed for exploratory data analysis of a data set",
+                "parameters": [{
+                    "code": "beam",
+                    "label": "bean",
+                    "default_value": 10,
+                    "type": "int",
+                    "constraints": {
+                        "min": 1,
+                        "max": null
+                    },
+                    "description": "The size of the beam to be used in the search. Larger values of this variable cause the search of the algorithm to take longer and return more high quality rules."
+                },{
+                    "code": "support",
+                    "label": "support",
+                    "default_value": "0.1",
+                    "type": "number",
+                    "constraints": {
+                        "min": 0.0,
+                        "max": 1.0
+                    },
+                    "description": "The minimum relative support of the rules, discovered by Hedwig. The value of this parameter must be between 0 and 1 as the parameter represents the ration of the covered examples in the entire data set."
                 }],
                 "constraints": {
                     "variable": {
