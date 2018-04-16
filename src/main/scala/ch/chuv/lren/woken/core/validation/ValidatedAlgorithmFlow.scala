@@ -119,6 +119,7 @@ case class ValidatedAlgorithmFlow(
                     job.metadata)
         executeJobAsync(subJob)
       }
+      .log("Learned from all data")
       .named("learn-from-all-data")
 
   private def crossValidate(
@@ -145,6 +146,7 @@ case class ValidatedAlgorithmFlow(
           m + r
         }
       }
+      .log("Cross validation results")
       .named("cross-validate")
 
   private def buildResponse
@@ -179,5 +181,6 @@ case class ValidatedAlgorithmFlow(
                                             "No results"))
           }
       }
+      .log("Response")
       .named("build-response")
 }

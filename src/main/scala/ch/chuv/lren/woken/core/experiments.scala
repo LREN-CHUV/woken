@@ -22,6 +22,7 @@ import java.util.UUID
 
 import akka.NotUsed
 import akka.actor.{ Actor, ActorContext, ActorLogging, Props }
+import akka.event.Logging
 import akka.stream._
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Merge, Partition, Sink, Source, Zip }
 import cats.data.NonEmptyList
@@ -191,6 +192,8 @@ case class ExperimentFlow(
                                          algorithmSpec: AlgorithmSpec,
                                          subJob: ValidatedAlgorithmFlow.Job)
 
+  private val log = Logging(context.system, getClass)
+
   private val validatedAlgorithmFlow =
     ValidatedAlgorithmFlow(executeJobAsync, featuresDatabase, context)
 
@@ -291,6 +294,7 @@ case class ExperimentFlow(
                                                 job.metadata,
                                                 validations,
                                                 algorithmDefinition)
+        log.info(s"Prepared mining query sub job $subJob")
         AlgorithmValidation(job, algorithmSpec, subJob)
       }
       .named("prepare-mining-query")
@@ -336,6 +340,7 @@ case class ExperimentFlow(
 
   private def extractResult(response: CoordinatorActor.Response): JobResult = {
     val algorithm = response.job.algorithmSpec
+    log.info(s"Extract result from response: ${response.results}")
     response.results.headOption match {
       case Some(model) => model
       case None =>
