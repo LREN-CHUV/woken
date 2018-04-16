@@ -87,10 +87,13 @@ object DatabaseConfiguration {
                                                      dbConfig.jdbcUrl,
                                                      dbConfig.user,
                                                      dbConfig.password)
-      _ <- xa.configure(hx => IO {
-        hx.getHikariConfigMXBean.setMaximumPoolSize(dbConfig.poolSize)
-        hx.setAutoCommit(false)
-      })
+      _ <- xa.configure(
+        hx =>
+          IO {
+            hx.getHikariConfigMXBean.setMaximumPoolSize(dbConfig.poolSize)
+            hx.setAutoCommit(false)
+        }
+      )
     } yield xa
 
   // TODO: it should become Validated[]

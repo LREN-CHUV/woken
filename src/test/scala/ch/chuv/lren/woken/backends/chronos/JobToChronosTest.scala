@@ -68,7 +68,8 @@ class JobToChronosTest extends FlatSpec with Matchers {
       port = 5432,
       database = "features",
       user = "user",
-      password = "test"
+      password = "test",
+      poolSize = 5
     ).validNel,
     "woken_db" -> DatabaseConfiguration(
       dbiDriver = "PostgreSQL",
@@ -79,7 +80,8 @@ class JobToChronosTest extends FlatSpec with Matchers {
       port = 5432,
       database = "woken",
       user = "woken",
-      password = "wpwd"
+      password = "wpwd",
+      poolSize = 5
     ).validNel
   ).withDefaultValue("".invalidNel)
 
