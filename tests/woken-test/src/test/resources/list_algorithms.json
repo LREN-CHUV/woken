@@ -11,7 +11,7 @@
         }
       },
       "description": "Histograms...",
-      "docker_image": "hbpmip/python-histograms:0.4.2",
+      "docker_image": "hbpmip/python-histograms:0.4.3",
       "environment": "Python",
       "label": "Histograms",
       "type": [
@@ -62,6 +62,102 @@
       "parameters": [],
       "type": [
         "statistics"
+      ]
+    },
+    {
+      "code": "sgdLinearModel",
+      "constraints": {
+        "covariables": {
+          "max_count": null,
+          "min_count": 1
+        },
+        "groupings": {
+          "max_count": 0,
+          "min_count": 0
+        },
+        "mixed": true,
+        "variable": {
+          "binominal": true,
+          "integer": true,
+          "polynominal": true,
+          "real": true
+        }
+      },
+      "description": "Linear model using Stochastic Gradient Descent...",
+      "docker_image": "hbpmip/python-sgd-linear-model:0.1.3",
+      "environment": "Python",
+      "label": "SGD Linear model",
+      "parameters": [],
+      "type": [
+        "predictive_model"
+      ]
+    },
+    {
+      "code": "naiveBayes",
+      "constraints": {
+        "covariables": {
+          "max_count": null,
+          "min_count": 1
+        },
+        "groupings": {
+          "max_count": 0,
+          "min_count": 0
+        },
+        "mixed": true,
+        "variable": {
+          "binominal": true,
+          "integer": true,
+          "polynominal": true,
+          "real": true
+        }
+      },
+      "description": "Naive Bayes using Stochastic Gradient Descent",
+      "docker_image": "hbpmip/python-sgd-naive-bayes:0.1.3",
+      "environment": "Python",
+      "label": "Naive Bayes",
+      "parameters": [
+        {
+          "code": "alpha",
+          "constraints": {
+            "max": 1.0,
+            "min": 0.0
+          },
+          "default_value": 1.0,
+          "description": "Additive (Laplace/Lidstone) smoothing parameter (0 for no smoothing, default to 1.)",
+          "label": "alpha",
+          "type": "number"
+        }
+      ],
+      "type": [
+        "predictive_model"
+      ]
+    },
+    {
+      "code": "sgdNeuralNetwork",
+      "constraints": {
+        "covariables": {
+          "max_count": null,
+          "min_count": 1
+        },
+        "groupings": {
+          "max_count": 0,
+          "min_count": 0
+        },
+        "mixed": true,
+        "variable": {
+          "binominal": true,
+          "integer": true,
+          "polynominal": true,
+          "real": true
+        }
+      },
+      "description": "Neural Network using Stochastic Gradient Descent...",
+      "docker_image": "hbpmip/python-sgd-neural-network:0.1.3",
+      "environment": "Python",
+      "label": "SGD Neural Network",
+      "parameters": [],
+      "type": [
+        "predictive_model"
       ]
     },
     {
@@ -145,6 +241,126 @@
       ]
     },
     {
+      "code": "correlationHeatmap",
+      "constraints": {
+        "variable": {
+          "binominal": true,
+          "integer": true,
+          "polynominal": true,
+          "real": true
+        }
+      },
+      "description": "Correlation heatmap...",
+      "docker_image": "hbpmip/python-correlation-heatmap:0.1.2",
+      "environment": "python",
+      "label": "Correlation heatmap",
+      "type": [
+        "statistics"
+      ]
+    },
+    {
+      "code": "hinmine",
+      "constraints": {
+        "covariables": {
+          "max_count": null,
+          "min_count": "1"
+        },
+        "groupings": {
+          "max_count": 0,
+          "min_count": 0
+        },
+        "mixed": false,
+        "variable": {
+          "binominal": true,
+          "integer": true,
+          "polynominal": true,
+          "real": true
+        }
+      },
+      "description": "The HinMine algorithm is an algorithm designed to construct network-analysis-based feature vectors for data instances that can be either nodes in a network or standard data instances with a fixed set of numeric features. In this implementation, the input for the algorithm is a set of data instances, and the output of the algorithm is a new data set with the same instances, but new features constructed out of them.",
+      "docker_image": "hbpmip/python-jsi-hinmine:0.2.2",
+      "environment": "Python",
+      "label": "JSI HinMine",
+      "parameters": [
+        {
+          "code": "damping",
+          "constraints": {
+            "max": 1.0,
+            "min": 0.0
+          },
+          "default_value": 0.1,
+          "description": "The variable *p* used in the construction of the P-PR vectors during propositionalization. The value of this variable can be any real number between *0* and *1*. Smaller values of the damping factor ensure faster calculation of the feature vectors, however larger values of *p* mean that the algorithm is capable of performing longer walks, exploring more of the structure of the data.",
+          "label": "damping",
+          "type": "number"
+        },
+        {
+          "code": "normalize",
+          "default_value": "False",
+          "description": "This variable determines whether the feature values of the input data instances should be normalized or not. If True, then the values of each feature are normalized to be between 0 and 1. This allows the algorithm to fairly compare two features measured with incomparable units. The value of this variable should be False if the difference in the size of the features carries inherent meaning.",
+          "label": "normalize",
+          "type": "enumeration",
+          "values": [
+            "False",
+            "True"
+          ]
+        }
+      ],
+      "type": [
+        "features_extraction"
+      ]
+    },
+    {
+      "code": "hedwig",
+      "constraints": {
+        "covariables": {
+          "max_count": null,
+          "min_count": "1"
+        },
+        "groupings": {
+          "max_count": 0,
+          "min_count": 0
+        },
+        "mixed": false,
+        "variable": {
+          "binominal": true,
+          "integer": true,
+          "polynominal": true,
+          "real": true
+        }
+      },
+      "description": "The Hedwig algorithm for subgroup discovery is a data mining algorithm designed for exploratory data analysis of a data set",
+      "docker_image": "hbpmip/python-jsi-hedwig:1.0.3",
+      "environment": "Python",
+      "label": "JSI Hedwig",
+      "parameters": [
+        {
+          "code": "beam",
+          "constraints": {
+            "max": null,
+            "min": 1
+          },
+          "default_value": 10,
+          "description": "The size of the beam to be used in the search. Larger values of this variable cause the search of the algorithm to take longer and return more high quality rules.",
+          "label": "bean",
+          "type": "int"
+        },
+        {
+          "code": "support",
+          "constraints": {
+            "max": 1.0,
+            "min": 0.0
+          },
+          "default_value": "0.1",
+          "description": "The minimum relative support of the rules, discovered by Hedwig. The value of this parameter must be between 0 and 1 as the parameter represents the ration of the covered examples in the entire data set.",
+          "label": "support",
+          "type": "number"
+        }
+      ],
+      "type": [
+        "features_extraction"
+      ]
+    },
+    {
       "code": "gpr",
       "disable": true,
       "environment": "Java/GPJ",
@@ -176,34 +392,6 @@
       "disable": true,
       "environment": "Java/RapidMiner",
       "label": "Random Forest",
-      "type": [
-        "predictive_model"
-      ]
-    },
-    {
-      "code": "naiveBayes",
-      "constraints": {
-        "covariables": {
-          "max_count": null,
-          "min_count": 1
-        },
-        "groupings": {
-          "max_count": 0,
-          "min_count": 0
-        },
-        "mixed": false,
-        "variable": {
-          "binominal": true,
-          "integer": false,
-          "polynominal": true,
-          "real": false
-        }
-      },
-      "description": "Naive Bayes...",
-      "docker_image": "hbpmip/java-rapidminer-naivebayes:0.2.1",
-      "environment": "Java/RapidMiner",
-      "label": "Naive Bayes",
-      "parameters": [],
       "type": [
         "predictive_model"
       ]
