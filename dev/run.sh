@@ -43,6 +43,8 @@ if pgrep -lf sshuttle > /dev/null ; then
   exit 1
 fi
 
+export HOST="$(ip route get 1 | awk '{print $NF;exit}')"
+
 if groups "$USER" | grep &>/dev/null '\bdocker\b'; then
   DOCKER="docker"
   DOCKER_COMPOSE="docker-compose"
@@ -86,7 +88,12 @@ for i in 1 2 3 4 5 ; do
   $DOCKER_COMPOSE stop chronos
 done
 
-echo "Please start Woken from your IDE. It should use port 8087 for Akka cluster"
+echo "Please start Woken from your IDE. It should use the configuration in config/application.conf"
+echo "and have environment variable CLUSTER_IP set to $HOST"
+echo "For IntelliJ IDEA, the Run configuration should include:"
+echo "  VM Options: -Dconfig.file=config/application.conf"
+echo "  Working directory: $(get_script_dir)"
+echo "  Environment variables: CLUSTER_IP=$HOST"
 read -p "Press enter to continue >"
 
 if [ $validation == 1 ]; then
