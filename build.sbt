@@ -47,16 +47,15 @@ lazy val `woken` =
           library.doobiePostgres,
           library.doobieHikari,
           library.yaml,
-          library.hadrian,
           library.wokenMessages,
           //library.scalaCache,
-          library.scalaCheck   % Test,
-          library.scalaTest    % Test,
-          library.scalaMock       % Test,
-          library.akkaTestkit     % Test,
-          library.akkaStreamTestkit % Test,
-          library.doobieScalaTest % Test,
-          library.catsScalaTest   % Test,
+          library.scalaCheck             % Test,
+          library.scalaTest              % Test,
+          library.scalaMock              % Test,
+          library.akkaTestkit            % Test,
+          library.akkaStreamTestkit      % Test,
+          library.doobieScalaTest        % Test,
+          library.catsScalaTest          % Test,
           library.dockerTestKitScalaTest % Test,
           library.dockerTestKitSpotify   % Test
         ),
@@ -102,7 +101,6 @@ lazy val library =
       val config          = "1.2.1"
       val doobie          = "0.5.2"
       val snakeyaml       = "1.17"
-      val hadrian         = "0.8.5"
       val scalaCache      = "0.21.0"
       val dockerTestKit   = "0.9.5"
       val wokenMessages   = "2.6.5"
@@ -150,7 +148,6 @@ lazy val library =
     val doobieHikari: ModuleID = "org.tpolecat"      %% "doobie-hikari" % Version.doobie
     val doobieScalaTest: ModuleID = "org.tpolecat" %% "doobie-scalatest" % Version.doobie
     val yaml: ModuleID         = "org.yaml"           % "snakeyaml"    % Version.snakeyaml
-    val hadrian: ModuleID      = "com.opendatagroup" %  "hadrian"      % Version.hadrian
     val scalaCache: ModuleID   = "com.github.cb372"  %% "scalacache-core" % Version.scalaCache
     val dockerTestKitScalaTest: ModuleID = "com.whisk" %% "docker-testkit-scalatest" % Version.dockerTestKit excludeAll ExclusionRules.excludeLogback
     val dockerTestKitSpotify: ModuleID = "com.whisk" %% "docker-testkit-impl-spotify" % Version.dockerTestKit excludeAll ExclusionRules.excludeLogback
