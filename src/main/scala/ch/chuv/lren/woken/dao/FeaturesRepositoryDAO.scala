@@ -43,7 +43,7 @@ class FeaturesTableRepositoryDAO[F[_]: Monad](val xa: Transactor[F],
     extends FeaturesTableRepository[F] {
 
   override def count: F[Int] = {
-    val q: Fragment = fr"select count(*) from" ++ Fragment.const(table)
+    val q: Fragment = fr"select count(*) from " ++ Fragment.const(table)
     q.query[Int]
       .unique
       .transact(xa)
@@ -51,7 +51,7 @@ class FeaturesTableRepositoryDAO[F[_]: Monad](val xa: Transactor[F],
 
   override def count(dataset: DatasetId): F[Int] = {
     val q
-      : Fragment = sql"select count(*) from" ++ Fragment.const(table) ++ fr"where dataset = ${dataset.code}"
+      : Fragment = sql"select count(*) from " ++ Fragment.const(table) ++ fr"where dataset = ${dataset.code}"
     q.query[Int]
       .unique
       .transact(xa)
