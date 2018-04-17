@@ -133,6 +133,7 @@ case class CrossValidationFlow(
       .mapAsync(parallelism)(handleFoldJobResponse)
       .mapAsync(parallelism)(validateFold)
       .mapAsync(parallelism)(scoreFoldValidationResponse)
+      .log("Fold result")
       .fold[List[FoldResult]](List[FoldResult]()) { (l, r) =>
         l :+ r
       }
@@ -167,6 +168,7 @@ case class CrossValidationFlow(
       // Aggregation of results from all folds
 
       }
+      .log("Cross validation result")
       .named("crossValidate")
 
   private def targetMetadata(job: Job) = {
