@@ -161,6 +161,34 @@
       ]
     },
     {
+      "code": "gradientBoosting",
+      "constraints": {
+        "covariables": {
+          "max_count": null,
+          "min_count": 1
+        },
+        "groupings": {
+          "max_count": 0,
+          "min_count": 0
+        },
+        "mixed": true,
+        "variable": {
+          "binominal": true,
+          "integer": true,
+          "polynominal": true,
+          "real": true
+        }
+      },
+      "description": "Gradient Boosting...",
+      "docker_image": "hbpmip/python-gradient-boosting:0.1.4",
+      "environment": "Python",
+      "label": "Gradient Boosting",
+      "parameters": [],
+      "type": [
+        "predictive_model"
+      ]
+    },
+    {
       "code": "anova",
       "constraints": {
         "covariables": {

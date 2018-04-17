@@ -175,6 +175,32 @@ class AlgorithmLibraryService {
                 }
             },
             {
+                "code": "gradientBoosting",
+                "label": "Gradient Boosting",
+                "type": ["predictive_model"],
+                "docker_image": "hbpmip/python-gradient-boosting:0.1.4",
+                "environment": "Python",
+                "description": "Gradient Boosting...",
+                "parameters": [],
+                "constraints": {
+                    "variable": {
+                      "real": true,
+                      "integer": true,
+                      "binominal": true,
+                      "polynominal": true
+                    },
+                    "groupings": {
+                        "min_count": 0,
+                        "max_count": 0
+                    },
+                    "covariables": {
+                        "min_count": 1,
+                        "max_count": null
+                    },
+                    "mixed": true
+                }
+            },
+            {
                 "code": "anova",
                 "label": "Anova",
                 "type": ["statistics"],
