@@ -211,7 +211,7 @@ class AlgorithmLibraryService {
                 "code": "knn",
                 "label": "K-nearest neighbors",
                 "type": ["predictive_model"],
-                "docker_image": "hbpmip/python-knn:0.2.1",
+                "docker_image": "hbpmip/python-knn:0.2.3",
                 "environment": "Python",
                 "description": "K-nearest neighbors...",
                 "parameters": [{
@@ -306,7 +306,7 @@ class AlgorithmLibraryService {
                 "code": "hedwig",
                 "label": "JSI Hedwig",
                 "type": ["features_extraction"],
-                "docker_image": "hbpmip/python-jsi-hedwig:1.0.3",
+                "docker_image": "hbpmip/python-jsi-hedwig:1.0.4",
                 "environment": "Python",
                 "description": "The Hedwig algorithm for subgroup discovery is a data mining algorithm designed for exploratory data analysis of a data set",
                 "parameters": [{

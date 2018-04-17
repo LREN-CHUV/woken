@@ -6,4 +6,4 @@ http -v --verify=no -a admin:WoKeN --timeout 180 POST http://localhost:8087/mini
          grouping:='[]' \
          covariables:='[{"code":"score_math_course1"}]' \
          targetTable='sample_data' \
-         algorithm:='{"code":"knn", "name": "KNN", "parameters": []}'
+         algorithm:='{"code":"knn", "name": "KNN", "parameters": [{"code": "k", "value": "2"}]}'
