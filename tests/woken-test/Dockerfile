@@ -1,5 +1,5 @@
 # Pull base image
-FROM hbpmip/scala-base-build:1.1.0-1
+FROM hbpmip/scala-base-build:1.1.0-2
 
 MAINTAINER Ludovic Claude <ludovic.claude@chuv.ch>
 
