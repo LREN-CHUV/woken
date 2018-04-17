@@ -64,7 +64,7 @@ class AlgorithmLibraryService {
                 "code": "linearRegression",
                 "label": "Linear Regression",
                 "type": ["statistics"],
-                "docker_image": "hbpmip/python-linear-regression:0.1.0",
+                "docker_image": "hbpmip/python-linear-regression:0.1.1",
                 "environment": "Python",
                 "description": "Standard Linear Regression...",
                 "parameters": [],

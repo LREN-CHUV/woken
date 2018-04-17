@@ -56,7 +56,7 @@
         }
       },
       "description": "Standard Linear Regression...",
-      "docker_image": "hbpmip/python-linear-regression:0.1.0",
+      "docker_image": "hbpmip/python-linear-regression:0.1.1",
       "environment": "Python",
       "label": "Linear Regression",
       "parameters": [],
