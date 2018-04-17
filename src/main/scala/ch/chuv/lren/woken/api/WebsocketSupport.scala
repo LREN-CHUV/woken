@@ -129,7 +129,7 @@ trait WebsocketSupport {
       .mapAsync(1) { query =>
         (masterRouter ? query.get).mapTo[QueryResult]
       }
-      .map { result =>
+      .map { result: QueryResult =>
         TextMessage(result.toJson.compactPrint)
       }
       .named("Experiment WebSocket flow")
@@ -153,13 +153,10 @@ trait WebsocketSupport {
       .filter(_.isSuccess)
       .map(_.get)
       .mapAsync(1) { miningQuery: MiningQuery =>
-        {
-          val result = (masterRouter ? miningQuery).mapTo[QueryResult]
-          result.map(_.toJson)
-        }
+        (masterRouter ? miningQuery).mapTo[QueryResult]
       }
-      .map { result =>
-        TextMessage(result.compactPrint)
+      .map { result: QueryResult =>
+        TextMessage(result.toJson.compactPrint)
       }
       .named("Mining WebSocket flow")
 }

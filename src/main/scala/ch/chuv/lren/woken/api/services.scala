@@ -95,9 +95,9 @@ trait SecuredRouteHelper extends BasicAuthenticator with Directives {
             complete(upgrade.handleMessages(wsFlow.watchTermination() { (_, done) =>
               done.onComplete {
                 case scala.util.Success(_) =>
-                  logger.info(s"WS $pm completed successfully.")
+                  logger.info(s"Web socket for $pm completed successfully.")
                 case Failure(ex) =>
-                  logger.error(s"WS $pm completed with failure : $ex")
+                  logger.error(s"Web socket for $pm completed with failure : $ex")
               }
             }))
           //}
