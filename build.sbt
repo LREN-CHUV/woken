@@ -103,7 +103,7 @@ lazy val library =
       val snakeyaml       = "1.17"
       val scalaCache      = "0.21.0"
       val dockerTestKit   = "0.9.5"
-      val wokenMessages   = "2.6.5"
+      val wokenMessages   = "2.6.6"
     }
     object ExclusionRules {
       val excludeLogback = ExclusionRule(organization = "ch.qos.logback", name = "logback-classic")
