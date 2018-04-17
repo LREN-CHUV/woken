@@ -239,15 +239,19 @@ trait BootedCore
 
     logger.info("Check configuration of datasets...")
 
-    val featuresTable = featuresService.featuresTable(jobsConfig.featuresTable)
     datasetsService.datasets().filter(_.location.isEmpty).foreach { dataset =>
-      if (featuresTable.count(dataset.dataset) == 0) {
-        logger.error(
-          s"Table ${jobsConfig.featuresTable} contains no value for dataset ${dataset.dataset.code}"
-        )
-        System.exit(1)
+      dataset.tables.foreach { tableName =>
+        val table = featuresService.featuresTable(tableName)
+        if (table.count(dataset.dataset) == 0) {
+          logger.error(
+            s"Table $tableName contains no value for dataset ${dataset.dataset.code}"
+          )
+          System.exit(1)
+        }
       }
     }
 
+    logger.info("[OK] Self checks passed")
   }
+
 }
