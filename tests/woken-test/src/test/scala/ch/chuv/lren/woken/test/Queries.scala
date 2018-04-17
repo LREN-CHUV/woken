@@ -66,11 +66,17 @@ trait Queries {
     override protected def printObject(members: Map[String, JsValue],
                                        sb: java.lang.StringBuilder,
                                        indent: Int): Unit = {
-      val filteredMembers = members.map {
-        case ("jobId", _)     => "jobId" -> JsString("*")
-        case ("timestamp", _) => "timestamp" -> JsNumber(0.0)
-        case (k, v)           => k -> v
-      }
+      val filteredMembers = members
+        .map {
+          case ("jobId", _)     => "jobId" -> JsString("*")
+          case ("timestamp", _) => "timestamp" -> JsNumber(0.0)
+          case (k, v)           => k -> v
+        }
+        .filter {
+          case ("@", comment) if comment.toString.startsWith("PrettyPFA") =>
+            false
+          case _ => true
+        }
       super.printObject(filteredMembers, sb, indent)
     }
 
