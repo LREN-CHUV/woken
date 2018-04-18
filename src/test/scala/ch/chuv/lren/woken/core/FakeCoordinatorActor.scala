@@ -44,7 +44,7 @@ object FakeCoordinatorActor {
 
     implicit val askTimeout: Timeout = Timeout(1 day)
 
-    (worker ? StartCoordinatorJob(job))
+    (worker ? StartCoordinatorJob(job, Actor.noSender, Actor.noSender))
       .mapTo[CoordinatorActor.Response]
   }
 
@@ -61,7 +61,8 @@ object FakeCoordinatorActor {
                                   OffsetDateTime.now(),
                                   job.algorithmSpec.code,
                                   errorMessage)
-                 ))
+                 ),
+                 Actor.noSender)
     )
 
 }
@@ -69,11 +70,11 @@ object FakeCoordinatorActor {
 class FakeCoordinatorActor(expectedAlgorithm: String, errorMessage: Option[String]) extends Actor {
 
   override def receive: PartialFunction[Any, Unit] = {
-    case JobCommands.StartCoordinatorJob(job) =>
-      startCoordinatorJob(sender(), job)
+    case JobCommands.StartCoordinatorJob(job, replyTo, initiator) =>
+      startCoordinatorJob(if (replyTo == Actor.noSender) sender() else replyTo, job, initiator)
   }
 
-  def startCoordinatorJob(originator: ActorRef, job: DockerJob): Unit = {
+  def startCoordinatorJob(originator: ActorRef, job: DockerJob, initiator: ActorRef): Unit = {
     val pfa =
       """
            {
@@ -90,22 +91,26 @@ class FakeCoordinatorActor(expectedAlgorithm: String, errorMessage: Option[Strin
           job,
           List(
             PfaJobResult(job.jobId, "testNode", OffsetDateTime.now(), job.algorithmSpec.code, pfa)
-          )
+          ),
+          initiator
         )
       } else
-        originator ! errorResponse(job, s"Unexpected algorithm: ${job.algorithmSpec.code}")
+        originator ! errorResponse(job,
+                                   s"Unexpected algorithm: ${job.algorithmSpec.code}",
+                                   initiator)
     } { msg =>
-      originator ! errorResponse(job, msg)
+      originator ! errorResponse(job, msg, initiator)
     }
     self ! PoisonPill
   }
 
-  private def errorResponse(job: DockerJob, msg: String) =
+  private def errorResponse(job: DockerJob, msg: String, initiator: ActorRef) =
     Response(
       job,
       List(
         ErrorJobResult(job.jobId, "testNode", OffsetDateTime.now(), job.algorithmSpec.code, msg)
-      )
+      ),
+      initiator
     )
 
 }

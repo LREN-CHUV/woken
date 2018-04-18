@@ -218,7 +218,7 @@ case class CrossValidationFlow(
       context: FoldContext[CoordinatorActor.Response]
   ): Future[FoldContext[ValidationQuery]] =
     (context.response match {
-      case CoordinatorActor.Response(_, List(pfa: PfaJobResult)) =>
+      case CoordinatorActor.Response(_, List(pfa: PfaJobResult), _) =>
         // Prepare the results for validation
         log.info("Received result from local method.")
         val model    = pfa.model
@@ -231,7 +231,7 @@ case class CrossValidationFlow(
         val validationQuery = ValidationQuery(fold, model, testData, context.targetMetaData)
         Future(validationQuery)
 
-      case CoordinatorActor.Response(_, List(error: ErrorJobResult)) =>
+      case CoordinatorActor.Response(_, List(error: ErrorJobResult), _) =>
         val message =
           s"Error on cross validation job ${error.jobId} during fold ${context.fold}" +
             s" on variable ${context.targetMetaData.code}: ${error.error}"
@@ -239,7 +239,7 @@ case class CrossValidationFlow(
         // On training fold fails, we notify supervisor and we stop
         Future.failed[ValidationQuery](new IllegalStateException(message))
 
-      case CoordinatorActor.Response(_, unhandled) =>
+      case CoordinatorActor.Response(_, unhandled, _) =>
         val message =
           s"Error on cross validation job ${context.job.jobId} during fold ${context.fold}" +
             s" on variable ${context.targetMetaData.code}: Unhandled response from CoordinatorActor: $unhandled"

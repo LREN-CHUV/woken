@@ -105,6 +105,17 @@ class MiningActor(
         job => runMiningJob(query, initiator, job)
       )
 
+    case CoordinatorActor.Response(job, List(errorJob: ErrorJobResult), initiator) =>
+      log.warning(s"Received error while mining ${job.query}: $errorJob")
+      initiator ! errorJob.asQueryResult
+
+    case CoordinatorActor.Response(job, results, initiator) =>
+      // TODO: we can only handle one result from the Coordinator handling a mining query.
+      // Containerised algorithms that can produce more than one result (e.g. PFA model + images) are ignored
+      log.info(s"Received results for mining ${job.query}: $results")
+      val jobResult = results.head
+      initiator ! jobResult.asQueryResult
+
     case e =>
       log.warning(s"Received unhandled request $e of type ${e.getClass}")
 
@@ -151,7 +162,7 @@ class MiningActor(
 
   private def startMiningJob(job: DockerJob, initiator: ActorRef): Unit = {
     val miningActorRef = newCoordinatorActor
-    miningActorRef ! StartCoordinatorJob(job)
+    miningActorRef ! StartCoordinatorJob(job, self, initiator)
   }
 
   private[core] def newCoordinatorActor: ActorRef = {

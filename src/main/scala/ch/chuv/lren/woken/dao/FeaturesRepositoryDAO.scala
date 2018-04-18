@@ -57,7 +57,8 @@ class FeaturesTableRepositoryDAO[F[_]: Monad](val xa: Transactor[F],
 
     checkDatasetColumn.query[Boolean].unique.transact(xa).flatMap { hasDatasetColumn =>
       if (hasDatasetColumn) {
-        val q: Fragment = sql"SELECT count(*) FROM " ++ Fragment.const(table) ++ fr"WHERE dataset = ${dataset.code}"
+        val q: Fragment = sql"SELECT count(*) FROM " ++ Fragment
+          .const(table) ++ fr"WHERE dataset = ${dataset.code}"
         q.query[Int]
           .unique
           .transact(xa)
