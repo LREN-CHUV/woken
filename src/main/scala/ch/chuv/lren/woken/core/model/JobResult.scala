@@ -20,8 +20,8 @@ package ch.chuv.lren.woken.core.model
 import java.time.OffsetDateTime
 import java.util.Base64
 
-import ch.chuv.lren.woken.core.model.Shapes.{ pfa => pfaShape, _ }
-import ch.chuv.lren.woken.messages.query.{ AlgorithmSpec, QueryResult, queryProtocol }
+import ch.chuv.lren.woken.messages.query.{ AlgorithmSpec, QueryResult, Shapes, queryProtocol }
+import Shapes.{ pfa => pfaShape, _ }
 import spray.json._
 
 /**
@@ -30,7 +30,7 @@ import spray.json._
 sealed trait JobResult extends Product with Serializable {
 
   /** Id of the job */
-  def jobId: String
+  def jobIdM: Option[String]
 
   /** Node where the algorithm is executed */
   def node: String
@@ -39,7 +39,7 @@ sealed trait JobResult extends Product with Serializable {
   def timestamp: OffsetDateTime
 
   /** Name of the algorithm */
-  def algorithm: String
+  def algorithmM: Option[String]
 
   /** Shape of the results (mime type) */
   def shape: Shape
@@ -63,6 +63,10 @@ case class PfaJobResult(jobId: String,
     extends JobResult {
 
   def shape: Shape = pfaShape
+
+  override def jobIdM: Option[String] = Some(jobId)
+
+  override def algorithmM: Option[String] = Some(algorithm)
 
   def injectCell(name: String, value: JsValue): PfaJobResult = {
     val cells        = model.fields.getOrElse("cells", JsObject()).asJsObject
@@ -90,7 +94,10 @@ case class PfaExperimentJobResult(jobId: String,
 
   def shape: Shape = pfaExperiment
 
-  override val algorithm = "experiment"
+  override def jobIdM: Option[String] = Some(jobId)
+
+  override def algorithmM: Option[String] = None
+
 }
 
 object PfaExperimentJobResult {
@@ -102,74 +109,13 @@ object PfaExperimentJobResult {
     implicit val offsetDateTimeJsonFormat: RootJsonFormat[OffsetDateTime] =
       queryProtocol.OffsetDateTimeJsonFormat
 
-    // Concatenate results while respecting order of algorithms
+    import JobResult._
+    import queryProtocol._
+
+    // Concatenate results
     val output = JsArray(
       results
-        .map(r => {
-          val code = r._1.code
-          r._2 match {
-            case PfaJobResult(jobId, node, timestamp, algorithm, model) =>
-              // TODO: inform if algorithm is predictive...
-              JsObject(
-                "type"      -> JsString(pfaShape.mime),
-                "algorithm" -> JsString(algorithm),
-                "code"      -> JsString(code),
-                "jobId"     -> JsString(jobId),
-                "node"      -> JsString(node),
-                "timestamp" -> timestamp.toJson,
-                "data"      -> model
-              )
-            case ErrorJobResult(jobId, node, timestamp, algorithm, errorMsg) =>
-              JsObject(
-                "type"      -> JsString(error.mime),
-                "algorithm" -> JsString(algorithm),
-                "code"      -> JsString(code),
-                "jobId"     -> JsString(jobId),
-                "node"      -> JsString(node),
-                "timestamp" -> timestamp.toJson,
-                "error"     -> JsString(errorMsg)
-              )
-            case JsonDataJobResult(jobId, node, timestamp, shape, algorithm, data) =>
-              JsObject(
-                "type"      -> JsString(shape.mime),
-                "algorithm" -> JsString(algorithm),
-                "code"      -> JsString(code),
-                "jobId"     -> JsString(jobId),
-                "node"      -> JsString(node),
-                "timestamp" -> timestamp.toJson,
-                "data"      -> data
-              )
-            case OtherDataJobResult(jobId, node, timestamp, shape, algorithm, data) =>
-              JsObject(
-                "type"      -> JsString(shape.mime),
-                "algorithm" -> JsString(algorithm),
-                "code"      -> JsString(code),
-                "jobId"     -> JsString(jobId),
-                "node"      -> JsString(node),
-                "timestamp" -> timestamp.toJson,
-                "data"      -> JsString(data)
-              )
-            case SerializedModelJobResult(jobId, node, timestamp, shape, algorithm, data) =>
-              JsObject(
-                "type"      -> JsString(shape.mime),
-                "algorithm" -> JsString(algorithm),
-                "code"      -> JsString(code),
-                "jobId"     -> JsString(jobId),
-                "node"      -> JsString(node),
-                "timestamp" -> timestamp.toJson,
-                "data"      -> JsString(Base64.getEncoder.encodeToString(data))
-              )
-            case PfaExperimentJobResult(jobId, node, timestamp, models) =>
-              JsObject(
-                "type"      -> JsString(Shapes.pfaExperiment.mime),
-                "code"      -> JsString("experiment"),
-                "jobId"     -> JsString(jobId),
-                "node"      -> JsString(node),
-                "timestamp" -> timestamp.toJson,
-                "models"    -> models
-              )
-          }
-        })
+        .map(r => r._2.asQueryResult.toJson)
         .toVector
     )
 
@@ -191,14 +137,18 @@ object PfaExperimentJobResult {
   * @param algorithm Name of the algorithm
   * @param error Error to report
   */
-case class ErrorJobResult(jobId: String,
+case class ErrorJobResult(jobId: Option[String],
                           node: String,
                           timestamp: OffsetDateTime,
-                          algorithm: String,
+                          algorithm: Option[String],
                           error: String)
     extends JobResult {
 
   def shape: Shape = Shapes.error
+
+  override def jobIdM: Option[String] = jobId
+
+  override def algorithmM: Option[String] = algorithm
 
 }
 
@@ -227,6 +177,10 @@ case class JsonDataJobResult(jobId: String,
 
   assert(Shapes.visualisationJsonResults.contains(shape))
 
+  override def jobIdM: Option[String] = Some(jobId)
+
+  override def algorithmM: Option[String] = Some(algorithm)
+
 }
 
 /**
@@ -248,6 +202,10 @@ case class OtherDataJobResult(jobId: String,
     extends VisualisationJobResult {
 
   assert(Shapes.visualisationOtherResults.contains(shape))
+
+  override def jobIdM: Option[String] = Some(jobId)
+
+  override def algorithmM: Option[String] = Some(algorithm)
 
 }
 
@@ -271,6 +229,10 @@ case class SerializedModelJobResult(jobId: String,
 
   assert(Shapes.serializedModelsResults.contains(shape))
 
+  override def jobIdM: Option[String] = Some(jobId)
+
+  override def algorithmM: Option[String] = Some(algorithm)
+
 }
 
 object JobResult {
@@ -279,51 +241,51 @@ object JobResult {
     jobResult match {
       case pfa: PfaJobResult =>
         QueryResult(
-          jobId = pfa.jobId,
+          jobId = Some(pfa.jobId),
           node = pfa.node,
           timestamp = pfa.timestamp,
-          shape = pfaShape.mime,
-          algorithm = pfa.algorithm,
+          `type` = pfaShape,
+          algorithm = Some(pfa.algorithm),
           data = Some(pfa.model),
           error = None
         )
       case pfa: PfaExperimentJobResult =>
         QueryResult(
-          jobId = pfa.jobId,
+          jobId = Some(pfa.jobId),
           node = pfa.node,
           timestamp = pfa.timestamp,
-          shape = pfaExperiment.mime,
-          algorithm = pfa.algorithm,
+          `type` = pfaExperiment,
+          algorithm = None,
           data = Some(pfa.models),
           error = None
         )
       case v: JsonDataJobResult =>
         QueryResult(
-          jobId = v.jobId,
+          jobId = Some(v.jobId),
           node = v.node,
           timestamp = v.timestamp,
-          shape = v.shape.mime,
-          algorithm = v.algorithm,
+          `type` = v.shape,
+          algorithm = Some(v.algorithm),
           data = Some(v.data),
           error = None
         )
       case v: OtherDataJobResult =>
         QueryResult(
-          jobId = v.jobId,
+          jobId = Some(v.jobId),
           node = v.node,
           timestamp = v.timestamp,
-          shape = v.shape.mime,
-          algorithm = v.algorithm,
+          `type` = v.shape,
+          algorithm = Some(v.algorithm),
           data = Some(JsString(v.data)),
           error = None
         )
       case v: SerializedModelJobResult =>
         QueryResult(
-          jobId = v.jobId,
+          jobId = Some(v.jobId),
           node = v.node,
           timestamp = v.timestamp,
-          shape = v.shape.mime,
-          algorithm = v.algorithm,
+          `type` = v.shape,
+          algorithm = Some(v.algorithm),
           data = Some(JsString(Base64.getEncoder.encodeToString(v.data))),
           error = None
         )
@@ -332,7 +294,7 @@ object JobResult {
           jobId = e.jobId,
           node = e.node,
           timestamp = e.timestamp,
-          shape = error.mime,
+          `type` = error,
           algorithm = e.algorithm,
           data = None,
           error = Some(e.error)

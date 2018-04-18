@@ -277,7 +277,7 @@ class ExperimentFlowTest
                                              context)
       ),
       coordinatorConfig.featuresDatabase,
-      "testNode",
+      coordinatorConfig.jobsConf,
       algorithmLookup,
       context
     )

@@ -26,7 +26,6 @@ import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.{ ActorMaterializer, FlowShape }
 import akka.stream.scaladsl._
 import ch.chuv.lren.woken.backends.{ AkkaClusterClient, HttpClient, WebSocketClient }
-import ch.chuv.lren.woken.core.model.Shapes
 import ch.chuv.lren.woken.messages.query._
 
 import scala.concurrent.{ ExecutionContext, Future }
@@ -92,11 +91,11 @@ case class WokenClientService(node: String)(implicit val system: ActorSystem,
           (url.pure[Future], Unmarshal(response).to[QueryResult]).mapN((_, _))
         case (url, failure) =>
           (url,
-           QueryResult("",
+           QueryResult(None,
                        node,
                        OffsetDateTime.now(),
-                       Shapes.error.mime,
-                       "dispatch",
+                       Shapes.error,
+                       Some("dispatch"),
                        None,
                        Some(failure.entity.toString))).pure[Future]
       }

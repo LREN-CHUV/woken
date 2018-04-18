@@ -32,7 +32,7 @@ import ch.chuv.lren.woken.core.validation.ValidatedAlgorithmFlow
 import scala.concurrent.ExecutionContext
 import scala.util.{ Failure, Success }
 import ch.chuv.lren.woken.core.commands.JobCommands.StartExperimentJob
-import ch.chuv.lren.woken.config.AlgorithmDefinition
+import ch.chuv.lren.woken.config.{ AlgorithmDefinition, JobsConfiguration }
 import ch.chuv.lren.woken.core.model.{ ErrorJobResult, JobResult, PfaExperimentJobResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.dao.FeaturesDAL
@@ -103,7 +103,7 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
     ExperimentFlow(
       CoordinatorActor.executeJobAsync(coordinatorConfig, context),
       coordinatorConfig.featuresDatabase,
-      coordinatorConfig.jobsConf.node,
+      coordinatorConfig.jobsConf,
       algorithmLookup,
       context
     ).flow
@@ -113,10 +113,10 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
     case StartExperimentJob(job, requestedReplyTo, initiator) if job.query.algorithms.isEmpty =>
       val replyTo = if (requestedReplyTo == Actor.noSender) sender() else requestedReplyTo
       val msg     = "Experiment contains no algorithms"
-      val result = ErrorJobResult(job.jobId,
+      val result = ErrorJobResult(Some(job.jobId),
                                   coordinatorConfig.jobsConf.node,
                                   OffsetDateTime.now(),
-                                  "experiment",
+                                  None,
                                   msg)
       coordinatorConfig.jobResultService.put(result)
       replyTo ! Response(job, Left(result), initiator)
@@ -157,10 +157,10 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
             replyTo ! r
           case Failure(f) =>
             log.error(f, s"Cannot complete experiment ${job.jobId}: ${f.getMessage}")
-            val result = ErrorJobResult(job.jobId,
+            val result = ErrorJobResult(Some(job.jobId),
                                         coordinatorConfig.jobsConf.node,
                                         OffsetDateTime.now(),
-                                        "experiment",
+                                        None,
                                         f.toString)
             val response = Response(job, Left(result), initiator)
             coordinatorConfig.jobResultService.put(result)
@@ -185,7 +185,7 @@ case class AlgorithmValidationMaybe(job: ExperimentActor.Job,
 case class ExperimentFlow(
     executeJobAsync: CoordinatorActor.ExecuteJobAsync,
     featuresDatabase: FeaturesDAL,
-    node: String,
+    jobsConf: JobsConfiguration,
     algorithmLookup: String => Validation[AlgorithmDefinition],
     context: ActorContext
 )(implicit materializer: Materializer, ec: ExecutionContext) {
@@ -197,7 +197,7 @@ case class ExperimentFlow(
   private val log = Logging(context.system, getClass)
 
   private val validatedAlgorithmFlow =
-    ValidatedAlgorithmFlow(executeJobAsync, featuresDatabase, context)
+    ValidatedAlgorithmFlow(executeJobAsync, featuresDatabase, jobsConf, context)
 
   @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
   def flow: Flow[ExperimentActor.Job, Map[AlgorithmSpec, JobResult], NotUsed] =
@@ -258,10 +258,10 @@ case class ExperimentFlow(
     Flow[AlgorithmValidationMaybe]
       .map { a =>
         val errorMessage = a.algorithmDefinition.toEither.left.get
-        a.algorithmSpec -> ErrorJobResult(UUID.randomUUID().toString,
-                                          node,
+        a.algorithmSpec -> ErrorJobResult(Some(a.job.jobId),
+                                          jobsConf.node,
                                           OffsetDateTime.now(),
-                                          a.algorithmSpec.code,
+                                          Some(a.algorithmSpec.code),
                                           errorMessage.reduceLeft(_ + ", " + _))
       }
       .named("fail-job")
@@ -346,10 +346,10 @@ case class ExperimentFlow(
     response.results.headOption match {
       case Some(model) => model
       case None =>
-        ErrorJobResult(response.job.jobId,
-                       node = "",
+        ErrorJobResult(Some(response.job.jobId),
+                       node = jobsConf.node,
                        OffsetDateTime.now(),
-                       algorithm.code,
+                       Some(algorithm.code),
                        "No results")
     }
   }

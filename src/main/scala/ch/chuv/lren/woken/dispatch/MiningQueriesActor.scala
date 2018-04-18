@@ -20,10 +20,10 @@ package ch.chuv.lren.woken.dispatch
 import java.time.OffsetDateTime
 
 import akka.actor.SupervisorStrategy.Restart
-import akka.actor.{ActorLogging, ActorRef, OneForOneStrategy, Props}
-import akka.routing.{OptimalSizeExploringResizer, RoundRobinPool}
+import akka.actor.{ ActorLogging, ActorRef, OneForOneStrategy, Props }
+import akka.routing.{ OptimalSizeExploringResizer, RoundRobinPool }
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.scaladsl.{ Sink, Source }
 import ch.chuv.lren.woken.backends.DockerJob
 import ch.chuv.lren.woken.core._
 import ch.chuv.lren.woken.core.commands.JobCommands.StartCoordinatorJob
@@ -97,10 +97,10 @@ class MiningQueriesActor(
       jobValidated.fold(
         errorMsg => {
           val error =
-            ErrorJobResult("",
+            ErrorJobResult(None,
                            coordinatorConfig.jobsConf.node,
                            OffsetDateTime.now(),
-                           query.algorithm.code,
+                           Some(query.algorithm.code),
                            errorMsg.reduceLeft(_ + ", " + _))
           initiator ! error.asQueryResult
         },
@@ -137,10 +137,10 @@ class MiningQueriesActor(
           }
           .map {
             case List() =>
-              ErrorJobResult("",
+              ErrorJobResult(None,
                              coordinatorConfig.jobsConf.node,
                              OffsetDateTime.now(),
-                             query.algorithm.code,
+                             Some(query.algorithm.code),
                              "No results").asQueryResult
 
             case List(result) => result
@@ -156,8 +156,12 @@ class MiningQueriesActor(
           .failed
           .foreach { e =>
             log.error(e, s"Cannot complete mining query $query")
-            val error =
-              ErrorJobResult("", "", OffsetDateTime.now(), "experiment", e.toString)
+            val error = ErrorJobResult(None,
+                                       coordinatorConfig.jobsConf.node,
+                                       OffsetDateTime.now(),
+                                       None,
+                                       e.toString)
+
             initiator ! error.asQueryResult
           }
     }
@@ -167,7 +171,7 @@ class MiningQueriesActor(
     miningActorRef ! StartCoordinatorJob(job, self, initiator)
   }
 
-  private[core] def newCoordinatorActor: ActorRef = {
+  private[dispatch] def newCoordinatorActor: ActorRef = {
     val ref = context.actorOf(CoordinatorActor.props(coordinatorConfig))
     context watch ref
     ref

@@ -21,9 +21,9 @@ import java.time.OffsetDateTime
 
 import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{ ActorLogging, ActorRef, OneForOneStrategy, Props }
-import akka.routing.{OptimalSizeExploringResizer, RoundRobinPool}
+import akka.routing.{ OptimalSizeExploringResizer, RoundRobinPool }
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.scaladsl.{ Sink, Source }
 import ch.chuv.lren.woken.config.AlgorithmDefinition
 import ch.chuv.lren.woken.core._
 import ch.chuv.lren.woken.core.commands.JobCommands.StartExperimentJob
@@ -110,10 +110,10 @@ class ExperimentQueriesActor(
       jobValidated.fold(
         errorMsg => {
           val error =
-            ErrorJobResult("",
+            ErrorJobResult(None,
                            coordinatorConfig.jobsConf.node,
                            OffsetDateTime.now(),
-                           "experiment",
+                           None,
                            errorMsg.reduceLeft(_ + ", " + _))
           initiator ! error.asQueryResult
         },
@@ -146,10 +146,10 @@ class ExperimentQueriesActor(
           }
           .map {
             case List() =>
-              ErrorJobResult("",
+              ErrorJobResult(None,
                              coordinatorConfig.jobsConf.node,
                              OffsetDateTime.now(),
-                             "experiment",
+                             None,
                              "No results").asQueryResult
 
             case List(result) => result
@@ -166,7 +166,11 @@ class ExperimentQueriesActor(
           .foreach { e =>
             log.error(e, s"Cannot complete experiment query $query")
             val error =
-              ErrorJobResult("", "", OffsetDateTime.now(), "experiment", e.toString)
+              ErrorJobResult(None,
+                             coordinatorConfig.jobsConf.node,
+                             OffsetDateTime.now(),
+                             None,
+                             e.toString)
             initiator ! error.asQueryResult
           }
     }
@@ -176,7 +180,7 @@ class ExperimentQueriesActor(
     experimentActorRef ! StartExperimentJob(job, self, initiator)
   }
 
-  private[core] def newExperimentActor: ActorRef = {
+  private[dispatch] def newExperimentActor: ActorRef = {
     val ref = context.actorOf(ExperimentActor.props(coordinatorConfig, algorithmLookup))
     context watch ref
     ref

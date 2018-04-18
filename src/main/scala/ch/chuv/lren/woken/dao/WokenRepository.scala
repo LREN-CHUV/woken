@@ -51,7 +51,7 @@ class WokenInMemoryRepository[F[_]: Applicative] extends WokenRepository[F] {
     private val cache = new TrieMap[String, JobResult]
 
     override def put(result: JobResult): F[JobResult] = {
-      cache.put(result.jobId, result)
+      cache.put(result.jobIdM.getOrElse(""), result)
       result.pure[F]
     }
 

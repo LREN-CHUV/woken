@@ -17,21 +17,21 @@
 
 package ch.chuv.lren.woken.api
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
 import akka.routing.FromConfig
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.scaladsl.{ Sink, Source }
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.core._
-import ch.chuv.lren.woken.messages.datasets.{DatasetsQuery, DatasetsResponse}
-import ch.chuv.lren.woken.service.{DatasetService, DispatcherService}
+import ch.chuv.lren.woken.messages.datasets.{ DatasetsQuery, DatasetsResponse }
+import ch.chuv.lren.woken.service.{ DatasetService, DispatcherService }
 
 import scala.concurrent.ExecutionContext
 import ch.chuv.lren.woken.backends.DockerJob
-import ch.chuv.lren.woken.service.{AlgorithmLibraryService, VariablesMetaService}
+import ch.chuv.lren.woken.service.{ AlgorithmLibraryService, VariablesMetaService }
 import MiningQueries._
-import ch.chuv.lren.woken.dispatch.{ExperimentQueriesActor, MiningQueriesActor}
-import ch.chuv.lren.woken.config.{AlgorithmDefinition, AppConfiguration}
+import ch.chuv.lren.woken.dispatch.{ ExperimentQueriesActor, MiningQueriesActor }
+import ch.chuv.lren.woken.config.{ AlgorithmDefinition, AppConfiguration }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.variables._
 import com.typesafe.config.Config

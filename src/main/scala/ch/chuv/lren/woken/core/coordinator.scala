@@ -415,10 +415,10 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
   private def errorResponse(job: DockerJob, msg: String, initiator: ActorRef) =
     Response(job,
              List(
-               ErrorJobResult(job.jobId,
+               ErrorJobResult(Some(job.jobId),
                               coordinatorConfig.jobsConf.node,
                               OffsetDateTime.now(),
-                              job.algorithmSpec.code,
+                              Some(job.algorithmSpec.code),
                               msg)
              ),
              initiator)

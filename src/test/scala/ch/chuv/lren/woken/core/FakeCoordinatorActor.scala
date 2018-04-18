@@ -56,10 +56,10 @@ object FakeCoordinatorActor {
       Future(
         Response(job,
                  List(
-                   ErrorJobResult(job.jobId,
+                   ErrorJobResult(Some(job.jobId),
                                   "testNode",
                                   OffsetDateTime.now(),
-                                  job.algorithmSpec.code,
+                                  Some(job.algorithmSpec.code),
                                   errorMessage)
                  ),
                  Actor.noSender)
@@ -108,7 +108,11 @@ class FakeCoordinatorActor(expectedAlgorithm: String, errorMessage: Option[Strin
     Response(
       job,
       List(
-        ErrorJobResult(job.jobId, "testNode", OffsetDateTime.now(), job.algorithmSpec.code, msg)
+        ErrorJobResult(Some(job.jobId),
+                       "testNode",
+                       OffsetDateTime.now(),
+                       Some(job.algorithmSpec.code),
+                       msg)
       ),
       initiator
     )
