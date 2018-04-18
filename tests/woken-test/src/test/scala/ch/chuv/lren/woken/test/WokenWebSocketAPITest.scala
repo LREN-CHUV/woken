@@ -97,6 +97,7 @@ class WokenWebSocketAPITest
           val json = message.getStrictText.parseJson
           val expected = loadJson(expectedResponse.get)
 
+          println("Checking results...")
           assertResult(approximate(expected))(approximate(json))
         }
       case err =>
