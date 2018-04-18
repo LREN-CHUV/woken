@@ -43,18 +43,26 @@ class FeaturesTableRepositoryDAO[F[_]: Monad](val xa: Transactor[F],
     extends FeaturesTableRepository[F] {
 
   override def count: F[Int] = {
-    val q: Fragment = fr"select count(*) from " ++ Fragment.const(table)
+    val q: Fragment = fr"SELECT count(*) FROM " ++ Fragment.const(table)
     q.query[Int]
       .unique
       .transact(xa)
   }
 
   override def count(dataset: DatasetId): F[Int] = {
-    val q
-      : Fragment = sql"select count(*) from " ++ Fragment.const(table) ++ fr"where dataset = ${dataset.code}"
-    q.query[Int]
-      .unique
-      .transact(xa)
+
+    val checkDatasetColumn = sql"""
+      SELECT EXISTS (SELECT 1 FROM information_schema.columns
+        WHERE table_name=$table and column_name='dataset')"""
+
+    checkDatasetColumn.query[Boolean].unique.transact(xa).flatMap { hasDatasetColumn =>
+      if (hasDatasetColumn) {
+        val q: Fragment = sql"SELECT count(*) FROM " ++ Fragment.const(table) ++ fr"WHERE dataset = ${dataset.code}"
+        q.query[Int]
+          .unique
+          .transact(xa)
+      } else count
+    }
   }
 
   override def features(query: FeaturesQuery): F[(List[ColumnMeta], Stream[JsObject])] =
