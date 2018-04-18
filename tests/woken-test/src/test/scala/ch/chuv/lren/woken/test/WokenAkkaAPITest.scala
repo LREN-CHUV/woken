@@ -30,6 +30,8 @@ import ch.chuv.lren.woken.messages.variables.VariableId
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.scalatest.TryValues._
 import org.scalatest.tagobjects.Slow
+import spray.json._
+import queryProtocol._
 
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
@@ -144,7 +146,7 @@ class WokenAkkaAPITest
 
     result.success.value.data should not be empty
 
-    val json = result.success.value.data.get
+    val json = result.success.value.toJson
     val expected = loadJson("/knn_data_mining.json")
 
     assertResult(approximate(expected))(approximate(json))

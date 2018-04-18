@@ -19,15 +19,6 @@ package ch.chuv.lren.woken.test
 
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables.VariableId
-import spray.json.{
-  JsFalse,
-  JsNull,
-  JsNumber,
-  JsString,
-  JsTrue,
-  JsValue,
-  SortedPrinter
-}
 import spray.json._
 
 import scala.io.Source
@@ -73,7 +64,7 @@ trait Queries {
           case (k, v)           => k -> v
         }
         .filter {
-          case ("@", comment) if comment.toString.startsWith("PrettyPFA") =>
+          case ("@", comment) if comment.toString.startsWith("\"PrettyPFA") =>
             false
           case _ => true
         }

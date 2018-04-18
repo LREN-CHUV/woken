@@ -1,6 +1,6 @@
 [
   {
-    "algorithm": "[python-knn",
+    "algorithm": "python-knn",
     "code": "knn",
     "data": {
       "action": [
@@ -1381,6 +1381,10 @@
       "method": "map",
       "name": "kNN",
       "output": "double"
-    }
+    },
+    "jobId": "*",
+    "node": "federation",
+    "timestamp": 0.0,
+    "type": "application/pfa+json"
   }
 ]
