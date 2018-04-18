@@ -17,6 +17,8 @@
 
 package ch.chuv.lren.woken.core.model
 
+// TODO: move to woken-messages
+
 /**
   * List of shapes (formats) for the results produced by the algorithms
   */
