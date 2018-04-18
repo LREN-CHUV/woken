@@ -15,6 +15,7 @@ lazy val `woken` =
         mainClass in Runtime := Some("ch.chuv.lren.woken.web.Web"),
         libraryDependencies ++= Seq(
           library.akkaActor,
+          library.akkaActorTyped,
           library.akkaRemote,
           library.akkaCluster,
           library.akkaClusterTools,
@@ -112,6 +113,7 @@ lazy val library =
     val scalaTest: ModuleID    = "org.scalatest"     %% "scalatest"    % Version.scalaTest
     val scalaMock:ModuleID     = "org.scalamock"     %% "scalamock"    % Version.scalaMock
     val akkaActor: ModuleID    = "com.typesafe.akka" %% "akka-actor"   % Version.akka
+    val akkaActorTyped: ModuleID = "com.typesafe.akka" %% "akka-actor-typed" % Version.akka
     val akkaRemote: ModuleID   = "com.typesafe.akka" %% "akka-remote"  % Version.akka
     val akkaCluster: ModuleID  = "com.typesafe.akka" %% "akka-cluster" % Version.akka
     val akkaClusterTools: ModuleID = "com.typesafe.akka" %% "akka-cluster-tools" % Version.akka

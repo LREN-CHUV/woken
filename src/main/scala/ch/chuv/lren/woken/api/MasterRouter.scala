@@ -25,7 +25,7 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{ Sink, Source }
 import ch.chuv.lren.woken.core.model.Shapes
 import ch.chuv.lren.woken.messages.query._
-import ch.chuv.lren.woken.core.{ CoordinatorActor, CoordinatorConfig, ExperimentActor }
+import ch.chuv.lren.woken.core.{ CoordinatorActor, CoordinatorConfig, ExperimentActor, MiningActor }
 import ch.chuv.lren.woken.messages.datasets.{ DatasetsQuery, DatasetsResponse }
 import ch.chuv.lren.woken.service.{ DatasetService, DispatcherService }
 
@@ -39,6 +39,7 @@ import ch.chuv.lren.woken.config.{ AlgorithmDefinition, AppConfiguration }
 import ch.chuv.lren.woken.core.commands.JobCommands.{ StartCoordinatorJob, StartExperimentJob }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.variables._
+import com.typesafe.config.Config
 
 object MasterRouter {
 
@@ -50,7 +51,8 @@ object MasterRouter {
     def isEmpty: Boolean = experiments == 0 && mining == 0
   }
 
-  def props(appConfiguration: AppConfiguration,
+  def props(config: Config,
+            appConfiguration: AppConfiguration,
             coordinatorConfig: CoordinatorConfig,
             datasetService: DatasetService,
             variablesMetaService: VariablesMetaService,
@@ -59,6 +61,7 @@ object MasterRouter {
             algorithmLookup: String => Validation[AlgorithmDefinition]): Props =
     Props(
       new MasterRouter(
+        config,
         appConfiguration,
         coordinatorConfig,
         dispatcherService,
@@ -73,7 +76,8 @@ object MasterRouter {
 
 }
 
-case class MasterRouter(appConfiguration: AppConfiguration,
+case class MasterRouter(config: Config,
+                        appConfiguration: AppConfiguration,
                         coordinatorConfig: CoordinatorConfig,
                         dispatcherService: DispatcherService,
                         algorithmLibraryService: AlgorithmLibraryService,
@@ -92,14 +96,14 @@ case class MasterRouter(appConfiguration: AppConfiguration,
 
   lazy val validationWorker: ActorRef = initValidationWorker
   lazy val scoringWorker: ActorRef    = initScoringWorker
+  lazy val miningWorker: ActorRef     = initMiningWorker
 
   if (!appConfiguration.disableWorkers) {
     // Initialise the workers to test that they work and fail early otherwise
     val _ = (validationWorker, scoringWorker)
   }
 
-  val experimentActiveActorsLimit: Int = appConfiguration.masterRouterConfig.miningActorsLimit
-  val miningActiveActorsLimit: Int     = appConfiguration.masterRouterConfig.experimentActorsLimit
+  val experimentActiveActorsLimit: Int = appConfiguration.masterRouterConfig.experimentActorsLimit
 
   var experimentJobsInFlight: Map[ExperimentActor.Job, (ActorRef, ActorRef)] = Map()
   var miningJobsInFlight: Map[DockerJob, (ActorRef, ActorRef)]               = Map()
@@ -155,28 +159,7 @@ case class MasterRouter(appConfiguration: AppConfiguration,
     // TODO To be implemented
 
     case query: MiningQuery =>
-      val initiator = sender()
-      if (miningJobsInFlight.size <= miningActiveActorsLimit) {
-        runMiningJob(query, initiator)
-      } else {
-        val error =
-          ErrorJobResult("", "", OffsetDateTime.now(), "experiment", "Too busy to accept new jobs.")
-        initiator ! error.asQueryResult
-      }
-
-    case CoordinatorActor.Response(job, List(errorJob: ErrorJobResult)) =>
-      log.warning(s"Received error while mining ${job.query}: $errorJob")
-
-      miningJobsInFlight.get(job).foreach(im => im._1 ! errorJob.asQueryResult)
-      miningJobsInFlight -= job
-
-    case CoordinatorActor.Response(job, results) =>
-      // TODO: we can only handle one result from the Coordinator handling a mining query.
-      // Containerised algorithms that can produce more than one result (e.g. PFA model + images) are ignored
-      log.info(s"Received results for mining ${job.query}: $results")
-      val jobResult = results.head
-      miningJobsInFlight.get(job).foreach(im => im._1 ! jobResult.asQueryResult)
-      miningJobsInFlight -= job
+      miningWorker ! MiningActor.Mine(query, sender())
 
     case query: ExperimentQuery =>
       val initiator = sender()
@@ -351,10 +334,17 @@ case class MasterRouter(appConfiguration: AppConfiguration,
   }
 
   private[api] def initValidationWorker: ActorRef =
-    context.actorOf(FromConfig.props(Props.empty), "validationWorker")
+    context.actorOf(FromConfig.props(), "validationWorker")
 
   private[api] def initScoringWorker: ActorRef =
-    context.actorOf(FromConfig.props(Props.empty), "scoringWorker")
+    context.actorOf(FromConfig.props(), "scoringWorker")
+
+  private[api] def initMiningWorker: ActorRef =
+    context.actorOf(MiningActor.roundRobinPoolProps(config,
+                                                    coordinatorConfig,
+                                                    dispatcherService,
+                                                    miningQuery2JobF),
+                    name = "mining")
 
   private def compoundResult(queryResults: List[QueryResult]): QueryResult = {
     import spray.json._

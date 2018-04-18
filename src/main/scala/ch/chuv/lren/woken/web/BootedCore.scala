@@ -177,13 +177,16 @@ trait BootedCore
 
     BackoffSupervisor.props(
       Backoff.onFailure(
-        MasterRouter.props(appConfig,
-                           coordinatorConfig,
-                           datasetsService,
-                           variablesMetaService,
-                           dispatcherService,
-                           algorithmLibraryService,
-                           AlgorithmsConfiguration.factory(config)),
+        MasterRouter.props(
+          config,
+          appConfig,
+          coordinatorConfig,
+          datasetsService,
+          variablesMetaService,
+          dispatcherService,
+          algorithmLibraryService,
+          AlgorithmsConfiguration.factory(config)
+        ),
         childName = "mainRouter",
         minBackoff = 100 milliseconds,
         maxBackoff = 1 seconds,
