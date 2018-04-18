@@ -159,7 +159,7 @@ case class MasterRouter(config: Config,
     // TODO To be implemented
 
     case query: MiningQuery =>
-      miningWorker ! MiningActor.Mine(query, sender())
+      miningWorker forward MiningActor.Mine(query, sender())
 
     case query: ExperimentQuery =>
       val initiator = sender()
