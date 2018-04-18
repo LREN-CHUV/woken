@@ -21,7 +21,7 @@ import java.time.OffsetDateTime
 import java.util.UUID
 
 import akka.NotUsed
-import akka.actor.{ Actor, ActorContext, ActorLogging, Props }
+import akka.actor.{ Actor, ActorContext, ActorLogging, ActorRef, Props }
 import akka.event.Logging
 import akka.stream._
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Merge, Partition, Sink, Source, Zip }
@@ -61,7 +61,9 @@ object ExperimentActor {
 
   // Output messages: JobResult containing the experiment PFA
 
-  case class Response(job: Job, result: Either[ErrorJobResult, PfaExperimentJobResult])
+  case class Response(job: Job,
+                      result: Either[ErrorJobResult, PfaExperimentJobResult],
+                      initiator: ActorRef)
 
   def props(coordinatorConfig: CoordinatorConfig,
             algorithmLookup: String => Validation[AlgorithmDefinition]): Props =
@@ -108,20 +110,20 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
 
   @SuppressWarnings(Array("org.wartremover.warts.Any", "org.wartremover.warts.NonUnitStatements"))
   override def receive: PartialFunction[Any, Unit] = {
-    case StartExperimentJob(job) if job.query.algorithms.isEmpty =>
-      val initiator = sender()
-      val msg       = "Experiment contains no algorithms"
+    case StartExperimentJob(job, requestedReplyTo, initiator) if job.query.algorithms.isEmpty =>
+      val replyTo = if (requestedReplyTo == Actor.noSender) sender() else requestedReplyTo
+      val msg     = "Experiment contains no algorithms"
       val result = ErrorJobResult(job.jobId,
                                   coordinatorConfig.jobsConf.node,
                                   OffsetDateTime.now(),
                                   "experiment",
                                   msg)
       coordinatorConfig.jobResultService.put(result)
-      initiator ! Response(job, Left(result))
+      replyTo ! Response(job, Left(result), initiator)
       context stop self
 
-    case StartExperimentJob(job) if job.query.algorithms.nonEmpty =>
-      val initiator  = sender()
+    case StartExperimentJob(job, requestedReplyTo, initiator) if job.query.algorithms.nonEmpty =>
+      val replyTo    = if (requestedReplyTo == Actor.noSender) sender() else requestedReplyTo
       val thisActor  = self
       val algorithms = job.query.algorithms
 
@@ -145,14 +147,14 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
                                            experimentNode = coordinatorConfig.jobsConf.node,
                                            results = results)
 
-          Response(job, Right(pfa))
+          Response(job, Right(pfa), initiator)
         }
 
       future
         .andThen {
           case Success(r) =>
             coordinatorConfig.jobResultService.put(r.result.fold(identity, identity))
-            initiator ! r
+            replyTo ! r
           case Failure(f) =>
             log.error(f, s"Cannot complete experiment ${job.jobId}: ${f.getMessage}")
             val result = ErrorJobResult(job.jobId,
@@ -160,9 +162,9 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
                                         OffsetDateTime.now(),
                                         "experiment",
                                         f.toString)
-            val response = Response(job, Left(result))
+            val response = Response(job, Left(result), initiator)
             coordinatorConfig.jobResultService.put(result)
-            initiator ! response
+            replyTo ! response
         }
         .onComplete { _ =>
           log.info("Stopping...")

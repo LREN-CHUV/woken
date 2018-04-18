@@ -25,10 +25,16 @@ import akka.routing.{ OptimalSizeExploringResizer, RoundRobinPool }
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{ Sink, Source }
 import ch.chuv.lren.woken.backends.DockerJob
-import ch.chuv.lren.woken.core.commands.JobCommands.StartCoordinatorJob
+import ch.chuv.lren.woken.config.AlgorithmDefinition
+import ch.chuv.lren.woken.core.commands.JobCommands.{ StartCoordinatorJob, StartExperimentJob }
 import ch.chuv.lren.woken.core.model.{ ErrorJobResult, Shapes }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
-import ch.chuv.lren.woken.messages.query.{ MiningQuery, QueryResult, queryProtocol }
+import ch.chuv.lren.woken.messages.query.{
+  ExperimentQuery,
+  MiningQuery,
+  QueryResult,
+  queryProtocol
+}
 import ch.chuv.lren.woken.service.DispatcherService
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
@@ -37,22 +43,23 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-object MiningActor extends LazyLogging {
+object MiningQueriesActor extends LazyLogging {
 
   case class Mine(query: MiningQuery, replyTo: ActorRef)
 
   def props(coordinatorConfig: CoordinatorConfig,
             dispatcherService: DispatcherService,
             miningQuery2JobF: MiningQuery => Validation[DockerJob]): Props =
-    Props(new MiningActor(coordinatorConfig, dispatcherService, miningQuery2JobF))
+    Props(new MiningQueriesActor(coordinatorConfig, dispatcherService, miningQuery2JobF))
 
   def roundRobinPoolProps(config: Config,
                           coordinatorConfig: CoordinatorConfig,
                           dispatcherService: DispatcherService,
                           miningQuery2JobF: MiningQuery => Validation[DockerJob]): Props = {
-    val scoringResizer = OptimalSizeExploringResizer(
+
+    val resizer = OptimalSizeExploringResizer(
       config
-        .getConfig("poolResizer.mining")
+        .getConfig("poolResizer.miningQueries")
         .withFallback(
           config.getConfig("akka.actor.deployment.default.optimal-size-exploring-resizer")
         )
@@ -60,27 +67,47 @@ object MiningActor extends LazyLogging {
     val miningSupervisorStrategy =
       OneForOneStrategy(maxNrOfRetries = 10, withinTimeRange = 1 minute) {
         case e: Exception =>
-          logger.error("Error detected in Mining actor, restarting", e)
+          logger.error("Error detected in Mining queries actor, restarting", e)
           Restart
       }
 
     RoundRobinPool(
       1,
-      resizer = Some(scoringResizer),
+      resizer = Some(resizer),
       supervisorStrategy = miningSupervisorStrategy
-    ).props(MiningActor.props(coordinatorConfig, dispatcherService, miningQuery2JobF))
+    ).props(MiningQueriesActor.props(coordinatorConfig, dispatcherService, miningQuery2JobF))
   }
 
 }
 
-class MiningActor(
-    coordinatorConfig: CoordinatorConfig,
+trait QueriesActor extends Actor {
+  def coordinatorConfig: CoordinatorConfig
+
+  private[core] def compoundResult(queryResults: List[QueryResult]): QueryResult = {
+    import spray.json._
+    import queryProtocol._
+
+    QueryResult(
+      jobId = "",
+      node = coordinatorConfig.jobsConf.node,
+      timestamp = OffsetDateTime.now(),
+      shape = Shapes.compound.mime,
+      algorithm = "compound",
+      data = Some(queryResults.toJson),
+      error = None
+    )
+  }
+
+}
+
+class MiningQueriesActor(
+    override val coordinatorConfig: CoordinatorConfig,
     dispatcherService: DispatcherService,
     miningQuery2JobF: MiningQuery => Validation[DockerJob]
-) extends Actor
+) extends QueriesActor
     with ActorLogging {
 
-  import MiningActor.Mine
+  import MiningQueriesActor.Mine
 
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val ec: ExecutionContext            = context.dispatcher
@@ -171,19 +198,150 @@ class MiningActor(
     ref
   }
 
-  private[core] def compoundResult(queryResults: List[QueryResult]): QueryResult = {
-    import spray.json._
-    import queryProtocol._
+}
 
-    QueryResult(
-      jobId = "",
-      node = coordinatorConfig.jobsConf.node,
-      timestamp = OffsetDateTime.now(),
-      shape = Shapes.compound.mime,
-      algorithm = "compound",
-      data = Some(queryResults.toJson),
-      error = None
+object ExperimentQueriesActor extends LazyLogging {
+
+  case class Experiment(query: ExperimentQuery, replyTo: ActorRef)
+
+  def props(coordinatorConfig: CoordinatorConfig,
+            dispatcherService: DispatcherService,
+            algorithmLookup: String => Validation[AlgorithmDefinition],
+            experimentQuery2JobF: ExperimentQuery => Validation[ExperimentActor.Job]): Props =
+    Props(
+      new ExperimentQueriesActor(coordinatorConfig,
+                                 dispatcherService,
+                                 algorithmLookup,
+                                 experimentQuery2JobF)
     )
+
+  def roundRobinPoolProps(
+      config: Config,
+      coordinatorConfig: CoordinatorConfig,
+      dispatcherService: DispatcherService,
+      algorithmLookup: String => Validation[AlgorithmDefinition],
+      experimentQuery2JobF: ExperimentQuery => Validation[ExperimentActor.Job]
+  ): Props = {
+
+    val resizer = OptimalSizeExploringResizer(
+      config
+        .getConfig("poolResizer.experimentQueries")
+        .withFallback(
+          config.getConfig("akka.actor.deployment.default.optimal-size-exploring-resizer")
+        )
+    )
+    val experimentSupervisorStrategy =
+      OneForOneStrategy(maxNrOfRetries = 10, withinTimeRange = 1 minute) {
+        case e: Exception =>
+          logger.error("Error detected in Experiment queries actor, restarting", e)
+          Restart
+      }
+
+    RoundRobinPool(
+      1,
+      resizer = Some(resizer),
+      supervisorStrategy = experimentSupervisorStrategy
+    ).props(
+      ExperimentQueriesActor
+        .props(coordinatorConfig, dispatcherService, algorithmLookup, experimentQuery2JobF)
+    )
+  }
+
+}
+
+class ExperimentQueriesActor(
+    override val coordinatorConfig: CoordinatorConfig,
+    dispatcherService: DispatcherService,
+    algorithmLookup: String => Validation[AlgorithmDefinition],
+    experimentQuery2JobF: ExperimentQuery => Validation[ExperimentActor.Job]
+) extends QueriesActor
+    with ActorLogging {
+
+  import ExperimentQueriesActor.Experiment
+
+  implicit val materializer: ActorMaterializer = ActorMaterializer()
+  implicit val ec: ExecutionContext            = context.dispatcher
+
+  override def receive: Receive = {
+
+    case experiment: Experiment =>
+      val initiator    = experiment.replyTo
+      val query        = experiment.query
+      val jobValidated = experimentQuery2JobF(query)
+
+      jobValidated.fold(
+        errorMsg => {
+          val error =
+            ErrorJobResult("",
+                           coordinatorConfig.jobsConf.node,
+                           OffsetDateTime.now(),
+                           "experiment",
+                           errorMsg.reduceLeft(_ + ", " + _))
+          initiator ! error.asQueryResult
+        },
+        job => runExperiment(query, initiator, job)
+      )
+
+    case ExperimentActor.Response(job, Left(results), initiator) =>
+      log.info(s"Received experiment error response $results")
+      initiator ! results.asQueryResult
+
+    case ExperimentActor.Response(job, Right(results), initiator) =>
+      log.info(s"Received experiment response $results")
+      initiator ! results.asQueryResult
+
+  }
+
+  private def runExperiment(query: ExperimentQuery,
+                            initiator: ActorRef,
+                            job: ExperimentActor.Job): Unit =
+    dispatcherService.dispatchTo(query.trainingDatasets) match {
+      case (_, true) => startExperimentJob(job, initiator)
+      case _ =>
+        log.info("Dispatch experiment query to remote workers...")
+
+        Source
+          .single(query)
+          .via(dispatcherService.dispatchRemoteExperimentFlow)
+          .fold(List[QueryResult]()) {
+            _ :+ _._2
+          }
+          .map {
+            case List() =>
+              ErrorJobResult("",
+                             coordinatorConfig.jobsConf.node,
+                             OffsetDateTime.now(),
+                             "experiment",
+                             "No results").asQueryResult
+
+            case List(result) => result
+
+            case listOfResults =>
+              compoundResult(listOfResults)
+          }
+          .map { queryResult =>
+            initiator ! queryResult
+            queryResult
+          }
+          .runWith(Sink.last)
+          .failed
+          .foreach { e =>
+            log.error(e, s"Cannot complete experiment query $query")
+            val error =
+              ErrorJobResult("", "", OffsetDateTime.now(), "experiment", e.toString)
+            initiator ! error.asQueryResult
+          }
+    }
+
+  private def startExperimentJob(job: ExperimentActor.Job, initiator: ActorRef): Unit = {
+    val experimentActorRef = newExperimentActor
+    experimentActorRef ! StartExperimentJob(job, self, initiator)
+  }
+
+  private[core] def newExperimentActor: ActorRef = {
+    val ref = context.actorOf(ExperimentActor.props(coordinatorConfig, algorithmLookup))
+    context watch ref
+    ref
   }
 
 }

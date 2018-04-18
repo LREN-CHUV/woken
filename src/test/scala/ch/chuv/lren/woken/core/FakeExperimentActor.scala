@@ -28,7 +28,8 @@ import ch.chuv.lren.woken.core.commands.JobCommands
 class FakeExperimentActor() extends Actor {
 
   override def receive: PartialFunction[Any, Unit] = {
-    case JobCommands.StartExperimentJob(job) =>
+    case JobCommands.StartExperimentJob(job, requestedReplyTo, initiator) =>
+      val replyTo = if (requestedReplyTo == Actor.noSender) sender() else requestedReplyTo
       val pfaModels =
         """
          [
@@ -42,9 +43,10 @@ class FakeExperimentActor() extends Actor {
 
         """.stripMargin.parseJson.asInstanceOf[JsArray]
 
-      sender() ! Response(
+      replyTo ! Response(
         job,
-        Right(PfaExperimentJobResult(job.jobId, "testNode", OffsetDateTime.now(), pfaModels))
+        Right(PfaExperimentJobResult(job.jobId, "testNode", OffsetDateTime.now(), pfaModels)),
+        initiator
       )
       self ! PoisonPill
   }
