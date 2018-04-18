@@ -15,7 +15,7 @@ lazy val `woken` =
         mainClass in Runtime := Some("ch.chuv.lren.woken.web.Web"),
         libraryDependencies ++= Seq(
           library.akkaActor,
-          library.akkaActorTyped,
+          //library.akkaActorTyped,
           library.akkaRemote,
           library.akkaCluster,
           library.akkaClusterTools,
