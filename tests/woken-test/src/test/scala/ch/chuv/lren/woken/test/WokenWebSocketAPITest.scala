@@ -45,13 +45,22 @@ class WokenWebSocketAPITest
     with ScalaFutures
     with BeforeAndAfterAll {
 
-  val configuration: Config = ConfigFactory.load()
-  implicit val system: ActorSystem = ActorSystem("WebSocketAPITest")
+  val config: Config =
+    ConfigFactory
+      .parseString("""
+                     |akka {
+                     |  actor.provider = local
+                     |}
+                   """.stripMargin)
+      .withFallback(ConfigFactory.load())
+      .resolve()
+
+  implicit val system: ActorSystem = ActorSystem("WebSocketAPITest", config)
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   implicit val executionContext: ExecutionContext = system.dispatcher
 
-  val remoteHostName: String = configuration.getString("clustering.seed-ip")
+  val remoteHostName: String = config.getString("clustering.seed-ip")
 
   override def afterAll: Unit = {
     system.terminate().onComplete { result =>

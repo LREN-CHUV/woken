@@ -283,12 +283,14 @@ services:
       context: ./woken-test
       dockerfile: Dockerfile
     hostname: "wokentest"
+    restart: "no"
     ports:
       - "8197:8197"
     environment:
       CLUSTER_PORT: 8197
       CLUSTER_IP: wokentest
       WOKEN_PORT_8088_TCP_ADDR: woken
+      LOG_LEVEL: DEBUG
     depends_on:
       - woken
 

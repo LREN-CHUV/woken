@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorRef, ActorSystem}
 import akka.cluster.client.{ClusterClient, ClusterClientSettings}
 import akka.pattern.ask
+import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import com.typesafe.config.{Config, ConfigFactory}
 import ch.chuv.lren.woken.messages.datasets._
@@ -33,7 +34,7 @@ import org.scalatest.tagobjects.Slow
 import spray.json._
 import queryProtocol._
 
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Try
@@ -45,12 +46,25 @@ class WokenAkkaAPITest
     with BeforeAndAfterAll {
 
   implicit val timeout: Timeout = Timeout(200 seconds)
-  val configuration: Config = ConfigFactory.load()
-  val system: ActorSystem = ActorSystem("test", configuration)
-  implicit val ec: ExecutionContext = system.dispatcher
+  val config: Config =
+    ConfigFactory
+      .parseString("""
+                     |akka {
+                     |  actor.provider = cluster
+                     |  extensions += "akka.cluster.pubsub.DistributedPubSub"
+                     |  extensions += "akka.cluster.client.ClusterClientReceptionist"
+                     |}
+                   """.stripMargin)
+      .withFallback(ConfigFactory.load())
+      .resolve()
+
+  implicit val system: ActorSystem = ActorSystem("AkkaAPITest", config)
+  implicit val materializer: ActorMaterializer = ActorMaterializer()
+  implicit val executionContext: ExecutionContextExecutor = system.dispatcher
 
   val client: ActorRef =
     system.actorOf(ClusterClient.props(ClusterClientSettings(system)), "client")
+
   val entryPoint = "/user/entrypoint"
 
   override def afterAll: Unit = {
