@@ -214,6 +214,7 @@ trait BootedCore
 
     ClusterClientReceptionist(system).registerService(mainRouter)
 
+    monitorDeadLetters()
   }
 
   override def startServices(): Unit = {

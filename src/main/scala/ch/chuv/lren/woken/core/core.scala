@@ -17,7 +17,7 @@
 
 package ch.chuv.lren.woken.core
 
-import akka.actor.{ ActorRef, ActorSystem }
+import akka.actor.{ ActorRef, ActorSystem, DeadLetter }
 import akka.cluster.Cluster
 import akka.pattern.{ Backoff, BackoffSupervisor }
 import akka.stream._
@@ -25,6 +25,7 @@ import cats.data.NonEmptyList
 import com.typesafe.config.{ Config, ConfigFactory }
 import ch.chuv.lren.woken.backends.chronos.ChronosThrottler
 import ch.chuv.lren.woken.config.{ AppConfiguration, JobsConfiguration }
+import ch.chuv.lren.woken.core.monitoring.DeadLetterMonitorActor
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.ExecutionContextExecutor
@@ -113,7 +114,7 @@ trait CoreActors {
 
   protected lazy implicit val executionContext: ExecutionContextExecutor = system.dispatcher
 
-  def chronosHttp: ActorRef = {
+  lazy val chronosHttp: ActorRef = {
     val chronosSupervisorProps = BackoffSupervisor.props(
       Backoff.onFailure(
         ChronosThrottler.props(jobsConfig),
@@ -125,6 +126,14 @@ trait CoreActors {
     )
 
     system.actorOf(chronosSupervisorProps, "chronosSupervisor")
+  }
+
+  def monitorDeadLetters(): Unit = {
+    val deadLetterMonitorActor =
+      system.actorOf(DeadLetterMonitorActor.props, name = "deadLetterMonitor")
+
+    // Subscribe to system wide event bus 'DeadLetter'
+    system.eventStream.subscribe(deadLetterMonitorActor, classOf[DeadLetter])
   }
 
 }

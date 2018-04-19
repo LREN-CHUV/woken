@@ -16,6 +16,9 @@
     <Logger name="akka.io" level="info">
       <AppenderRef ref="Console"/>
     </Logger>
+    <Logger name="akka.http.impl" level="info">
+      <AppenderRef ref="Console"/>
+    </Logger>
     <Logger name="akka.stream.impl" level="info">
       <AppenderRef ref="Console"/>
     </Logger>
@@ -23,6 +26,9 @@
       <AppenderRef ref="Console"/>
     </Logger>
     <Logger name="com.wordnik.swagger" level="info">
+      <AppenderRef ref="Console"/>
+    </Logger>
+    <Logger name="com.zaxxer.hikari.pool" level="info">
       <AppenderRef ref="Console"/>
     </Logger>
   </Loggers>
