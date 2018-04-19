@@ -353,7 +353,7 @@ services:
       PORTAL_BACKEND_CONTEXT: services
       MODE: local
       INSTANCE_NAME: "DEV"
-      VERSION: "2.6.0-dev (Woken dev, Validation 2.4.1, Backend 2.6.7, Frontend 2.9.1)"
+      VERSION: "2.7.0-dev (Woken dev, Validation 2.4.6, Backend 2.7.0, Frontend 2.9.9)"
 
 networks:
   default:
