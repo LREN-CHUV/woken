@@ -2,7 +2,6 @@
   "data": [
     {
       "algorithm": "python-knn",
-      "code": "knn",
       "data": {
         "action": [
           {
@@ -1391,5 +1390,6 @@
   ],
   "jobId": "*",
   "node": "local",
+  "timestamp": 0.0,
   "type": "application/vnd.hbp.mip.experiment.pfa+json"
 }
