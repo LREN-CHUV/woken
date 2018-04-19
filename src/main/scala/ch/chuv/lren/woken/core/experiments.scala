@@ -152,9 +152,10 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
 
       future
         .andThen {
-          case Success(r) =>
-            coordinatorConfig.jobResultService.put(r.result.fold(identity, identity))
-            replyTo ! r
+          case Success(response) =>
+            val result = response.result.fold(identity, identity)
+            coordinatorConfig.jobResultService.put(result)
+            replyTo ! response
           case Failure(f) =>
             log.error(f, s"Cannot complete experiment ${job.jobId}: ${f.getMessage}")
             val result = ErrorJobResult(Some(job.jobId),

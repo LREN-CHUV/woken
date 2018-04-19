@@ -1,5 +1,4 @@
 {
-  "algorithm": "experiment",
   "data": [
     {
       "algorithm": "python-knn",
@@ -1385,12 +1384,12 @@
         "output": "double"
       },
       "jobId": "*",
-      "node": "federation",
+      "node": "local",
       "timestamp": 0.0,
       "type": "application/pfa+json"
     }
   ],
   "jobId": "*",
-  "node": "federation",
+  "node": "local",
   "type": "application/vnd.hbp.mip.experiment.pfa+json"
 }

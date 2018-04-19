@@ -171,10 +171,7 @@ class MiningQueriesActor(
     miningActorRef ! StartCoordinatorJob(job, self, initiator)
   }
 
-  private[dispatch] def newCoordinatorActor: ActorRef = {
-    val ref = context.actorOf(CoordinatorActor.props(coordinatorConfig))
-    context watch ref
-    ref
-  }
+  private[dispatch] def newCoordinatorActor: ActorRef =
+    context.actorOf(CoordinatorActor.props(coordinatorConfig))
 
 }

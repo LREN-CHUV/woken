@@ -1167,7 +1167,7 @@
     "output": "double"
   },
   "jobId": "*",
-  "node": "federation",
-  "shape": "application/pfa+json",
-  "timestamp": 0.0
+  "node": "local",
+  "timestamp": 0.0,
+  "type": "application/pfa+json"
 }

@@ -230,35 +230,36 @@ class WokenAkkaAPITest
   }
 
   // Test experiment query
-  "Woken" should "respond to an experiment query" in {
+  "Woken" should "respond to an experiment query executing kNN algorithm" in {
 
     val start = System.currentTimeMillis()
     val query = experimentQuery("knn", List(CodeValue("k", "5")))
     val future = client ? ClusterClient.Send(entryPoint,
                                              query,
                                              localAffinity = true)
-    val result = waitFor[QueryResult](future)
+    val maybeResult = waitFor[QueryResult](future)
     val end = System.currentTimeMillis()
 
     println(
       "Experiment query complete in " + Duration(end - start,
                                                  TimeUnit.MILLISECONDS))
 
-    if (!result.isSuccess) {
-      println(result)
+    if (!maybeResult.isSuccess) {
+      println(maybeResult)
     }
 
-    val data = result.success.value.data
+    val result = maybeResult.success.value
 
-    data should not be empty
+    result.data should not be empty
 
-    val json = data.get
+    val json = result.toJson
     val expected = loadJson("/knn_experiment.json")
 
+    println(approximate(json))
     assertResult(approximate(expected))(approximate(json))
   }
 
-  //Test resiliency
+  // Test resiliency
   "Woken" should "recover from multiple failed experiments" taggedAs Slow in {
 
     // TODO: add no_results, never_end

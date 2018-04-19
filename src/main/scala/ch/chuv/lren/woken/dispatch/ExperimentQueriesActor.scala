@@ -121,12 +121,15 @@ class ExperimentQueriesActor(
       )
 
     case ExperimentActor.Response(job, Left(results), initiator) =>
-      log.info(s"Received experiment error response $results")
+      log.info(s"Received error response for experiment on ${job.query}: $results")
       initiator ! results.asQueryResult
 
     case ExperimentActor.Response(job, Right(results), initiator) =>
-      log.info(s"Received experiment response $results")
+      log.info(s"Received response for experiment on ${job.query}: $results")
       initiator ! results.asQueryResult
+
+    case e =>
+      log.warning(s"Received unhandled request $e of type ${e.getClass}")
 
   }
 
@@ -161,6 +164,7 @@ class ExperimentQueriesActor(
             initiator ! queryResult
             queryResult
           }
+          .log("Result of experiment")
           .runWith(Sink.last)
           .failed
           .foreach { e =>
@@ -180,10 +184,7 @@ class ExperimentQueriesActor(
     experimentActorRef ! StartExperimentJob(job, self, initiator)
   }
 
-  private[dispatch] def newExperimentActor: ActorRef = {
-    val ref = context.actorOf(ExperimentActor.props(coordinatorConfig, algorithmLookup))
-    context watch ref
-    ref
-  }
+  private[dispatch] def newExperimentActor: ActorRef =
+    context.actorOf(ExperimentActor.props(coordinatorConfig, algorithmLookup))
 
 }

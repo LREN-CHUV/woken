@@ -125,8 +125,8 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
        Some(j.model.compactPrint),
        None)
     case j: PfaExperimentJobResult =>
-      val pfa = j.models.compactPrint
-      (j.jobId, j.node.take(32), j.timestamp, pfaExperiment, None, Some(pfa), None)
+      val models = j.models.compactPrint
+      (j.jobId, j.node.take(32), j.timestamp, pfaExperiment, None, Some(models), None)
     case j: ErrorJobResult =>
       (j.jobId.getOrElse(UUID.randomUUID().toString),
        j.node.take(32),
