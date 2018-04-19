@@ -21,8 +21,7 @@ import java.time.OffsetDateTime
 import java.util.UUID
 
 import akka.NotUsed
-import akka.actor.{ Actor, ActorContext, ActorLogging, ActorRef, Props }
-import akka.event.Logging
+import akka.actor.{ Actor, ActorContext, ActorRef, Props }
 import akka.stream._
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Merge, Partition, Sink, Source, Zip }
 import cats.data.NonEmptyList
@@ -42,6 +41,7 @@ import ch.chuv.lren.woken.messages.query.{
   MiningQuery,
   ValidationSpec
 }
+import com.typesafe.scalalogging.LazyLogging
 
 /**
   * We use the companion object to hold all the messages that the ``ExperimentActor`` receives.
@@ -81,16 +81,16 @@ object ExperimentActor {
 class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
                       algorithmLookup: String => Validation[AlgorithmDefinition])
     extends Actor
-    with ActorLogging {
+    with LazyLogging {
 
   import ExperimentActor._
 
   val decider: Supervision.Decider = {
     case err: RuntimeException =>
-      log.error(err, "Runtime error detected")
+      logger.error("Runtime error detected", err)
       Supervision.Resume
     case err =>
-      log.error(err, "Unknown error. Stopping the stream.")
+      logger.error("Unknown error. Stopping the stream.", err)
       Supervision.Stop
   }
 
@@ -127,17 +127,17 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
       val thisActor  = self
       val algorithms = job.query.algorithms
 
-      log.info("Start new experiment job")
-      log.info(s"List of algorithms: ${algorithms.mkString(",")}")
+      logger.info("Start new experiment job")
+      logger.info(s"List of algorithms: ${algorithms.mkString(",")}")
 
       val future = Source
         .single(job)
         .via(experimentFlow)
         .runWith(Sink.head)
         .map { results =>
-          log.info("Experiment - build final response")
-          log.info(s"Algorithms: $algorithms")
-          log.info(s"Results: $results")
+          logger.info("Experiment - build final response")
+          logger.info(s"Algorithms: $algorithms")
+          logger.info(s"Results: $results")
 
           assert(results.size == algorithms.size, "There should be as many results as algorithms")
           assert(results.keySet equals algorithms.toSet,
@@ -156,24 +156,24 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
             val result = response.result.fold(identity, identity)
             coordinatorConfig.jobResultService.put(result)
             replyTo ! response
-          case Failure(f) =>
-            log.error(f, s"Cannot complete experiment ${job.jobId}: ${f.getMessage}")
+          case Failure(e) =>
+            logger.error(s"Cannot complete experiment ${job.jobId}: ${e.getMessage}", e)
             val result = ErrorJobResult(Some(job.jobId),
                                         coordinatorConfig.jobsConf.node,
                                         OffsetDateTime.now(),
                                         None,
-                                        f.toString)
+                                        e.toString)
             val response = Response(job, Left(result), initiator)
             coordinatorConfig.jobResultService.put(result)
             replyTo ! response
         }
         .onComplete { _ =>
-          log.info("Stopping...")
+          logger.info("Stopping...")
           context stop thisActor
         }
 
     case e =>
-      log.error(s"Unhandled message: $e")
+      logger.error(s"Unhandled message: $e")
       context stop self
   }
 
@@ -189,13 +189,12 @@ case class ExperimentFlow(
     jobsConf: JobsConfiguration,
     algorithmLookup: String => Validation[AlgorithmDefinition],
     context: ActorContext
-)(implicit materializer: Materializer, ec: ExecutionContext) {
+)(implicit materializer: Materializer, ec: ExecutionContext)
+    extends LazyLogging {
 
   private case class AlgorithmValidation(job: ExperimentActor.Job,
                                          algorithmSpec: AlgorithmSpec,
                                          subJob: ValidatedAlgorithmFlow.Job)
-
-  private val log = Logging(context.system, getClass)
 
   private val validatedAlgorithmFlow =
     ValidatedAlgorithmFlow(executeJobAsync, featuresDatabase, jobsConf, context)
@@ -297,7 +296,7 @@ case class ExperimentFlow(
                                                 job.metadata,
                                                 validations,
                                                 algorithmDefinition)
-        log.info(s"Prepared mining query sub job $subJob")
+        logger.info(s"Prepared mining query sub job $subJob")
         AlgorithmValidation(job, algorithmSpec, subJob)
       }
       .named("prepare-mining-query")
@@ -343,7 +342,7 @@ case class ExperimentFlow(
 
   private def extractResult(response: CoordinatorActor.Response): JobResult = {
     val algorithm = response.job.algorithmSpec
-    log.info(s"Extract result from response: ${response.results}")
+    logger.info(s"Extract result from response: ${response.results}")
     response.results.headOption match {
       case Some(model) => model
       case None =>

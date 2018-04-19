@@ -17,7 +17,7 @@
 
 package ch.chuv.lren.woken.api
 
-import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
+import akka.actor.{ Actor, ActorRef, Props }
 import akka.routing.FromConfig
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{ Sink, Source }
@@ -35,6 +35,7 @@ import ch.chuv.lren.woken.config.{ AlgorithmDefinition, AppConfiguration }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.variables._
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.LazyLogging
 
 object MasterRouter {
 
@@ -74,7 +75,7 @@ case class MasterRouter(config: Config,
                         experimentQuery2JobF: ExperimentQuery => Validation[ExperimentActor.Job],
                         miningQuery2JobF: MiningQuery => Validation[DockerJob])
     extends Actor
-    with ActorLogging {
+    with LazyLogging {
 
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val ec: ExecutionContext            = context.dispatcher
@@ -122,7 +123,7 @@ case class MasterRouter(config: Config,
         }
         .map { varsMetaData =>
           {
-            log.debug(s"vars metadata ${varsMetaData.size}")
+            logger.debug(s"vars metadata ${varsMetaData.size}")
             initiator ! VariablesForDatasetsResponse(varsMetaData)
             VariablesForDatasetsResponse(varsMetaData)
           }
@@ -130,7 +131,7 @@ case class MasterRouter(config: Config,
         .runWith(Sink.last)
         .failed
         .foreach { e =>
-          log.error(e, s"Cannot complete variable query $varsQuery")
+          logger.error(s"Cannot complete variable query $varsQuery", e)
           initiator ! VariablesForDatasetsResponse(Set(), Some(e.getMessage))
         }
 
@@ -147,7 +148,7 @@ case class MasterRouter(config: Config,
       experimentQueriesWorker forward ExperimentQueriesActor.Experiment(query, sender())
 
     case e =>
-      log.warning(s"Received unhandled request $e of type ${e.getClass}")
+      logger.warn(s"Received unhandled request $e of type ${e.getClass}")
 
   }
 

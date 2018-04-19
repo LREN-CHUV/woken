@@ -13,6 +13,12 @@
     <Logger name="akka.cluster" level="info">
       <AppenderRef ref="Console"/>
     </Logger>
+    <Logger name="akka.io" level="info">
+      <AppenderRef ref="Console"/>
+    </Logger>
+    <Logger name="akka.stream.impl" level="info">
+      <AppenderRef ref="Console"/>
+    </Logger>
     <Logger name="com.gettyimages.spray.swagger" level="info">
       <AppenderRef ref="Console"/>
     </Logger>

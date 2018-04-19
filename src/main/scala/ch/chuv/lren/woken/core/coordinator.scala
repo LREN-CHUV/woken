@@ -25,7 +25,6 @@ import akka.pattern.{ ask, pipe }
 import akka.util.Timeout
 
 import scala.concurrent.{ ExecutionContext, Future }
-
 import ch.chuv.lren.woken.backends.DockerJob
 import ch.chuv.lren.woken.backends.chronos.ChronosService
 import ch.chuv.lren.woken.backends.chronos.{ ChronosJob, JobToChronos }
@@ -35,6 +34,7 @@ import ch.chuv.lren.woken.core.model.{ ErrorJobResult, JobResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.dao.FeaturesDAL
 import ch.chuv.lren.woken.service.JobResultService
+import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -157,7 +157,7 @@ private[core] object CoordinatorStates {
   */
 class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
     extends Actor
-    with ActorLogging
+    with LazyLogging
     with LoggingFSM[CoordinatorStates.State, CoordinatorStates.StateData] {
 
   import CoordinatorActor._

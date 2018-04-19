@@ -20,7 +20,7 @@ package ch.chuv.lren.woken.dispatch
 import java.time.OffsetDateTime
 
 import akka.actor.SupervisorStrategy.Restart
-import akka.actor.{ ActorLogging, ActorRef, OneForOneStrategy, Props }
+import akka.actor.{ ActorRef, OneForOneStrategy, Props }
 import akka.routing.{ OptimalSizeExploringResizer, RoundRobinPool }
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{ Sink, Source }
@@ -80,7 +80,7 @@ class MiningQueriesActor(
     dispatcherService: DispatcherService,
     miningQuery2JobF: MiningQuery => Validation[DockerJob]
 ) extends QueriesActor
-    with ActorLogging {
+    with LazyLogging {
 
   import MiningQueriesActor.Mine
 
@@ -108,18 +108,18 @@ class MiningQueriesActor(
       )
 
     case CoordinatorActor.Response(job, List(errorJob: ErrorJobResult), initiator) =>
-      log.warning(s"Received error while mining ${job.query}: $errorJob")
+      logger.warn(s"Received error while mining ${job.query}: $errorJob")
       initiator ! errorJob.asQueryResult
 
     case CoordinatorActor.Response(job, results, initiator) =>
       // TODO: we can only handle one result from the Coordinator handling a mining query.
       // Containerised algorithms that can produce more than one result (e.g. PFA model + images) are ignored
-      log.info(s"Received results for mining ${job.query}: $results")
+      logger.info(s"Received results for mining ${job.query}: $results")
       val jobResult = results.head
       initiator ! jobResult.asQueryResult
 
     case e =>
-      log.warning(s"Received unhandled request $e of type ${e.getClass}")
+      logger.warn(s"Received unhandled request $e of type ${e.getClass}")
 
   }
 
@@ -127,7 +127,7 @@ class MiningQueriesActor(
     dispatcherService.dispatchTo(query.datasets) match {
       case (_, true) => startMiningJob(job, initiator)
       case _ =>
-        log.info("Dispatch mining query to remote workers...")
+        logger.info("Dispatch mining query to remote workers...")
 
         Source
           .single(query)
@@ -155,7 +155,7 @@ class MiningQueriesActor(
           .runWith(Sink.last)
           .failed
           .foreach { e =>
-            log.error(e, s"Cannot complete mining query $query")
+            logger.error(s"Cannot complete mining query $query", e)
             val error = ErrorJobResult(None,
                                        coordinatorConfig.jobsConf.node,
                                        OffsetDateTime.now(),

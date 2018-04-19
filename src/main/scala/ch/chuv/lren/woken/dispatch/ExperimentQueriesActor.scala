@@ -20,7 +20,7 @@ package ch.chuv.lren.woken.dispatch
 import java.time.OffsetDateTime
 
 import akka.actor.SupervisorStrategy.Restart
-import akka.actor.{ ActorLogging, ActorRef, OneForOneStrategy, Props }
+import akka.actor.{ ActorRef, OneForOneStrategy, Props }
 import akka.routing.{ OptimalSizeExploringResizer, RoundRobinPool }
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{ Sink, Source }
@@ -93,7 +93,7 @@ class ExperimentQueriesActor(
     algorithmLookup: String => Validation[AlgorithmDefinition],
     experimentQuery2JobF: ExperimentQuery => Validation[ExperimentActor.Job]
 ) extends QueriesActor
-    with ActorLogging {
+    with LazyLogging {
 
   import ExperimentQueriesActor.Experiment
 
@@ -121,15 +121,15 @@ class ExperimentQueriesActor(
       )
 
     case ExperimentActor.Response(job, Left(results), initiator) =>
-      log.info(s"Received error response for experiment on ${job.query}: $results")
+      logger.info(s"Received error response for experiment on ${job.query}: $results")
       initiator ! results.asQueryResult
 
     case ExperimentActor.Response(job, Right(results), initiator) =>
-      log.info(s"Received response for experiment on ${job.query}: $results")
+      logger.info(s"Received response for experiment on ${job.query}: $results")
       initiator ! results.asQueryResult
 
     case e =>
-      log.warning(s"Received unhandled request $e of type ${e.getClass}")
+      logger.warn(s"Received unhandled request $e of type ${e.getClass}")
 
   }
 
@@ -139,7 +139,7 @@ class ExperimentQueriesActor(
     dispatcherService.dispatchTo(query.trainingDatasets) match {
       case (_, true) => startExperimentJob(job, initiator)
       case _ =>
-        log.info("Dispatch experiment query to remote workers...")
+        logger.info("Dispatch experiment query to remote workers...")
 
         Source
           .single(query)
@@ -168,7 +168,7 @@ class ExperimentQueriesActor(
           .runWith(Sink.last)
           .failed
           .foreach { e =>
-            log.error(e, s"Cannot complete experiment query $query")
+            logger.error(s"Cannot complete experiment query $query", e)
             val error =
               ErrorJobResult(None,
                              coordinatorConfig.jobsConf.node,

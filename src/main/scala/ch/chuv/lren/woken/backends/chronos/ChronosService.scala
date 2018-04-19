@@ -17,13 +17,14 @@
 
 package ch.chuv.lren.woken.backends.chronos
 
-import akka.actor.{ Actor, ActorLogging, ActorRef, ActorSystem, Props, Status }
+import akka.actor.{ Actor, ActorRef, ActorSystem, Props, Status }
 import akka.http.scaladsl.model._
 import akka.pattern.{ AskTimeoutException, pipe }
 import akka.stream.{ ActorMaterializer, ActorMaterializerSettings, Materializer }
 import akka.util.Timeout
 import ch.chuv.lren.woken.backends.HttpClient
 import ch.chuv.lren.woken.config.JobsConfiguration
+import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.duration._
 import scala.concurrent.{ ExecutionContextExecutor, Future }
@@ -66,7 +67,7 @@ object ChronosService {
 
 }
 
-class ChronosService(jobsConfig: JobsConfiguration) extends Actor with ActorLogging {
+class ChronosService(jobsConfig: JobsConfiguration) extends Actor with LazyLogging {
 
   import ChronosService._
 
@@ -83,7 +84,7 @@ class ChronosService(jobsConfig: JobsConfiguration) extends Actor with ActorLogg
 
       implicit val timeout: Timeout = Timeout(30.seconds)
 
-      log.debug(s"Send job to Chronos: ${chronosJobFormat.write(job).prettyPrint}")
+      logger.debug(s"Send job to Chronos: ${chronosJobFormat.write(job).prettyPrint}")
 
       val originalSender             = originator
       val chronosUrl                 = Uri(jobsConfig.chronosServerUrl)
@@ -97,18 +98,18 @@ class ChronosService(jobsConfig: JobsConfiguration) extends Actor with ActorLogg
             statusCode match {
 
               case _: StatusCodes.Success =>
-                log.debug("Chronos says success")
+                logger.debug("Chronos says success")
                 Ok
 
               case _ =>
-                log.warning(
+                logger.warn(
                   s"Post schedule to Chronos on $url returned error $statusCode: $entity"
                 )
                 Error(s"Error $statusCode: $entity")
             }
 
           case f: Status.Failure =>
-            log.warning(
+            logger.warn(
               s"Post schedule to Chronos on $url returned error ${f.cause.getMessage}"
             )
             Error(f.cause.getMessage)
@@ -116,11 +117,11 @@ class ChronosService(jobsConfig: JobsConfiguration) extends Actor with ActorLogg
         .recover {
 
           case _: AskTimeoutException =>
-            log.warning(s"Post schedule to Chronos on $url timed out after $timeout")
+            logger.warn(s"Post schedule to Chronos on $url timed out after $timeout")
             Error("Connection timeout")
 
           case e: Throwable =>
-            log.warning(s"Post schedule to Chronos on $url returned an error $e")
+            logger.warn(s"Post schedule to Chronos on $url returned an error $e")
             Error(e.getMessage)
 
         } pipeTo originalSender
@@ -163,14 +164,14 @@ class ChronosService(jobsConfig: JobsConfiguration) extends Actor with ActorLogg
                 }
 
               case _ =>
-                log.warning(
+                logger.warn(
                   s"Post search to Chronos on $url returned error $statusCode: ${entity.toString}"
                 )
                 ChronosUnresponsive(jobId, s"Error $statusCode: ${entity.toString}")
             }
 
           case f: Status.Failure =>
-            log.warning(
+            logger.warn(
               s"Post search to Chronos on $url returned error ${f.cause.getMessage}"
             )
             ChronosUnresponsive(jobId, f.cause.getMessage)
@@ -178,11 +179,11 @@ class ChronosService(jobsConfig: JobsConfiguration) extends Actor with ActorLogg
         .recover {
 
           case _: AskTimeoutException =>
-            log.warning(s"Post search to Chronos on $url timed out after $timeout")
+            logger.warn(s"Post search to Chronos on $url timed out after $timeout")
             ChronosUnresponsive(jobId, "Connection timeout")
 
           case e: Throwable =>
-            log.warning(s"Post search to Chronos on $url returned an error $e")
+            logger.warn(s"Post search to Chronos on $url returned an error $e")
             ChronosUnresponsive(jobId, e.getMessage)
 
         } pipeTo originalSender
@@ -200,11 +201,11 @@ class ChronosService(jobsConfig: JobsConfiguration) extends Actor with ActorLogg
             case _: StatusCodes.Success =>
               entity.discardBytes()
             case _ =>
-              log.error(s"Chronos Cleanup job response error $statusCode: ${entity.toString}")
+              logger.error(s"Chronos Cleanup job response error $statusCode: ${entity.toString}")
           }
       }
 
-    case e => log.error(s"Unhandled message: $e")
+    case e => logger.error(s"Unhandled message: $e")
   }
 
 }

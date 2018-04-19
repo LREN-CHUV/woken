@@ -18,10 +18,11 @@
 package ch.chuv.lren.woken.backends.chronos
 
 import akka.NotUsed
-import akka.actor.{ Actor, ActorLogging, ActorRef, Props, Terminated }
+import akka.actor.{ Actor, ActorRef, Props, Terminated }
 import akka.stream._
 import akka.stream.scaladsl.{ Sink, Source }
 import ch.chuv.lren.woken.config.JobsConfiguration
+import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.duration._
 
@@ -44,7 +45,7 @@ object ChronosThrottler {
   */
 class ChronosThrottler(jobsConfig: JobsConfiguration, implicit val materializer: Materializer)
     extends Actor
-    with ActorLogging {
+    with LazyLogging {
 
   private lazy val chronosWorker: ActorRef =
     context.actorOf(ChronosService.props(jobsConfig), "chronos")
@@ -77,8 +78,8 @@ class ChronosThrottler(jobsConfig: JobsConfiguration, implicit val materializer:
     case request: ChronosService.Request =>
       throttler ! request
     case Terminated(ref) =>
-      log.debug("Terminating ChronosThrottler as child is terminated: {}", ref)
+      logger.debug("Terminating ChronosThrottler as child is terminated: {}", ref)
       context.stop(self)
-    case e => log.error("Unknown msg received: {}", e)
+    case e => logger.error("Unknown msg received: {}", e)
   }
 }
