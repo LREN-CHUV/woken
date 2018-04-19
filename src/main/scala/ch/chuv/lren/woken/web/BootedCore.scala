@@ -24,6 +24,7 @@ import akka.actor.ActorRef
 import akka.util.Timeout
 import akka.cluster.Cluster
 import akka.cluster.client.ClusterClientReceptionist
+import akka.cluster.pubsub.{ DistributedPubSub, DistributedPubSubMediator }
 import akka.http.scaladsl.Http
 import akka.pattern.{ Backoff, BackoffSupervisor }
 import cats.effect.IO
@@ -206,6 +207,10 @@ trait BootedCore
   override def startActors(): Unit = {
     logger.info(s"Start actor system ${appConfig.clusterSystemName}...")
     logger.info(s"Cluster has roles ${cluster.selfRoles.mkString(",")}")
+
+    val mediator = DistributedPubSub(system).mediator
+
+    mediator ! DistributedPubSubMediator.Put(mainRouter)
 
     ClusterClientReceptionist(system).registerService(mainRouter)
 
