@@ -29,7 +29,7 @@
         }
       },
       "description": "Statistics Summary...",
-      "docker_image": "hbpmip/python-summary-statistics:0.3.0",
+      "docker_image": "hbpmip/python-summary-statistics:0.3.1",
       "environment": "python",
       "label": "Statistics Summary",
       "type": [
@@ -279,7 +279,7 @@
         }
       },
       "description": "Correlation heatmap...",
-      "docker_image": "hbpmip/python-correlation-heatmap:0.1.2",
+      "docker_image": "hbpmip/python-correlation-heatmap:0.1.3",
       "environment": "python",
       "label": "Correlation heatmap",
       "type": [

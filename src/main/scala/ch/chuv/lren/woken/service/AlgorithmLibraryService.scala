@@ -50,7 +50,7 @@ class AlgorithmLibraryService {
                 "type": ["statistics"],
                 "environment": "python",
                 "description": "Statistics Summary...",
-                "docker_image": "hbpmip/python-summary-statistics:0.3.0",
+                "docker_image": "hbpmip/python-summary-statistics:0.3.1",
                 "constraints": {
                     "variable": {
                       "real": true,
@@ -275,7 +275,7 @@ class AlgorithmLibraryService {
                 "type": ["statistics"],
                 "environment": "python",
                 "description": "Correlation heatmap...",
-                "docker_image": "hbpmip/python-correlation-heatmap:0.1.2",
+                "docker_image": "hbpmip/python-correlation-heatmap:0.1.3",
                 "constraints": {
                     "variable": {
                       "real": true,
