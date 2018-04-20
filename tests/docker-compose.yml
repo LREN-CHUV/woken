@@ -254,7 +254,7 @@ services:
       - chronos
 
   wokenvalidation:
-    image: hbpmip/woken-validation:2.4.7
+    image: hbpmip/woken-validation:2.4.8
     ports:
       - "8081:8081"
       - "8082:8082"
@@ -295,7 +295,7 @@ services:
       - woken
 
   portalbackend:
-    image: "hbpmip/portal-backend:2.7.0"
+    image: "hbpmip/portal-backend:2.7.1"
     restart: "no"
     ports:
       - "65440:8080"
