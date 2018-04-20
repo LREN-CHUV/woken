@@ -3,6 +3,7 @@
 /warm-ivy2-cache.sh
 
 TEST="$@"
-TEST="${TEST:-test}"
+TEST="$TEST:-$TEST_ARGS"
+TEST="${TEST:-testOnly -- -l org.scalatest.tags.Slow}"
 
 cd /build && sbt -Dconfig.file="/build/application.conf" "$TEST"

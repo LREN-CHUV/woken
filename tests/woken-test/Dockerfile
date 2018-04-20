@@ -14,3 +14,6 @@ RUN sbt compile test:compile
 COPY application.conf /build/
 
 ENTRYPOINT ["/test.sh"]
+
+# 8197: Akka TCP
+EXPOSE 8197

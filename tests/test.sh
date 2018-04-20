@@ -59,6 +59,8 @@ function _cleanup() {
 }
 trap _cleanup EXIT INT TERM
 
+export TEST_ARGS="${test_args}"
+
 echo "Remove old running containers (if any)..."
 $DOCKER_COMPOSE kill
 $DOCKER_COMPOSE rm -f
@@ -111,7 +113,7 @@ echo "The Algorithm Factory is now running on your system"
 echo
 echo "Testing Akka API..."
 
-$DOCKER_COMPOSE run wokentest ${test_args}
+$DOCKER_COMPOSE up wokentest
 
 echo
 # Cleanup

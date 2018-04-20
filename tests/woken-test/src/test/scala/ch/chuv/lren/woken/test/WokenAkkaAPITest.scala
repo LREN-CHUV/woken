@@ -17,10 +17,11 @@
 
 package ch.chuv.lren.woken.test
 
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{Semaphore, TimeUnit}
 
-import akka.actor.{ActorRef, ActorSystem}
-import akka.cluster.client.{ClusterClient, ClusterClientSettings}
+import akka.actor.ActorSystem
+import akka.cluster.Cluster
+import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
@@ -52,7 +53,6 @@ class WokenAkkaAPITest
                      |akka {
                      |  actor.provider = cluster
                      |  extensions += "akka.cluster.pubsub.DistributedPubSub"
-                     |  extensions += "akka.cluster.client.ClusterClientReceptionist"
                      |}
                    """.stripMargin)
       .withFallback(ConfigFactory.load())
@@ -62,12 +62,24 @@ class WokenAkkaAPITest
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executionContext: ExecutionContextExecutor = system.dispatcher
 
-  val client: ActorRef =
-    system.actorOf(ClusterClient.props(ClusterClientSettings(system)), "client")
+  val cluster = Cluster(system)
+  val mediator = DistributedPubSub(system).mediator
 
   val entryPoint = "/user/entrypoint"
 
+  override def beforeAll: Unit = {
+    val waitClusterUp = new Semaphore(1)
+
+    cluster.registerOnMemberUp(waitClusterUp.release())
+
+    waitClusterUp.acquire()
+
+    Thread.sleep(3000)
+
+  }
+
   override def afterAll: Unit = {
+    cluster.leave(cluster.selfAddress)
     system.terminate().onComplete { result =>
       println("Actor system shutdown: " + result)
     }
@@ -77,9 +89,9 @@ class WokenAkkaAPITest
   "Woken" should "respond to a query for the list of methods" in {
 
     val start = System.currentTimeMillis()
-    val future = client ? ClusterClient.Send(entryPoint,
-                                             MethodsQuery,
-                                             localAffinity = true)
+    val future = mediator ? DistributedPubSubMediator.Send(entryPoint,
+                                                           MethodsQuery,
+                                                           localAffinity = true)
     val result = waitFor[MethodsResponse](future)
     val end = System.currentTimeMillis()
 
@@ -100,7 +112,7 @@ class WokenAkkaAPITest
   "Woken" should "respond to a query for the list of available datasets" in {
 
     val start = System.currentTimeMillis()
-    val future = client ? ClusterClient.Send(
+    val future = mediator ? DistributedPubSubMediator.Send(
       entryPoint,
       DatasetsQuery(Some("cde_features_a")),
       localAffinity = true)
@@ -144,9 +156,9 @@ class WokenAkkaAPITest
       executionPlan = None
     )
 
-    val future = client ? ClusterClient.Send(entryPoint,
-                                             query,
-                                             localAffinity = true)
+    val future = mediator ? DistributedPubSubMediator.Send(entryPoint,
+                                                           query,
+                                                           localAffinity = true)
     val result = waitFor[QueryResult](future)
     val end = System.currentTimeMillis()
 
@@ -182,9 +194,9 @@ class WokenAkkaAPITest
       executionPlan = None
     )
 
-    val future = client ? ClusterClient.Send(entryPoint,
-                                             query,
-                                             localAffinity = true)
+    val future = mediator ? DistributedPubSubMediator.Send(entryPoint,
+                                                           query,
+                                                           localAffinity = true)
     val result = waitFor[QueryResult](future)
     val end = System.currentTimeMillis()
 
@@ -220,9 +232,9 @@ class WokenAkkaAPITest
       executionPlan = None
     )
 
-    val future = client ? ClusterClient.Send(entryPoint,
-                                             query,
-                                             localAffinity = true)
+    val future = mediator ? DistributedPubSubMediator.Send(entryPoint,
+                                                           query,
+                                                           localAffinity = true)
     val result = waitFor[QueryResult](future)
     val end = System.currentTimeMillis()
 
@@ -248,9 +260,9 @@ class WokenAkkaAPITest
 
     val start = System.currentTimeMillis()
     val query = experimentQuery("knn", List(CodeValue("k", "5")))
-    val future = client ? ClusterClient.Send(entryPoint,
-                                             query,
-                                             localAffinity = true)
+    val future = mediator ? DistributedPubSubMediator.Send(entryPoint,
+                                                           query,
+                                                           localAffinity = true)
     val maybeResult = waitFor[QueryResult](future)
     val end = System.currentTimeMillis()
 
@@ -285,8 +297,10 @@ class WokenAkkaAPITest
     val queries = failures.map(failure =>
       experimentQuery("chaos", List(CodeValue("failure", failure))))
 
-    val futures = queries.map(query =>
-      client ? ClusterClient.Send(entryPoint, query, localAffinity = true))
+    val futures = queries.map(
+      query =>
+        mediator ? DistributedPubSubMediator
+          .Send(entryPoint, query, localAffinity = true))
 
     futures.foreach { f =>
       println("Waiting for result from chaos algorithm...")
@@ -299,9 +313,10 @@ class WokenAkkaAPITest
     }
 
     val knnQuery = experimentQuery("knn", List(CodeValue("k", "5")))
-    val successfulFuture = client ? ClusterClient.Send(entryPoint,
-                                                       knnQuery,
-                                                       localAffinity = true)
+    val successfulFuture = mediator ? DistributedPubSubMediator.Send(
+      entryPoint,
+      knnQuery,
+      localAffinity = true)
     val result = waitFor[QueryResult](successfulFuture)
 
     if (!result.isSuccess) {

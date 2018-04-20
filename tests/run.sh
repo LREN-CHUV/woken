@@ -59,6 +59,8 @@ fi
 
 trap '$DOCKER_COMPOSE rm -f' SIGINT SIGQUIT
 
+export TEST_ARGS="${test_args}"
+
 echo "Remove old running containers (if any)..."
 $DOCKER_COMPOSE kill
 $DOCKER_COMPOSE rm -f
@@ -117,7 +119,7 @@ if [ $tests == 1 ]; then
     echo
     echo "Testing Akka API..."
 
-    $DOCKER_COMPOSE run wokentest ${test_args}
+    $DOCKER_COMPOSE up wokentest
 fi
 
 if [ $frontend == 1 ]; then
