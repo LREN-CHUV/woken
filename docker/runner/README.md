@@ -14,7 +14,7 @@ It relies on a runtime environment containing [Mesos](http://mesos.apache.org) a
 
 ```sh
 
- docker run --rm --env [list of environment variables] --link woken hbpmip/woken:2.5.0
+ docker run --rm --env [list of environment variables] --link woken hbpmip/woken:2.5.1
 
 ```
 
