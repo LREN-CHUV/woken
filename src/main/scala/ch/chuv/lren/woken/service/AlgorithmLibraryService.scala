@@ -93,7 +93,34 @@ class AlgorithmLibraryService {
                 "docker_image": "hbpmip/python-sgd-linear-model:0.1.4",
                 "environment": "Python",
                 "description": "Linear model using Stochastic Gradient Descent...",
-                "parameters": [],
+                "parameters": [{
+                    "code": "alpha",
+                    "label": "alpha",
+                    "default_value": 0.0001,
+                    "type": "number",
+                    "constraints": {
+                        "min": 0.0,
+                        "max": null
+                   },
+                    "description": "Constant that multiplies the regularization term. Defaults to 0.0001 Also used to compute learning_rate when set to ‘optimal’."
+                }, {
+                    "code": "penalty",
+                    "label": "penalty",
+                    "default_value": "l2",
+                    "type": "enumeration",
+                    "values": ["none", "l2", "l1", "elasticnet"],
+                    "description": "The penalty (aka regularization term) to be used. Defaults to ‘l2’ which is the standard regularizer for linear SVM models. ‘l1’ and ‘elasticnet’ might bring sparsity to the model (feature selection) not achievable with ‘l2’."
+                }, {
+                    "code": "l1_ratio",
+                    "label": "l1_ratio",
+                    "default_value": 0.15,
+                    "type": "number",
+                    "constraints": {
+                        "min": 0.0,
+                        "max": 1.0
+                   },
+                  "description": "The Elastic Net mixing parameter, with 0 <= l1_ratio <= 1. l1_ratio=0 corresponds to L2 penalty, l1_ratio=1 to L1. Defaults to 0.15."
+                }],
                 "constraints": {
                     "variable": {
                       "real": true,
@@ -129,6 +156,14 @@ class AlgorithmLibraryService {
                         "max": 1.0
                    },
                     "description": "Additive (Laplace/Lidstone) smoothing parameter (0 for no smoothing, default to 1.)"
+                }, {
+                    "code": "class_prior",
+                    "label": "class_prior",
+                    "default_value": None,
+                    # TODO: class_prior should be a list of numeric values between 0. and 1. and summing to 1. How to define
+                    # it?
+                    "type": "list",
+                    "description": "Prior probabilities of the classes. If specified the priors are not adjusted according to the data."
                 }],
                 "constraints": {
                     "variable": {
@@ -155,7 +190,41 @@ class AlgorithmLibraryService {
                 "docker_image": "hbpmip/python-sgd-neural-network:0.1.4",
                 "environment": "Python",
                 "description": "Neural Network using Stochastic Gradient Descent...",
-                "parameters": [],
+                "parameters": [{
+                    "code": "hidden_layer_sizes",
+                    "label": "hidden_layer_sizes",
+                    "default_value": (100,),
+                    # TODO: what type should I use for `tuple`?
+                    "type": "tuple",
+                    "description": "The ith element represents the number of neurons in the ith hidden layer."
+                }, {
+                    "code": "activation",
+                    "label": "activation",
+                    "default_value": "relu",
+                    "type": "enumeration",
+                    "values": ["identity", "logistic", "tanh", "relu"],
+                    "description": "Activation function for the hidden layer."
+                }, {
+                    "code": "alpha",
+                    "label": "alpha",
+                    "default_value": 0.0001,
+                    "type": "number",
+                    "constraints": {
+                        "min": 0.0,
+                        "max": null
+                   },
+                  "description": "L2 penalty (regularization term) parameter."
+                }, {
+                    "code": "learning_rate_init",
+                    "label": "learning_rate_init",
+                    "default_value": 0.001,
+                    "type": "number",
+                    "constraints": {
+                        "min": 0.0,
+                        "max": 1.0
+                   },
+                   "description": "The initial learning rate used. It controls the step-size in updating the weights."
+                }],
                 "constraints": {
                     "variable": {
                       "real": true,
@@ -181,7 +250,77 @@ class AlgorithmLibraryService {
                 "docker_image": "hbpmip/python-gradient-boosting:0.1.4",
                 "environment": "Python",
                 "description": "Gradient Boosting...",
-                "parameters": [],
+                "parameters": [{
+                    "code": "learning_rate",
+                    "label": "learning_rate",
+                    "default_value": 0.1,
+                    "type": "number",
+                    "constraints": {
+                        "min": 0.0,
+                        "max": 1.0
+                    },
+                    "description": "learning rate shrinks the contribution of each tree by learning_rate. There is a trade-off between learning_rate and n_estimators."
+                }, {
+                    "code": "n_estimators",
+                    "label": "n_estimators",
+                    "default_value": 100,
+                    "type": "integer",
+                    "constraints": {
+                        "min": 0,
+                        "max": null
+                    },
+                    "description": "The number of boosting stages to perform. Gradient boosting is fairly robust to over-fitting so a large number usually results in better performance."
+                }, {
+                    "code": "max_depth",
+                    "label": "max_depth",
+                    "default_value": 3,
+                    "type": "integer",
+                    "constraints": {
+                        "min": 1,
+                        "max": 10
+                    },
+                    "description": "maximum depth of the individual regression estimators. The maximum depth limits the number of nodes in the tree. Tune this parameter for best performance; the best value depends on the interaction of the input variables."
+                }, {
+                    "code": "min_samples_split",
+                    "label": "min_samples_split",
+                    "default_value": 2,
+                    "type": "integer",
+                    "constraints": {
+                        "min": 1,
+                        "max": null
+                    },
+                    "description": "The minimum number of samples required to split an internal node."
+                }, {
+                    "code": "min_samples_leaf",
+                    "label": "min_samples_leaf",
+                    "default_value": 1,
+                    "type": "integer",
+                    "constraints": {
+                        "min": 1,
+                        "max": null
+                    },
+                    "description": "The minimum number of samples required to be at a leaf node."
+                }, {
+                    "code": "min_weight_fraction_leaf",
+                    "label": "min_weight_fraction_leaf",
+                    "default_value": 0.0,
+                    "type": "numeric",
+                    "constraints": {
+                        "min": 0.0,
+                        "max": 1.0
+                    },
+                    "description": "The minimum weighted fraction of the sum total of weights (of all the input samples) required to be at a leaf node. Samples have equal weight when sample_weight is not provided."
+                }, {
+                    "code": "min_impurity_decrease",
+                    "label": "min_impurity_decrease",
+                    "default_value": 0.0,
+                    "type": "numeric",
+                    "constraints": {
+                        "min": 0.0,
+                        "max": null
+                    },
+                    "description": "A node will be split if this split induces a decrease of the impurity greater than or equal to this value."
+                }],
                 "constraints": {
                     "variable": {
                       "real": true,
