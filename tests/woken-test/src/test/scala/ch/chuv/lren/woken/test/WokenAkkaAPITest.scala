@@ -58,7 +58,7 @@ class WokenAkkaAPITest
       .withFallback(ConfigFactory.load())
       .resolve()
 
-  implicit val system: ActorSystem = ActorSystem("AkkaAPITest", config)
+  implicit val system: ActorSystem = ActorSystem("woken", config)
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executionContext: ExecutionContextExecutor = system.dispatcher
 

@@ -16,7 +16,8 @@
       "mean": 50.0,
       "min": 35.3848051833,
       "null_count": 0,
-      "std": 10.0
+      "std": 10.0,
+      "type": "real"
     }
   ],
   "schema": {
@@ -35,6 +36,10 @@
       },
       {
         "name": "label",
+        "type": "string"
+      },
+      {
+        "name": "type",
         "type": "string"
       },
       {
