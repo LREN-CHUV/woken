@@ -10,6 +10,9 @@
     <Root level="DEBUG">
       <AppenderRef ref="Console"/>
     </Root>
+    <Logger name="akka.actor.LocalActorRefProvider" level="info">
+      <AppenderRef ref="Console"/>
+    </Logger>
     <Logger name="akka.cluster" level="info">
       <AppenderRef ref="Console"/>
     </Logger>
@@ -17,6 +20,12 @@
       <AppenderRef ref="Console"/>
     </Logger>
     <Logger name="akka.http.impl" level="info">
+      <AppenderRef ref="Console"/>
+    </Logger>
+    <Logger name="akka.remote.artery.compress" level="info">
+      <AppenderRef ref="Console"/>
+    </Logger>
+    <Logger name="akka.remote.artery.tcp" level="info">
       <AppenderRef ref="Console"/>
     </Logger>
     <Logger name="akka.stream.impl" level="info">
