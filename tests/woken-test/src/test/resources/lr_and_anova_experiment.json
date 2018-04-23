@@ -1,0 +1,72 @@
+{
+  "data": [
+    {
+      "algorithm": "python-linear-regression",
+      "data": {
+        "Intercept": {
+          "coef": 54.9529,
+          "p_values": 0.0,
+          "std_err": 4.3991,
+          "t_values": 12.49185
+        },
+        "college_math": {
+          "coef": -0.00583,
+          "p_values": 0.83073,
+          "std_err": 0.02724,
+          "t_values": -0.21415
+        },
+        "score_test1": {
+          "coef": -0.00463,
+          "p_values": 0.26109,
+          "std_err": 0.00411,
+          "t_values": -1.12817
+        }
+      },
+      "jobId": "*",
+      "node": "local",
+      "timestamp": 0.0,
+      "type": "application/json"
+    },
+    {
+      "algorithm": "python-anova",
+      "data": {
+        "Residual": {
+          "F": "NaN",
+          "PR(>F)": "NaN",
+          "df": 146.0,
+          "mean_sq": 100.84354,
+          "sum_sq": 14723.1575
+        },
+        "college_math": {
+          "F": 0.04568,
+          "PR(>F)": 0.83106,
+          "df": 1.0,
+          "mean_sq": 4.60651,
+          "sum_sq": 4.60651
+        },
+        "score_test1": {
+          "F": 1.28524,
+          "PR(>F)": 0.25879,
+          "df": 1.0,
+          "mean_sq": 129.60821,
+          "sum_sq": 129.60821
+        },
+        "score_test1:college_math": {
+          "F": 0.42271,
+          "PR(>F)": 0.51661,
+          "df": 1.0,
+          "mean_sq": 42.62777,
+          "sum_sq": 42.62777
+        }
+      },
+      "jobId": "*",
+      "node": "local",
+      "timestamp": 0.0,
+      "type": "application/json"
+    }
+  ],
+  "jobId": "*",
+  "node": "local",
+  "timestamp": 0.0,
+  "type": "application/vnd.hbp.mip.experiment.pfa+json"
+}

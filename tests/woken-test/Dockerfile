@@ -1,15 +1,19 @@
 # Pull base image
-FROM hbpmip/scala-base-build:1.1.0-2
+FROM hbpmip/scala-base-build:1.1.0-2 as scala-build-env
 
-MAINTAINER Ludovic Claude <ludovic.claude@chuv.ch>
-
-COPY docker/test-in-docker.sh /test.sh
-
+# First caching layer: build.sbt and sbt configuration
 COPY build.sbt /build/
-COPY src/test/ /build/src/test/
-COPY project/ /build/project/
+RUN  mkdir -p /build/project/
+COPY project/build.properties project/plugins.sbt project/.gitignore /build/project/
 
-RUN sbt compile test:compile
+# Run sbt on an empty project and force it to download most of its dependencies to fill the cache
+RUN sbt -mem 1500 compile
+
+# Second caching layer: project sources
+COPY docker/test-in-docker.sh /test.sh
+COPY src/test/ /build/src/test/
+
+RUN sbt -mem 1500 test:compile
 
 COPY application.conf /build/
 

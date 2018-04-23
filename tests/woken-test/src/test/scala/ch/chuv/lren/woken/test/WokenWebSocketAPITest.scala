@@ -28,10 +28,11 @@ import akka.http.scaladsl.model.ws.{Message, TextMessage, WebSocketRequest}
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Minutes, Span}
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import org.scalatest.{BeforeAndAfterAll, WordSpec, Matchers}
 import spray.json._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -39,11 +40,12 @@ import scala.concurrent.duration._
 import scala.collection.immutable.Seq
 
 class WokenWebSocketAPITest
-    extends FlatSpec
+    extends WordSpec
     with Matchers
     with Queries
     with ScalaFutures
-    with BeforeAndAfterAll {
+    with BeforeAndAfterAll
+    with LazyLogging {
 
   val config: Config =
     ConfigFactory
@@ -64,35 +66,36 @@ class WokenWebSocketAPITest
 
   override def afterAll: Unit = {
     system.terminate().onComplete { result =>
-      println("Actor system shutdown: " + result)
+      logger.debug(s"Actor system shutdown: $result")
     }
   }
 
-  "Woken" should "respond to a query for the list of methods using websocket" in {
+  "Woken" should {
 
-    executeQuery(None, None, s"ws://$remoteHostName:8087/mining/methods")
+    "respond to a query for the list of algorithms using websocket" in {
+      executeQuery(None,
+                   Some("/list_algorithms.json"),
+                   s"ws://$remoteHostName:8087/mining/algorithms")
+    }
 
-  }
+    "respond to a query for the list of datasets using websocket" in {
+      executeQuery(None,
+                   Some("/list_datasets.json"),
+                   s"ws://$remoteHostName:8087/metadata/datasets")
+    }
 
-  "Woken" should "respond to a query for the list of datasets using websocket" in {
+    "respond to a mining query using websocket" in {
+      executeQuery(Some("/knn_data_mining_query.json"),
+                   Some("/knn_data_mining.json"),
+                   s"ws://$remoteHostName:8087/mining/job")
 
-    executeQuery(None, None, s"ws://$remoteHostName:8087/metadata/datasets")
+    }
 
-  }
-
-  "Woken" should "respond to a mining query using websocket" in {
-
-    executeQuery(Some("/knn_data_mining_query.json"),
-                 Some("/knn_data_mining.json"),
-                 s"ws://$remoteHostName:8087/mining/job")
-
-  }
-
-  "Woken" should "respond to an experiment query using websocket" in {
-
-    executeQuery(Some("/knn_experiment_query.json"),
-                 Some("/knn_experiment.json"),
-                 s"ws://$remoteHostName:8087/mining/experiment")
+    "respond to an experiment query using websocket" in {
+      executeQuery(Some("/knn_experiment_query.json"),
+                   Some("/knn_experiment.json"),
+                   s"ws://$remoteHostName:8087/mining/experiment")
+    }
 
   }
 
@@ -101,13 +104,15 @@ class WokenWebSocketAPITest
     Sink.foreach {
       case message: TextMessage.Strict =>
         message.text.isEmpty shouldBe false
-        println(message.text)
         if (expectedResponse.isDefined) {
           val json = message.getStrictText.parseJson
           val expected = loadJson(expectedResponse.get)
 
-          println("Checking results...")
           assertResult(approximate(expected))(approximate(json))
+        } else {
+          println("Received, please add a check for this result: ")
+          val json = message.getStrictText.parseJson
+          println(json.prettyPrint)
         }
       case err =>
         fail("Unexpected response received: " + err.toString)
@@ -153,10 +158,10 @@ class WokenWebSocketAPITest
       }
     }
 
-    connected.onComplete(println)
+    connected.onComplete(t => logger.debug(t.toString))
 
     whenReady(closed, timeout = Timeout(Span(5, Minutes))) { result =>
-      println(result)
+      logger.debug(result.toString)
     }
 
   }

@@ -19,7 +19,7 @@ package ch.chuv.lren.woken.test
 
 import java.util.concurrent.{Semaphore, TimeUnit}
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.cluster.Cluster
 import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.pattern.ask
@@ -29,7 +29,8 @@ import com.typesafe.config.{Config, ConfigFactory}
 import ch.chuv.lren.woken.messages.datasets._
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables.VariableId
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import com.typesafe.scalalogging.LazyLogging
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
 import org.scalatest.TryValues._
 import org.scalatest.tagobjects.Slow
 import spray.json._
@@ -41,20 +42,21 @@ import scala.language.postfixOps
 import scala.util.Try
 
 class WokenAkkaAPITest
-    extends FlatSpec
+    extends WordSpec
     with Matchers
     with Queries
-    with BeforeAndAfterAll {
+    with BeforeAndAfterAll
+    with LazyLogging {
 
   implicit val timeout: Timeout = Timeout(200 seconds)
   val config: Config =
     ConfigFactory
       .parseString("""
-                     |akka {
-                     |  actor.provider = cluster
-                     |  extensions += "akka.cluster.pubsub.DistributedPubSub"
-                     |}
-                   """.stripMargin)
+          |akka {
+          |  actor.provider = cluster
+          |  extensions += "akka.cluster.pubsub.DistributedPubSub"
+          |}
+        """.stripMargin)
       .withFallback(ConfigFactory.load())
       .resolve()
 
@@ -63,7 +65,7 @@ class WokenAkkaAPITest
   implicit val executionContext: ExecutionContextExecutor = system.dispatcher
 
   val cluster = Cluster(system)
-  val mediator = DistributedPubSub(system).mediator
+  val mediator: ActorRef = DistributedPubSub(system).mediator
 
   val entryPoint = "/user/entrypoint"
 
@@ -74,264 +76,273 @@ class WokenAkkaAPITest
 
     waitClusterUp.acquire()
 
-    Thread.sleep(3000)
+    // TODO: Woken should response to a Ping message
+    Thread.sleep(5000)
 
   }
 
   override def afterAll: Unit = {
     cluster.leave(cluster.selfAddress)
     system.terminate().onComplete { result =>
-      println("Actor system shutdown: " + result)
+      logger.debug(s"Actor system shutdown: $result")
     }
   }
 
-  // Test methods query
-  "Woken" should "respond to a query for the list of methods" in {
+  "Woken" should {
 
-    val start = System.currentTimeMillis()
-    val future = mediator ? DistributedPubSubMediator.Send(entryPoint,
-                                                           MethodsQuery,
-                                                           localAffinity = true)
-    val result = waitFor[MethodsResponse](future)
-    val end = System.currentTimeMillis()
+    "respond to a query for the list of methods" in {
+      val response: MethodsResponse =
+        timedQuery(MethodsQuery, "list of methods")
+      val expected = loadJson("/list_algorithms.json")
 
-    println(
-      "List of methods query complete in " + Duration(end - start,
-                                                      TimeUnit.MILLISECONDS))
-
-    if (!result.isSuccess) {
-      println(result)
+      response.methods shouldBe expected
     }
 
-    val expected = loadJson("/list_algorithms.json")
+    "respond to a query for the list of available datasets" in {
+      val response: DatasetsResponse =
+        timedQuery(DatasetsQuery(Some("cde_features_a")), "list of datasets")
 
-    result.success.value.methods shouldBe expected
-  }
+      response.datasets should have size 1
 
-  // Datasets available query
-  "Woken" should "respond to a query for the list of available datasets" in {
+      val expected = Set(
+        Dataset(DatasetId("desd-synthdata"),
+                "DESD",
+                "Demo dataset DESD",
+                List("cde_features_a", "cde_features_mixed"),
+                AnonymisationLevel.Anonymised,
+                None))
 
-    val start = System.currentTimeMillis()
-    val future = mediator ? DistributedPubSubMediator.Send(
-      entryPoint,
-      DatasetsQuery(Some("cde_features_a")),
-      localAffinity = true)
-    val result = waitFor[DatasetsResponse](future)
-    val end = System.currentTimeMillis()
-
-    println(
-      "List of datasets query complete in " + Duration(end - start,
-                                                       TimeUnit.MILLISECONDS))
-
-    if (!result.isSuccess) {
-      println(result)
+      response.datasets shouldBe expected
     }
 
-    result.success.value.datasets should have size 1
+    "respond to a data mining query," which {
 
-    val expected = Set(
-      Dataset(DatasetId("desd-synthdata"),
-              "CHUV",
-              "Demo dataset for CHUV",
-              List("cde_features_a"),
-              AnonymisationLevel.Anonymised,
-              None))
+      "uses a k-NN algorithm               [PFA]" in {
+        val query = MiningQuery(
+          user = UserId("test1"),
+          variables = List(VariableId("cognitive_task2")),
+          covariables = List(VariableId("score_math_course1")),
+          grouping = Nil,
+          filters = None,
+          targetTable = Some("sample_data"),
+          algorithm = AlgorithmSpec("knn", List(CodeValue("k", "5"))),
+          datasets = Set(),
+          executionPlan = None
+        )
+        val response: QueryResult =
+          timedQuery(query, "mine data using k-NN algorithm")
 
-    result.success.value.datasets shouldBe expected
-  }
+        response.data should not be empty
 
-  // Test mining query
-  "Woken" should "respond to a data mining query for k-NN algorithm" in {
+        val json = response.toJson
+        val expected = loadJson("/knn_data_mining.json")
 
-    val start = System.currentTimeMillis()
-    val query = MiningQuery(
-      user = UserId("test1"),
-      variables = List(VariableId("cognitive_task2")),
-      covariables = List(VariableId("score_math_course1")),
-      grouping = Nil,
-      filters = None,
-      targetTable = Some("sample_data"),
-      algorithm = AlgorithmSpec("knn", List(CodeValue("k", "5"))),
-      datasets = Set(),
-      executionPlan = None
-    )
-
-    val future = mediator ? DistributedPubSubMediator.Send(entryPoint,
-                                                           query,
-                                                           localAffinity = true)
-    val result = waitFor[QueryResult](future)
-    val end = System.currentTimeMillis()
-
-    println(
-      "Data mining query complete in " + Duration(end - start,
-                                                  TimeUnit.MILLISECONDS))
-
-    if (!result.isSuccess) {
-      println(result)
-    }
-
-    result.success.value.data should not be empty
-
-    val json = result.success.value.toJson
-    val expected = loadJson("/knn_data_mining.json")
-
-    assertResult(approximate(expected))(approximate(json))
-  }
-
-  "Woken" should "respond to a data mining query with visualisation (histogram algorithm)" in {
-
-    val start = System.currentTimeMillis()
-    val query = MiningQuery(
-      user = UserId("test1"),
-      variables = List(VariableId("cognitive_task2")),
-      covariables =
-        List("score_math_course1", "score_math_course2").map(VariableId),
-      grouping = Nil,
-      filters = None,
-      targetTable = Some("sample_data"),
-      algorithm = AlgorithmSpec("histograms", Nil),
-      datasets = Set(),
-      executionPlan = None
-    )
-
-    val future = mediator ? DistributedPubSubMediator.Send(entryPoint,
-                                                           query,
-                                                           localAffinity = true)
-    val result = waitFor[QueryResult](future)
-    val end = System.currentTimeMillis()
-
-    println(
-      "Data mining query with visualisation complete in " + Duration(
-        end - start,
-        TimeUnit.MILLISECONDS))
-
-    if (!result.isSuccess) {
-      println(result)
-    }
-
-    result.success.value.data should not be empty
-
-    val json = result.success.value.data.get
-    val expected = loadJson("/histograms.json")
-
-    assertResult(approximate(expected))(approximate(json))
-  }
-
-  "Woken" should "respond to a data mining query with table results (summary statistics algorithm)" in {
-
-    val start = System.currentTimeMillis()
-    val query = MiningQuery(
-      user = UserId("test1"),
-      variables = List(VariableId("cognitive_task2")),
-      covariables = List(),
-      grouping = Nil,
-      filters = None,
-      targetTable = Some("sample_data"),
-      algorithm = AlgorithmSpec("statisticsSummary", Nil),
-      datasets = Set(),
-      executionPlan = None
-    )
-
-    val future = mediator ? DistributedPubSubMediator.Send(entryPoint,
-                                                           query,
-                                                           localAffinity = true)
-    val result = waitFor[QueryResult](future)
-    val end = System.currentTimeMillis()
-
-    println(
-      "Data mining query with visualisation complete in " + Duration(
-        end - start,
-        TimeUnit.MILLISECONDS))
-
-    if (!result.isSuccess) {
-      println(result)
-    }
-
-    result.success.value.data should not be empty
-
-    val json = result.success.value.data.get
-    val expected = loadJson("/summary_statistics.json")
-
-    assertResult(approximate(expected))(approximate(json))
-  }
-
-  // Test experiment query
-  "Woken" should "respond to an experiment query executing kNN algorithm" in {
-
-    val start = System.currentTimeMillis()
-    val query = experimentQuery("knn", List(CodeValue("k", "5")))
-    val future = mediator ? DistributedPubSubMediator.Send(entryPoint,
-                                                           query,
-                                                           localAffinity = true)
-    val maybeResult = waitFor[QueryResult](future)
-    val end = System.currentTimeMillis()
-
-    println(
-      "Experiment query complete in " + Duration(end - start,
-                                                 TimeUnit.MILLISECONDS))
-
-    if (!maybeResult.isSuccess) {
-      println(maybeResult)
-    }
-
-    val result = maybeResult.success.value
-
-    result.data should not be empty
-
-    val json = result.toJson
-    val expected = loadJson("/knn_experiment.json")
-
-    println(approximate(json))
-    assertResult(approximate(expected))(approximate(json))
-  }
-
-  // Test resiliency
-  "Woken" should "recover from multiple failed experiments" taggedAs Slow in {
-
-    // TODO: add no_results, never_end
-    val failures = List("training_fails",
-                        "invalid_json",
-                        "invalid_pfa_syntax",
-                        "invalid_pfa_semantics")
-
-    val queries = failures.map(failure =>
-      experimentQuery("chaos", List(CodeValue("failure", failure))))
-
-    val futures = queries.map(
-      query =>
-        mediator ? DistributedPubSubMediator
-          .Send(entryPoint, query, localAffinity = true))
-
-    futures.foreach { f =>
-      println("Waiting for result from chaos algorithm...")
-      val result = waitFor[QueryResult](f)
-      if (result.isFailure) {
-        println(s"Chaos algorithm failed with ${result.failed.get}")
-      } else {
-        println(s"Chaos algorithm returned ${result.success.value}")
+        assertResult(approximate(expected))(approximate(json))
       }
+
+      "uses a histogram                    [visualisation, highcharts]" in {
+        val query = MiningQuery(
+          user = UserId("test1"),
+          variables = List(VariableId("cognitive_task2")),
+          covariables =
+            List("score_math_course1", "score_math_course2").map(VariableId),
+          grouping = Nil,
+          filters = None,
+          targetTable = Some("sample_data"),
+          algorithm = AlgorithmSpec("histograms", Nil),
+          datasets = Set(),
+          executionPlan = None
+        )
+
+        val response: QueryResult =
+          timedQuery(query, "mine data using a histogram")
+
+        response.data should not be empty
+
+        val json = response.toJson
+        val expected = loadJson("/histograms.json")
+
+        assertResult(approximate(expected))(approximate(json))
+      }
+
+      "uses a summary statistics algorithm [visualisation, tabular results]" in {
+        val query = MiningQuery(
+          user = UserId("test1"),
+          variables = List(VariableId("cognitive_task2")),
+          covariables = List(),
+          grouping = Nil,
+          filters = None,
+          targetTable = Some("sample_data"),
+          algorithm = AlgorithmSpec("statisticsSummary", Nil),
+          datasets = Set(),
+          executionPlan = None
+        )
+
+        val response: QueryResult =
+          timedQuery(query, "mine data using summary statistics algorithm")
+
+        response.data should not be empty
+
+        val json = response.toJson
+        val expected = loadJson("/summary_statistics.json")
+
+        assertResult(approximate(expected))(approximate(json))
+      }
+
+      "uses t-SNE                          [visualisation, highcharts]" in {
+        val query = MiningQuery(
+          user = UserId("test1"),
+          variables = List(VariableId("cognitive_task2")),
+          covariables =
+            List("score_math_course1", "score_math_course2").map(VariableId),
+          grouping = Nil,
+          filters = None,
+          targetTable = Some("sample_data"),
+          algorithm = AlgorithmSpec("tSNE", Nil),
+          datasets = Set(),
+          executionPlan = None
+        )
+
+        val response: QueryResult = timedQuery(query, "mine data using t-SNE")
+
+        response.data should not be empty
+
+        val json = response.toJson
+        println(approximate(json))
+        val expected = loadJson("/tsne_data_mining.json")
+
+        assertResult(approximate(expected))(approximate(json))
+      }
+
+      "uses correlation heatmap            [visualisation, plotly.js]" in {
+        val query = MiningQuery(
+          user = UserId("test1"),
+          variables = List(VariableId("cognitive_task2")),
+          covariables =
+            List("score_math_course1", "score_math_course2").map(VariableId),
+          grouping = Nil,
+          filters = None,
+          targetTable = Some("sample_data"),
+          algorithm = AlgorithmSpec("correlationHeatmap", Nil),
+          datasets = Set(),
+          executionPlan = None
+        )
+
+        val response: QueryResult = timedQuery(query, "mine data using t-SNE")
+
+        response.data should not be empty
+
+        val json = response.toJson
+        println(approximate(json))
+        val expected = loadJson("/correlation_heatmap_data_mining.json")
+
+        assertResult(approximate(expected))(approximate(json))
+      }
+
     }
 
-    val knnQuery = experimentQuery("knn", List(CodeValue("k", "5")))
-    val successfulFuture = mediator ? DistributedPubSubMediator.Send(
-      entryPoint,
-      knnQuery,
-      localAffinity = true)
-    val result = waitFor[QueryResult](successfulFuture)
+    "respond to an experiment query," which {
 
-    if (!result.isSuccess) {
-      println(result)
+      // Test experiment query
+      "executes a k-NN algorithm" in {
+
+        val query =
+          experimentQuery("knn", parameters = List(CodeValue("k", "5")))
+        val response: QueryResult =
+          timedQuery(query, "an experiment with k-NN algorithm")
+
+        response.data should not be empty
+
+        val json = response.toJson
+        val expected = loadJson("/knn_experiment.json")
+
+        assertResult(approximate(expected))(approximate(json))
+      }
+
+      "executes a Linear regression and Anova algorithms" in {
+
+        val query = multipleExperimentQuery(List(AlgorithmSpec("linearRegression", List()), AlgorithmSpec("anova", List())))
+        val response: QueryResult =
+          timedQuery(query, "an experiment with Linear regression algorithm")
+
+        response.data should not be empty
+
+        val json = response.toJson
+        println(approximate(json))
+        val expected = loadJson("/lr_and_anova_experiment.json")
+
+        assertResult(approximate(expected))(approximate(json))
+      }
+
+      "executes a Naive Bayes algorithm" in {
+
+        val query = experimentQuery(
+          "naiveBayes",
+          parameters = List(),
+          variables = List(VariableId("alzheimerbroadcategory")),
+          covariables = List(VariableId("lefthippocampus")),
+          targetTable = Some("cde_features_mixed")
+        )
+
+        val response: QueryResult =
+          timedQuery(query, "an experiment with Naive Bayes algorithm")
+
+        response.data should not be empty
+
+        val json = response.toJson
+        val expected = loadJson("/naive_bayes_experiment.json")
+
+        assertResult(approximate(expected))(approximate(json))
+      }
+
+      // sgdLinearModel
+      // sgdNeuralNetwork
+      // gradientBoosting
+      // ggparci
+      // hinmine
+      // hedwig
     }
 
-    val data = result.success.value.data
+    // Test resiliency
+    "recover from multiple failed experiments" taggedAs Slow in {
 
-    data should not be empty
+      // TODO: add never_end
+      val failures = List("training_fails",
+                          "invalid_json",
+                          "invalid_pfa_syntax",
+                          "invalid_pfa_semantics",
+                          "no_results")
 
-    val json = data.get
-    val expected = loadJson("/knn_experiment.json")
+      val queries = failures.map(failure =>
+        experimentQuery("chaos", List(CodeValue("failure", failure))))
 
-    assertResult(approximate(expected))(approximate(json))
+      val futures = queries.map(
+        query =>
+          mediator ? DistributedPubSubMediator
+            .Send(entryPoint, query, localAffinity = true))
 
+      futures.foreach { f =>
+        logger.info("Waiting for result from chaos algorithm...")
+        val result = waitFor[QueryResult](f)
+        if (result.isFailure) {
+          logger.info(s"Chaos algorithm failed with ${result.failed.get}")
+        } else {
+          logger.info(s"Chaos algorithm returned ${result.success.value}")
+        }
+      }
+
+      val knnQuery = experimentQuery("knn", List(CodeValue("k", "5")))
+      val response: QueryResult =
+        timedQuery(knnQuery, "an experiment with k-NN algorithm")
+
+      response.data should not be empty
+
+      val json = response.toJson
+      val expected = loadJson("/knn_experiment.json")
+
+      assertResult(approximate(expected))(approximate(json))
+
+    }
   }
 
   private def waitFor[T](future: Future[Any])(
@@ -341,4 +352,23 @@ class WokenAkkaAPITest
     }
   }
 
+  private def timedQuery[R](query: Any, description: String): R = {
+    val start = System.currentTimeMillis()
+    val future = mediator ? DistributedPubSubMediator.Send(entryPoint,
+                                                           query,
+                                                           localAffinity = true)
+    val result = waitFor[R](future)
+    val end = System.currentTimeMillis()
+
+    logger.info(
+      s"Query for $description complete in " + Duration(end - start,
+                                                        TimeUnit.MILLISECONDS))
+
+    if (!result.isSuccess) {
+      logger.error(result.toString)
+    }
+    assert(result.isSuccess, "Query returned a failure")
+
+    result.success.value
+  }
 }

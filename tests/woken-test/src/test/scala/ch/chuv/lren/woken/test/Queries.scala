@@ -25,15 +25,32 @@ import scala.io.Source
 
 trait Queries {
 
-  def experimentQuery(algorithm: String, parameters: List[CodeValue]) =
+  def experimentQuery(
+      algorithm: String,
+      parameters: List[CodeValue],
+      variables: List[VariableId] = List(VariableId("cognitive_task2")),
+      covariables: List[VariableId] =
+        List(VariableId("score_test1"), VariableId("college_math")),
+      targetTable: Option[String] = Some("sample_data")): Query =
+    multipleExperimentQuery(algorithms = List(AlgorithmSpec(algorithm, parameters)),
+                    variables = variables,
+                    covariables = covariables,
+                    targetTable = targetTable)
+
+  def multipleExperimentQuery(
+      algorithms: List[AlgorithmSpec],
+      variables: List[VariableId] = List(VariableId("cognitive_task2")),
+      covariables: List[VariableId] =
+        List(VariableId("score_test1"), VariableId("college_math")),
+      targetTable: Option[String] = Some("sample_data")): Query =
     ExperimentQuery(
       user = UserId("test1"),
-      variables = List(VariableId("cognitive_task2")),
-      covariables = List(VariableId("score_test1"), VariableId("college_math")),
+      variables = variables,
+      covariables = covariables,
       grouping = Nil,
       filters = None,
-      targetTable = Some("sample_data"),
-      algorithms = List(AlgorithmSpec(algorithm, parameters)),
+      targetTable = targetTable,
+      algorithms = algorithms,
       validations = List(ValidationSpec("kfold", List(CodeValue("k", "2")))),
       trainingDatasets = Set(),
       testingDatasets = Set(),

@@ -13,7 +13,7 @@
     <Logger name="akka.actor.LocalActorRefProvider(akka://woken)" level="info">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="akka.cluster" level="info">
+    <Logger name="akka.cluster" level="${sys:AKKA_CLUSTER_LOG_LEVEL:-info}">
       <AppenderRef ref="Console"/>
     </Logger>
     <Logger name="akka.io" level="info">
@@ -22,10 +22,10 @@
     <Logger name="akka.http.impl" level="info">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="akka.remote.artery.compress" level="info">
+    <Logger name="akka.remote.artery.compress" level="${sys:AKKA_CLUSTER_LOG_LEVEL:-info}">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="akka.remote.artery.tcp" level="info">
+    <Logger name="akka.remote.artery.tcp" level="${sys:AKKA_CLUSTER_LOG_LEVEL:-info}">
       <AppenderRef ref="Console"/>
     </Logger>
     <Logger name="akka.stream.impl" level="info">

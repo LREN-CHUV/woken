@@ -13,5 +13,11 @@
     <Logger name="akka.cluster" level="info">
       <AppenderRef ref="Console"/>
     </Logger>
+    <Logger name="akka.stream" level="error">
+      <AppenderRef ref="Console"/>
+    </Logger>
+    <Logger name="ch.chuv.lren.woken.test.WokenWebSocketAPITest" level="info">
+      <AppenderRef ref="Console"/>
+    </Logger>
   </Loggers>
 </Configuration>

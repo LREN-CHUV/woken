@@ -23,6 +23,7 @@ lazy val `woken-test` =
           library.log4jSlf4j,
           library.disruptor,
           library.config,
+          library.scalaLogging,
           library.wokenMessages,
           library.scalaCheck   % Test,
           library.scalaTest    % Test,
@@ -50,6 +51,7 @@ lazy val library =
       val log4j         = "2.11.0"
       val disruptor     = "3.4.2"
       val config        = "1.3.3"
+      val scalaLogging  = "3.9.0"
       val wokenMessages = "2.7.2"
     }
     val scalaCheck: ModuleID       = "org.scalacheck"    %% "scalacheck"   % Version.scalaCheck
@@ -67,6 +69,7 @@ lazy val library =
     val log4jSlf4j: ModuleID       = "org.apache.logging.log4j" % "log4j-slf4j-impl" % Version.log4j
     val disruptor: ModuleID        = "com.lmax"           % "disruptor"    % Version.disruptor
     val config: ModuleID           = "com.typesafe"       % "config"       % Version.config
+    val scalaLogging: ModuleID = "com.typesafe.scala-logging" %% "scala-logging" % Version.scalaLogging
     val wokenMessages: ModuleID    = "ch.chuv.lren.woken" %% "woken-messages" % Version.wokenMessages
   }
 

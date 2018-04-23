@@ -1,0 +1,617 @@
+{
+  "data": [
+    {
+      "algorithm": "python-sgd-naive-bayes",
+      "data": {
+        "action": [
+          {
+            "let": {
+              "x": {
+                "a.flatten": [
+                  {
+                    "new": [
+                      {
+                        "u.arr": [
+                          {
+                            "/": [
+                              {
+                                "-": [
+                                  {
+                                    "cast.double": [
+                                      {
+                                        "attr": "input",
+                                        "path": [
+                                          {
+                                            "string": "lefthippocampus"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  0.0
+                                ]
+                              },
+                              1.0
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "type": {
+                      "items": {
+                        "items": "double",
+                        "type": "array"
+                      },
+                      "type": "array"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "let": {
+              "gaussFeatures": {
+                "else": [
+                  0.0
+                ],
+                "if": {
+                  ">": [
+                    {
+                      "a.len": [
+                        {
+                          "cell": "gaussModel"
+                        }
+                      ]
+                    },
+                    0.0
+                  ]
+                },
+                "then": [
+                  {
+                    "a.len": [
+                      {
+                        "cell": "gaussModel",
+                        "path": [
+                          0.0,
+                          {
+                            "string": "stats"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "let": {
+              "gaussianLL": {
+                "a.map": [
+                  {
+                    "cell": "gaussModel"
+                  },
+                  {
+                    "do": [
+                      {
+                        "model.naive.gaussian": [
+                          {
+                            "a.subseq": [
+                              "x",
+                              0.0,
+                              "gaussFeatures"
+                            ]
+                          },
+                          {
+                            "attr": "dist",
+                            "path": [
+                              {
+                                "string": "stats"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "params": [
+                      {
+                        "dist": {
+                          "fields": [
+                            {
+                              "name": "stats",
+                              "type": {
+                                "items": {
+                                  "fields": [
+                                    {
+                                      "name": "mean",
+                                      "type": "double"
+                                    },
+                                    {
+                                      "name": "variance",
+                                      "type": "double"
+                                    }
+                                  ],
+                                  "name": "M",
+                                  "type": "record"
+                                },
+                                "type": "array"
+                              }
+                            }
+                          ],
+                          "name": "GaussianDistribution",
+                          "type": "record"
+                        }
+                      }
+                    ],
+                    "ret": "double"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "let": {
+              "multinomialLL": {
+                "a.map": [
+                  {
+                    "cell": "multinomialModel"
+                  },
+                  {
+                    "do": [
+                      {
+                        "model.naive.multinomial": [
+                          {
+                            "a.subseq": [
+                              "x",
+                              "gaussFeatures",
+                              {
+                                "a.len": [
+                                  "x"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "attr": "dist",
+                            "path": [
+                              {
+                                "string": "logLikelihoods"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "params": [
+                      {
+                        "dist": {
+                          "fields": [
+                            {
+                              "name": "logLikelihoods",
+                              "type": {
+                                "items": "double",
+                                "type": "array"
+                              }
+                            }
+                          ],
+                          "name": "MultinomialDistribution",
+                          "type": "record"
+                        }
+                      }
+                    ],
+                    "ret": "double"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "let": {
+              "classLL": {
+                "cell": "logPrior"
+              }
+            }
+          },
+          {
+            "if": {
+              ">": [
+                {
+                  "a.len": [
+                    "gaussianLL"
+                  ]
+                },
+                0.0
+              ]
+            },
+            "then": [
+              {
+                "set": {
+                  "classLL": {
+                    "la.add": [
+                      "classLL",
+                      "gaussianLL"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "if": {
+              ">": [
+                {
+                  "a.len": [
+                    "multinomialLL"
+                  ]
+                },
+                0.0
+              ]
+            },
+            "then": [
+              {
+                "set": {
+                  "classLL": {
+                    "la.add": [
+                      "classLL",
+                      "multinomialLL"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "let": {
+              "norm": {
+                "a.logsumexp": [
+                  "classLL"
+                ]
+              }
+            }
+          },
+          {
+            "let": {
+              "probs": {
+                "a.map": [
+                  "classLL",
+                  {
+                    "do": [
+                      {
+                        "m.exp": [
+                          {
+                            "-": [
+                              "x",
+                              "norm"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "params": [
+                      {
+                        "x": "double"
+                      }
+                    ],
+                    "ret": "double"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "cell": "classes",
+            "path": [
+              {
+                "a.argmax": [
+                  "probs"
+                ]
+              }
+            ]
+          }
+        ],
+        "cells": {
+          "classes": {
+            "init": [
+              "AD",
+              "CN",
+              "Other"
+            ],
+            "rollback": false,
+            "shared": false,
+            "type": {
+              "items": "string",
+              "type": "array"
+            }
+          },
+          "gaussModel": {
+            "init": [
+              {
+                "stats": [
+                  {
+                    "mean": 2.82834,
+                    "variance": 0.18417
+                  }
+                ]
+              },
+              {
+                "stats": [
+                  {
+                    "mean": 3.12883,
+                    "variance": 0.09512
+                  }
+                ]
+              },
+              {
+                "stats": [
+                  {
+                    "mean": 2.94228,
+                    "variance": 0.12812
+                  }
+                ]
+              }
+            ],
+            "rollback": false,
+            "shared": false,
+            "type": {
+              "items": "GaussianDistribution",
+              "type": "array"
+            }
+          },
+          "logPrior": {
+            "init": [
+              -0.96334,
+              -0.87938,
+              -1.59286
+            ],
+            "rollback": false,
+            "shared": false,
+            "type": {
+              "items": "double",
+              "type": "array"
+            }
+          },
+          "multinomialModel": {
+            "init": [],
+            "rollback": false,
+            "shared": false,
+            "type": {
+              "items": "MultinomialDistribution",
+              "type": "array"
+            }
+          },
+          "validations": [
+            {
+              "code": "kfold",
+              "data": {
+                "average": {
+                  "Accuracy": 0.52507,
+                  "Confusion matrix": {
+                    "labels": [
+                      "AD",
+                      "CN",
+                      "Other"
+                    ],
+                    "values": [
+                      [
+                        136.0,
+                        138.0,
+                        0.0
+                      ],
+                      [
+                        57.0,
+                        241.0,
+                        0.0
+                      ],
+                      [
+                        60.0,
+                        86.0,
+                        0.0
+                      ]
+                    ]
+                  },
+                  "Weighted F1-score": 0.45915,
+                  "Weighted false positive rate": 0.32192,
+                  "Weighted precision": 0.42024,
+                  "Weighted recall": 0.52507,
+                  "type": "PolynomialClassificationScore"
+                },
+                "folds": {
+                  "0": {
+                    "Accuracy": 0.49861,
+                    "Confusion matrix": {
+                      "labels": [
+                        "AD",
+                        "CN",
+                        "Other"
+                      ],
+                      "values": [
+                        [
+                          69.0,
+                          63.0,
+                          0.0
+                        ],
+                        [
+                          34.0,
+                          110.0,
+                          0.0
+                        ],
+                        [
+                          32.0,
+                          51.0,
+                          0.0
+                        ]
+                      ]
+                    },
+                    "Weighted F1-score": 0.42984,
+                    "Weighted false positive rate": 0.31959,
+                    "Weighted precision": 0.38491,
+                    "Weighted recall": 0.49861,
+                    "type": "PolynomialClassificationScore"
+                  },
+                  "1": {
+                    "Accuracy": 0.55153,
+                    "Confusion matrix": {
+                      "labels": [
+                        "AD",
+                        "CN",
+                        "Other"
+                      ],
+                      "values": [
+                        [
+                          67.0,
+                          75.0,
+                          0.0
+                        ],
+                        [
+                          23.0,
+                          131.0,
+                          0.0
+                        ],
+                        [
+                          28.0,
+                          35.0,
+                          0.0
+                        ]
+                      ]
+                    },
+                    "Weighted F1-score": 0.48839,
+                    "Weighted false positive rate": 0.32314,
+                    "Weighted precision": 0.45776,
+                    "Weighted recall": 0.55153,
+                    "type": "PolynomialClassificationScore"
+                  }
+                },
+                "type": "KFoldCrossValidationScore"
+              }
+            }
+          ]
+        },
+        "fcns": {
+          "C": {
+            "do": [
+              {
+                "a.map": [
+                  "categories",
+                  {
+                    "do": [
+                      {
+                        "else": [
+                          0.0
+                        ],
+                        "if": {
+                          "==": [
+                            "cat",
+                            "x"
+                          ]
+                        },
+                        "then": [
+                          1.0
+                        ]
+                      }
+                    ],
+                    "params": [
+                      {
+                        "cat": "string"
+                      }
+                    ],
+                    "ret": "double"
+                  }
+                ]
+              }
+            ],
+            "params": [
+              {
+                "x": "string"
+              },
+              {
+                "categories": {
+                  "items": "string",
+                  "type": "array"
+                }
+              }
+            ],
+            "ret": {
+              "items": "double",
+              "type": "array"
+            }
+          },
+          "arr": {
+            "do": [
+              {
+                "new": [
+                  "x"
+                ],
+                "type": {
+                  "items": "double",
+                  "type": "array"
+                }
+              }
+            ],
+            "params": [
+              {
+                "x": "double"
+              }
+            ],
+            "ret": {
+              "items": "double",
+              "type": "array"
+            }
+          },
+          "standardize": {
+            "do": [
+              {
+                "/": [
+                  {
+                    "-": [
+                      "x",
+                      "mu"
+                    ]
+                  },
+                  "sigma"
+                ]
+              }
+            ],
+            "params": [
+              {
+                "x": "double"
+              },
+              {
+                "mu": "double"
+              },
+              {
+                "sigma": "double"
+              }
+            ],
+            "ret": "double"
+          }
+        },
+        "input": {
+          "fields": [
+            {
+              "name": "lefthippocampus",
+              "type": "double"
+            }
+          ],
+          "name": "Input",
+          "type": "record"
+        },
+        "metadata": {
+          "estimator": "{\"py/object\": \"sklearn_to_pfa.mixed_nb.MixedNB\", \"py/state\": {\"gauss_nb\": {\"py/object\": \"sklearn.naive_bayes.GaussianNB\", \"py/state\": {\"_sklearn_version\": \"0.19.1\", \"class_count_\": {\"py/object\": \"numpy.ndarray\", \"dtype\": \"float64\", \"values\": [274.0, 298.0, 146.0]}, \"class_prior_\": {\"py/object\": \"numpy.ndarray\", \"dtype\": \"float64\", \"values\": [0.3816155988857939, 0.415041782729805, 0.20334261838440112]}, \"classes_\": {\"py/object\": \"numpy.ndarray\", \"dtype\": \"<U5\", \"values\": [\"AD\", \"CN\", \"Other\"]}, \"priors\": null, \"sigma_\": {\"py/object\": \"numpy.ndarray\", \"dtype\": \"float64\", \"values\": [[0.184167657466646], [0.09511582237963151], [0.12811661751988454]]}, \"theta_\": {\"py/object\": \"numpy.ndarray\", \"dtype\": \"float64\", \"values\": [[2.8283350364963504], [3.1288281879194626], [2.942277397260274]]}}}, \"is_nominal\": [false], \"multi_nb\": {\"py/object\": \"sklearn.naive_bayes.MultinomialNB\", \"py/state\": {\"_sklearn_version\": \"0.19.1\", \"alpha\": 1.0, \"class_prior\": null, \"fit_prior\": true}}}}",
+          "score": "0.5292479108635098"
+        },
+        "method": "map",
+        "name": "naive_bayes",
+        "output": "string"
+      },
+      "jobId": "*",
+      "node": "local",
+      "timestamp": 0.0,
+      "type": "application/pfa+json"
+    }
+  ],
+  "jobId": "*",
+  "node": "local",
+  "timestamp": 0.0,
+  "type": "application/vnd.hbp.mip.experiment.pfa+json"
+}
