@@ -328,7 +328,6 @@ services:
       LOGGING_LEVEL_WEB: DEBUG
       LOGGING_LEVEL_HIBERNATE: WARN
       SESSION_TIMEOUT: 2592000
-      DATASETS: desd-synthdata
     depends_on:
       - db
       - woken
@@ -337,7 +336,8 @@ services:
     image: "waisbrot/wait"
     restart: "no"
     environment:
-      - TARGETS=portalbackend:8080
+      TARGETS: "portalbackend:8080"
+      TIMEOUT: 60
     depends_on:
       - portalbackend
 
@@ -355,7 +355,7 @@ services:
       PORTAL_BACKEND_CONTEXT: services
       MODE: local
       INSTANCE_NAME: "DEV"
-      VERSION: "2.7.0-dev (Woken dev, Validation 2.4.6, Backend 2.7.0, Frontend 2.9.9)"
+      VERSION: "2.7.0-dev (Woken dev, Validation 2.4.8, Backend 2.7.1, Frontend 2.9.10)"
 
 networks:
   default:

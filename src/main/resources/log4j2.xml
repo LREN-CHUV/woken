@@ -10,7 +10,7 @@
     <Root level="DEBUG">
       <AppenderRef ref="Console"/>
     </Root>
-    <Logger name="akka.actor.LocalActorRefProvider" level="info">
+    <Logger name="akka.actor.LocalActorRefProvider(akka://woken)" level="info">
       <AppenderRef ref="Console"/>
     </Logger>
     <Logger name="akka.cluster" level="info">
