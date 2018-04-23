@@ -208,10 +208,13 @@ class WokenAkkaAPITest
         response.data should not be empty
 
         val json = response.toJson
-        println(approximate(json))
+
+        // t-SNE is not deterministic, cannot check exactly its results
+        val skippedTags = List("series")
         val expected = loadJson("/tsne_data_mining.json")
 
-        assertResult(approximate(expected))(approximate(json))
+        assertResult(approximate(expected, skippedTags))(
+          approximate(json, skippedTags))
       }
 
       "uses correlation heatmap            [visualisation, plotly.js]" in {
@@ -228,12 +231,11 @@ class WokenAkkaAPITest
           executionPlan = None
         )
 
-        val response: QueryResult = timedQuery(query, "mine data using t-SNE")
+        val response: QueryResult = timedQuery(query, "mine data using correlation heatmap")
 
         response.data should not be empty
 
         val json = response.toJson
-        println(approximate(json))
         val expected = loadJson("/correlation_heatmap_data_mining.json")
 
         assertResult(approximate(expected))(approximate(json))
@@ -259,16 +261,17 @@ class WokenAkkaAPITest
         assertResult(approximate(expected))(approximate(json))
       }
 
-      "executes a Linear regression and Anova algorithms" in {
+      "executes Linear regression and Anova algorithms" in {
 
-        val query = multipleExperimentQuery(List(AlgorithmSpec("linearRegression", List()), AlgorithmSpec("anova", List())))
+        val query = multipleExperimentQuery(
+          List(AlgorithmSpec("linearRegression", List()),
+               AlgorithmSpec("anova", List())))
         val response: QueryResult =
           timedQuery(query, "an experiment with Linear regression algorithm")
 
         response.data should not be empty
 
         val json = response.toJson
-        println(approximate(json))
         val expected = loadJson("/lr_and_anova_experiment.json")
 
         assertResult(approximate(expected))(approximate(json))
@@ -287,6 +290,7 @@ class WokenAkkaAPITest
         val response: QueryResult =
           timedQuery(query, "an experiment with Naive Bayes algorithm")
 
+        println(response)
         response.data should not be empty
 
         val json = response.toJson

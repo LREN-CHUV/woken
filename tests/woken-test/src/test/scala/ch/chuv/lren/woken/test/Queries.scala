@@ -32,10 +32,11 @@ trait Queries {
       covariables: List[VariableId] =
         List(VariableId("score_test1"), VariableId("college_math")),
       targetTable: Option[String] = Some("sample_data")): Query =
-    multipleExperimentQuery(algorithms = List(AlgorithmSpec(algorithm, parameters)),
-                    variables = variables,
-                    covariables = covariables,
-                    targetTable = targetTable)
+    multipleExperimentQuery(algorithms =
+                              List(AlgorithmSpec(algorithm, parameters)),
+                            variables = variables,
+                            covariables = covariables,
+                            targetTable = targetTable)
 
   def multipleExperimentQuery(
       algorithms: List[AlgorithmSpec],
@@ -63,13 +64,14 @@ trait Queries {
     source.mkString.parseJson
   }
 
-  def approximate(json: JsValue): String = {
+  def approximate(json: JsValue, skippedTags: List[String] = List()): String = {
     val sb = new java.lang.StringBuilder()
-    new ApproximatePrinter().print(json, sb)
+    new ApproximatePrinter(skippedTags).print(json, sb)
     sb.toString
   }
 
-  class ApproximatePrinter extends SortedPrinter {
+  class ApproximatePrinter(val skippedTags: List[String])
+      extends SortedPrinter {
 
     override protected def printObject(members: Map[String, JsValue],
                                        sb: java.lang.StringBuilder,
@@ -82,6 +84,8 @@ trait Queries {
         }
         .filter {
           case ("@", comment) if comment.toString.startsWith("\"PrettyPFA") =>
+            false
+          case (tag, comment) if skippedTags.contains(tag) =>
             false
           case _ => true
         }
