@@ -159,11 +159,9 @@ class AlgorithmLibraryService {
                 }, {
                     "code": "class_prior",
                     "label": "class_prior",
-                    "default_value": None,
-                    # TODO: class_prior should be a list of numeric values between 0. and 1. and summing to 1. How to define
-                    # it?
-                    "type": "list",
-                    "description": "Prior probabilities of the classes. If specified the priors are not adjusted according to the data."
+                    "default_value": null,
+                    "type": "string",
+                    "description": "Prior probabilities of the classes. If specified the priors are not adjusted according to the data. Must be numbers between 0 and 1 and sum to 1. Pass real values separated by comma."
                 }],
                 "constraints": {
                     "variable": {
@@ -193,10 +191,9 @@ class AlgorithmLibraryService {
                 "parameters": [{
                     "code": "hidden_layer_sizes",
                     "label": "hidden_layer_sizes",
-                    "default_value": (100,),
-                    # TODO: what type should I use for `tuple`?
-                    "type": "tuple",
-                    "description": "The ith element represents the number of neurons in the ith hidden layer."
+                    "default_value": "100",
+                    "type": "string",
+                    "description": "The ith element represents the number of neurons in the ith hidden layer. Pass integers separated by comma."
                 }, {
                     "code": "activation",
                     "label": "activation",
@@ -264,7 +261,7 @@ class AlgorithmLibraryService {
                     "code": "n_estimators",
                     "label": "n_estimators",
                     "default_value": 100,
-                    "type": "integer",
+                    "type": "int",
                     "constraints": {
                         "min": 0,
                         "max": null
@@ -274,7 +271,7 @@ class AlgorithmLibraryService {
                     "code": "max_depth",
                     "label": "max_depth",
                     "default_value": 3,
-                    "type": "integer",
+                    "type": "int",
                     "constraints": {
                         "min": 1,
                         "max": 10
@@ -284,7 +281,7 @@ class AlgorithmLibraryService {
                     "code": "min_samples_split",
                     "label": "min_samples_split",
                     "default_value": 2,
-                    "type": "integer",
+                    "type": "int",
                     "constraints": {
                         "min": 1,
                         "max": null
@@ -294,7 +291,7 @@ class AlgorithmLibraryService {
                     "code": "min_samples_leaf",
                     "label": "min_samples_leaf",
                     "default_value": 1,
-                    "type": "integer",
+                    "type": "int",
                     "constraints": {
                         "min": 1,
                         "max": null
