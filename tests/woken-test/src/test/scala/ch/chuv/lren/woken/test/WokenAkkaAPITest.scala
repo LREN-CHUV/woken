@@ -290,7 +290,6 @@ class WokenAkkaAPITest
         val response: QueryResult =
           timedQuery(query, "an experiment with Naive Bayes algorithm")
 
-        println(response)
         response.data should not be empty
 
         val json = response.toJson
