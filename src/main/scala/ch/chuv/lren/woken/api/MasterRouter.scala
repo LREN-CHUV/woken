@@ -20,7 +20,6 @@ package ch.chuv.lren.woken.api
 import akka.actor.{ Actor, ActorRef, Props }
 import akka.routing.FromConfig
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{ Sink, Source }
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.core._
 import ch.chuv.lren.woken.messages.datasets.{ DatasetsQuery, DatasetsResponse }
@@ -30,7 +29,11 @@ import scala.concurrent.ExecutionContext
 import ch.chuv.lren.woken.backends.DockerJob
 import ch.chuv.lren.woken.service.{ AlgorithmLibraryService, VariablesMetaService }
 import MiningQueries._
-import ch.chuv.lren.woken.dispatch.{ ExperimentQueriesActor, MiningQueriesActor }
+import ch.chuv.lren.woken.dispatch.{
+  ExperimentQueriesActor,
+  MetadataQueriesActor,
+  MiningQueriesActor
+}
 import ch.chuv.lren.woken.config.{ AlgorithmDefinition, AppConfiguration }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.variables._
@@ -83,6 +86,7 @@ case class MasterRouter(config: Config,
   lazy val validationWorker: ActorRef = initValidationWorker
   lazy val scoringWorker: ActorRef    = initScoringWorker
 
+  lazy val metadataQueriesWorker: ActorRef   = initMetadataQueriesWorker
   lazy val miningQueriesWorker: ActorRef     = initMiningQueriesWorker
   lazy val experimentQueriesWorker: ActorRef = initExperimentQueriesWorker
 
@@ -105,35 +109,8 @@ case class MasterRouter(config: Config,
 
       sender ! DatasetsResponse(datasets.map(_.withoutAuthenticationDetails))
 
-    case varsQuery: VariablesForDatasetsQuery =>
-      val initiator = sender()
-
-      Source
-        .single(
-          varsQuery.copy(
-            datasets = datasetService
-              .datasets()
-              .map(_.dataset)
-              .filter(varsQuery.datasets.isEmpty || varsQuery.datasets.contains(_))
-          )
-        )
-        .via(dispatcherService.dispatchVariablesQueryFlow(datasetService, variablesMetaService))
-        .fold(Set[VariableMetaData]()) {
-          _ ++ _.variables
-        }
-        .map { varsMetaData =>
-          {
-            logger.debug(s"vars metadata ${varsMetaData.size}")
-            initiator ! VariablesForDatasetsResponse(varsMetaData)
-            VariablesForDatasetsResponse(varsMetaData)
-          }
-        }
-        .runWith(Sink.last)
-        .failed
-        .foreach { e =>
-          logger.error(s"Cannot complete variable query $varsQuery", e)
-          initiator ! VariablesForDatasetsResponse(Set(), Some(e.getMessage))
-        }
+    case query: VariablesForDatasetsQuery =>
+      metadataQueriesWorker forward MetadataQueriesActor.VariablesForDatasets(query, sender())
 
     //case MiningQuery(variables, covariables, groups, _, AlgorithmSpec(c, p))
     //    if c == "" || c == "data" =>
@@ -157,6 +134,15 @@ case class MasterRouter(config: Config,
 
   private[api] def initScoringWorker: ActorRef =
     context.actorOf(FromConfig.props(), "scoringWorker")
+
+  private[api] def initMetadataQueriesWorker: ActorRef =
+    context.actorOf(
+      MetadataQueriesActor.roundRobinPoolProps(config,
+                                               dispatcherService,
+                                               datasetService,
+                                               variablesMetaService),
+      name = "metadataQueries"
+    )
 
   private[api] def initMiningQueriesWorker: ActorRef =
     context.actorOf(
