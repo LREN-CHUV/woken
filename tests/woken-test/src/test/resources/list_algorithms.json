@@ -84,7 +84,7 @@
         }
       },
       "description": "Linear model using Stochastic Gradient Descent...",
-      "docker_image": "hbpmip/python-sgd-linear-model:0.1.4",
+      "docker_image": "hbpmip/python-sgd-linear-model:0.1.5",
       "environment": "Python",
       "label": "SGD Linear model",
       "parameters": [],
@@ -112,7 +112,7 @@
         }
       },
       "description": "Naive Bayes using Stochastic Gradient Descent",
-      "docker_image": "hbpmip/python-sgd-naive-bayes:0.1.4",
+      "docker_image": "hbpmip/python-sgd-naive-bayes:0.1.5",
       "environment": "Python",
       "label": "Naive Bayes",
       "parameters": [
@@ -152,7 +152,7 @@
         }
       },
       "description": "Neural Network using Stochastic Gradient Descent...",
-      "docker_image": "hbpmip/python-sgd-neural-network:0.1.4",
+      "docker_image": "hbpmip/python-sgd-neural-network:0.1.5",
       "environment": "Python",
       "label": "SGD Neural Network",
       "parameters": [],
@@ -180,7 +180,7 @@
         }
       },
       "description": "Gradient Boosting...",
-      "docker_image": "hbpmip/python-gradient-boosting:0.1.4",
+      "docker_image": "hbpmip/python-gradient-boosting:0.1.5",
       "environment": "Python",
       "label": "Gradient Boosting",
       "parameters": [],

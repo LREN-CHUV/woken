@@ -99,7 +99,6 @@ class MetadataWebService(
       get {
         parameters('datasets.as(CsvSeq[String]).?) {
           datasets =>
-            println(s"datasets: $datasets")
             val datasetIds = datasets.map(_.map(DatasetId).toSet).getOrElse(Set())
 
             complete {
