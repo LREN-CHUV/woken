@@ -208,7 +208,7 @@ services:
       - chronos
 
   portalbackend:
-    image: "hbpmip/portal-backend:2.7.4"
+    image: hbpmip/portal-backend:2.7.5
     restart: "no"
     ports:
       - "65440:8080"
@@ -234,7 +234,7 @@ services:
       FRONTEND_AFTER_LOGOUT_URL: http://frontend/services/login/hbp
       CLUSTER_IP: portalbackend
       CLUSTER_PORT: 8089
-      WOKEN_PORT_8088_TCP_ADDR: ${HOST}
+      WOKEN_PORT_8088_TCP_ADDR: "${HOST}"
       WOKEN_PORT_8088_TCP_PORT: 8088
       WOKEN_AKKA_PATH: "/user/entrypoint"
       EXAREME_URL: http://prozac.madgik.di.uoa.gr:9090/mining/query
