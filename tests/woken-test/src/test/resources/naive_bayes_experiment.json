@@ -53,7 +53,7 @@
             "let": {
               "gaussFeatures": {
                 "else": [
-                  0.0
+                  0
                 ],
                 "if": {
                   ">": [
@@ -64,7 +64,7 @@
                         }
                       ]
                     },
-                    0.0
+                    0
                   ]
                 },
                 "then": [
@@ -73,7 +73,7 @@
                       {
                         "cell": "gaussModel",
                         "path": [
-                          0.0,
+                          0,
                           {
                             "string": "stats"
                           }
@@ -99,7 +99,7 @@
                           {
                             "a.subseq": [
                               "x",
-                              0.0,
+                              0,
                               "gaussFeatures"
                             ]
                           },
@@ -221,7 +221,7 @@
                     "gaussianLL"
                   ]
                 },
-                0.0
+                0
               ]
             },
             "then": [
@@ -245,7 +245,7 @@
                     "multinomialLL"
                   ]
                 },
-                0.0
+                0
               ]
             },
             "then": [
@@ -329,24 +329,24 @@
               {
                 "stats": [
                   {
-                    "mean": 2.82834,
-                    "variance": 0.18417
+                    "mean": 2.8283350365,
+                    "variance": 0.1841676574
                   }
                 ]
               },
               {
                 "stats": [
                   {
-                    "mean": 3.12883,
-                    "variance": 0.09512
+                    "mean": 3.1288281879,
+                    "variance": 0.0951158223
                   }
                 ]
               },
               {
                 "stats": [
                   {
-                    "mean": 2.94228,
-                    "variance": 0.12812
+                    "mean": 2.8767648342,
+                    "variance": 0.0169486292
                   }
                 ]
               }
@@ -360,9 +360,9 @@
           },
           "logPrior": {
             "init": [
-              -0.96334,
-              -0.87938,
-              -1.59286
+              -1.8357879962,
+              -1.751822616,
+              -0.4048832053
             ],
             "rollback": false,
             "shared": false,
@@ -385,7 +385,7 @@
               "code": "kfold",
               "data": {
                 "average": {
-                  "Accuracy": 0.52507,
+                  "Accuracy": 0.6670547147846333,
                   "Confusion matrix": {
                     "labels": [
                       "AD",
@@ -394,31 +394,31 @@
                     ],
                     "values": [
                       [
-                        136.0,
-                        138.0,
-                        0.0
+                        0.0,
+                        0.0,
+                        274.0
                       ],
                       [
-                        57.0,
-                        241.0,
-                        0.0
+                        0.0,
+                        0.0,
+                        298.0
                       ],
                       [
-                        60.0,
-                        86.0,
-                        0.0
+                        0.0,
+                        0.0,
+                        1146.0
                       ]
                     ]
                   },
-                  "Weighted F1-score": 0.45915,
-                  "Weighted false positive rate": 0.32192,
-                  "Weighted precision": 0.42024,
-                  "Weighted recall": 0.52507,
+                  "Weighted F1-score": 0.533830099960328,
+                  "Weighted false positive rate": 0.6670547147846333,
+                  "Weighted precision": 0.44496199251640844,
+                  "Weighted recall": 0.6670547147846333,
                   "type": "PolynomialClassificationScore"
                 },
                 "folds": {
                   "0": {
-                    "Accuracy": 0.49861,
+                    "Accuracy": 0.3341094295692666,
                     "Confusion matrix": {
                       "labels": [
                         "AD",
@@ -427,30 +427,30 @@
                       ],
                       "values": [
                         [
-                          69.0,
-                          63.0,
-                          0.0
+                          0.0,
+                          0.0,
+                          274.0
                         ],
                         [
-                          34.0,
-                          110.0,
-                          0.0
+                          0.0,
+                          0.0,
+                          298.0
                         ],
                         [
-                          32.0,
-                          51.0,
-                          0.0
+                          0.0,
+                          0.0,
+                          287.0
                         ]
                       ]
                     },
-                    "Weighted F1-score": 0.42984,
-                    "Weighted false positive rate": 0.31959,
-                    "Weighted precision": 0.38491,
-                    "Weighted recall": 0.49861,
+                    "Weighted F1-score": 0.16734625878949305,
+                    "Weighted false positive rate": 0.3341094295692666,
+                    "Weighted precision": 0.1116291109271007,
+                    "Weighted recall": 0.3341094295692666,
                     "type": "PolynomialClassificationScore"
                   },
                   "1": {
-                    "Accuracy": 0.55153,
+                    "Accuracy": 1.0,
                     "Confusion matrix": {
                       "labels": [
                         "AD",
@@ -459,26 +459,26 @@
                       ],
                       "values": [
                         [
-                          67.0,
-                          75.0,
+                          0.0,
+                          0.0,
                           0.0
                         ],
                         [
-                          23.0,
-                          131.0,
+                          0.0,
+                          0.0,
                           0.0
                         ],
                         [
-                          28.0,
-                          35.0,
-                          0.0
+                          0.0,
+                          0.0,
+                          859.0
                         ]
                       ]
                     },
-                    "Weighted F1-score": 0.48839,
-                    "Weighted false positive rate": 0.32314,
-                    "Weighted precision": 0.45776,
-                    "Weighted recall": 0.55153,
+                    "Weighted F1-score": 1.0,
+                    "Weighted false positive rate": null,
+                    "Weighted precision": 1.0,
+                    "Weighted recall": 1.0,
                     "type": "PolynomialClassificationScore"
                   }
                 },
@@ -497,7 +497,7 @@
                     "do": [
                       {
                         "else": [
-                          0.0
+                          0
                         ],
                         "if": {
                           "==": [
@@ -506,7 +506,7 @@
                           ]
                         },
                         "then": [
-                          1.0
+                          1
                         ]
                       }
                     ],
@@ -597,8 +597,8 @@
           "type": "record"
         },
         "metadata": {
-          "estimator": "{\"py/object\": \"sklearn_to_pfa.mixed_nb.MixedNB\", \"py/state\": {\"gauss_nb\": {\"py/object\": \"sklearn.naive_bayes.GaussianNB\", \"py/state\": {\"_sklearn_version\": \"0.19.1\", \"class_count_\": {\"py/object\": \"numpy.ndarray\", \"dtype\": \"float64\", \"values\": [274.0, 298.0, 146.0]}, \"class_prior_\": {\"py/object\": \"numpy.ndarray\", \"dtype\": \"float64\", \"values\": [0.3816155988857939, 0.415041782729805, 0.20334261838440112]}, \"classes_\": {\"py/object\": \"numpy.ndarray\", \"dtype\": \"<U5\", \"values\": [\"AD\", \"CN\", \"Other\"]}, \"priors\": null, \"sigma_\": {\"py/object\": \"numpy.ndarray\", \"dtype\": \"float64\", \"values\": [[0.184167657466646], [0.09511582237963151], [0.12811661751988454]]}, \"theta_\": {\"py/object\": \"numpy.ndarray\", \"dtype\": \"float64\", \"values\": [[2.8283350364963504], [3.1288281879194626], [2.942277397260274]]}}}, \"is_nominal\": [false], \"multi_nb\": {\"py/object\": \"sklearn.naive_bayes.MultinomialNB\", \"py/state\": {\"_sklearn_version\": \"0.19.1\", \"alpha\": 1.0, \"class_prior\": null, \"fit_prior\": true}}}}",
-          "score": "0.5292479108635098"
+          "estimator": "{\"py/object\": \"sklearn_to_pfa.mixed_nb.MixedNB\", \"py/state\": {\"gauss_nb\": {\"py/object\": \"sklearn.naive_bayes.GaussianNB\", \"py/state\": {\"_sklearn_version\": \"0.19.1\", \"class_count_\": {\"py/object\": \"numpy.ndarray\", \"dtype\": \"float64\", \"values\": [274.0, 298.0, 1146.0]}, \"class_prior_\": {\"py/object\": \"numpy.ndarray\", \"dtype\": \"float64\", \"values\": [0.15948777648428406, 0.17345750873108265, 0.6670547147846333]}, \"classes_\": {\"py/object\": \"numpy.ndarray\", \"dtype\": \"<U5\", \"values\": [\"AD\", \"CN\", \"Other\"]}, \"priors\": null, \"sigma_\": {\"py/object\": \"numpy.ndarray\", \"dtype\": \"float64\", \"values\": [[0.18416765737986562], [0.09511582229285113], [0.016948629205860762]]}, \"theta_\": {\"py/object\": \"numpy.ndarray\", \"dtype\": \"float64\", \"values\": [[2.8283350364963504], [3.1288281879194626], [2.8767648342059338]]}}}, \"is_nominal\": [false], \"multi_nb\": {\"py/object\": \"sklearn.naive_bayes.MultinomialNB\", \"py/state\": {\"_sklearn_version\": \"0.19.1\", \"alpha\": 1.0, \"class_prior\": null, \"fit_prior\": true}}}}",
+          "score": "0.7590221187"
         },
         "method": "map",
         "name": "naive_bayes",

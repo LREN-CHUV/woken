@@ -120,6 +120,7 @@ if [ $tests == 1 ]; then
     echo "Testing Akka API..."
 
     $DOCKER_COMPOSE up wokentest
+
 fi
 
 if [ $frontend == 1 ]; then

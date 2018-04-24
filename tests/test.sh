@@ -42,10 +42,13 @@ if pgrep -lf sshuttle > /dev/null ; then
 fi
 
 if [[ $NO_SUDO || -n "$CIRCLECI" ]]; then
+  DOCKER="docker"
   DOCKER_COMPOSE="docker-compose"
 elif groups $USER | grep &>/dev/null '\bdocker\b'; then
+  DOCKER="docker"
   DOCKER_COMPOSE="docker-compose"
 else
+  DOCKER="sudo docker"
   DOCKER_COMPOSE="sudo docker-compose"
 fi
 
@@ -114,6 +117,13 @@ echo
 echo "Testing Akka API..."
 
 $DOCKER_COMPOSE up wokentest
+
+exit_code="$($DOCKER inspect tests_wokentest_1 --format='{{.State.ExitCode}}')"
+
+if [ "$exit_code" != "0" ]; then
+  echo "Test failed!"
+  exit 1
+fi
 
 echo
 # Cleanup
