@@ -34,7 +34,7 @@ class AlgorithmLibraryService {
                 "type": ["statistics"],
                 "environment": "Python",
                 "description": "Histograms...",
-                "docker_image": "hbpmip/python-histograms:0.4.3",
+                "docker_image": "hbpmip/python-histograms:0.5.0",
                 "constraints": {
                     "variable": {
                       "real": true,
@@ -73,7 +73,7 @@ class AlgorithmLibraryService {
                 "code": "linearRegression",
                 "label": "Linear Regression",
                 "type": ["statistics"],
-                "docker_image": "hbpmip/python-linear-regression:0.1.1",
+                "docker_image": "hbpmip/python-linear-regression:0.2.0",
                 "environment": "Python",
                 "description": "Standard Linear Regression...",
                 "parameters": [],
@@ -246,7 +246,7 @@ class AlgorithmLibraryService {
                 "code": "knn",
                 "label": "K-nearest neighbors",
                 "type": ["predictive_model"],
-                "docker_image": "hbpmip/python-knn:0.2.3",
+                "docker_image": "hbpmip/python-knn:0.3.0",
                 "environment": "Python",
                 "description": "K-nearest neighbors...",
                 "parameters": [{
@@ -283,7 +283,7 @@ class AlgorithmLibraryService {
                 "type": ["statistics"],
                 "environment": "python",
                 "description": "Correlation heatmap...",
-                "docker_image": "hbpmip/python-correlation-heatmap:0.1.3",
+                "docker_image": "hbpmip/python-correlation-heatmap:0.1.4",
                 "constraints": {
                     "variable": {
                       "real": true,
@@ -425,7 +425,7 @@ class AlgorithmLibraryService {
                 "disable": false,
                 "type": ["features_extraction"],
                 "maturity": "experimental",
-                "docker_image": "hbpmip/python-tsne:0.4.0",
+                "docker_image": "hbpmip/python-tsne:0.4.1",
                 "environment": "Python",
                 "description": "tSNE...",
                 "parameters": [],
