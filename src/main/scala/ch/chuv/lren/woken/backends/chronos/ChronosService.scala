@@ -95,6 +95,9 @@ class ChronosService(jobsConfig: JobsConfiguration) extends Actor with LazyLoggi
         .map {
 
           case HttpResponse(statusCode: StatusCode, _, entity, _) =>
+            val responseMsg = entity.toString
+            entity.discardBytes()
+
             statusCode match {
 
               case _: StatusCodes.Success =>
@@ -103,9 +106,9 @@ class ChronosService(jobsConfig: JobsConfiguration) extends Actor with LazyLoggi
 
               case _ =>
                 logger.warn(
-                  s"Post schedule to Chronos on $url returned error $statusCode: $entity"
+                  s"Post schedule to Chronos on $url returned error $statusCode: $responseMsg"
                 )
-                Error(s"Error $statusCode: $entity")
+                Error(s"Error $statusCode: $responseMsg")
             }
 
           case f: Status.Failure =>
@@ -164,10 +167,11 @@ class ChronosService(jobsConfig: JobsConfiguration) extends Actor with LazyLoggi
                 }
 
               case _ =>
+                val errorMsg = entity.toString
                 logger.warn(
-                  s"Post search to Chronos on $url returned error $statusCode: ${entity.toString}"
+                  s"Post search to Chronos on $url returned error $statusCode: ${errorMsg}"
                 )
-                ChronosUnresponsive(jobId, s"Error $statusCode: ${entity.toString}")
+                ChronosUnresponsive(jobId, s"Error $statusCode: ${errorMsg}")
             }
 
           case f: Status.Failure =>
@@ -197,11 +201,13 @@ class ChronosService(jobsConfig: JobsConfiguration) extends Actor with LazyLoggi
       val chronosResponse: Future[_] = pipeline(HttpClient.Delete(url))
       chronosResponse.map {
         case HttpResponse(statusCode: StatusCode, _, entity, _) =>
+          val responseMsg = entity.toString
+          entity.discardBytes()
+
           statusCode match {
-            case _: StatusCodes.Success =>
-              entity.discardBytes()
+            case _: StatusCodes.Success => ()
             case _ =>
-              logger.error(s"Chronos Cleanup job response error $statusCode: ${entity.toString}")
+              logger.error(s"Request to cleanup job in Chronos failed with error $statusCode: $responseMsg")
           }
       }
 
