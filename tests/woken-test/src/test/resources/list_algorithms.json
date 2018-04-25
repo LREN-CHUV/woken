@@ -3,6 +3,15 @@
     {
       "code": "histograms",
       "constraints": {
+        "covariables": {
+          "max_count": null,
+          "min_count": 0
+        },
+        "groupings": {
+          "max_count": null,
+          "min_count": 0
+        },
+        "mixed": true,
         "variable": {
           "binominal": false,
           "integer": true,
@@ -41,7 +50,7 @@
       "constraints": {
         "covariables": {
           "max_count": null,
-          "min_count": 0
+          "min_count": 1
         },
         "groupings": {
           "max_count": 1,
@@ -193,7 +202,7 @@
       "constraints": {
         "covariables": {
           "max_count": null,
-          "min_count": 0
+          "min_count": 1
         },
         "groupings": {
           "max_count": null,
@@ -271,10 +280,19 @@
     {
       "code": "correlationHeatmap",
       "constraints": {
+        "covariables": {
+          "max_count": null,
+          "min_count": "1"
+        },
+        "groupings": {
+          "max_count": 0,
+          "min_count": 0
+        },
+        "mixed": false,
         "variable": {
-          "binominal": true,
+          "binominal": false,
           "integer": true,
-          "polynominal": true,
+          "polynominal": false,
           "real": true
         }
       },
