@@ -41,7 +41,16 @@ class AlgorithmLibraryService {
                       "integer": true,
                       "binominal": false,
                       "polynominal": false
-                    }
+                    },
+                    "groupings": {
+                        "min_count": 0,
+                        "max_count": null
+                    },
+                    "covariables": {
+                        "min_count": 0,
+                        "max_count": null
+                    },
+                    "mixed": true
                 }
             },
             {
@@ -80,7 +89,7 @@ class AlgorithmLibraryService {
                         "max_count": 1
                     },
                     "covariables": {
-                        "min_count": 0,
+                        "min_count": 1,
                         "max_count": null
                     },
                     "mixed": true
@@ -227,7 +236,7 @@ class AlgorithmLibraryService {
                         "max_count": null
                     },
                     "covariables": {
-                        "min_count": 0,
+                        "min_count": 1,
                         "max_count": null
                     },
                     "mixed": true
@@ -268,8 +277,7 @@ class AlgorithmLibraryService {
                     },
                     "mixed": false
                 }
-            },
-            {
+            },            {
                 "code": "correlationHeatmap",
                 "label": "Correlation heatmap",
                 "type": ["statistics"],
@@ -280,9 +288,18 @@ class AlgorithmLibraryService {
                     "variable": {
                       "real": true,
                       "integer": true,
-                      "binominal": true,
-                      "polynominal": true
-                    }
+                      "binominal": false,
+                      "polynominal": false
+                    },
+                    "groupings": {
+                        "min_count": 0,
+                        "max_count": 0
+                    },
+                    "covariables": {
+                        "min_count": "1",
+                        "max_count": null
+                    },
+                    "mixed": false
                 }
             },
             {
