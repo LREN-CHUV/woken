@@ -3,17 +3,17 @@
     {
       "algorithm": "python-linear-regression",
       "data": {
-        "Intercept": {
-          "coef": 54.9529,
-          "p_values": 0.0,
-          "std_err": 4.3991,
-          "t_values": 12.49185
-        },
         "college_math": {
           "coef": -0.00583,
           "p_values": 0.83073,
           "std_err": 0.02724,
           "t_values": -0.21415
+        },
+        "intercept": {
+          "coef": 54.9529,
+          "p_values": 0.0,
+          "std_err": 4.3991,
+          "t_values": 12.49185
         },
         "score_test1": {
           "coef": -0.00463,
