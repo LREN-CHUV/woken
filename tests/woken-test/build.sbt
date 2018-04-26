@@ -52,7 +52,7 @@ lazy val library =
       val disruptor     = "3.4.2"
       val config        = "1.3.3"
       val scalaLogging  = "3.9.0"
-      val wokenMessages = "2.7.2"
+      val wokenMessages = "2.7.3"
     }
     val scalaCheck: ModuleID       = "org.scalacheck"    %% "scalacheck"   % Version.scalaCheck
     val scalaTest: ModuleID        = "org.scalatest"     %% "scalatest"    % Version.scalaTest

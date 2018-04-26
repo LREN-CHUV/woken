@@ -59,7 +59,7 @@ class AlgorithmLibraryService {
                 "type": ["statistics"],
                 "environment": "python",
                 "description": "Statistics Summary...",
-                "docker_image": "hbpmip/python-summary-statistics:0.3.1",
+                "docker_image": "hbpmip/python-summary-statistics:0.3.2",
                 "constraints": {
                     "variable": {
                       "real": true,
@@ -99,7 +99,7 @@ class AlgorithmLibraryService {
                 "code": "sgdLinearModel",
                 "label": "SGD Linear model",
                 "type": ["predictive_model"],
-                "docker_image": "hbpmip/python-sgd-linear-model:0.1.5",
+                "docker_image": "hbpmip/python-sgd-linear-model:0.1.6",
                 "environment": "Python",
                 "description": "Linear model using Stochastic Gradient Descent...",
                 "parameters": [],
@@ -125,7 +125,7 @@ class AlgorithmLibraryService {
                 "code": "naiveBayes",
                 "label": "Naive Bayes",
                 "type": ["predictive_model"],
-                "docker_image": "hbpmip/python-sgd-naive-bayes:0.1.5",
+                "docker_image": "hbpmip/python-sgd-naive-bayes:0.1.6",
                 "environment": "Python",
                 "description": "Naive Bayes using Stochastic Gradient Descent",
                 "parameters": [{
@@ -161,7 +161,7 @@ class AlgorithmLibraryService {
                 "code": "sgdNeuralNetwork",
                 "label": "SGD Neural Network",
                 "type": ["predictive_model"],
-                "docker_image": "hbpmip/python-sgd-neural-network:0.1.5",
+                "docker_image": "hbpmip/python-sgd-neural-network:0.1.6",
                 "environment": "Python",
                 "description": "Neural Network using Stochastic Gradient Descent...",
                 "parameters": [],
@@ -187,7 +187,7 @@ class AlgorithmLibraryService {
                 "code": "gradientBoosting",
                 "label": "Gradient Boosting",
                 "type": ["predictive_model"],
-                "docker_image": "hbpmip/python-gradient-boosting:0.1.5",
+                "docker_image": "hbpmip/python-gradient-boosting:0.1.6",
                 "environment": "Python",
                 "description": "Gradient Boosting...",
                 "parameters": [],
@@ -213,7 +213,7 @@ class AlgorithmLibraryService {
                 "code": "anova",
                 "label": "Anova",
                 "type": ["statistics"],
-                "docker_image": "hbpmip/python-anova:0.4.0",
+                "docker_image": "hbpmip/python-anova:0.4.1",
                 "environment": "Python",
                 "description": "ANOVA...",
                 "parameters": [{
@@ -232,11 +232,11 @@ class AlgorithmLibraryService {
                       "polynominal": false
                     },
                     "groupings": {
-                        "min_count": 1,
+                        "min_count": 0,
                         "max_count": null
                     },
                     "covariables": {
-                        "min_count": 1,
+                        "min_count": 0,
                         "max_count": null
                     },
                     "mixed": true
@@ -283,7 +283,7 @@ class AlgorithmLibraryService {
                 "type": ["statistics"],
                 "environment": "python",
                 "description": "Correlation heatmap...",
-                "docker_image": "hbpmip/python-correlation-heatmap:0.1.4",
+                "docker_image": "hbpmip/python-correlation-heatmap:0.1.5",
                 "constraints": {
                     "variable": {
                       "real": true,
@@ -306,7 +306,7 @@ class AlgorithmLibraryService {
                 "code": "hinmine",
                 "label": "JSI HinMine",
                 "type": ["features_extraction"],
-                "docker_image": "hbpmip/python-jsi-hinmine:0.2.2",
+                "docker_image": "hbpmip/python-jsi-hinmine:0.2.3",
                 "environment": "Python",
                 "description": "The HinMine algorithm is an algorithm designed to construct network-analysis-based feature vectors for data instances that can be either nodes in a network or standard data instances with a fixed set of numeric features. In this implementation, the input for the algorithm is a set of data instances, and the output of the algorithm is a new data set with the same instances, but new features constructed out of them.",
                 "parameters": [{
@@ -331,8 +331,8 @@ class AlgorithmLibraryService {
                     "variable": {
                       "real": true,
                       "integer": true,
-                      "binominal": true,
-                      "polynominal": true
+                      "binominal": false,
+                      "polynominal": false
                     },
                     "groupings": {
                         "min_count": 0,
@@ -349,7 +349,7 @@ class AlgorithmLibraryService {
                 "code": "hedwig",
                 "label": "JSI Hedwig",
                 "type": ["features_extraction"],
-                "docker_image": "hbpmip/python-jsi-hedwig:1.0.4",
+                "docker_image": "hbpmip/python-jsi-hedwig:1.0.5",
                 "environment": "Python",
                 "description": "The Hedwig algorithm for subgroup discovery is a data mining algorithm designed for exploratory data analysis of a data set",
                 "parameters": [{
