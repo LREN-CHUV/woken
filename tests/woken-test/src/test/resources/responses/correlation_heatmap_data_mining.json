@@ -9,15 +9,15 @@
         "score_math_course2"
       ],
       "y": [
-        "cognitive_task2",
+        "score_math_course2",
         "score_math_course1",
-        "score_math_course2"
+        "cognitive_task2"
       ],
       "z": [
         [
-          1.0,
-          -0.06559,
-          -0.05297
+          -0.05297,
+          0.99515,
+          1.0
         ],
         [
           -0.06559,
@@ -25,11 +25,13 @@
           0.99515
         ],
         [
-          -0.05297,
-          0.99515,
-          1.0
+          1.0,
+          -0.06559,
+          -0.05297
         ]
-      ]
+      ],
+      "zmax": 1.0,
+      "zmin": -1.0
     }
   ],
   "jobId": "*",
