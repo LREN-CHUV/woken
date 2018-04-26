@@ -81,7 +81,7 @@ object JobToChronos {
         cpus = Some(jobsConf.defaultJobCpus),
         mem = Some(jobsConf.defaultJobMemory),
         owner = Some(jobsConf.owner),
-        environmentVariables = environmentVariables,
+        environmentVariables = environmentVariables.sortBy(_.name),
         retries = 0
       )
     }

@@ -97,11 +97,13 @@ class MiningQueriesActor(
       jobValidated.fold(
         errorMsg => {
           val error =
-            ErrorJobResult(None,
-                           coordinatorConfig.jobsConf.node,
-                           OffsetDateTime.now(),
-                           Some(query.algorithm.code),
-                           errorMsg.reduceLeft(_ + ", " + _))
+            ErrorJobResult(
+              None,
+              coordinatorConfig.jobsConf.node,
+              OffsetDateTime.now(),
+              Some(query.algorithm.code),
+              s"Mining for $query failed with message: " + errorMsg.reduceLeft(_ + ", " + _)
+            )
           initiator ! error.asQueryResult
         },
         job => runMiningJob(query, initiator, job)

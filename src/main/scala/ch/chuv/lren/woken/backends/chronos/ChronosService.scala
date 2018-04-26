@@ -158,7 +158,14 @@ class ChronosService(jobsConfig: JobsConfiguration) extends Actor with LazyLoggi
                         if successCount > 0 =>
                       JobComplete(jobId, success = true)
                     case Some(
-                        live @ ChronosJobLiveliness(_, successCount, errorCount, _, _, softError, _, _)
+                        live @ ChronosJobLiveliness(_,
+                                                    successCount,
+                                                    errorCount,
+                                                    _,
+                                                    _,
+                                                    softError,
+                                                    _,
+                                                    _)
                         ) if successCount == 0 && (errorCount > 0 || softError) =>
                       logger.error(s"Job ${job.name} reported as failed in Chronos: $live")
                       JobComplete(jobId, success = false)

@@ -110,11 +110,13 @@ class ExperimentQueriesActor(
       jobValidated.fold(
         errorMsg => {
           val error =
-            ErrorJobResult(None,
-                           coordinatorConfig.jobsConf.node,
-                           OffsetDateTime.now(),
-                           None,
-                           errorMsg.reduceLeft(_ + ", " + _))
+            ErrorJobResult(
+              None,
+              coordinatorConfig.jobsConf.node,
+              OffsetDateTime.now(),
+              None,
+              s"Experiment $query failed with message: " + errorMsg.reduceLeft(_ + ", " + _)
+            )
           initiator ! error.asQueryResult
         },
         job => runExperiment(query, initiator, job)
