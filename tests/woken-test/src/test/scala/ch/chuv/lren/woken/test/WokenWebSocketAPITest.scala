@@ -74,26 +74,26 @@ class WokenWebSocketAPITest
 
     "respond to a query for the list of algorithms using websocket" in {
       executeQuery(None,
-                   Some("/list_algorithms.json"),
+                   Some("/responses/list_algorithms.json"),
                    s"ws://$remoteHostName:8087/mining/algorithms")
     }
 
     "respond to a query for the list of datasets using websocket" in {
       executeQuery(None,
-                   Some("/list_datasets.json"),
+                   Some("/responses/list_datasets.json"),
                    s"ws://$remoteHostName:8087/metadata/datasets")
     }
 
     "respond to a mining query using websocket" in {
-      executeQuery(Some("/knn_data_mining_query.json"),
-                   Some("/knn_data_mining.json"),
+      executeQuery(Some("/responses/knn_data_mining_query.json"),
+                   Some("/responses/knn_data_mining.json"),
                    s"ws://$remoteHostName:8087/mining/job")
 
     }
 
     "respond to an experiment query using websocket" in {
-      executeQuery(Some("/knn_experiment_query.json"),
-                   Some("/knn_experiment.json"),
+      executeQuery(Some("/responses/knn_experiment_query.json"),
+                   Some("/responses/knn_experiment.json"),
                    s"ws://$remoteHostName:8087/mining/experiment")
     }
 

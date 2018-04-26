@@ -49,7 +49,10 @@ class WokenAkkaAPITest
     with LazyLogging {
 
   implicit val timeout: Timeout = Timeout(200 seconds)
-  val config: Config =
+  lazy val config: Config = {
+    val remotingConfig =
+      ConfigFactory.parseResourcesAnySyntax("akka-remoting.conf").resolve()
+    val remotingImpl = remotingConfig.getString("remoting.implementation")
     ConfigFactory
       .parseString("""
           |akka {
@@ -57,8 +60,13 @@ class WokenAkkaAPITest
           |  extensions += "akka.cluster.pubsub.DistributedPubSub"
           |}
         """.stripMargin)
+      .withFallback(ConfigFactory.parseResourcesAnySyntax("akka.conf"))
+      .withFallback(ConfigFactory.parseResourcesAnySyntax(
+        s"akka-$remotingImpl-remoting.conf"))
+      .withFallback(ConfigFactory.parseResourcesAnySyntax("kamon.conf"))
       .withFallback(ConfigFactory.load())
       .resolve()
+  }
 
   implicit val system: ActorSystem = ActorSystem("woken", config)
   implicit val materializer: ActorMaterializer = ActorMaterializer()
@@ -93,7 +101,7 @@ class WokenAkkaAPITest
     "respond to a query for the list of methods" in {
       val response: MethodsResponse =
         timedQuery(MethodsQuery, "list of methods")
-      val expected = loadJson("/list_algorithms.json")
+      val expected = loadJson("/responses/list_algorithms.json")
 
       response.methods shouldBe expected
     }
@@ -135,7 +143,7 @@ class WokenAkkaAPITest
         response.data should not be empty
 
         val json = response.toJson
-        val expected = loadJson("/knn_data_mining.json")
+        val expected = loadJson("/responses/knn_data_mining.json")
 
         assertResult(approximate(expected))(approximate(json))
       }
@@ -160,7 +168,7 @@ class WokenAkkaAPITest
         response.data should not be empty
 
         val json = response.toJson
-        val expected = loadJson("/histograms.json")
+        val expected = loadJson("/responses/histograms.json")
 
         assertResult(approximate(expected))(approximate(json))
       }
@@ -184,7 +192,7 @@ class WokenAkkaAPITest
         response.data should not be empty
 
         val json = response.toJson
-        val expected = loadJson("/summary_statistics.json")
+        val expected = loadJson("/responses/summary_statistics.json")
 
         assertResult(approximate(expected))(approximate(json))
       }
@@ -211,7 +219,7 @@ class WokenAkkaAPITest
 
         // t-SNE is not deterministic, cannot check exactly its results
         val skippedTags = List("series")
-        val expected = loadJson("/tsne_data_mining.json")
+        val expected = loadJson("/responses/tsne_data_mining.json")
 
         assertResult(approximate(expected, skippedTags))(
           approximate(json, skippedTags))
@@ -231,12 +239,14 @@ class WokenAkkaAPITest
           executionPlan = None
         )
 
-        val response: QueryResult = timedQuery(query, "mine data using correlation heatmap")
+        val response: QueryResult =
+          timedQuery(query, "mine data using correlation heatmap")
 
         response.data should not be empty
 
         val json = response.toJson
-        val expected = loadJson("/correlation_heatmap_data_mining.json")
+        val expected =
+          loadJson("/responses/correlation_heatmap_data_mining.json")
 
         assertResult(approximate(expected))(approximate(json))
       }
@@ -256,7 +266,7 @@ class WokenAkkaAPITest
         response.data should not be empty
 
         val json = response.toJson
-        val expected = loadJson("/knn_experiment.json")
+        val expected = loadJson("/responses/knn_experiment.json")
 
         assertResult(approximate(expected))(approximate(json))
       }
@@ -272,7 +282,7 @@ class WokenAkkaAPITest
         response.data should not be empty
 
         val json = response.toJson
-        val expected = loadJson("/lr_and_anova_experiment.json")
+        val expected = loadJson("/responses/lr_and_anova_experiment.json")
 
         assertResult(approximate(expected))(approximate(json))
       }
@@ -293,7 +303,7 @@ class WokenAkkaAPITest
         response.data should not be empty
 
         val json = response.toJson
-        val expected = loadJson("/naive_bayes_experiment.json")
+        val expected = loadJson("/responses/naive_bayes_experiment.json")
 
         assertResult(approximate(expected))(approximate(json))
       }
@@ -341,7 +351,7 @@ class WokenAkkaAPITest
       response.data should not be empty
 
       val json = response.toJson
-      val expected = loadJson("/knn_experiment.json")
+      val expected = loadJson("/responses/knn_experiment.json")
 
       assertResult(approximate(expected))(approximate(json))
 

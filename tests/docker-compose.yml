@@ -295,7 +295,7 @@ services:
       - woken
 
   portalbackend:
-    image: hbpmip/portal-backend:2.7.6
+    image: hbpmip/portal-backend
     restart: "no"
     ports:
       - "65440:8080"

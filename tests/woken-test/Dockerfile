@@ -15,8 +15,6 @@ COPY src/test/ /build/src/test/
 
 RUN sbt -mem 1500 test:compile
 
-COPY application.conf /build/
-
 ENTRYPOINT ["/test.sh"]
 
 # 8197: Akka TCP
