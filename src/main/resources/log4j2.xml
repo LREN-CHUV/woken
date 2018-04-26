@@ -10,34 +10,34 @@
     <Root level="DEBUG">
       <AppenderRef ref="Console"/>
     </Root>
-    <Logger name="akka.actor.LocalActorRefProvider(akka://woken)" level="info">
+    <Logger name="akka.actor.LocalActorRefProvider(akka://woken)" level="INFO">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="akka.cluster" level="${sys:AKKA_CLUSTER_LOG_LEVEL:-info}">
+    <Logger name="akka.cluster" level="${sys:AKKA_CLUSTER_LOG_LEVEL:-INFO}">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="akka.io" level="info">
+    <Logger name="akka.io" level="INFO">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="akka.http.impl" level="info">
+    <Logger name="akka.http.impl" level="INFO">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="akka.remote.artery.compress" level="${sys:AKKA_CLUSTER_LOG_LEVEL:-info}">
+    <Logger name="akka.remote.artery.compress" level="${sys:AKKA_CLUSTER_LOG_LEVEL:-INFO}">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="akka.remote.artery.tcp" level="${sys:AKKA_CLUSTER_LOG_LEVEL:-info}">
+    <Logger name="akka.remote.artery.tcp" level="${sys:AKKA_CLUSTER_LOG_LEVEL:-INFO}">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="akka.stream.impl" level="info">
+    <Logger name="akka.stream.impl" level="INFO">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="com.gettyimages.spray.swagger" level="info">
+    <Logger name="com.gettyimages.spray.swagger" level="INFO">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="com.wordnik.swagger" level="info">
+    <Logger name="com.wordnik.swagger" level="INFO">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="com.zaxxer.hikari.pool" level="info">
+    <Logger name="com.zaxxer.hikari.pool" level="INFO">
       <AppenderRef ref="Console"/>
     </Logger>
   </Loggers>

@@ -73,10 +73,9 @@ trait CoreActors {
   //    for algorithms can be overriden by environment variables
   protected lazy val config: Config = {
     val remotingConfig = ConfigFactory.parseResourcesAnySyntax("akka-remoting.conf").resolve()
-    val remotingImpl = remotingConfig.getString("remoting.implementation")
+    val remotingImpl   = remotingConfig.getString("remoting.implementation")
     ConfigFactory
-      .parseString(
-        """
+      .parseString("""
           |akka {
           |  actor.provider = cluster
           |  extensions += "akka.cluster.pubsub.DistributedPubSub"
