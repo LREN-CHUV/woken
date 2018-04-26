@@ -238,7 +238,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
         data.replyTo ! errorResponse(data.job, msg, data.initiator)
         stop(Failure(msg))
       } else {
-        if (data.pollDbCount % 50 == 0) {
+        if (data.pollDbCount % 10 == 0) {
           self ! CheckChronos
         } else {
           self ! CheckDb

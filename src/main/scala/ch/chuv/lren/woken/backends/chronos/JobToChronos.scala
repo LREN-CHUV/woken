@@ -78,8 +78,8 @@ object JobToChronos {
         schedule = "R1//PT1M",
         epsilon = Some("PT5M"),
         container = Some(container),
-        cpus = Some(0.5),
-        mem = Some(512),
+        cpus = Some(jobsConf.defaultJobCpus),
+        mem = Some(jobsConf.defaultJobMemory),
         owner = Some(jobsConf.owner),
         environmentVariables = environmentVariables,
         retries = 0
