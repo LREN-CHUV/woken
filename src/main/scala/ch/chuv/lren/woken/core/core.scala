@@ -71,20 +71,25 @@ trait CoreActors {
   // 4. Custom configuration defined in application.conf and backed by reference.conf from the libraries
   // 5. Default configuration for the algorithm library, it can be overriden in application.conf or individual versions
   //    for algorithms can be overriden by environment variables
-  protected lazy val config: Config =
+  protected lazy val config: Config = {
+    val remotingConfig = ConfigFactory.parseResourcesAnySyntax("akka-remoting.conf").resolve()
+    val remotingImpl = remotingConfig.getString("remoting.implementation")
     ConfigFactory
-      .parseString("""
-        |akka {
-        |  actor.provider = cluster
-        |  extensions += "akka.cluster.pubsub.DistributedPubSub"
-        |  extensions += "akka.cluster.client.ClusterClientReceptionist"
-        |}
-      """.stripMargin)
+      .parseString(
+        """
+          |akka {
+          |  actor.provider = cluster
+          |  extensions += "akka.cluster.pubsub.DistributedPubSub"
+          |  extensions += "akka.cluster.client.ClusterClientReceptionist"
+          |}
+        """.stripMargin)
       .withFallback(ConfigFactory.parseResourcesAnySyntax("akka.conf"))
+      .withFallback(ConfigFactory.parseResourcesAnySyntax(s"akka-$remotingImpl-remoting.conf"))
       .withFallback(ConfigFactory.parseResourcesAnySyntax("kamon.conf"))
       .withFallback(ConfigFactory.load())
       .withFallback(ConfigFactory.parseResourcesAnySyntax("algorithms.conf"))
       .resolve()
+  }
 
   protected lazy val appConfig: AppConfiguration = AppConfiguration
     .read(config)
