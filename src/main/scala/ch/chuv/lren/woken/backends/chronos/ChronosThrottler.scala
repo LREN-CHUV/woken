@@ -52,7 +52,7 @@ class ChronosThrottler(jobsConfig: JobsConfiguration, implicit val materializer:
 
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
   private lazy val throttler: ActorRef = Source
-    .actorRef(1000, OverflowStrategy.fail)
+    .actorRef(10000, OverflowStrategy.fail)
     .throttle(1, 100.milliseconds, 1, ThrottleMode.shaping)
     .to(Sink.actorRef(chronosWorker, NotUsed))
     .withAttributes(ActorAttributes.supervisionStrategy(Supervision.resumingDecider))
@@ -73,10 +73,10 @@ class ChronosThrottler(jobsConfig: JobsConfiguration, implicit val materializer:
   override def receive: Receive = {
     // Cleanup requests do not need to be rate-limited
     case cleanup: ChronosService.Cleanup =>
-      chronosWorker ! cleanup
+      chronosWorker forward cleanup
     // But all other requests should be rate-limited
     case request: ChronosService.Request =>
-      throttler ! request
+      throttler forward request
     case Terminated(ref) =>
       logger.debug("Terminating ChronosThrottler as child is terminated: {}", ref)
       context.stop(self)

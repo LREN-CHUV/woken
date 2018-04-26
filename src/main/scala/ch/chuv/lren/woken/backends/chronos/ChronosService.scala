@@ -27,7 +27,8 @@ import ch.chuv.lren.woken.config.JobsConfiguration
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.duration._
-import scala.concurrent.{ ExecutionContextExecutor, Future }
+import scala.concurrent.{ Await, ExecutionContextExecutor, Future }
+import scala.language.postfixOps
 
 object ChronosService {
 
@@ -92,7 +93,7 @@ class ChronosService(jobsConfig: JobsConfiguration) extends Actor with LazyLoggi
       val chronosResponse: Future[_] = HttpClient.Post(url, job)
 
       chronosResponse
-        .map {
+        .map[ScheduleResponse] {
 
           case HttpResponse(statusCode: StatusCode, _, entity, _) =>
             val responseMsg = entity.toString
@@ -139,7 +140,7 @@ class ChronosService(jobsConfig: JobsConfiguration) extends Actor with LazyLoggi
       val chronosResponse: Future[_] = pipeline(HttpClient.Get(url))
 
       chronosResponse
-        .map {
+        .map[JobLivelinessResponse] {
 
           case HttpResponse(statusCode: StatusCode, _, entity, _) =>
             statusCode match {
@@ -148,7 +149,7 @@ class ChronosService(jobsConfig: JobsConfiguration) extends Actor with LazyLoggi
                   HttpClient.unmarshalChronosResponse(entity)
 
                 // TODO: parse json, find if job executed, on error...
-                response.map { resp =>
+                val future = response.map { resp =>
                   val liveliness = resp.headOption
 
                   val status: JobLivelinessResponse = liveliness match {
@@ -165,13 +166,14 @@ class ChronosService(jobsConfig: JobsConfiguration) extends Actor with LazyLoggi
                   }
                   status
                 }
+                Await.result(future, 30 seconds)
 
               case _ =>
                 val errorMsg = entity.toString
                 logger.warn(
-                  s"Post search to Chronos on $url returned error $statusCode: ${errorMsg}"
+                  s"Post search to Chronos on $url returned error $statusCode: $errorMsg"
                 )
-                ChronosUnresponsive(jobId, s"Error $statusCode: ${errorMsg}")
+                ChronosUnresponsive(jobId, s"Error $statusCode: $errorMsg")
             }
 
           case f: Status.Failure =>
@@ -199,19 +201,20 @@ class ChronosService(jobsConfig: JobsConfiguration) extends Actor with LazyLoggi
       val url = s"${jobsConfig.chronosServerUrl}/v1/scheduler/job/${job.name}"
 
       val chronosResponse: Future[_] = pipeline(HttpClient.Delete(url))
-      chronosResponse.map {
-        case HttpResponse(statusCode: StatusCode, _, entity, _) =>
-          val responseMsg = entity.toString
-          entity.discardBytes()
+        .map[Unit] {
+          case HttpResponse(statusCode: StatusCode, _, entity, _) =>
+            val responseMsg = entity.toString
+            entity.discardBytes()
 
-          statusCode match {
-            case _: StatusCodes.Success => ()
-            case _ =>
-              logger.error(
-                s"Request to cleanup job in Chronos failed with error $statusCode: $responseMsg"
-              )
-          }
-      }
+            statusCode match {
+              case _: StatusCodes.Success => ()
+              case _ =>
+                logger.error(
+                  s"Request to cleanup job in Chronos failed with error $statusCode: $responseMsg"
+                )
+            }
+        }
+      Await.result(chronosResponse, 30 seconds)
 
     case e => logger.error(s"Unhandled message: $e")
   }
