@@ -188,8 +188,8 @@ services:
 
   woken:
     build:
-      context: woken
-      dockerfile: woken/Dockerfile
+      context: ./woken
+      dockerfile: Dockerfile
     ports:
       - "8087:8087"
       - "8088:8088"
