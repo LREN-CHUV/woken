@@ -43,13 +43,13 @@ fi
 
 if [[ $NO_SUDO || -n "$CIRCLECI" ]]; then
   DOCKER="docker"
-  DOCKER_COMPOSE="docker-compose"
+  DOCKER_COMPOSE="docker-compose -f docker-compose-ci.yml"
 elif groups $USER | grep &>/dev/null '\bdocker\b'; then
   DOCKER="docker"
-  DOCKER_COMPOSE="docker-compose"
+  DOCKER_COMPOSE="docker-compose -f docker-compose-ci.yml"
 else
   DOCKER="sudo docker"
-  DOCKER_COMPOSE="sudo docker-compose"
+  DOCKER_COMPOSE="sudo docker-compose -f docker-compose-ci.yml"
 fi
 
 function _cleanup() {
