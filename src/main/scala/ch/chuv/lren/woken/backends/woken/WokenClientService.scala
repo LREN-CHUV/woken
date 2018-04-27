@@ -26,7 +26,6 @@ import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.{ ActorMaterializer, FlowShape }
 import akka.stream.scaladsl._
 import ch.chuv.lren.woken.backends.{ AkkaClusterClient, HttpClient, WebSocketClient }
-import ch.chuv.lren.woken.core.model.Shapes
 import ch.chuv.lren.woken.messages.query._
 
 import scala.concurrent.{ ExecutionContext, Future }
@@ -41,8 +40,8 @@ import ch.chuv.lren.woken.messages.variables.{
   VariablesForDatasetsResponse
 }
 
-case class WokenService(node: String)(implicit val system: ActorSystem,
-                                      implicit val materializer: ActorMaterializer)
+case class WokenClientService(node: String)(implicit val system: ActorSystem,
+                                            implicit val materializer: ActorMaterializer)
     extends DefaultJsonProtocol
     with SprayJsonSupport
     with LazyLogging {
@@ -92,11 +91,11 @@ case class WokenService(node: String)(implicit val system: ActorSystem,
           (url.pure[Future], Unmarshal(response).to[QueryResult]).mapN((_, _))
         case (url, failure) =>
           (url,
-           QueryResult("",
+           QueryResult(None,
                        node,
                        OffsetDateTime.now(),
-                       Shapes.error.mime,
-                       "dispatch",
+                       Shapes.error,
+                       Some("dispatch"),
                        None,
                        Some(failure.entity.toString))).pure[Future]
       }
@@ -130,8 +129,10 @@ case class WokenService(node: String)(implicit val system: ActorSystem,
           val varResponse = Unmarshal(response).to[VariablesForDatasetsResponse]
           (url.pure[Future], varResponse).mapN((_, _))
         case (url, failure) =>
+          logger.error(s"url: $url failure: $failure")
           (url, VariablesForDatasetsResponse(Set.empty, None)).pure[Future]
       }
       .map(identity)
+      .log("Variables for dataset response")
 
 }

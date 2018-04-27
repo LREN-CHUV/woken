@@ -36,44 +36,45 @@ import scala.language.postfixOps
 
 object FakeCoordinatorActor {
 
-  def props: Props = Props(new FakeCoordinatorActor(None))
+  def props(expectedAlgorithm: String, errorMessage: Option[String]): Props =
+    Props(new FakeCoordinatorActor(expectedAlgorithm, errorMessage))
 
-  def executeJobAsync(coordinatorConfig: CoordinatorConfig,
-                      context: ActorContext): ExecuteJobAsync = job => {
+  def executeJobAsync(props: Props, context: ActorContext): ExecuteJobAsync = job => {
     val worker = context.actorOf(props)
 
     implicit val askTimeout: Timeout = Timeout(1 day)
 
-    (worker ? StartCoordinatorJob(job))
+    (worker ? StartCoordinatorJob(job, Actor.noSender, Actor.noSender))
       .mapTo[CoordinatorActor.Response]
   }
 
   def propsForFailingWithMsg(errorMessage: String): Props =
-    Props(new FakeCoordinatorActor(Some(errorMessage)))
+    Props(new FakeCoordinatorActor("", Some(errorMessage)))
 
   def executeFailingJobAsync(errorMessage: String): CoordinatorActor.ExecuteJobAsync =
     job =>
       Future(
         Response(job,
                  List(
-                   ErrorJobResult(job.jobId,
+                   ErrorJobResult(Some(job.jobId),
                                   "testNode",
                                   OffsetDateTime.now(),
-                                  job.algorithmSpec.code,
+                                  Some(job.algorithmSpec.code),
                                   errorMessage)
-                 ))
+                 ),
+                 Actor.noSender)
     )
 
 }
 
-class FakeCoordinatorActor(errorMessage: Option[String]) extends Actor {
+class FakeCoordinatorActor(expectedAlgorithm: String, errorMessage: Option[String]) extends Actor {
 
   override def receive: PartialFunction[Any, Unit] = {
-    case JobCommands.StartCoordinatorJob(job) =>
-      startCoordinatorJob(sender(), job)
+    case JobCommands.StartCoordinatorJob(job, replyTo, initiator) =>
+      startCoordinatorJob(if (replyTo == Actor.noSender) sender() else replyTo, job, initiator)
   }
 
-  def startCoordinatorJob(originator: ActorRef, job: DockerJob): Unit = {
+  def startCoordinatorJob(originator: ActorRef, job: DockerJob, initiator: ActorRef): Unit = {
     val pfa =
       """
            {
@@ -85,24 +86,35 @@ class FakeCoordinatorActor(errorMessage: Option[String]) extends Actor {
         """.stripMargin.parseJson.asJsObject
 
     errorMessage.fold {
-      originator ! Response(
-        job,
-        List(
-          PfaJobResult(job.jobId, "testNode", OffsetDateTime.now(), job.algorithmSpec.code, pfa)
+      if (job.algorithmSpec.code == expectedAlgorithm) {
+        originator ! Response(
+          job,
+          List(
+            PfaJobResult(job.jobId, "testNode", OffsetDateTime.now(), job.algorithmSpec.code, pfa)
+          ),
+          initiator
         )
-      )
+      } else
+        originator ! errorResponse(job,
+                                   s"Unexpected algorithm: ${job.algorithmSpec.code}",
+                                   initiator)
     } { msg =>
-      originator ! errorResponse(job, msg)
+      originator ! errorResponse(job, msg, initiator)
     }
     self ! PoisonPill
   }
 
-  private def errorResponse(job: DockerJob, msg: String) =
+  private def errorResponse(job: DockerJob, msg: String, initiator: ActorRef) =
     Response(
       job,
       List(
-        ErrorJobResult(job.jobId, "testNode", OffsetDateTime.now(), job.algorithmSpec.code, msg)
-      )
+        ErrorJobResult(Some(job.jobId),
+                       "testNode",
+                       OffsetDateTime.now(),
+                       Some(job.algorithmSpec.code),
+                       msg)
+      ),
+      initiator
     )
 
 }

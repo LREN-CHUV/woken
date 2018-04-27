@@ -18,7 +18,6 @@
 package ch.chuv.lren.woken.core.model
 
 import ch.chuv.lren.woken.messages.variables.{ GroupMetaData, VariableMetaData }
-import com.typesafe.scalalogging.LazyLogging
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.{ Validation, lift }
 import cats.syntax.validated._
 
@@ -35,8 +34,7 @@ case class VariablesMeta(id: Int,
                          source: String,
                          hierarchy: GroupMetaData,
                          targetFeaturesTable: String,
-                         defaultHistogramGroupings: List[String])
-    extends LazyLogging {
+                         defaultHistogramGroupings: List[String]) {
 
   def selectVariables(variables: List[String]): Validation[List[VariableMetaData]] = {
     val variablesMeta = select(variables.contains)

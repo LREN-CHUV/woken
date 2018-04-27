@@ -45,12 +45,13 @@ class CrossValidationFlowTest
   "CrossValidationFlow" should {
 
     "complete with success if cross validation failed" ignore {
-      val probe = system.actorOf(WrapperActor.props, "crossValidationWrapper")
-      probe ! CrossValidationFlow.Job("test-1", "", "", ???, List.empty, ???, ???)
+//      val probe = system.actorOf(WrapperActor.props, "crossValidationWrapper")
+//      probe ! CrossValidationFlow.Job("test-1", "", "", ???, List.empty, ???, ???)
     }
 
   }
 
+  /*
   class WrapperActor extends Actor {
     val chronosService    = testActor
     val coordinatorConfig = FakeCoordinatorConfig.coordinatorConfig(testActor)
@@ -74,4 +75,5 @@ class CrossValidationFlowTest
     def props = Props(new WrapperActor)
   }
 
+ */
 }

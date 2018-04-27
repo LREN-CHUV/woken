@@ -1,4 +1,6 @@
 .idea/
+dev/log/
+dev/tmp/
 tests/log/
 tests/tmp/
 tests/woken/lib/

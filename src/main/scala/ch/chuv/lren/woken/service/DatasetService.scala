@@ -27,5 +27,9 @@ trait DatasetService {
 
 case class ConfBasedDatasetService(config: Config) extends DatasetService {
   override def datasets(): Set[Dataset] =
-    DatasetsConfiguration.datasets(config).getOrElse(Map()).values.toSet
+    DatasetsConfiguration
+      .datasets(config)
+      .valueOr(nel => throw new IllegalStateException(s"Cannot load datasets: $nel"))
+      .values
+      .toSet
 }

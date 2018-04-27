@@ -28,7 +28,7 @@ jobs:
       - run:
           name: "Test the project"
           command: |
-            PATH=$PATH:/$HOME/.captain/bin/ ./tests/test.sh
+            PATH=$PATH:/$HOME/.captain/bin/ ./tests/ci.sh --all
     notify:
       webhooks:
       - url: 'https://webhook.atomist.com/atomist/circle'

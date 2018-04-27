@@ -21,7 +21,7 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.testkit.TestKit
 import com.typesafe.config.{ Config, ConfigFactory }
-import ch.chuv.lren.woken.backends.woken.WokenService
+import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.config.DatasetsConfiguration
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.messages.remoting.{ BasicAuthentication, RemoteLocation }
@@ -39,7 +39,7 @@ class DispatcherServiceTest
 
   val config: Config = ConfigFactory.load("test.conf")
 
-  val wokenService = WokenService("test")
+  val wokenService = WokenClientService("test")
 
   val dispatcherService: DispatcherService =
     DispatcherService(DatasetsConfiguration.datasets(config), wokenService)

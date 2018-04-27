@@ -17,7 +17,7 @@
 
 package ch.chuv.lren.woken.core
 
-import akka.actor.{ ActorRef, ActorSystem }
+import akka.actor.{ ActorRef, ActorSystem, DeadLetter }
 import akka.cluster.Cluster
 import akka.pattern.{ Backoff, BackoffSupervisor }
 import akka.stream._
@@ -25,6 +25,7 @@ import cats.data.NonEmptyList
 import com.typesafe.config.{ Config, ConfigFactory }
 import ch.chuv.lren.woken.backends.chronos.ChronosThrottler
 import ch.chuv.lren.woken.config.{ AppConfiguration, JobsConfiguration }
+import ch.chuv.lren.woken.core.monitoring.DeadLetterMonitorActor
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.ExecutionContextExecutor
@@ -48,6 +49,7 @@ trait Core {
   def beforeBoot(): Unit
   def startActors(): Unit
   def startServices(): Unit
+  def selfChecks(): Unit
 
 }
 
@@ -69,20 +71,24 @@ trait CoreActors {
   // 4. Custom configuration defined in application.conf and backed by reference.conf from the libraries
   // 5. Default configuration for the algorithm library, it can be overriden in application.conf or individual versions
   //    for algorithms can be overriden by environment variables
-  protected lazy val config: Config =
+  protected lazy val config: Config = {
+    val remotingConfig = ConfigFactory.parseResourcesAnySyntax("akka-remoting.conf").resolve()
+    val remotingImpl   = remotingConfig.getString("remoting.implementation")
     ConfigFactory
       .parseString("""
-        |akka {
-        |  actor.provider = cluster
-        |  extensions += "akka.cluster.pubsub.DistributedPubSub"
-        |  extensions += "akka.cluster.client.ClusterClientReceptionist"
-        |}
-      """.stripMargin)
+          |akka {
+          |  actor.provider = cluster
+          |  extensions += "akka.cluster.pubsub.DistributedPubSub"
+          |  extensions += "akka.cluster.client.ClusterClientReceptionist"
+          |}
+        """.stripMargin)
       .withFallback(ConfigFactory.parseResourcesAnySyntax("akka.conf"))
+      .withFallback(ConfigFactory.parseResourcesAnySyntax(s"akka-$remotingImpl-remoting.conf"))
       .withFallback(ConfigFactory.parseResourcesAnySyntax("kamon.conf"))
       .withFallback(ConfigFactory.load())
       .withFallback(ConfigFactory.parseResourcesAnySyntax("algorithms.conf"))
       .resolve()
+  }
 
   protected lazy val appConfig: AppConfiguration = AppConfiguration
     .read(config)
@@ -112,7 +118,7 @@ trait CoreActors {
 
   protected lazy implicit val executionContext: ExecutionContextExecutor = system.dispatcher
 
-  def chronosHttp: ActorRef = {
+  lazy val chronosHttp: ActorRef = {
     val chronosSupervisorProps = BackoffSupervisor.props(
       Backoff.onFailure(
         ChronosThrottler.props(jobsConfig),
@@ -124,6 +130,14 @@ trait CoreActors {
     )
 
     system.actorOf(chronosSupervisorProps, "chronosSupervisor")
+  }
+
+  def monitorDeadLetters(): Unit = {
+    val deadLetterMonitorActor =
+      system.actorOf(DeadLetterMonitorActor.props, name = "deadLetterMonitor")
+
+    // Subscribe to system wide event bus 'DeadLetter'
+    system.eventStream.subscribe(deadLetterMonitorActor, classOf[DeadLetter])
   }
 
 }

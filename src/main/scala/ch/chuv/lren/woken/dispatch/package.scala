@@ -15,26 +15,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.core.model
+package ch.chuv.lren.woken
 
-import org.scalatest.{ Matchers, WordSpec }
-
-import Shapes._
-
-class ShapesTest extends WordSpec with Matchers {
-
-  "Shapes" should {
-    "identify highcharts results" in {
-      highcharts.isIdentifiedBy("application/highcharts+json") shouldBe true
-      highcharts.isIdentifiedBy("unknown") shouldBe false
-    }
-
-    "return the shape from a short name" in {
-      fromString("html") shouldBe Some(html)
-    }
-
-    "return the shape from a mime type" in {
-      fromString("application/vnd.plotly.v1+json") shouldBe Some(plotly)
-    }
-  }
-}
+/**
+  * Adapters (in the sense of [[http://alistair.cockburn.us/Hexagonal+architecture Hexagonal architecture]])
+  * that dispatch the queries either to core actors or to remote Woken instances.
+  */
+package object dispatch {}

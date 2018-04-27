@@ -23,12 +23,13 @@ lazy val `woken-test` =
           library.log4jSlf4j,
           library.disruptor,
           library.config,
+          library.scalaLogging,
           library.wokenMessages,
           library.scalaCheck   % Test,
           library.scalaTest    % Test,
           library.akkaTestkit  % Test
         ),
-        includeFilter in (Test, unmanagedResources) := "*.json" || "*.xml",
+        includeFilter in (Test, unmanagedResources) := "*.json" || "*.xml" || "*.conf",
         fork in Test := false,
         parallelExecution in Test := false
       )
@@ -42,15 +43,16 @@ lazy val library =
   new {
     object Version {
       val scalaCheck    = "1.13.5"
-      val scalaTest     = "3.0.3"
-      val akka          = "2.5.9"
-      val akkaHttp      = "10.0.11"
+      val scalaTest     = "3.0.5"
+      val akka          = "2.5.12"
+      val akkaHttp      = "10.1.1"
       val sprayJson     = "1.3.4"
       val slf4j         = "1.7.25"
-      val log4j         = "2.10.0"
-      val disruptor     = "3.3.7"
-      val config        = "1.2.1"
-      val wokenMessages = "2.6.2"
+      val log4j         = "2.11.0"
+      val disruptor     = "3.4.2"
+      val config        = "1.3.3"
+      val scalaLogging  = "3.9.0"
+      val wokenMessages = "2.7.3"
     }
     val scalaCheck: ModuleID       = "org.scalacheck"    %% "scalacheck"   % Version.scalaCheck
     val scalaTest: ModuleID        = "org.scalatest"     %% "scalatest"    % Version.scalaTest
@@ -67,6 +69,7 @@ lazy val library =
     val log4jSlf4j: ModuleID       = "org.apache.logging.log4j" % "log4j-slf4j-impl" % Version.log4j
     val disruptor: ModuleID        = "com.lmax"           % "disruptor"    % Version.disruptor
     val config: ModuleID           = "com.typesafe"       % "config"       % Version.config
+    val scalaLogging: ModuleID = "com.typesafe.scala-logging" %% "scala-logging" % Version.scalaLogging
     val wokenMessages: ModuleID    = "ch.chuv.lren.woken" %% "woken-messages" % Version.wokenMessages
   }
 

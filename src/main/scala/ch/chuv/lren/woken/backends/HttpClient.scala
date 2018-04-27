@@ -30,10 +30,11 @@ import ch.chuv.lren.woken.backends.chronos.{ ChronosJob, ChronosJobLiveliness }
 import ch.chuv.lren.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryResult }
 import ch.chuv.lren.woken.messages.query.queryProtocol._
 import ch.chuv.lren.woken.messages.remoting.RemoteLocation
+import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.{ ExecutionContextExecutor, Future }
 
-object HttpClient extends DefaultJsonProtocol with SprayJsonSupport {
+object HttpClient extends DefaultJsonProtocol with SprayJsonSupport with LazyLogging {
 
   def sendReceive(request: HttpRequest)(implicit actorSystem: ActorSystem): Future[HttpResponse] =
     Http().singleRequest(request)
@@ -100,7 +101,7 @@ object HttpClient extends DefaultJsonProtocol with SprayJsonSupport {
       (r, creds) => r.addHeader(Authorization(BasicHttpCredentials(creds.user, creds.password)))
     )
 
-    println(s"Post: $requestWithAuth")
+    logger.info(s"Post: $requestWithAuth")
     sendReceive(requestWithAuth)
   }
 

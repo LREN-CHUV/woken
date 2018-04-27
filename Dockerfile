@@ -1,5 +1,5 @@
 # Verified with http://hadolint.lukasmartinelli.ch/
-FROM hbpmip/scala-base-build:1.1.0-1 as scala-build-env
+FROM hbpmip/scala-base-build:1.1.0-2 as scala-build-env
 
 # First caching layer: build.sbt and sbt configuration
 COPY build.sbt /build/
@@ -77,9 +77,11 @@ COPY --from=scala-build-env /build/target/scala-2.11/woken-all.jar /opt/woken/wo
 USER woken
 ENV HOME=/home/woken
 
-# Health checks on http://host:8087/health
-# Akka on 8088
-EXPOSE 8087 8088 8088/UDP
+ENTRYPOINT ["/run.sh"]
+
+# 8087: Web service API, health checks on http://host:8087/health
+# 8088: Akka cluster
+EXPOSE 8087 8088
 
 HEALTHCHECK --start-period=60s CMD curl -v --silent http://localhost:8087/health 2>&1 | grep UP
 
@@ -96,9 +98,3 @@ LABEL org.label-schema.build-date=$BUILD_DATE \
       org.label-schema.docker.dockerfile="Dockerfile" \
       org.label-schema.memory-hint="2048" \
       org.label-schema.schema-version="1.0"
-
-# 8087: Web service API
-# 8088: Akka cluster
-EXPOSE 8087 8088
-
-CMD ["/run.sh"]

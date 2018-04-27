@@ -54,7 +54,9 @@ class JobToChronosTest extends FlatSpec with Matchers {
   )
 
   val featuresQuery: FeaturesQuery =
-    query.filterNulls(true).features("features_table", None)
+    query
+      .filterNulls(variablesCanBeNull = false, covariablesCanBeNull = false)
+      .features("features_table", None)
 
   val jdbcConfs: Map[String, ValidatedNel[String, DatabaseConfiguration]] = Map(
     "features_db" -> DatabaseConfiguration(
@@ -66,7 +68,8 @@ class JobToChronosTest extends FlatSpec with Matchers {
       port = 5432,
       database = "features",
       user = "user",
-      password = "test"
+      password = "test",
+      poolSize = 5
     ).validNel,
     "woken_db" -> DatabaseConfiguration(
       dbiDriver = "PostgreSQL",
@@ -77,7 +80,8 @@ class JobToChronosTest extends FlatSpec with Matchers {
       port = 5432,
       database = "woken",
       user = "woken",
-      password = "wpwd"
+      password = "wpwd",
+      poolSize = 5
     ).validNel
   ).withDefaultValue("".invalidNel)
 
@@ -170,7 +174,9 @@ class JobToChronosTest extends FlatSpec with Matchers {
     featuresTable = "features",
     metadataKeyForFeaturesTable = "features",
     resultDb = "woken_db",
-    metaDb = "meta_db"
+    metaDb = "meta_db",
+    1.0,
+    256
   )
 
   "A generic Docker job" should "be converted to a Chronos job definition" in {
@@ -192,13 +198,11 @@ class JobToChronosTest extends FlatSpec with Matchers {
       EnvironmentVariable("DOCKER_IMAGE", "hbpmpi/test"),
       EnvironmentVariable("PARAM_variables", "target"),
       EnvironmentVariable("MODEL_PARAM_k", "5"),
-      EnvironmentVariable("PARAM_MODEL_n", "1"),
+      EnvironmentVariable("MODEL_PARAM_n", "1"),
       EnvironmentVariable(
         "PARAM_query",
         """SELECT "target","a","b","c","grp1","grp2" FROM features_table WHERE "target" IS NOT NULL AND "a" IS NOT NULL AND "b" IS NOT NULL AND "c" IS NOT NULL AND "grp1" IS NOT NULL AND "grp2" IS NOT NULL AND "a" < 10"""
       ),
-      EnvironmentVariable("MODEL_PARAM_n", "1"),
-      EnvironmentVariable("PARAM_MODEL_k", "5"),
       EnvironmentVariable("PARAM_grouping", "grp1,grp2"),
       EnvironmentVariable(
         "PARAM_meta",
@@ -227,7 +231,7 @@ class JobToChronosTest extends FlatSpec with Matchers {
       EnvironmentVariable("OUT_PASSWORD", "wpwd"),
       EnvironmentVariable("OUT_JDBC_USER", "woken"),
       EnvironmentVariable("OUT_JDBC_PASSWORD", "wpwd")
-    )
+    ).sortBy(_.name)
 
     val expected = ChronosJob(
       name = "test_1234",
@@ -242,8 +246,8 @@ class JobToChronosTest extends FlatSpec with Matchers {
       container = Some(
         Container(`type` = ContainerType.DOCKER, image = "hbpmpi/test", network = NetworkMode.HOST)
       ),
-      cpus = Some(0.5),
-      mem = Some(512.0),
+      cpus = Some(1.0),
+      mem = Some(256.0),
       disk = None,
       owner = Some("mip@chuv.ch"),
       environmentVariables = environmentVariables,

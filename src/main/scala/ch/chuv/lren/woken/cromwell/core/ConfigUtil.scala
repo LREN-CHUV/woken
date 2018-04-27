@@ -121,6 +121,15 @@ object ConfigUtil {
           s"Invalid type for key: $key, expected an integer value".invalidNel
       }
 
+    def validateDouble(key: String): Validation[Double] =
+      try {
+        config.getDouble(key).validNel
+      } catch {
+        case _: ConfigException.Missing => s"Could not find key: $key".invalidNel
+        case _: ConfigException.WrongType =>
+          s"Invalid type for key: $key, expected a double value".invalidNel
+      }
+
     def validateBoolean(key: String): Validation[Boolean] =
       try {
         config.getBoolean(key).validNel

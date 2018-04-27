@@ -51,7 +51,7 @@ object DatasetsConfiguration {
       val dataset                          = path.lastOption.map(lift).getOrElse("Empty path".invalidNel[String])
       val label                            = f.validateString("label")
       val description                      = f.validateString("description")
-      val tables: Validation[List[String]] = f.validateStringList("tables").orElse(lift(List()))
+      val tables: Validation[List[String]] = f.validateStringList("tables")
       val location: Validation[Option[RemoteLocation]] = f
         .validateConfig("location")
         .andThen { cl =>

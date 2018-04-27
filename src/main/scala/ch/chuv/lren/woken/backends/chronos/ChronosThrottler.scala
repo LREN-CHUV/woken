@@ -18,10 +18,11 @@
 package ch.chuv.lren.woken.backends.chronos
 
 import akka.NotUsed
-import akka.actor.{ Actor, ActorLogging, ActorRef, Props, Terminated }
+import akka.actor.{ Actor, ActorRef, Props, Terminated }
 import akka.stream._
 import akka.stream.scaladsl.{ Sink, Source }
 import ch.chuv.lren.woken.config.JobsConfiguration
+import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.duration._
 
@@ -44,14 +45,14 @@ object ChronosThrottler {
   */
 class ChronosThrottler(jobsConfig: JobsConfiguration, implicit val materializer: Materializer)
     extends Actor
-    with ActorLogging {
+    with LazyLogging {
 
   private lazy val chronosWorker: ActorRef =
     context.actorOf(ChronosService.props(jobsConfig), "chronos")
 
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
   private lazy val throttler: ActorRef = Source
-    .actorRef(1000, OverflowStrategy.fail)
+    .actorRef(10000, OverflowStrategy.fail)
     .throttle(1, 100.milliseconds, 1, ThrottleMode.shaping)
     .to(Sink.actorRef(chronosWorker, NotUsed))
     .withAttributes(ActorAttributes.supervisionStrategy(Supervision.resumingDecider))
@@ -72,13 +73,13 @@ class ChronosThrottler(jobsConfig: JobsConfiguration, implicit val materializer:
   override def receive: Receive = {
     // Cleanup requests do not need to be rate-limited
     case cleanup: ChronosService.Cleanup =>
-      chronosWorker ! cleanup
+      chronosWorker forward cleanup
     // But all other requests should be rate-limited
     case request: ChronosService.Request =>
-      throttler ! request
+      throttler forward request
     case Terminated(ref) =>
-      log.debug("Terminating ChronosThrottler as child is terminated: {}", ref)
+      logger.debug("Terminating ChronosThrottler as child is terminated: {}", ref)
       context.stop(self)
-    case e => log.error("Unknown msg received: {}", e)
+    case e => logger.error("Unknown msg received: {}", e)
   }
 }

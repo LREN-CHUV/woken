@@ -50,7 +50,8 @@ final case class DatabaseConfiguration(dbiDriver: String,
                                        port: Int,
                                        database: String,
                                        user: String,
-                                       password: String)
+                                       password: String,
+                                       poolSize: Int)
 
 object DatabaseConfiguration {
 
@@ -70,8 +71,10 @@ object DatabaseConfiguration {
       val user                         = db.validateString("user")
       val password                     = db.validateString("password")
       val database: Validation[String] = db.validateString("database")
+      val poolSize: Validation[Int] =
+        db.validateInt("pool_size").orElse(lift(10))
 
-      (dbiDriver, dbApiDriver, jdbcDriver, jdbcUrl, host, port, database, user, password) mapN DatabaseConfiguration.apply
+      (dbiDriver, dbApiDriver, jdbcDriver, jdbcUrl, host, port, database, user, password, poolSize) mapN DatabaseConfiguration.apply
     }
   }
 
@@ -84,7 +87,13 @@ object DatabaseConfiguration {
                                                      dbConfig.jdbcUrl,
                                                      dbConfig.user,
                                                      dbConfig.password)
-      _ <- xa.configure(hx => IO(hx.setAutoCommit(false)))
+      _ <- xa.configure(
+        hx =>
+          IO {
+            hx.getHikariConfigMXBean.setMaximumPoolSize(dbConfig.poolSize)
+            hx.setAutoCommit(false)
+        }
+      )
     } yield xa
 
   // TODO: it should become Validated[]

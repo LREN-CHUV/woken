@@ -1,0 +1,16 @@
+{
+  "datasets": [
+    {
+      "anonymisationLevel": "Anonymised",
+      "dataset": {
+        "code": "desd-synthdata"
+      },
+      "description": "Demo dataset DESD",
+      "label": "DESD",
+      "tables": [
+        "cde_features_a",
+        "cde_features_mixed"
+      ]
+    }
+  ]
+}

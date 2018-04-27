@@ -15,6 +15,7 @@ lazy val `woken` =
         mainClass in Runtime := Some("ch.chuv.lren.woken.web.Web"),
         libraryDependencies ++= Seq(
           library.akkaActor,
+          //library.akkaActorTyped,
           library.akkaRemote,
           library.akkaCluster,
           library.akkaClusterTools,
@@ -47,16 +48,15 @@ lazy val `woken` =
           library.doobiePostgres,
           library.doobieHikari,
           library.yaml,
-          library.hadrian,
           library.wokenMessages,
           //library.scalaCache,
-          library.scalaCheck   % Test,
-          library.scalaTest    % Test,
-          library.scalaMock       % Test,
-          library.akkaTestkit     % Test,
-          library.akkaStreamTestkit % Test,
-          library.doobieScalaTest % Test,
-          library.catsScalaTest   % Test,
+          library.scalaCheck             % Test,
+          library.scalaTest              % Test,
+          library.scalaMock              % Test,
+          library.akkaTestkit            % Test,
+          library.akkaStreamTestkit      % Test,
+          library.doobieScalaTest        % Test,
+          library.catsScalaTest          % Test,
           library.dockerTestKitScalaTest % Test,
           library.dockerTestKitSpotify   % Test
         ),
@@ -76,37 +76,35 @@ lazy val library =
   new {
     object Version {
       val scalaCheck      = "1.13.5"
-      val scalaTest       = "3.0.3"
+      val scalaTest       = "3.0.5"
       val scalaMock       = "4.1.0"
-      val akka            = "2.5.9"
-      val akkaTracing     = "0.6.1"
-      val akkaHttp        = "10.1.0-RC2"
-      val akkaHttpCors    = "0.2.1"
-      val akkaHttpSwagger = "0.13.0"
-      val kamon           = "1.1.0"
+      val akka            = "2.5.12"
+      val akkaHttp        = "10.1.1"
+      val akkaHttpCors    = "0.3.0"
+      val akkaHttpSwagger = "0.14.0"
+      val kamon           = "1.1.2"
       val kamonAkka       = "1.0.1"
       val kamonAkkaRemote = "1.0.1"
       val kamonAkkaHttp   = "1.1.0"
       val kamonReporter   = "1.0.0"
       val kamonSystemMetrics = "1.0.0"
       val kamonSigar      = "1.6.6-rev002"
-      val swaggerJaxrs    = "1.5.18"
-      val swaggerUI       = "3.9.0"
+      val swaggerJaxrs    = "1.5.19"
+      val swaggerUI       = "3.13.3"
       val sprayJson       = "1.3.4"
       val slf4j           = "1.7.25"
-      val log4j           = "2.10.0"
-      val disruptor       = "3.3.7"
-      val scalaLogging    = "3.7.2"
-      val cats            = "1.0.1"
-      val kittens         = "1.0.0-RC2"
+      val log4j           = "2.11.0"
+      val disruptor       = "3.4.2"
+      val scalaLogging    = "3.9.0"
+      val cats            = "1.1.0"
+      val kittens         = "1.0.0-RC3"
       val catsScalaTest   = "2.3.1"
-      val config          = "1.2.1"
-      val doobie          = "0.5.1"
-      val snakeyaml       = "1.17"
-      val hadrian         = "0.8.5"
+      val config          = "1.3.3"
+      val doobie          = "0.5.2"
+      val snakeyaml       = "1.21"
       val scalaCache      = "0.21.0"
-      val dockerTestKit   = "0.9.5"
-      val wokenMessages   = "2.6.2"
+      val dockerTestKit   = "0.9.6"
+      val wokenMessages   = "2.7.3"
     }
     object ExclusionRules {
       val excludeLogback = ExclusionRule(organization = "ch.qos.logback", name = "logback-classic")
@@ -115,6 +113,7 @@ lazy val library =
     val scalaTest: ModuleID    = "org.scalatest"     %% "scalatest"    % Version.scalaTest
     val scalaMock:ModuleID     = "org.scalamock"     %% "scalamock"    % Version.scalaMock
     val akkaActor: ModuleID    = "com.typesafe.akka" %% "akka-actor"   % Version.akka
+    val akkaActorTyped: ModuleID = "com.typesafe.akka" %% "akka-actor-typed" % Version.akka
     val akkaRemote: ModuleID   = "com.typesafe.akka" %% "akka-remote"  % Version.akka
     val akkaCluster: ModuleID  = "com.typesafe.akka" %% "akka-cluster" % Version.akka
     val akkaClusterTools: ModuleID = "com.typesafe.akka" %% "akka-cluster-tools" % Version.akka
@@ -151,7 +150,6 @@ lazy val library =
     val doobieHikari: ModuleID = "org.tpolecat"      %% "doobie-hikari" % Version.doobie
     val doobieScalaTest: ModuleID = "org.tpolecat" %% "doobie-scalatest" % Version.doobie
     val yaml: ModuleID         = "org.yaml"           % "snakeyaml"    % Version.snakeyaml
-    val hadrian: ModuleID      = "com.opendatagroup" %  "hadrian"      % Version.hadrian
     val scalaCache: ModuleID   = "com.github.cb372"  %% "scalacache-core" % Version.scalaCache
     val dockerTestKitScalaTest: ModuleID = "com.whisk" %% "docker-testkit-scalatest" % Version.dockerTestKit excludeAll ExclusionRules.excludeLogback
     val dockerTestKitSpotify: ModuleID = "com.whisk" %% "docker-testkit-impl-spotify" % Version.dockerTestKit excludeAll ExclusionRules.excludeLogback

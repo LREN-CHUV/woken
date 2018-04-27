@@ -42,10 +42,13 @@ if pgrep -lf sshuttle > /dev/null ; then
 fi
 
 if [[ $NO_SUDO || -n "$CIRCLECI" ]]; then
+  DOCKER="docker"
   DOCKER_COMPOSE="docker-compose"
 elif groups $USER | grep &>/dev/null '\bdocker\b'; then
+  DOCKER="docker"
   DOCKER_COMPOSE="docker-compose"
 else
+  DOCKER="sudo docker"
   DOCKER_COMPOSE="sudo docker-compose"
 fi
 
@@ -58,6 +61,8 @@ function _cleanup() {
   exit $error_code
 }
 trap _cleanup EXIT INT TERM
+
+export TEST_ARGS="${test_args}"
 
 echo "Remove old running containers (if any)..."
 $DOCKER_COMPOSE kill
@@ -111,7 +116,19 @@ echo "The Algorithm Factory is now running on your system"
 echo
 echo "Testing Akka API..."
 
-$DOCKER_COMPOSE run wokentest ${test_args}
+$DOCKER_COMPOSE up wokentest
+
+exit_code="$($DOCKER inspect tests_wokentest_1 --format='{{.State.ExitCode}}')"
+
+red=`tput setaf 1`
+green=`tput setaf 2`
+reset=`tput sgr0`
+
+if [ "$exit_code" != "0" ]; then
+  echo "${red}Integration tests failed!${reset}"
+  exit 1
+fi
+echo "${green}[OK] All integration tests passed.${reset}"
 
 echo
 # Cleanup

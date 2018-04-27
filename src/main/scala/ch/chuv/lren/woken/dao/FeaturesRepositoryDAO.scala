@@ -26,6 +26,7 @@ import doobie._
 import doobie.implicits._
 import spray.json._
 import DefaultJsonProtocol._
+import ch.chuv.lren.woken.messages.datasets.DatasetId
 
 import scala.language.higherKinds
 
@@ -42,10 +43,27 @@ class FeaturesTableRepositoryDAO[F[_]: Monad](val xa: Transactor[F],
     extends FeaturesTableRepository[F] {
 
   override def count: F[Int] = {
-    val q: Fragment = fr"select count(*) from $table"
+    val q: Fragment = fr"SELECT count(*) FROM " ++ Fragment.const(table)
     q.query[Int]
       .unique
       .transact(xa)
+  }
+
+  override def count(dataset: DatasetId): F[Int] = {
+
+    val checkDatasetColumn = sql"""
+      SELECT EXISTS (SELECT 1 FROM information_schema.columns
+        WHERE table_name=$table and column_name='dataset')"""
+
+    checkDatasetColumn.query[Boolean].unique.transact(xa).flatMap { hasDatasetColumn =>
+      if (hasDatasetColumn) {
+        val q: Fragment = sql"SELECT count(*) FROM " ++ Fragment
+          .const(table) ++ fr"WHERE dataset = ${dataset.code}"
+        q.query[Int]
+          .unique
+          .transact(xa)
+      } else count
+    }
   }
 
   override def features(query: FeaturesQuery): F[(List[ColumnMeta], Stream[JsObject])] =

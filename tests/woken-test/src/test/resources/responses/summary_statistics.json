@@ -1,0 +1,106 @@
+{
+  "algorithm": "python-summary-statistics",
+  "data": {
+    "data": [
+      {
+        "25%": 42.7354818081,
+        "50%": 47.0656661866,
+        "75%": 53.5290071048,
+        "EX^2": 2599.3333333331,
+        "count": 150,
+        "group": [
+          "all"
+        ],
+        "group_variables": [],
+        "index": "cognitive_task2",
+        "label": "Cognitive Task 2",
+        "max": 80.4738996627,
+        "mean": 50.0,
+        "min": 35.3848051833,
+        "null_count": 0,
+        "std": 10.0,
+        "type": "real"
+      }
+    ],
+    "schema": {
+      "fields": [
+        {
+          "name": "group_variables",
+          "type": "array"
+        },
+        {
+          "name": "group",
+          "type": "array"
+        },
+        {
+          "name": "index",
+          "type": "string"
+        },
+        {
+          "name": "label",
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "type": "string"
+        },
+        {
+          "name": "count",
+          "type": "integer"
+        },
+        {
+          "name": "null_count",
+          "type": "integer"
+        },
+        {
+          "name": "unique",
+          "type": "integer"
+        },
+        {
+          "name": "top",
+          "type": "string"
+        },
+        {
+          "name": "frequency",
+          "type": "any"
+        },
+        {
+          "name": "mean",
+          "type": "number"
+        },
+        {
+          "name": "std",
+          "type": "number"
+        },
+        {
+          "name": "EX^2",
+          "type": "number"
+        },
+        {
+          "name": "min",
+          "type": "number"
+        },
+        {
+          "name": "max",
+          "type": "number"
+        },
+        {
+          "name": "25%",
+          "type": "number"
+        },
+        {
+          "name": "50%",
+          "type": "number"
+        },
+        {
+          "name": "75%",
+          "type": "number"
+        }
+      ]
+    }
+  },
+  "jobId": "*",
+  "node": "local",
+  "timestamp": 0.0,
+  "type": "application/vnd.dataresource+json"
+}

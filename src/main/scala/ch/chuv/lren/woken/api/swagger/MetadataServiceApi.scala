@@ -58,23 +58,26 @@ trait MetadataServiceApi extends Directives {
     response = classOf[VariablesForDatasetsResponse]
   )
   @ApiParam
-  @ApiImplicitParams(Array(
-    new ApiImplicitParam(
-      name = "datasets",
-      value = "comma separated list of datasets IDs where variables should be fetched from",
-      dataType = "string",
-      allowMultiple = true,
-      paramType = "query",
-      required = false)),
-    new ApiImplicitParam(
-      name = "exhaustive",
-      value = "if set to true variables returned should be present in all datasets",
-      dataType = "boolean",
-      paramType = "query",
-      required = false)
+  @ApiImplicitParams(
+    value = Array(
+      new ApiImplicitParam(
+        name = "datasets",
+        value = "comma separated list of datasets IDs where variables should be fetched from",
+        dataType = "string",
+        allowMultiple = true,
+        paramType = "query",
+        required = false
+      ),
+      new ApiImplicitParam(name = "exhaustive",
+                           value =
+                             "if set to true variables returned should be present in all datasets",
+                           dataType = "boolean",
+                           paramType = "query",
+                           required = false)
+    )
   )
   @ApiResponses(
-    Array(
+    value = Array(
       new ApiResponse(code = 200,
                       message = "Varialble metadata listing",
                       response = classOf[spray.json.JsObject]),

@@ -51,7 +51,7 @@ object MiningQueries extends LazyLogging {
 
     def createJob(mt: List[VariableMetaData], al: AlgorithmDefinition) = {
       val featuresQuery = query.filterDatasets
-        .filterNulls(!al.supportsNullValues)
+        .filterNulls(al.variablesCanBeNull, al.covariablesCanBeNull)
         .features(featuresTable, None)
 
       DockerJob(jobId, al.dockerImage, featuresDb, featuresQuery, query.algorithm, metadata = mt)

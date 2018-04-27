@@ -26,7 +26,7 @@ services:
       - zookeeper
 
   mesos_master:
-    image: mesosphere/mesos-master:1.3.0
+    image: axelspringer/mesos-master:1.4.1
     hostname: mesosmaster
     volumes:
       - ./log/mesos/master:/var/log/mesos/master:rw
@@ -53,7 +53,7 @@ services:
       - mesos_master
 
   mesos_slave:
-    image: mesosphere/mesos-slave:1.3.0
+    image: axelspringer/mesos-agent:1.4.1
     hostname: mesosslave
     privileged: true
     volumes:
@@ -83,7 +83,7 @@ services:
       - mesos_master
 
   chronos:
-    image: mesosphere/chronos:v3.0.2
+    image: hbpmip/chronos:3.0.2-3
     command: '--zk_hosts zookeeper:2181 --master zk://zookeeper:2181/mesos --zk_timeout 30000'
     restart: "always"
     hostname: chronos
@@ -148,7 +148,7 @@ services:
       - db
 
   sample_meta_db_setup:
-    image: "hbpmip/sample-meta-db-setup:0.5.0"
+    image: "hbpmip/sample-meta-db-setup:0.6.0"
     container_name: "sample-meta-db-setup"
     restart: "no"
     environment:
@@ -161,7 +161,7 @@ services:
       - db
 
   sample_data_db_setup:
-    image: "hbpmip/sample-data-db-setup:0.5.0"
+    image: "hbpmip/sample-data-db-setup:0.6.0"
     container_name: "sample-data-db-setup"
     restart: "no"
     environment:
@@ -186,36 +186,8 @@ services:
     depends_on:
       - db
 
-  woken:
-    image: hbpmip/woken
-    volumes:
-      - ./woken/config:/opt/woken/config
-    ports:
-      - "8087:8087"
-      - "8088:8088"
-      - "9095:9095"
-      - "8000:8000"
-    environment:
-      CLUSTER_PORT: 8088
-      CLUSTER_IP: woken
-      WOKEN_PORT_8088_TCP_ADDR: woken
-      DOCKER_BRIDGE_NETWORK: "tests_default"
-      LOG_LEVEL: DEBUG
-      KAMON_ENABLED: "no"
-      ZIPKIN_ENABLED: "yes"
-      PROMETHEUS_ENABLED: "yes"
-      SIGAR_SYSTEM_METRICS: "no"
-      JVM_SYSTEM_METRICS: "no"
-      JAVA_OPTS: "-agentlib:jdwp=transport=dt_socket,address=8000,server=y,suspend=n"
-    links:
-      - zipkin
-      - wokenprometheus
-    depends_on:
-      - chronos
-      - db
-
   wokenvalidation:
-    image: hbpmip/woken-validation:2.3.1
+    image: hbpmip/woken-validation:2.4.10
     ports:
       - "8081:8081"
       - "8082:8082"
@@ -225,18 +197,18 @@ services:
       WOKEN_PORT_8088_TCP_ADDR: "${HOST}"
       LOG_LEVEL: DEBUG
 
-  wait_woken:
+  wait_wokenvalidation:
     image: "waisbrot/wait"
     restart: "no"
     environment:
-      TARGETS: "${HOST}:8087,chronos:4400,wokenvalidation:8081"
+      TARGETS: "chronos:4400,wokenvalidation:8081"
       TIMEOUT: 600
     depends_on:
-      - woken
+      - wokenvalidation
       - chronos
 
   portalbackend:
-    image: "hbpmip/portal-backend:2.6.4"
+    image: hbpmip/portal-backend:2.7.10
     restart: "no"
     ports:
       - "65440:8080"
@@ -262,7 +234,7 @@ services:
       FRONTEND_AFTER_LOGOUT_URL: http://frontend/services/login/hbp
       CLUSTER_IP: portalbackend
       CLUSTER_PORT: 8089
-      WOKEN_PORT_8088_TCP_ADDR: woken
+      WOKEN_PORT_8088_TCP_ADDR: "${HOST}"
       WOKEN_PORT_8088_TCP_PORT: 8088
       WOKEN_AKKA_PATH: "/user/entrypoint"
       EXAREME_URL: http://prozac.madgik.di.uoa.gr:9090/mining/query
@@ -282,7 +254,7 @@ services:
       - portalbackend
 
   frontend:
-    image: hbpmip/portal-frontend
+    image: hbpmip/portal-frontend:2.9.13
     depends_on:
       - portalbackend
     ports:

@@ -30,6 +30,8 @@ import cats.implicits._
   * @param chronosServerUrl URL to Chronos server used to launch Docker containers in the Mesos cluster
   * @param featuresDb Configuration alias of the database containing features
   * @param resultDb Configuration alias of the database used to store results
+  * @param defaultJobMemory Default memory in Mb allocated to a job
+  * @param defaultJobCpus Default share of CPUs allocated to a job
   */
 final case class JobsConfiguration(
     node: String,
@@ -39,7 +41,9 @@ final case class JobsConfiguration(
     featuresTable: String,
     metadataKeyForFeaturesTable: String,
     resultDb: String,
-    metaDb: String
+    metaDb: String,
+    defaultJobCpus: Double,
+    defaultJobMemory: Int
 )
 
 object JobsConfiguration {
@@ -55,8 +59,10 @@ object JobsConfiguration {
       val featuresTable    = jobs.validateString("featuresTable")
       val metadataKeyForFeaturesTable: Validation[String] =
         jobs.validateString("metadataKeyForFeaturesTable").orElse(featuresTable)
-      val resultDb = jobs.validateString("resultDb")
-      val metaDb   = jobs.validateString("metaDb")
+      val resultDb                 = jobs.validateString("resultDb")
+      val metaDb                   = jobs.validateString("metaDb")
+      val cpus: Validation[Double] = jobs.validateDouble("defaultJobCpus").orElse(lift(0.5))
+      val mem: Validation[Int]     = jobs.validateInt("defaultJobMemory").orElse(lift(512))
 
       (node,
        owner,
@@ -65,7 +71,9 @@ object JobsConfiguration {
        featuresTable,
        metadataKeyForFeaturesTable,
        resultDb,
-       metaDb) mapN JobsConfiguration.apply
+       metaDb,
+       cpus,
+       mem) mapN JobsConfiguration.apply
     }
   }
 

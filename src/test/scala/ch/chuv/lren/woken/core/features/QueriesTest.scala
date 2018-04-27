@@ -53,14 +53,34 @@ class QueriesTest extends WordSpec with Matchers {
       val featuresQuery = query.features("inputTable", None)
       featuresQuery.sql shouldBe
       """SELECT "target","a","b","c","grp1","grp2" FROM inputTable WHERE "a" < 10"""
+    }
 
-      val featuresQuery2 = query.filterNulls(false).features("inputTable", None)
+    "generate a SQL query filtering null values" in {
+      val featuresQuery = query
+        .filterNulls(variablesCanBeNull = true, covariablesCanBeNull = true)
+        .features("inputTable", None)
+      featuresQuery.sql shouldBe
+      """SELECT "target","a","b","c","grp1","grp2" FROM inputTable WHERE "a" < 10"""
+
+      val featuresQuery2 = query
+        .filterNulls(variablesCanBeNull = false, covariablesCanBeNull = true)
+        .features("inputTable", None)
       featuresQuery2.sql shouldBe
       """SELECT "target","a","b","c","grp1","grp2" FROM inputTable WHERE "target" IS NOT NULL AND "a" < 10"""
 
-      val featuresQuery3 = query.filterNulls(true).features("inputTable", None)
+      val featuresQuery3 = query
+        .filterNulls(variablesCanBeNull = false, covariablesCanBeNull = false)
+        .features("inputTable", None)
       featuresQuery3.sql shouldBe
       """SELECT "target","a","b","c","grp1","grp2" FROM inputTable WHERE "target" IS NOT NULL AND "a" IS NOT NULL
+          | AND "b" IS NOT NULL AND "c" IS NOT NULL AND "grp1" IS NOT NULL AND "grp2" IS NOT NULL AND "a" < 10""".stripMargin
+        .replace("\n", "")
+
+      val featuresQuery4 = query
+        .filterNulls(variablesCanBeNull = true, covariablesCanBeNull = false)
+        .features("inputTable", None)
+      featuresQuery4.sql shouldBe
+      """SELECT "target","a","b","c","grp1","grp2" FROM inputTable WHERE "a" IS NOT NULL
           | AND "b" IS NOT NULL AND "c" IS NOT NULL AND "grp1" IS NOT NULL AND "grp2" IS NOT NULL AND "a" < 10""".stripMargin
         .replace("\n", "")
 

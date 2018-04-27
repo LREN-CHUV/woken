@@ -57,8 +57,7 @@ case class DockerJob(
 
   private[this] def algoParameters: Map[String, String] = {
     val parameters = algorithmSpec.parametersAsMap
-    parameters.map({ case (key, value) => ("MODEL_PARAM_" + key, value) }) ++
-    parameters.map({ case (key, value) => ("PARAM_MODEL_" + key, value) })
+    parameters.map({ case (key, value) => ("MODEL_PARAM_" + key, value) })
   }
 
 }

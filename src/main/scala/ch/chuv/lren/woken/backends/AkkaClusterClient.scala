@@ -17,15 +17,15 @@
 
 package ch.chuv.lren.woken.backends
 
-import akka.pattern._
 import akka.actor.{ ActorRef, ActorSystem }
 import akka.cluster.client.{ ClusterClient, ClusterClientSettings }
+import akka.pattern._
 import akka.util.Timeout
 import ch.chuv.lren.woken.messages.query.{ Query, QueryResult }
 import ch.chuv.lren.woken.messages.remoting.RemoteLocation
 
-import scala.concurrent.duration._
 import scala.concurrent.Future
+import scala.concurrent.duration._
 
 object AkkaClusterClient {
 

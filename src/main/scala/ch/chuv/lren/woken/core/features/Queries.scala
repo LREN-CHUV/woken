@@ -52,21 +52,27 @@ object Queries {
       * Add a filter to remove null values, either partially, where rows containing null values in the target variables are excluded,
       * or totally, where rows containing a null value in any field used by the query are excluded.
       *
-      * @param excludeAllNulls If true, all fields containing null values are excluded, otherwise only the target variables are excluded
+      * @param variablesCanBeNull If false, target variables containing null values are excluded
+      * @param covariablesCanBeNull If false, covariables and grouping fields containing null values are excluded
       */
-    def filterNulls(excludeAllNulls: Boolean): Q = {
-      val nonNullableFields = if (excludeAllNulls) query.dbAllVars else query.dbVariables
-      val notNullFilters: List[FilterRule] = nonNullableFields
-        .map(v => SingleFilterRule(v, v, "string", InputType.text, Operator.isNotNull, Nil))
-      val mergingQueryFilters =
-        query.filters.fold(notNullFilters)(f => notNullFilters :+ f)
-      val filters: FilterRule = mergingQueryFilters match {
-        case List(f) => f
-        case _       => CompoundFilterRule(Condition.and, mergingQueryFilters)
-      }
-      query match {
-        case q: MiningQuery     => q.copy(filters = Some(filters)).asInstanceOf[Q]
-        case q: ExperimentQuery => q.copy(filters = Some(filters)).asInstanceOf[Q]
+    def filterNulls(variablesCanBeNull: Boolean, covariablesCanBeNull: Boolean): Q = {
+      val nonNullableFields = (if (variablesCanBeNull) List() else query.dbVariables) ++
+        (if (covariablesCanBeNull) List() else query.dbCovariables ++ query.dbGrouping).distinct
+      if (nonNullableFields.isEmpty)
+        query
+      else {
+        val notNullFilters: List[FilterRule] = nonNullableFields
+          .map(v => SingleFilterRule(v, v, "string", InputType.text, Operator.isNotNull, Nil))
+        val mergingQueryFilters =
+          query.filters.fold(notNullFilters)(f => notNullFilters :+ f)
+        val filters: FilterRule = mergingQueryFilters match {
+          case List(f) => f
+          case _       => CompoundFilterRule(Condition.and, mergingQueryFilters)
+        }
+        query match {
+          case q: MiningQuery     => q.copy(filters = Some(filters)).asInstanceOf[Q]
+          case q: ExperimentQuery => q.copy(filters = Some(filters)).asInstanceOf[Q]
+        }
       }
     }
 

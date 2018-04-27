@@ -21,16 +21,17 @@ import java.time.OffsetDateTime
 import java.util.UUID
 
 import akka.NotUsed
-import akka.actor.{ Actor, ActorContext, ActorLogging, Props }
+import akka.actor.{ Actor, ActorContext, ActorRef, Props }
 import akka.stream._
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Merge, Partition, Sink, Source, Zip }
+import cats.data.NonEmptyList
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
 import ch.chuv.lren.woken.core.validation.ValidatedAlgorithmFlow
 
 import scala.concurrent.ExecutionContext
 import scala.util.{ Failure, Success }
 import ch.chuv.lren.woken.core.commands.JobCommands.StartExperimentJob
-import ch.chuv.lren.woken.config.AlgorithmDefinition
+import ch.chuv.lren.woken.config.{ AlgorithmDefinition, JobsConfiguration }
 import ch.chuv.lren.woken.core.model.{ ErrorJobResult, JobResult, PfaExperimentJobResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.dao.FeaturesDAL
@@ -40,6 +41,7 @@ import ch.chuv.lren.woken.messages.query.{
   MiningQuery,
   ValidationSpec
 }
+import com.typesafe.scalalogging.LazyLogging
 
 /**
   * We use the companion object to hold all the messages that the ``ExperimentActor`` receives.
@@ -59,7 +61,9 @@ object ExperimentActor {
 
   // Output messages: JobResult containing the experiment PFA
 
-  case class Response(job: Job, result: Either[ErrorJobResult, PfaExperimentJobResult])
+  case class Response(job: Job,
+                      result: Either[ErrorJobResult, PfaExperimentJobResult],
+                      initiator: ActorRef)
 
   def props(coordinatorConfig: CoordinatorConfig,
             algorithmLookup: String => Validation[AlgorithmDefinition]): Props =
@@ -77,16 +81,16 @@ object ExperimentActor {
 class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
                       algorithmLookup: String => Validation[AlgorithmDefinition])
     extends Actor
-    with ActorLogging {
+    with LazyLogging {
 
   import ExperimentActor._
 
   val decider: Supervision.Decider = {
     case err: RuntimeException =>
-      log.error(err, "Runtime error detected")
+      logger.error("Runtime error detected", err)
       Supervision.Resume
     case err =>
-      log.error(err, "Unknown error. Stopping the stream.")
+      logger.error("Unknown error. Stopping the stream.", err)
       Supervision.Stop
   }
 
@@ -99,41 +103,41 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
     ExperimentFlow(
       CoordinatorActor.executeJobAsync(coordinatorConfig, context),
       coordinatorConfig.featuresDatabase,
-      coordinatorConfig.jobsConf.node,
+      coordinatorConfig.jobsConf,
       algorithmLookup,
       context
     ).flow
 
   @SuppressWarnings(Array("org.wartremover.warts.Any", "org.wartremover.warts.NonUnitStatements"))
   override def receive: PartialFunction[Any, Unit] = {
-    case StartExperimentJob(job) if job.query.algorithms.isEmpty =>
-      val initiator = sender()
-      val msg       = "Experiment contains no algorithms"
-      val result = ErrorJobResult(job.jobId,
+    case StartExperimentJob(job, requestedReplyTo, initiator) if job.query.algorithms.isEmpty =>
+      val replyTo = if (requestedReplyTo == Actor.noSender) sender() else requestedReplyTo
+      val msg     = "Experiment contains no algorithms"
+      val result = ErrorJobResult(Some(job.jobId),
                                   coordinatorConfig.jobsConf.node,
                                   OffsetDateTime.now(),
-                                  "experiment",
+                                  None,
                                   msg)
       coordinatorConfig.jobResultService.put(result)
-      initiator ! Response(job, Left(result))
+      replyTo ! Response(job, Left(result), initiator)
       context stop self
 
-    case StartExperimentJob(job) if job.query.algorithms.nonEmpty =>
-      val initiator  = sender()
+    case StartExperimentJob(job, requestedReplyTo, initiator) if job.query.algorithms.nonEmpty =>
+      val replyTo    = if (requestedReplyTo == Actor.noSender) sender() else requestedReplyTo
       val thisActor  = self
       val algorithms = job.query.algorithms
 
-      log.info("Start new experiment job")
-      log.info(s"List of algorithms: ${algorithms.mkString(",")}")
+      logger.info("Start new experiment job")
+      logger.info(s"List of algorithms: ${algorithms.mkString(",")}")
 
       val future = Source
         .single(job)
         .via(experimentFlow)
         .runWith(Sink.head)
         .map { results =>
-          log.info("Experiment - build final response")
-          log.info(s"Algorithms: $algorithms")
-          log.info(s"Results: $results")
+          logger.info("Experiment - build final response")
+          logger.info(s"Algorithms: $algorithms")
+          logger.info(s"Results: $results")
 
           assert(results.size == algorithms.size, "There should be as many results as algorithms")
           assert(results.keySet equals algorithms.toSet,
@@ -143,32 +147,33 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
                                            experimentNode = coordinatorConfig.jobsConf.node,
                                            results = results)
 
-          Response(job, Right(pfa))
+          Response(job, Right(pfa), initiator)
         }
 
       future
         .andThen {
-          case Success(r) =>
-            coordinatorConfig.jobResultService.put(r.result.fold(identity, identity))
-            initiator ! r
-          case Failure(f) =>
-            log.error(f, s"Cannot complete experiment ${job.jobId}: ${f.getMessage}")
-            val result = ErrorJobResult(job.jobId,
+          case Success(response) =>
+            val result = response.result.fold(identity, identity)
+            coordinatorConfig.jobResultService.put(result)
+            replyTo ! response
+          case Failure(e) =>
+            logger.error(s"Cannot complete experiment ${job.jobId}: ${e.getMessage}", e)
+            val result = ErrorJobResult(Some(job.jobId),
                                         coordinatorConfig.jobsConf.node,
                                         OffsetDateTime.now(),
-                                        "experiment",
-                                        f.toString)
-            val response = Response(job, Left(result))
+                                        None,
+                                        e.toString)
+            val response = Response(job, Left(result), initiator)
             coordinatorConfig.jobResultService.put(result)
-            initiator ! response
+            replyTo ! response
         }
         .onComplete { _ =>
-          log.info("Stopping...")
+          logger.info("Stopping...")
           context stop thisActor
         }
 
     case e =>
-      log.error(s"Unhandled message: $e")
+      logger.error(s"Unhandled message: $e")
       context stop self
   }
 
@@ -181,17 +186,18 @@ case class AlgorithmValidationMaybe(job: ExperimentActor.Job,
 case class ExperimentFlow(
     executeJobAsync: CoordinatorActor.ExecuteJobAsync,
     featuresDatabase: FeaturesDAL,
-    node: String,
+    jobsConf: JobsConfiguration,
     algorithmLookup: String => Validation[AlgorithmDefinition],
     context: ActorContext
-)(implicit materializer: Materializer, ec: ExecutionContext) {
+)(implicit materializer: Materializer, ec: ExecutionContext)
+    extends LazyLogging {
 
   private case class AlgorithmValidation(job: ExperimentActor.Job,
                                          algorithmSpec: AlgorithmSpec,
                                          subJob: ValidatedAlgorithmFlow.Job)
 
   private val validatedAlgorithmFlow =
-    ValidatedAlgorithmFlow(executeJobAsync, featuresDatabase, context)
+    ValidatedAlgorithmFlow(executeJobAsync, featuresDatabase, jobsConf, context)
 
   @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
   def flow: Flow[ExperimentActor.Job, Map[AlgorithmSpec, JobResult], NotUsed] =
@@ -202,12 +208,20 @@ case class ExperimentFlow(
         // prepare graph elements
         val jobSplitter = builder.add(splitJob)
         val partition = builder.add(
-          Partition[AlgorithmValidationMaybe](2,
-                                              a =>
-                                                if (a.algorithmDefinition.isValid) 0
-                                                else 1)
+          Partition[AlgorithmValidationMaybe](
+            3,
+            partitioner = algoMaybe => {
+              algoMaybe.algorithmDefinition.fold(
+                { _: NonEmptyList[String] =>
+                  2
+                }, { algoDef: AlgorithmDefinition =>
+                  if (algoDef.predictive) 0 else 1
+                }
+              )
+            }
+          )
         )
-        val merge = builder.add(Merge[(AlgorithmSpec, JobResult)](2))
+        val merge = builder.add(Merge[(AlgorithmSpec, JobResult)](3))
         val toMap =
           builder.add(Flow[(AlgorithmSpec, JobResult)].fold[Map[AlgorithmSpec, JobResult]](Map()) {
             (m, r) =>
@@ -216,8 +230,12 @@ case class ExperimentFlow(
 
         // connect the graph
         jobSplitter ~> partition.in
+        // Algorithm with validation
         partition.out(0) ~> prepareMiningQuery ~> algorithmWithValidation ~> merge
-        partition.out(1) ~> failJob ~> merge
+        // Algorithm without validation
+        partition.out(1) ~> prepareMiningQuery ~> algorithmOnly ~> merge
+        // Invalid algorithm
+        partition.out(2) ~> failJob ~> merge
         merge ~> toMap
 
         FlowShape(jobSplitter.in, toMap.out)
@@ -240,10 +258,10 @@ case class ExperimentFlow(
     Flow[AlgorithmValidationMaybe]
       .map { a =>
         val errorMessage = a.algorithmDefinition.toEither.left.get
-        a.algorithmSpec -> ErrorJobResult(UUID.randomUUID().toString,
-                                          node,
+        a.algorithmSpec -> ErrorJobResult(Some(a.job.jobId),
+                                          jobsConf.node,
                                           OffsetDateTime.now(),
-                                          a.algorithmSpec.code,
+                                          Some(a.algorithmSpec.code),
                                           errorMessage.reduceLeft(_ + ", " + _))
       }
       .named("fail-job")
@@ -278,6 +296,7 @@ case class ExperimentFlow(
                                                 job.metadata,
                                                 validations,
                                                 algorithmDefinition)
+        logger.info(s"Prepared mining query sub job $subJob")
         AlgorithmValidation(job, algorithmSpec, subJob)
       }
       .named("prepare-mining-query")
@@ -301,5 +320,38 @@ case class ExperimentFlow(
         FlowShape(broadcast.in, zip.out)
       })
       .named("algorithm-with-validation")
+
+  private def algorithmOnly: Flow[AlgorithmValidation, (AlgorithmSpec, JobResult), NotUsed] =
+    Flow
+      .fromGraph(GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
+        import GraphDSL.Implicits._
+
+        val broadcast    = builder.add(Broadcast[AlgorithmValidation](2))
+        val takeSpec     = Flow[AlgorithmValidation].map(_.algorithmSpec)
+        val takeSubjob   = Flow[AlgorithmValidation].map(_.subJob)
+        val runAlgorithm = validatedAlgorithmFlow.runAlgoInDocker
+        val takeModel    = Flow[CoordinatorActor.Response].map(extractResult)
+        val zip          = builder.add(Zip[AlgorithmSpec, JobResult]())
+
+        broadcast.out(0) ~> takeSpec ~> zip.in0
+        broadcast.out(1) ~> takeSubjob ~> runAlgorithm ~> takeModel ~> zip.in1
+
+        FlowShape(broadcast.in, zip.out)
+      })
+      .named("algorithm-only")
+
+  private def extractResult(response: CoordinatorActor.Response): JobResult = {
+    val algorithm = response.job.algorithmSpec
+    logger.info(s"Extract result from response: ${response.results}")
+    response.results.headOption match {
+      case Some(model) => model
+      case None =>
+        ErrorJobResult(Some(response.job.jobId),
+                       node = jobsConf.node,
+                       OffsetDateTime.now(),
+                       Some(algorithm.code),
+                       "No results")
+    }
+  }
 
 }

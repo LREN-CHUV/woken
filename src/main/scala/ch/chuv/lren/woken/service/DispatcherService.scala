@@ -24,8 +24,8 @@ import ch.chuv.lren.woken.fp.Traverse
 import ch.chuv.lren.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import cats.implicits.catsStdInstancesForOption
-import com.typesafe.scalalogging.Logger
-import ch.chuv.lren.woken.backends.woken.WokenService
+import com.typesafe.scalalogging.{ LazyLogging, Logger }
+import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.messages.datasets.{ Dataset, DatasetId }
 import ch.chuv.lren.woken.messages.remoting.RemoteLocation
 import ch.chuv.lren.woken.messages.variables.{
@@ -33,7 +33,8 @@ import ch.chuv.lren.woken.messages.variables.{
   VariablesForDatasetsResponse
 }
 
-class DispatcherService(datasets: Map[DatasetId, Dataset], wokenService: WokenService) {
+class DispatcherService(datasets: Map[DatasetId, Dataset], wokenClientService: WokenClientService)
+    extends LazyLogging {
 
   def dispatchTo(dataset: DatasetId): Option[RemoteLocation] =
     if (datasets.isEmpty)
@@ -49,15 +50,16 @@ class DispatcherService(datasets: Map[DatasetId, Dataset], wokenService: WokenSe
     (maybeSet.getOrElse(Set.empty), local)
   }
 
-  def remoteDispatchMiningFlow(): Flow[MiningQuery, (RemoteLocation, QueryResult), NotUsed] =
+  lazy val dispatchRemoteMiningFlow: Flow[MiningQuery, (RemoteLocation, QueryResult), NotUsed] =
     Flow[MiningQuery]
       .map(q => dispatchTo(q.datasets)._1.map(ds => ds -> q))
       .mapConcat(identity)
       .buffer(100, OverflowStrategy.backpressure)
       .map { case (l, q) => l.copy(url = l.url.withPath(l.url.path / "mining" / "job")) -> q }
-      .via(wokenService.queryFlow)
+      .via(wokenClientService.queryFlow)
+      .named("dispatch-remote-mining")
 
-  def remoteDispatchExperimentFlow()
+  lazy val dispatchRemoteExperimentFlow
     : Flow[ExperimentQuery, (RemoteLocation, QueryResult), NotUsed] =
     Flow[ExperimentQuery]
       .map(q => dispatchTo(q.trainingDatasets)._1.map(ds => ds -> q))
@@ -66,7 +68,8 @@ class DispatcherService(datasets: Map[DatasetId, Dataset], wokenService: WokenSe
       .map {
         case (l, q) => l.copy(url = l.url.withPath(l.url.path / "mining" / "experiment")) -> q
       }
-      .via(wokenService.queryFlow)
+      .via(wokenClientService.queryFlow)
+      .named("dispatch-remote-experiment")
 
   def dispatchVariablesQueryFlow(
       datasetService: DatasetService,
@@ -85,23 +88,21 @@ class DispatcherService(datasets: Map[DatasetId, Dataset], wokenService: WokenSe
     })
 
   def remoteDispatchVariablesQueryFlow()
-    : Flow[VariablesForDatasetsQuery, VariablesForDatasetsResponse, NotUsed] = {
-
+    : Flow[VariablesForDatasetsQuery, VariablesForDatasetsResponse, NotUsed] =
     Flow[VariablesForDatasetsQuery]
       .map(q => {
         val target = dispatchTo(q.datasets)
+        logger.info(s"Target datasets $target")
         target._1.map(location => location -> q)
       })
       .mapConcat(identity)
       .buffer(100, OverflowStrategy.backpressure)
       .map {
-        case (l, q) => {
+        case (l, q) =>
           l.copy(url = l.url.withPath(l.url.path / "metadata" / "variables")) -> q
-        }
       }
-      .via(wokenService.variableMetaFlow)
+      .via(wokenClientService.variableMetaFlow)
       .map(_._2)
-  }
 
   def localVariablesQueryFlow(
       datasetService: DatasetService,
@@ -138,7 +139,7 @@ object DispatcherService {
     }, identity)
 
   def apply(datasets: Validation[Map[DatasetId, Dataset]],
-            wokenService: WokenService): DispatcherService =
+            wokenService: WokenClientService): DispatcherService =
     new DispatcherService(loadDatasets(datasets), wokenService)
 
 }

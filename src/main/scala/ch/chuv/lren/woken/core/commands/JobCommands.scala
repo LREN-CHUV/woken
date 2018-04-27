@@ -17,6 +17,7 @@
 
 package ch.chuv.lren.woken.core.commands
 
+import akka.actor.ActorRef
 import ch.chuv.lren.woken.backends.DockerJob
 import ch.chuv.lren.woken.core.ExperimentActor.Job
 
@@ -27,13 +28,20 @@ object JobCommands {
   /**
     * Start mining command.
     * @param job - docker job
+    * @param replyTo Actor to reply to. Can be Actor.noSender when the ask pattern is used. This information is added in preparation for Akka Typed
+    * @param initiator The initiator of the request, this information will be returned by CoordinatorActor.Response#initiator.
+    *                  It can also have the value Actor.noSender
     */
-  case class StartCoordinatorJob(job: DockerJob) extends Command
+  case class StartCoordinatorJob(job: DockerJob, replyTo: ActorRef, initiator: ActorRef)
+      extends Command
 
   /**
     * Start a new experiment job.
     * @param job - experiment job
+    * @param replyTo Actor to reply to. Can be Actor.noSender when the ask pattern is used. This information is added in preparation for Akka Typed
+    * @param initiator The initiator of the request, this information will be returned by CoordinatorActor.Response#initiator.
+    *                  It can also have the value Actor.noSender
     */
-  case class StartExperimentJob(job: Job) extends Command
+  case class StartExperimentJob(job: Job, replyTo: ActorRef, initiator: ActorRef) extends Command
 
 }

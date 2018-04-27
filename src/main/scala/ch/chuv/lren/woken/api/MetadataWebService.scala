@@ -26,23 +26,34 @@ import akka.util.Timeout
 import akka.pattern.ask
 import ch.chuv.lren.woken.api.swagger.MetadataServiceApi
 import ch.chuv.lren.woken.config.{ AppConfiguration, JobsConfiguration }
-import ch.chuv.lren.woken.messages.datasets.{ DatasetId, DatasetsQuery, DatasetsResponse }
+import ch.chuv.lren.woken.messages.datasets.{
+  DatasetId,
+  DatasetsProtocol,
+  DatasetsQuery,
+  DatasetsResponse
+}
+import ch.chuv.lren.woken.messages.remoting.RemotingProtocol
 import ch.chuv.lren.woken.messages.variables.{
   VariablesForDatasetsQuery,
-  VariablesForDatasetsResponse
+  VariablesForDatasetsResponse,
+  variablesProtocol
 }
 import com.typesafe.scalalogging.LazyLogging
 import kamon.akka.http.TracingDirectives
+import spray.json.DefaultJsonProtocol
 
 import scala.concurrent.duration._
 import scala.concurrent.{ ExecutionContext, Future }
 
-class MetadataApiService(
+class MetadataWebService(
     val masterRouter: ActorRef,
     override val appConfiguration: AppConfiguration,
     val jobsConf: JobsConfiguration
 )(implicit system: ActorSystem)
     extends MetadataServiceApi
+    with DatasetsProtocol
+    with RemotingProtocol
+    with DefaultJsonProtocol
     with SprayJsonSupport
     with SecuredRouteHelper
     with WebsocketSupport
@@ -55,7 +66,7 @@ class MetadataApiService(
   val routes: Route = listDatasets ~ listVariables
 
   import spray.json._
-  import ch.chuv.lren.woken.messages.variables.variablesProtocol._
+  import variablesProtocol._
 
   override def listDatasets: Route =
     securePathWithWebSocket(
@@ -71,7 +82,9 @@ class MetadataApiService(
                   OK -> datasetResponse.datasets.toJson
                 }
                 .recoverWith {
-                  case e => Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
+                  case e =>
+                    logger.error(s"Cannot list datasets for table $table", e)
+                    Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
                 }
             }
           }
@@ -84,12 +97,12 @@ class MetadataApiService(
       "metadata" / "variables",
       listVariableMetadataFlow,
       get {
-        parameters('datasets.as(CsvSeq[String]).?, 'exhaustive.as[Boolean].?) {
-          (datasets, exhaustive) =>
+        parameters('datasets.as(CsvSeq[String]).?) {
+          datasets =>
             val datasetIds = datasets.map(_.map(DatasetId).toSet).getOrElse(Set())
 
             complete {
-              (masterRouter ? VariablesForDatasetsQuery(datasets = datasetIds, exhaustive = exhaustive.getOrElse(false)))
+              (masterRouter ? VariablesForDatasetsQuery(datasets = datasetIds, exhaustive = true))
                 .mapTo[VariablesForDatasetsResponse]
                 .map {
                   case variablesResponse if variablesResponse.error.nonEmpty =>
@@ -97,7 +110,9 @@ class MetadataApiService(
                   case variablesResponse => OK -> variablesResponse.toJson
                 }
                 .recoverWith {
-                  case e => Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
+                  case e =>
+                    logger.error(s"Cannot list variables for datasets ${datasets.mkString(",")}", e)
+                    Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
                 }
             }
         }

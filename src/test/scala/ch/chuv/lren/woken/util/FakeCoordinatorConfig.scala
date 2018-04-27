@@ -36,7 +36,8 @@ object FakeCoordinatorConfig {
                           port = 0,
                           database = "db",
                           user = "",
-                          password = "")
+                          password = "",
+                          poolSize = 5)
   val noJobsConf =
     JobsConfiguration("testNode",
                       "noone",
@@ -45,7 +46,9 @@ object FakeCoordinatorConfig {
                       "features",
                       "features",
                       "results",
-                      "meta")
+                      "meta",
+                      0.5,
+                      512)
 
   val fakeFeaturesDAL                                                     = FeaturesDAL(noDbConfig)
   val jdbcConfigs: String => ConfigUtil.Validation[DatabaseConfiguration] = _ => Valid(noDbConfig)

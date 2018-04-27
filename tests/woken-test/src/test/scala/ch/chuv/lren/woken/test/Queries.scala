@@ -19,30 +19,39 @@ package ch.chuv.lren.woken.test
 
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables.VariableId
-import spray.json.{
-  JsFalse,
-  JsNull,
-  JsNumber,
-  JsString,
-  JsTrue,
-  JsValue,
-  SortedPrinter
-}
 import spray.json._
 
 import scala.io.Source
 
 trait Queries {
 
-  def experimentQuery(algorithm: String, parameters: List[CodeValue]) =
+  def experimentQuery(
+      algorithm: String,
+      parameters: List[CodeValue],
+      variables: List[VariableId] = List(VariableId("cognitive_task2")),
+      covariables: List[VariableId] =
+        List(VariableId("score_test1"), VariableId("college_math")),
+      targetTable: Option[String] = Some("sample_data")): Query =
+    multipleExperimentQuery(algorithms =
+                              List(AlgorithmSpec(algorithm, parameters)),
+                            variables = variables,
+                            covariables = covariables,
+                            targetTable = targetTable)
+
+  def multipleExperimentQuery(
+      algorithms: List[AlgorithmSpec],
+      variables: List[VariableId] = List(VariableId("cognitive_task2")),
+      covariables: List[VariableId] =
+        List(VariableId("score_test1"), VariableId("college_math")),
+      targetTable: Option[String] = Some("sample_data")): Query =
     ExperimentQuery(
       user = UserId("test1"),
-      variables = List(VariableId("cognitive_task2")),
-      covariables = List(VariableId("score_test1"), VariableId("college_math")),
+      variables = variables,
+      covariables = covariables,
       grouping = Nil,
       filters = None,
-      targetTable = Some("sample_data"),
-      algorithms = List(AlgorithmSpec(algorithm, parameters)),
+      targetTable = targetTable,
+      algorithms = algorithms,
       validations = List(ValidationSpec("kfold", List(CodeValue("k", "2")))),
       trainingDatasets = Set(),
       testingDatasets = Set(),
@@ -55,22 +64,31 @@ trait Queries {
     source.mkString.parseJson
   }
 
-  def approximate(json: JsValue): String = {
+  def approximate(json: JsValue, skippedTags: List[String] = List()): String = {
     val sb = new java.lang.StringBuilder()
-    new ApproximatePrinter().print(json, sb)
+    new ApproximatePrinter(skippedTags).print(json, sb)
     sb.toString
   }
 
-  class ApproximatePrinter extends SortedPrinter {
+  class ApproximatePrinter(val skippedTags: List[String])
+      extends SortedPrinter {
 
     override protected def printObject(members: Map[String, JsValue],
                                        sb: java.lang.StringBuilder,
                                        indent: Int): Unit = {
-      val filteredMembers = members.map {
-        case ("jobId", _)     => "jobId" -> JsString("*")
-        case ("timestamp", _) => "timestamp" -> JsNumber(0.0)
-        case (k, v)           => k -> v
-      }
+      val filteredMembers = members
+        .map {
+          case ("jobId", _)     => "jobId" -> JsString("*")
+          case ("timestamp", _) => "timestamp" -> JsNumber(0.0)
+          case (k, v)           => k -> v
+        }
+        .filter {
+          case ("@", comment) if comment.toString.startsWith("\"PrettyPFA") =>
+            false
+          case (tag, comment) if skippedTags.contains(tag) =>
+            false
+          case _ => true
+        }
       super.printObject(filteredMembers, sb, indent)
     }
 

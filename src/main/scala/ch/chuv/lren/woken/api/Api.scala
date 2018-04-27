@@ -17,11 +17,11 @@
 
 package ch.chuv.lren.woken.api
 
+import akka.http.scaladsl.model.StatusCodes
 import ch.chuv.lren.woken.api.swagger.SwaggerService
-import ch.chuv.lren.woken.config.AppConfiguration
 import ch.chuv.lren.woken.core.{ CoordinatorConfig, Core, CoreActors }
 import ch.chuv.lren.woken.dao.FeaturesDAL
-import ch.chuv.lren.woken.service.{ JobResultService, VariablesMetaService }
+import ch.chuv.lren.woken.service.JobResultService
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
@@ -48,7 +48,7 @@ trait Api extends CoreActors with Core with LazyLogging {
       )
 
     val metadataService =
-      new MetadataApiService(
+      new MetadataWebService(
         mainRouter,
         appConfig,
         jobsConfig
@@ -58,7 +58,7 @@ trait Api extends CoreActors with Core with LazyLogging {
       get {
         // TODO: proper health check is required, check db connection, check cluster availability...
         if (cluster.state.leader.isEmpty)
-          failWith(new Exception("No leader elected for the cluster"))
+          complete((StatusCodes.InternalServerError, "No leader elected for the cluster"))
         else if (!appConfig.disableWorkers && cluster.state.members.size < 2)
           complete("UP - Expected at least one worker (Woken validation server) in the cluster")
         else
@@ -69,7 +69,7 @@ trait Api extends CoreActors with Core with LazyLogging {
     val readinessRoute = pathPrefix("readiness") {
       get {
         if (cluster.state.leader.isEmpty)
-          failWith(new Exception("No leader elected for the cluster"))
+          complete((StatusCodes.InternalServerError, "No leader elected for the cluster"))
         else
           complete("READY")
       }

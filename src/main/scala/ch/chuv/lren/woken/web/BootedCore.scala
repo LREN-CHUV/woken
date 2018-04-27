@@ -24,6 +24,7 @@ import akka.actor.ActorRef
 import akka.util.Timeout
 import akka.cluster.Cluster
 import akka.cluster.client.ClusterClientReceptionist
+import akka.cluster.pubsub.{ DistributedPubSub, DistributedPubSubMediator }
 import akka.http.scaladsl.Http
 import akka.pattern.{ Backoff, BackoffSupervisor }
 import cats.effect.IO
@@ -34,10 +35,15 @@ import ch.chuv.lren.woken.config.{
   DatasetsConfiguration
 }
 import ch.chuv.lren.woken.core.{ CoordinatorConfig, Core, CoreActors }
-import ch.chuv.lren.woken.dao.{ FeaturesDAL, MetadataRepositoryDAO, WokenRepositoryDAO }
+import ch.chuv.lren.woken.dao.{
+  FeaturesDAL,
+  FeaturesRepositoryDAO,
+  MetadataRepositoryDAO,
+  WokenRepositoryDAO
+}
 import ch.chuv.lren.woken.service._
 import ch.chuv.lren.woken.ssl.WokenSSLConfiguration
-import ch.chuv.lren.woken.backends.woken.WokenService
+import ch.chuv.lren.woken.backends.woken.WokenClientService
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import kamon.prometheus.PrometheusReporter
@@ -120,6 +126,15 @@ trait BootedCore
 
   override lazy val featuresDAL = FeaturesDAL(featuresDbConnection)
 
+  private lazy val fsIO: IO[FeaturesService] = for {
+    xa <- DatabaseConfiguration.dbTransactor(featuresDbConnection)
+    _  <- DatabaseConfiguration.testConnection[IO](xa)
+    featuresDb = new FeaturesRepositoryDAO[IO](xa)
+  } yield {
+    FeaturesService(featuresDb)
+  }
+  private lazy val featuresService: FeaturesService = fsIO.unsafeRunSync()
+
   private lazy val jrsIO: IO[JobResultService] = for {
     xa <- DatabaseConfiguration.dbTransactor(resultsDbConfig)
     _  <- DatabaseConfiguration.testConnection[IO](xa)
@@ -138,9 +153,11 @@ trait BootedCore
     DatabaseConfiguration.factory(config)
   )
 
+  private lazy val datasetsService: DatasetService = ConfBasedDatasetService(config)
+
   private def mainRouterSupervisorProps = {
 
-    val wokenService: WokenService = WokenService(coordinatorConfig.jobsConf.node)
+    val wokenService: WokenClientService = WokenClientService(coordinatorConfig.jobsConf.node)
     val dispatcherService: DispatcherService =
       DispatcherService(DatasetsConfiguration.datasets(config), wokenService)
     val algorithmLibraryService: AlgorithmLibraryService = AlgorithmLibraryService()
@@ -157,19 +174,20 @@ trait BootedCore
       VariablesMetaService(metaDb.variablesMeta)
     }
 
-    val datasetsService: DatasetService = ConfBasedDatasetService(config)
-
     val variablesMetaService: VariablesMetaService = vmsIO.unsafeRunSync()
 
     BackoffSupervisor.props(
       Backoff.onFailure(
-        MasterRouter.props(appConfig,
-                           coordinatorConfig,
-                           datasetsService,
-                           variablesMetaService,
-                           dispatcherService,
-                           algorithmLibraryService,
-                           AlgorithmsConfiguration.factory(config)),
+        MasterRouter.props(
+          config,
+          appConfig,
+          coordinatorConfig,
+          datasetsService,
+          variablesMetaService,
+          dispatcherService,
+          algorithmLibraryService,
+          AlgorithmsConfiguration.factory(config)
+        ),
         childName = "mainRouter",
         minBackoff = 100 milliseconds,
         maxBackoff = 1 seconds,
@@ -190,8 +208,13 @@ trait BootedCore
     logger.info(s"Start actor system ${appConfig.clusterSystemName}...")
     logger.info(s"Cluster has roles ${cluster.selfRoles.mkString(",")}")
 
+    val mediator = DistributedPubSub(system).mediator
+
+    mediator ! DistributedPubSubMediator.Put(mainRouter)
+
     ClusterClientReceptionist(system).registerService(mainRouter)
 
+    monitorDeadLetters()
   }
 
   override def startServices(): Unit = {
@@ -218,8 +241,26 @@ trait BootedCore
         .onComplete(_ => ())
     }
 
-    logger.info("Woken startup complete")
+  }
 
+  override def selfChecks(): Unit = {
+    logger.info("Self checks...")
+
+    logger.info("Check configuration of datasets...")
+
+    datasetsService.datasets().filter(_.location.isEmpty).foreach { dataset =>
+      dataset.tables.foreach { tableName =>
+        val table = featuresService.featuresTable(tableName)
+        if (table.count(dataset.dataset) == 0) {
+          logger.error(
+            s"Table $tableName contains no value for dataset ${dataset.dataset.code}"
+          )
+          System.exit(1)
+        }
+      }
+    }
+
+    logger.info("[OK] Self checks passed")
   }
 
 }

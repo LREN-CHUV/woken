@@ -26,7 +26,7 @@ import akka.event.Logging
 import akka.stream.{ FlowShape, Materializer }
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Zip }
 import ch.chuv.lren.woken.backends.DockerJob
-import ch.chuv.lren.woken.config.AlgorithmDefinition
+import ch.chuv.lren.woken.config.{ AlgorithmDefinition, JobsConfiguration }
 import ch.chuv.lren.woken.core.CoordinatorActor
 import ch.chuv.lren.woken.core.model.{ ErrorJobResult, JobResult, PfaJobResult }
 import ch.chuv.lren.woken.core.features.Queries._
@@ -65,6 +65,7 @@ object ValidatedAlgorithmFlow {
 case class ValidatedAlgorithmFlow(
     executeJobAsync: CoordinatorActor.ExecuteJobAsync,
     featuresDatabase: FeaturesDAL,
+    jobsConf: JobsConfiguration,
     context: ActorContext
 )(implicit materializer: Materializer, ec: ExecutionContext) {
 
@@ -107,7 +108,8 @@ case class ValidatedAlgorithmFlow(
         val jobId = UUID.randomUUID().toString
         val featuresQuery =
           job.query
-            .filterNulls(!job.algorithmDefinition.supportsNullValues)
+            .filterNulls(job.algorithmDefinition.variablesCanBeNull,
+                         job.algorithmDefinition.covariablesCanBeNull)
             .features(job.inputTable, None)
         val subJob =
           DockerJob(jobId,
@@ -118,6 +120,7 @@ case class ValidatedAlgorithmFlow(
                     job.metadata)
         executeJobAsync(subJob)
       }
+      .log("Learned from all data")
       .named("learn-from-all-data")
 
   private def crossValidate(
@@ -144,6 +147,7 @@ case class ValidatedAlgorithmFlow(
           m + r
         }
       }
+      .log("Cross validation results")
       .named("cross-validate")
 
   private def buildResponse
@@ -171,12 +175,13 @@ case class ValidatedAlgorithmFlow(
               ResultResponse(algorithm, model)
             case None =>
               ResultResponse(algorithm,
-                             ErrorJobResult(response.job.jobId,
-                                            node = "",
+                             ErrorJobResult(Some(response.job.jobId),
+                                            node = jobsConf.node,
                                             OffsetDateTime.now(),
-                                            algorithm.code,
+                                            Some(algorithm.code),
                                             "No results"))
           }
       }
+      .log("Response")
       .named("build-response")
 }

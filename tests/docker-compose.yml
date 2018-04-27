@@ -26,7 +26,7 @@ services:
       - zookeeper
 
   mesos_master:
-    image: mesosphere/mesos-master:1.3.0
+    image: axelspringer/mesos-master:1.4.1
     hostname: mesosmaster
     volumes:
       - ./log/mesos/master:/var/log/mesos/master:rw
@@ -53,7 +53,7 @@ services:
       - mesos_master
 
   mesos_slave:
-    image: mesosphere/mesos-slave:1.3.0
+    image: axelspringer/mesos-agent:1.4.1
     hostname: mesosslave
     privileged: true
     volumes:
@@ -83,7 +83,7 @@ services:
       - mesos_master
 
   chronos:
-    image: mesosphere/chronos:v3.0.2
+    image: hbpmip/chronos:3.0.2-3
     command: '--zk_hosts zookeeper:2181 --master zk://zookeeper:2181/mesos --zk_timeout 30000'
     restart: "always"
     hostname: chronos
@@ -148,7 +148,7 @@ services:
       - db
 
   sample_meta_db_setup:
-    image: "hbpmip/sample-meta-db-setup:0.5.0"
+    image: "hbpmip/sample-meta-db-setup:0.6.0"
     container_name: "sample-meta-db-setup"
     restart: "no"
     environment:
@@ -161,7 +161,7 @@ services:
       - db
 
   sample_data_db_setup:
-    image: "hbpmip/sample-data-db-setup:0.5.0"
+    image: "hbpmip/sample-data-db-setup:0.6.0"
     container_name: "sample-data-db-setup"
     restart: "no"
     environment:
@@ -254,7 +254,7 @@ services:
       - chronos
 
   wokenvalidation:
-    image: hbpmip/woken-validation:2.3.1
+    image: hbpmip/woken-validation:2.4.10
     ports:
       - "8081:8081"
       - "8082:8082"
@@ -283,17 +283,19 @@ services:
       context: ./woken-test
       dockerfile: Dockerfile
     hostname: "wokentest"
+    restart: "no"
     ports:
       - "8197:8197"
     environment:
       CLUSTER_PORT: 8197
       CLUSTER_IP: wokentest
       WOKEN_PORT_8088_TCP_ADDR: woken
+      LOG_LEVEL: DEBUG
     depends_on:
       - woken
 
   portalbackend:
-    image: "hbpmip/portal-backend:2.6.4"
+    image: hbpmip/portal-backend:2.7.10
     restart: "no"
     ports:
       - "65440:8080"
@@ -326,7 +328,6 @@ services:
       LOGGING_LEVEL_WEB: DEBUG
       LOGGING_LEVEL_HIBERNATE: WARN
       SESSION_TIMEOUT: 2592000
-      DATASETS: desd-synthdata
     depends_on:
       - db
       - woken
@@ -335,12 +336,13 @@ services:
     image: "waisbrot/wait"
     restart: "no"
     environment:
-      - TARGETS=portalbackend:8080
+      TARGETS: "portalbackend:8080"
+      TIMEOUT: 60
     depends_on:
       - portalbackend
 
   frontend:
-    image: hbpmip/portal-frontend
+    image: hbpmip/portal-frontend:2.9.13
     depends_on:
       - portalbackend
     ports:
@@ -352,12 +354,12 @@ services:
       PORTAL_BACKEND_SERVER: portalbackend:8080
       PORTAL_BACKEND_CONTEXT: services
       MODE: local
-      INSTANCE_NAME: DEV
-      VERSION: 2.7.0
+      INSTANCE_NAME: "DEV"
+      VERSION: "2.7.0-dev (Woken dev, Validation 2.4.10, Backend 2.7.10, Frontend 2.9.13)"
 
 networks:
   default:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.18.0.0/16
+        - subnet: 172.18.10.0/24

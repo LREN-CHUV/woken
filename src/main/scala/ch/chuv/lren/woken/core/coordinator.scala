@@ -25,7 +25,6 @@ import akka.pattern.{ ask, pipe }
 import akka.util.Timeout
 
 import scala.concurrent.{ ExecutionContext, Future }
-
 import ch.chuv.lren.woken.backends.DockerJob
 import ch.chuv.lren.woken.backends.chronos.ChronosService
 import ch.chuv.lren.woken.backends.chronos.{ ChronosJob, JobToChronos }
@@ -35,6 +34,7 @@ import ch.chuv.lren.woken.core.model.{ ErrorJobResult, JobResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.dao.FeaturesDAL
 import ch.chuv.lren.woken.service.JobResultService
+import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -63,7 +63,7 @@ object CoordinatorActor {
   // Responses
 
   // TODO: we can return only one JobResult at the moment
-  case class Response(job: DockerJob, results: List[JobResult])
+  case class Response(job: DockerJob, results: List[JobResult], initiator: ActorRef)
 
   def props(coordinatorConfig: CoordinatorConfig): Props =
     Props(
@@ -81,7 +81,7 @@ object CoordinatorActor {
 
     implicit val askTimeout: Timeout = Timeout(1 day)
 
-    (worker ? StartCoordinatorJob(job))
+    (worker ? StartCoordinatorJob(job, Actor.noSender, Actor.noSender))
       .mapTo[CoordinatorActor.Response]
 
   }
@@ -122,14 +122,16 @@ private[core] object CoordinatorStates {
     def job       = throw new IllegalAccessException()
   }
 
-  case class PartialLocalData(initiator: ActorRef,
+  case class PartialLocalData(replyTo: ActorRef,
+                              initiator: ActorRef,
                               job: DockerJob,
                               chronosJob: ChronosJob,
                               pollDbCount: Int,
                               timeoutTime: Long)
       extends StateData
 
-  case class ExpectedLocalData(initiator: ActorRef,
+  case class ExpectedLocalData(replyTo: ActorRef,
+                               initiator: ActorRef,
                                job: DockerJob,
                                chronosJob: ChronosJob,
                                pollDbCount: Int,
@@ -155,7 +157,7 @@ private[core] object CoordinatorStates {
   */
 class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
     extends Actor
-    with ActorLogging
+    with LazyLogging
     with LoggingFSM[CoordinatorStates.State, CoordinatorStates.StateData] {
 
   import CoordinatorActor._
@@ -168,8 +170,8 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
   log.info("Local coordinator actor started...")
 
   when(WaitForNewJob) {
-    case Event(StartCoordinatorJob(job), Uninitialized) =>
-      val initiator = sender()
+    case Event(StartCoordinatorJob(job, requestedReplyTo, initiator), Uninitialized) =>
+      val replyTo = if (requestedReplyTo == Actor.noSender) sender() else requestedReplyTo
 
       import ChronosService._
       val chronosJob: Validation[ChronosJob] =
@@ -182,7 +184,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
         { err =>
           val msg = err.toList.mkString
           log.error(msg)
-          initiator ! errorResponse(job, msg)
+          replyTo ! errorResponse(job, msg, initiator)
           stop(Failure(msg))
         }, { cj =>
           coordinatorConfig.chronosService ! Schedule(cj, self)
@@ -190,6 +192,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
             s"Wait for Chronos to fulfill job ${job.jobId}, Coordinator will reply to $initiator"
           )
           goto(SubmittedJobToChronos) using PartialLocalData(
+            replyTo = replyTo,
             initiator = initiator,
             job = job,
             chronosJob = cj,
@@ -212,14 +215,14 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
       val msg =
         s"Cannot complete job ${data.job.jobId} using ${data.job.dockerImage}, received error: ${e.message}"
       log.error(msg)
-      data.initiator ! errorResponse(data.job, msg)
+      data.replyTo ! errorResponse(data.job, msg, data.initiator)
       stop(Failure(msg))
 
     case Event(_: Timeout @unchecked, data: PartialLocalData) =>
       val msg =
         s"Cannot complete job ${data.job.jobId} using ${data.job.dockerImage}, timeout while connecting to Chronos"
       log.error(msg)
-      data.initiator ! errorResponse(data.job, msg)
+      data.replyTo ! errorResponse(data.job, msg, data.initiator)
       stop(Failure(msg))
   }
 
@@ -232,10 +235,10 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
         val msg =
           s"Cannot complete job ${data.job.jobId} using ${data.job.dockerImage}, job timed out"
         log.error(msg)
-        data.initiator ! errorResponse(data.job, msg)
+        data.replyTo ! errorResponse(data.job, msg, data.initiator)
         stop(Failure(msg))
       } else {
-        if (data.pollDbCount % 50 == 0) {
+        if (data.pollDbCount % 10 == 0) {
           self ! CheckChronos
         } else {
           self ! CheckDb
@@ -248,7 +251,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
       val results = coordinatorConfig.jobResultService.get(data.job.jobId)
       if (results.nonEmpty) {
         log.info(s"Received results for job ${data.job.jobId}")
-        data.initiator ! Response(data.job, results.toList)
+        data.replyTo ! Response(data.job, results.toList, data.initiator)
         log.info("Stopping...")
         stop(Normal)
       } else {
@@ -270,7 +273,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
       val results = coordinatorConfig.jobResultService.get(data.job.jobId)
       if (results.nonEmpty) {
         log.info(s"Received results for job ${data.job.jobId}")
-        data.initiator ! Response(data.job, results.toList)
+        data.replyTo ! Response(data.job, results.toList, data.initiator)
 
         val reportedSuccess = !results.exists { case _: ErrorJobResult => true; case _ => false }
         if (reportedSuccess != success) {
@@ -285,6 +288,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
         // Use a short timeout here as Chronos reported completion of the job, we should just wait for results to
         // appear in the JobResult database. Otherwise, the algorithm was not well coded and did not return any result.
         goto(ExpectFinalResult) using ExpectedLocalData(
+          replyTo = data.replyTo,
           initiator = data.initiator,
           job = data.job,
           chronosJob = data.chronosJob,
@@ -302,7 +306,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
       val msg =
         s"Chronos lost track of job ${data.job.jobId} using ${data.job.dockerImage}, it may have been stopped manually"
       log.error(msg)
-      data.initiator ! errorResponse(data.job, msg)
+      data.replyTo ! errorResponse(data.job, msg, data.initiator)
       stop(Failure(msg))
 
     case Event(ChronosService.JobQueued(jobId), data: PartialLocalData) =>
@@ -354,7 +358,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
           s"Job ${data.job.jobId} using ${data.job.dockerImage} has completed in Chronos, but encountered timeout while waiting for job results.\n" +
             "Does the algorithm store its results or errors in the output database?"
         log.error(msg)
-        data.initiator ! errorResponse(data.job, msg)
+        data.replyTo ! errorResponse(data.job, msg, data.initiator)
         stop(Failure(msg))
       } else {
         self ! CheckDb
@@ -366,7 +370,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
       val results = coordinatorConfig.jobResultService.get(data.job.jobId)
       if (results.nonEmpty) {
         log.info(s"Received results for job ${data.job.jobId}")
-        data.initiator ! Response(data.job, results.toList)
+        data.replyTo ! Response(data.job, results.toList, data.initiator)
         log.info("Stopping...")
         stop(Normal)
       } else {
@@ -408,14 +412,15 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
 
   initialize()
 
-  private def errorResponse(job: DockerJob, msg: String) =
+  private def errorResponse(job: DockerJob, msg: String, initiator: ActorRef) =
     Response(job,
              List(
-               ErrorJobResult(job.jobId,
+               ErrorJobResult(Some(job.jobId),
                               coordinatorConfig.jobsConf.node,
                               OffsetDateTime.now(),
-                              job.algorithmSpec.code,
+                              Some(job.algorithmSpec.code),
                               msg)
-             ))
+             ),
+             initiator)
 
 }

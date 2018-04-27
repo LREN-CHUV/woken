@@ -1,0 +1,793 @@
+{
+  "algorithms": [
+    {
+      "code": "histograms",
+      "constraints": {
+        "covariables": {
+          "max_count": null,
+          "min_count": 0
+        },
+        "groupings": {
+          "max_count": null,
+          "min_count": 0
+        },
+        "mixed": true,
+        "variable": {
+          "binominal": false,
+          "integer": true,
+          "polynominal": false,
+          "real": true
+        }
+      },
+      "description": "Histograms...",
+      "docker_image": "hbpmip/python-histograms:0.5.0",
+      "environment": "Python",
+      "label": "Histograms",
+      "type": [
+        "statistics"
+      ]
+    },
+    {
+      "code": "statisticsSummary",
+      "constraints": {
+        "variable": {
+          "binominal": true,
+          "integer": true,
+          "polynominal": true,
+          "real": true
+        }
+      },
+      "description": "Statistics Summary...",
+      "docker_image": "hbpmip/python-summary-statistics:0.3.2",
+      "environment": "python",
+      "label": "Statistics Summary",
+      "type": [
+        "statistics"
+      ]
+    },
+    {
+      "code": "linearRegression",
+      "constraints": {
+        "covariables": {
+          "max_count": null,
+          "min_count": 1
+        },
+        "groupings": {
+          "max_count": 1,
+          "min_count": 0
+        },
+        "mixed": true,
+        "variable": {
+          "binominal": false,
+          "integer": true,
+          "polynominal": false,
+          "real": true
+        }
+      },
+      "description": "Standard Linear Regression...",
+      "docker_image": "hbpmip/python-linear-regression:0.2.0",
+      "environment": "Python",
+      "label": "Linear Regression",
+      "parameters": [],
+      "type": [
+        "statistics"
+      ]
+    },
+    {
+      "code": "sgdLinearModel",
+      "constraints": {
+        "covariables": {
+          "max_count": null,
+          "min_count": 1
+        },
+        "groupings": {
+          "max_count": 0,
+          "min_count": 0
+        },
+        "mixed": true,
+        "variable": {
+          "binominal": true,
+          "integer": true,
+          "polynominal": true,
+          "real": true
+        }
+      },
+      "description": "Linear model using Stochastic Gradient Descent...",
+      "docker_image": "hbpmip/python-sgd-linear-model:0.1.6",
+      "environment": "Python",
+      "label": "SGD Linear model",
+      "parameters": [
+        {
+          "code": "alpha",
+          "constraints": {
+            "max": null,
+            "min": 0.0
+          },
+          "default_value": 0.0001,
+          "description": "Constant that multiplies the regularization term. Defaults to 0.0001 Also used to compute learning_rate when set to \u2018optimal\u2019.",
+          "label": "alpha",
+          "type": "number"
+        },
+        {
+          "code": "penalty",
+          "default_value": "l2",
+          "description": "The penalty (aka regularization term) to be used. Defaults to \u2018l2\u2019 which is the standard regularizer for linear SVM models. \u2018l1\u2019 and \u2018elasticnet\u2019 might bring sparsity to the model (feature selection) not achievable with \u2018l2\u2019.",
+          "label": "penalty",
+          "type": "enumeration",
+          "values": [
+            "none",
+            "l2",
+            "l1",
+            "elasticnet"
+          ]
+        },
+        {
+          "code": "l1_ratio",
+          "constraints": {
+            "max": 1.0,
+            "min": 0.0
+          },
+          "default_value": 0.15,
+          "description": "The Elastic Net mixing parameter, with 0 <= l1_ratio <= 1. l1_ratio=0 corresponds to L2 penalty, l1_ratio=1 to L1. Defaults to 0.15.",
+          "label": "l1_ratio",
+          "type": "number"
+        }
+      ],
+      "type": [
+        "predictive_model"
+      ]
+    },
+    {
+      "code": "naiveBayes",
+      "constraints": {
+        "covariables": {
+          "max_count": null,
+          "min_count": 1
+        },
+        "groupings": {
+          "max_count": 0,
+          "min_count": 0
+        },
+        "mixed": true,
+        "variable": {
+          "binominal": true,
+          "integer": true,
+          "polynominal": true,
+          "real": true
+        }
+      },
+      "description": "Naive Bayes using Stochastic Gradient Descent",
+      "docker_image": "hbpmip/python-sgd-naive-bayes:0.1.6",
+      "environment": "Python",
+      "label": "Naive Bayes",
+      "parameters": [
+        {
+          "code": "alpha",
+          "constraints": {
+            "max": 1.0,
+            "min": 0.0
+          },
+          "default_value": 1.0,
+          "description": "Additive (Laplace/Lidstone) smoothing parameter (0 for no smoothing, default to 1.)",
+          "label": "alpha",
+          "type": "number"
+        },
+        {
+          "code": "class_prior",
+          "default_value": null,
+          "description": "Prior probabilities of the classes. If specified the priors are not adjusted according to the data. Must be numbers between 0 and 1 and sum to 1. Pass real values separated by comma.",
+          "label": "class_prior",
+          "type": "string"
+        }
+      ],
+      "type": [
+        "predictive_model"
+      ]
+    },
+    {
+      "code": "sgdNeuralNetwork",
+      "constraints": {
+        "covariables": {
+          "max_count": null,
+          "min_count": 1
+        },
+        "groupings": {
+          "max_count": 0,
+          "min_count": 0
+        },
+        "mixed": true,
+        "variable": {
+          "binominal": true,
+          "integer": true,
+          "polynominal": true,
+          "real": true
+        }
+      },
+      "description": "Neural Network using Stochastic Gradient Descent...",
+      "docker_image": "hbpmip/python-sgd-neural-network:0.1.6",
+      "environment": "Python",
+      "label": "SGD Neural Network",
+      "parameters": [
+        {
+          "code": "hidden_layer_sizes",
+          "default_value": "100",
+          "description": "The ith element represents the number of neurons in the ith hidden layer. Pass integers separated by comma.",
+          "label": "hidden_layer_sizes",
+          "type": "string"
+        },
+        {
+          "code": "activation",
+          "default_value": "relu",
+          "description": "Activation function for the hidden layer.",
+          "label": "activation",
+          "type": "enumeration",
+          "values": [
+            "identity",
+            "logistic",
+            "tanh",
+            "relu"
+          ]
+        },
+        {
+          "code": "alpha",
+          "constraints": {
+            "max": null,
+            "min": 0.0
+          },
+          "default_value": 0.0001,
+          "description": "L2 penalty (regularization term) parameter.",
+          "label": "alpha",
+          "type": "number"
+        },
+        {
+          "code": "learning_rate_init",
+          "constraints": {
+            "max": 1.0,
+            "min": 0.0
+          },
+          "default_value": 0.001,
+          "description": "The initial learning rate used. It controls the step-size in updating the weights.",
+          "label": "learning_rate_init",
+          "type": "number"
+        }
+      ],
+      "type": [
+        "predictive_model"
+      ]
+    },
+    {
+      "code": "gradientBoosting",
+      "constraints": {
+        "covariables": {
+          "max_count": null,
+          "min_count": 1
+        },
+        "groupings": {
+          "max_count": 0,
+          "min_count": 0
+        },
+        "mixed": true,
+        "variable": {
+          "binominal": true,
+          "integer": true,
+          "polynominal": true,
+          "real": true
+        }
+      },
+      "description": "Gradient Boosting...",
+      "docker_image": "hbpmip/python-gradient-boosting:0.1.6",
+      "environment": "Python",
+      "label": "Gradient Boosting",
+      "parameters": [
+        {
+          "code": "learning_rate",
+          "constraints": {
+            "max": 1.0,
+            "min": 0.0
+          },
+          "default_value": 0.1,
+          "description": "learning rate shrinks the contribution of each tree by learning_rate. There is a trade-off between learning_rate and n_estimators.",
+          "label": "learning_rate",
+          "type": "number"
+        },
+        {
+          "code": "n_estimators",
+          "constraints": {
+            "max": null,
+            "min": 0
+          },
+          "default_value": 100,
+          "description": "The number of boosting stages to perform. Gradient boosting is fairly robust to over-fitting so a large number usually results in better performance.",
+          "label": "n_estimators",
+          "type": "int"
+        },
+        {
+          "code": "max_depth",
+          "constraints": {
+            "max": 10,
+            "min": 1
+          },
+          "default_value": 3,
+          "description": "maximum depth of the individual regression estimators. The maximum depth limits the number of nodes in the tree. Tune this parameter for best performance; the best value depends on the interaction of the input variables.",
+          "label": "max_depth",
+          "type": "int"
+        },
+        {
+          "code": "min_samples_split",
+          "constraints": {
+            "max": null,
+            "min": 1
+          },
+          "default_value": 2,
+          "description": "The minimum number of samples required to split an internal node.",
+          "label": "min_samples_split",
+          "type": "int"
+        },
+        {
+          "code": "min_samples_leaf",
+          "constraints": {
+            "max": null,
+            "min": 1
+          },
+          "default_value": 1,
+          "description": "The minimum number of samples required to be at a leaf node.",
+          "label": "min_samples_leaf",
+          "type": "int"
+        },
+        {
+          "code": "min_weight_fraction_leaf",
+          "constraints": {
+            "max": 1.0,
+            "min": 0.0
+          },
+          "default_value": 0.0,
+          "description": "The minimum weighted fraction of the sum total of weights (of all the input samples) required to be at a leaf node. Samples have equal weight when sample_weight is not provided.",
+          "label": "min_weight_fraction_leaf",
+          "type": "numeric"
+        },
+        {
+          "code": "min_impurity_decrease",
+          "constraints": {
+            "max": null,
+            "min": 0.0
+          },
+          "default_value": 0.0,
+          "description": "A node will be split if this split induces a decrease of the impurity greater than or equal to this value.",
+          "label": "min_impurity_decrease",
+          "type": "numeric"
+        }
+      ],
+      "type": [
+        "predictive_model"
+      ]
+    },
+    {
+      "code": "anova",
+      "constraints": {
+        "covariables": {
+          "max_count": null,
+          "min_count": 0
+        },
+        "groupings": {
+          "max_count": null,
+          "min_count": 0
+        },
+        "mixed": true,
+        "variable": {
+          "binominal": false,
+          "integer": true,
+          "polynominal": false,
+          "real": true
+        }
+      },
+      "description": "ANOVA...",
+      "docker_image": "hbpmip/python-anova:0.4.1",
+      "environment": "Python",
+      "label": "Anova",
+      "parameters": [
+        {
+          "code": "design",
+          "default_value": "factorial",
+          "description": "The type of multi-factors design. Choose 'factorial' to enable interactions analysis or 'additive' for a model without no interaction at all.",
+          "label": "design",
+          "type": "enumeration",
+          "values": [
+            "factorial",
+            "additive"
+          ]
+        }
+      ],
+      "type": [
+        "statistics"
+      ]
+    },
+    {
+      "code": "knn",
+      "constraints": {
+        "covariables": {
+          "max_count": null,
+          "min_count": "1"
+        },
+        "groupings": {
+          "max_count": 0,
+          "min_count": 0
+        },
+        "mixed": false,
+        "variable": {
+          "binominal": true,
+          "integer": true,
+          "polynominal": true,
+          "real": true
+        }
+      },
+      "description": "K-nearest neighbors...",
+      "docker_image": "hbpmip/python-knn:0.3.0",
+      "environment": "Python",
+      "label": "K-nearest neighbors",
+      "parameters": [
+        {
+          "code": "k",
+          "constraints": {
+            "max": null,
+            "min": 1
+          },
+          "default_value": 5,
+          "description": "The number of closest neighbours to take into consideration. Typical values range from 2 to 10.",
+          "label": "k",
+          "type": "int"
+        }
+      ],
+      "type": [
+        "predictive_model"
+      ]
+    },
+    {
+      "code": "correlationHeatmap",
+      "constraints": {
+        "covariables": {
+          "max_count": null,
+          "min_count": "1"
+        },
+        "groupings": {
+          "max_count": 0,
+          "min_count": 0
+        },
+        "mixed": false,
+        "variable": {
+          "binominal": false,
+          "integer": true,
+          "polynominal": false,
+          "real": true
+        }
+      },
+      "description": "Correlation heatmap...",
+      "docker_image": "hbpmip/python-correlation-heatmap:0.1.5",
+      "environment": "python",
+      "label": "Correlation heatmap",
+      "type": [
+        "statistics"
+      ]
+    },
+    {
+      "code": "hinmine",
+      "constraints": {
+        "covariables": {
+          "max_count": null,
+          "min_count": "1"
+        },
+        "groupings": {
+          "max_count": 0,
+          "min_count": 0
+        },
+        "mixed": false,
+        "variable": {
+          "binominal": false,
+          "integer": true,
+          "polynominal": false,
+          "real": true
+        }
+      },
+      "description": "The HinMine algorithm is an algorithm designed to construct network-analysis-based feature vectors for data instances that can be either nodes in a network or standard data instances with a fixed set of numeric features. In this implementation, the input for the algorithm is a set of data instances, and the output of the algorithm is a new data set with the same instances, but new features constructed out of them.",
+      "docker_image": "hbpmip/python-jsi-hinmine:0.2.3",
+      "environment": "Python",
+      "label": "JSI HinMine",
+      "parameters": [
+        {
+          "code": "damping",
+          "constraints": {
+            "max": 1.0,
+            "min": 0.0
+          },
+          "default_value": 0.1,
+          "description": "The variable *p* used in the construction of the P-PR vectors during propositionalization. The value of this variable can be any real number between *0* and *1*. Smaller values of the damping factor ensure faster calculation of the feature vectors, however larger values of *p* mean that the algorithm is capable of performing longer walks, exploring more of the structure of the data.",
+          "label": "damping",
+          "type": "number"
+        },
+        {
+          "code": "normalize",
+          "default_value": "False",
+          "description": "This variable determines whether the feature values of the input data instances should be normalized or not. If True, then the values of each feature are normalized to be between 0 and 1. This allows the algorithm to fairly compare two features measured with incomparable units. The value of this variable should be False if the difference in the size of the features carries inherent meaning.",
+          "label": "normalize",
+          "type": "enumeration",
+          "values": [
+            "False",
+            "True"
+          ]
+        }
+      ],
+      "type": [
+        "features_extraction"
+      ]
+    },
+    {
+      "code": "hedwig",
+      "constraints": {
+        "covariables": {
+          "max_count": null,
+          "min_count": "1"
+        },
+        "groupings": {
+          "max_count": 0,
+          "min_count": 0
+        },
+        "mixed": false,
+        "variable": {
+          "binominal": true,
+          "integer": true,
+          "polynominal": true,
+          "real": true
+        }
+      },
+      "description": "The Hedwig algorithm for subgroup discovery is a data mining algorithm designed for exploratory data analysis of a data set",
+      "docker_image": "hbpmip/python-jsi-hedwig:1.0.5",
+      "environment": "Python",
+      "label": "JSI Hedwig",
+      "parameters": [
+        {
+          "code": "beam",
+          "constraints": {
+            "max": null,
+            "min": 1
+          },
+          "default_value": 10,
+          "description": "The size of the beam to be used in the search. Larger values of this variable cause the search of the algorithm to take longer and return more high quality rules.",
+          "label": "bean",
+          "type": "int"
+        },
+        {
+          "code": "support",
+          "constraints": {
+            "max": 1.0,
+            "min": 0.0
+          },
+          "default_value": "0.1",
+          "description": "The minimum relative support of the rules, discovered by Hedwig. The value of this parameter must be between 0 and 1 as the parameter represents the ration of the covered examples in the entire data set.",
+          "label": "support",
+          "type": "number"
+        }
+      ],
+      "type": [
+        "features_extraction"
+      ]
+    },
+    {
+      "code": "gpr",
+      "disable": true,
+      "environment": "Java/GPJ",
+      "label": "Gaussian Process Regression",
+      "type": [
+        "predictive_model"
+      ]
+    },
+    {
+      "code": "svm",
+      "disable": true,
+      "environment": "Java/RapidMiner",
+      "label": "SVM",
+      "type": [
+        "predictive_model"
+      ]
+    },
+    {
+      "code": "ffneuralnet",
+      "disable": true,
+      "environment": "Java/RapidMiner",
+      "label": "Feedforward Neural Network",
+      "type": [
+        "predictive_model"
+      ]
+    },
+    {
+      "code": "randomforest",
+      "disable": true,
+      "environment": "Java/RapidMiner",
+      "label": "Random Forest",
+      "type": [
+        "predictive_model"
+      ]
+    },
+    {
+      "code": "tSNE",
+      "constraints": {
+        "covariables": {
+          "max_count": null,
+          "min_count": 1
+        },
+        "groupings": {
+          "max_count": 0,
+          "min_count": 0
+        },
+        "mixed": false,
+        "variable": {
+          "binominal": true,
+          "integer": true,
+          "polynominal": true,
+          "real": true
+        }
+      },
+      "description": "tSNE...",
+      "disable": false,
+      "docker_image": "hbpmip/python-tsne:0.4.1",
+      "environment": "Python",
+      "label": "tSNE",
+      "maturity": "experimental",
+      "parameters": [],
+      "type": [
+        "features_extraction"
+      ]
+    },
+    {
+      "code": "ggparci",
+      "constraints": {
+        "covariables": {
+          "max_count": null,
+          "min_count": 1
+        },
+        "groupings": {
+          "max_count": 0,
+          "min_count": 0
+        },
+        "mixed": true,
+        "variable": {
+          "binominal": true,
+          "integer": true,
+          "polynominal": true,
+          "real": true
+        }
+      },
+      "description": "Parallel coordinate plot with added confidence interval bands",
+      "disable": false,
+      "docker_image": "hbpmip/r-ggparci:0.2.0",
+      "environment": "R",
+      "label": "ggparci",
+      "maturity": "experimental",
+      "parameters": [],
+      "type": [
+        "dataset_exploration"
+      ]
+    }
+  ],
+  "metrics": {
+    "binominal_classification": [
+      {
+        "code": "Confusion matrix",
+        "label": "Confusion matrix",
+        "tooltip": "To be completed",
+        "type": "confusion_matrix"
+      },
+      {
+        "code": "Accuracy",
+        "label": "Mean square error",
+        "tooltip": "To be completed",
+        "type": "numeric"
+      },
+      {
+        "code": "Precision",
+        "label": "Root mean square error",
+        "tooltip": "To be completed",
+        "type": "numeric"
+      },
+      {
+        "code": "Sensitivity",
+        "label": "Mean absolute error",
+        "tooltip": "To be completed",
+        "type": "numeric"
+      },
+      {
+        "code": "False positive rate",
+        "label": "False positive rate",
+        "tooltip": "To be completed",
+        "type": "numeric"
+      }
+    ],
+    "classification": [
+      {
+        "code": "Confusion matrix",
+        "label": "Confusion matrix",
+        "tooltip": "To be completed",
+        "type": "confusion_matrix"
+      },
+      {
+        "code": "Accuracy",
+        "label": "Accuracy",
+        "tooltip": "To be completed",
+        "type": "numeric"
+      },
+      {
+        "code": "Weighted Precision",
+        "label": "Weighted Precision",
+        "tooltip": "To be completed",
+        "type": "numeric"
+      },
+      {
+        "code": "Weighted Recall",
+        "label": "Weighted Recall",
+        "tooltip": "To be completed",
+        "type": "numeric"
+      },
+      {
+        "code": "Weighted F1-score",
+        "label": "Weighted F1-score",
+        "tooltip": "To be completed",
+        "type": "numeric"
+      },
+      {
+        "code": "Weighted false positive rate",
+        "label": "Weighted false positive rate",
+        "tooltip": "To be completed",
+        "type": "numeric"
+      }
+    ],
+    "regression": [
+      {
+        "code": "MSE",
+        "label": "Mean square error",
+        "tooltip": "To be completed",
+        "type": "numeric"
+      },
+      {
+        "code": "RMSE",
+        "label": "Root mean square error",
+        "tooltip": "To be completed",
+        "type": "numeric"
+      },
+      {
+        "code": "MAE",
+        "label": "Mean absolute error",
+        "tooltip": "To be completed",
+        "type": "numeric"
+      },
+      {
+        "code": "R-squared",
+        "label": "Coefficient of determination (R\u00b2)",
+        "tooltip": "To be completed",
+        "type": "numeric"
+      },
+      {
+        "code": "Explained variance",
+        "label": "Explained variance",
+        "tooltip": "To be completed",
+        "type": "numeric"
+      }
+    ]
+  },
+  "validations": [
+    {
+      "code": "kFoldCrossValidation",
+      "label": "Random k-fold Cross Validation",
+      "parameters": [
+        {
+          "code": "fold",
+          "constraints": {
+            "max": 20,
+            "min": 2
+          },
+          "default_value": 5,
+          "description": "The number of cross-validation fold",
+          "label": "Fold",
+          "type": "int"
+        }
+      ]
+    }
+  ]
+}

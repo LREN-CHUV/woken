@@ -107,7 +107,8 @@ case class CrossValidationFlow(
         val foldCount  = validation.parametersAsMap("k").toInt
         val featuresQuery =
           job.query
-            .filterNulls(!job.algorithmDefinition.supportsNullValues)
+            .filterNulls(job.algorithmDefinition.variablesCanBeNull,
+                         job.algorithmDefinition.covariablesCanBeNull)
             .features(job.inputTable, None)
 
         log.info(s"List of folds: $foldCount")
@@ -129,8 +130,10 @@ case class CrossValidationFlow(
         val (job, crossValidation, (fold, offset)) = f
         localJobForFold(job, offset, fold, crossValidation)
       }
-      .mapAsync(parallelism)(validateFoldJobResponse)
+      .mapAsync(parallelism)(handleFoldJobResponse)
+      .mapAsync(parallelism)(validateFold)
       .mapAsync(parallelism)(scoreFoldValidationResponse)
+      .log("Fold result")
       .fold[List[FoldResult]](List[FoldResult]()) { (l, r) =>
         l :+ r
       }
@@ -165,6 +168,7 @@ case class CrossValidationFlow(
       // Aggregation of results from all folds
 
       }
+      .log("Cross validation result")
       .named("crossValidate")
 
   private def targetMetadata(job: Job) = {
@@ -187,7 +191,8 @@ case class CrossValidationFlow(
     val jobId = UUID.randomUUID().toString
     val featuresQuery =
       job.query
-        .filterNulls(!job.algorithmDefinition.supportsNullValues)
+        .filterNulls(job.algorithmDefinition.variablesCanBeNull,
+                     job.algorithmDefinition.covariablesCanBeNull)
         .features(job.inputTable, Some(offset))
 
     val subJob = DockerJob(
@@ -209,12 +214,12 @@ case class CrossValidationFlow(
     )
   }
 
-  private def validateFoldJobResponse(
+  private def handleFoldJobResponse(
       context: FoldContext[CoordinatorActor.Response]
-  ): Future[FoldContext[ValidationResult]] =
+  ): Future[FoldContext[ValidationQuery]] =
     (context.response match {
-      case CoordinatorActor.Response(_, List(pfa: PfaJobResult)) =>
-        // Validate the results
+      case CoordinatorActor.Response(_, List(pfa: PfaJobResult), _) =>
+        // Prepare the results for validation
         log.info("Received result from local method.")
         val model    = pfa.model
         val fold     = context.fold
@@ -223,26 +228,41 @@ case class CrossValidationFlow(
         log.info(
           s"Send a validation work for fold $fold to validation worker: ${validationActor.pathString}"
         )
-        implicit val askTimeout: Timeout = Timeout(5 minutes)
-        (validationActor ? ValidationQuery(fold, model, testData, context.targetMetaData))
-          .mapTo[ValidationResult]
+        val validationQuery = ValidationQuery(fold, model, testData, context.targetMetaData)
+        Future(validationQuery)
 
-      case CoordinatorActor.Response(_, List(error: ErrorJobResult)) =>
+      case CoordinatorActor.Response(_, List(error: ErrorJobResult), _) =>
         val message =
           s"Error on cross validation job ${error.jobId} during fold ${context.fold}" +
             s" on variable ${context.targetMetaData.code}: ${error.error}"
         log.error(message)
         // On training fold fails, we notify supervisor and we stop
-        Future.failed[ValidationResult](new IllegalStateException(message))
+        Future.failed[ValidationQuery](new IllegalStateException(message))
 
-      case CoordinatorActor.Response(_, unhandled) =>
+      case CoordinatorActor.Response(_, unhandled, _) =>
         val message =
           s"Error on cross validation job ${context.job.jobId} during fold ${context.fold}" +
             s" on variable ${context.targetMetaData.code}: Unhandled response from CoordinatorActor: $unhandled"
         log.error(message)
         // On training fold fails, we notify supervisor and we stop
-        Future.failed[ValidationResult](new IllegalStateException(message))
+        Future.failed[ValidationQuery](new IllegalStateException(message))
     }).map(
+      r =>
+        FoldContext[ValidationQuery](job = context.job,
+                                     response = r,
+                                     fold = context.fold,
+                                     targetMetaData = context.targetMetaData,
+                                     validation = context.validation)
+    )
+
+  private def validateFold(
+      context: FoldContext[ValidationQuery]
+  ): Future[FoldContext[ValidationResult]] = {
+    implicit val askTimeout: Timeout = Timeout(5 minutes)
+    val validationQuery              = context.response
+    log.info(s"validationQuery: $validationQuery")
+    val validationResult = (validationActor ? validationQuery).mapTo[ValidationResult]
+    validationResult.map(
       r =>
         FoldContext[ValidationResult](job = context.job,
                                       response = r,
@@ -250,6 +270,7 @@ case class CrossValidationFlow(
                                       targetMetaData = context.targetMetaData,
                                       validation = context.validation)
     )
+  }
 
   private def scoreFoldValidationResponse(
       context: FoldContext[ValidationResult]
@@ -269,7 +290,9 @@ case class CrossValidationFlow(
     def performScoring(algorithmOutput: NonEmptyList[JsValue],
                        groundTruth: NonEmptyList[JsValue]): Future[FoldResult] = {
       implicit val askTimeout: Timeout = Timeout(5 minutes)
-      (scoringActor ? ScoringQuery(algorithmOutput, groundTruth, context.targetMetaData))
+      val scoringQuery                 = ScoringQuery(algorithmOutput, groundTruth, context.targetMetaData)
+      log.info(s"scoringQuery: $scoringQuery")
+      (scoringActor ? scoringQuery)
         .mapTo[ScoringResult]
         .map(
           s =>
@@ -286,7 +309,11 @@ case class CrossValidationFlow(
 
     val foldResultV = (resultsV, groundTruthV) mapN performScoring
 
-    foldResultV.valueOr(e => Future.failed(new Exception(e.toList.mkString(","))))
+    foldResultV.valueOr(e => {
+      val errorMsg = e.toList.mkString(",")
+      log.error(s"Cannot perform scoring on $context: $errorMsg")
+      Future.failed(new Exception(errorMsg))
+    })
   }
 
   private def scoreAll(
