@@ -1,0 +1,268 @@
+# Configuration taken from https://github.com/meltwater/docker-mesos
+# https://github.com/containous/traefik/blob/master/examples/compose-marathon.yml
+
+version: '3.0'
+
+services:
+  zookeeper:
+    image: zookeeper:3.4.11
+    hostname: zookeeper
+    ports:
+      - '2181:2181'
+      - '2888:2888'
+      - '3888:3888'
+    environment:
+      ZOO_MY_ID: 1
+      ZOO_SERVERS: server.1=zookeeper:2888:3888
+    restart: always
+
+  wait_zookeeper:
+    image: "waisbrot/wait"
+    restart: "no"
+    environment:
+      TARGETS: "zookeeper:2181"
+      TIMEOUT: 60
+    depends_on:
+      - zookeeper
+
+  mesos_master:
+    image: axelspringer/mesos-master:1.4.1
+    hostname: mesosmaster
+    volumes:
+      - ./log/mesos/master:/var/log/mesos/master:rw
+      - ./tmp/mesos/master:/var/tmp/mesos:rw
+    environment:
+      MESOS_PORT: 5050
+      MESOS_ZK: 'zk://zookeeper:2181/mesos'
+      MESOS_QUORUM: '1'
+      MESOS_REGISTRY: 'in_memory'
+      MESOS_CLUSTER: 'local'
+      MESOS_HOSTNAME: 'mesosmaster.docker'
+      MESOS_LOG_DIR: '/var/log/mesos/master'
+      MESOS_WORK_DIR: '/var/lib/mesos'
+    depends_on:
+      - zookeeper
+
+  wait_mesos_master:
+    image: "waisbrot/wait"
+    restart: "no"
+    environment:
+      TARGETS: "mesos_master:5050"
+      TIMEOUT: 60
+    depends_on:
+      - mesos_master
+
+  mesos_slave:
+    image: axelspringer/mesos-agent:1.4.1
+    hostname: mesosslave
+    privileged: true
+    volumes:
+      - ./log/mesos/slave:/var/log/mesos/slave:rw
+      - ./tmp/mesos/slave:/var/tmp/mesos:rw
+      - /sys:/sys
+      #- /cgroup:/cgroup is it really needed for the demo? Not compatible with docker machine on MacOSX, try /sys/fs/cgroups...
+      # /usr/bin/docker is needed if you're running an older docker version
+      #- /usr/bin/docker:/usr/bin/docker:r
+      - /var/run/docker.sock:/var/run/docker.sock:rw
+    environment:
+      MESOS_MASTER: 'zk://zookeeper:2181/mesos'
+      MESOS_PORT: '5051'
+      MESOS_LOG_DIR: '/var/log/mesos/slave'
+      MESOS_WORK_DIR: '/var/tmp/mesos'
+      MESOS_CONTAINERIZERS: 'docker,mesos'
+      MESOS_EXECUTOR_REGISTRATION_TIMEOUT: '5mins'
+      MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD: '90secs'
+      MESOS_DOCKER_STOP_TIMEOUT: '60secs'
+      # If your workstation doesn't have a resolvable hostname/FQDN then $MESOS_HOSTNAME needs to be set to its IP-address
+      MESOS_HOSTNAME: 'mesosslave.docker'
+      MESOS_SWITCH_USER: 0
+      # see bug resolution for "Failed to determine the hierarchy where the subsystem freezer is attached" at https://github.com/eBayClassifiedsGroup/PanteraS/issues/142
+      MESOS_LAUNCHER: "posix"
+    depends_on:
+      - zookeeper
+      - mesos_master
+
+  chronos:
+    image: hbpmip/chronos:3.0.2-3
+    command: '--zk_hosts zookeeper:2181 --master zk://zookeeper:2181/mesos --zk_timeout 30000'
+    restart: "always"
+    hostname: chronos
+    ports:
+      - "4400:4400"
+      - "4401:4401"
+    environment:
+      PORT0: 4400
+      PORT1: 4401
+    depends_on:
+      - zookeeper
+      - mesos_slave
+
+  wait_chronos:
+    image: "waisbrot/wait"
+    restart: "no"
+    environment:
+      TARGETS: "chronos:4400"
+      TIMEOUT: 60
+    depends_on:
+      - chronos
+
+  # Expose the database to the host
+  db:
+    image: postgres:9.6.5-alpine
+    ports:
+      - "5432:5432"
+    hostname: db
+    environment:
+      POSTGRES_PASSWORD: test
+
+  wait_dbs:
+    image: "waisbrot/wait"
+    restart: "no"
+    environment:
+      TARGETS: "db:5432"
+      TIMEOUT: 60
+    depends_on:
+      - db
+
+  create_dbs:
+    image: "hbpmip/create-databases:1.0.0"
+    restart: "no"
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_ADMIN_USER: postgres
+      DB_ADMIN_PASSWORD: test
+      DB1: meta
+      USER1: meta
+      PASSWORD1: metapwd
+      DB2: features
+      USER2: features
+      PASSWORD2: featurespwd
+      DB3: woken
+      USER3: woken
+      PASSWORD3: wokenpwd
+      DB4: portal
+      USER4: portal
+      PASSWORD4: portalpwd
+    depends_on:
+      - db
+
+  sample_meta_db_setup:
+    image: "hbpmip/sample-meta-db-setup:0.6.0"
+    container_name: "sample-meta-db-setup"
+    restart: "no"
+    environment:
+      FLYWAY_HOST: db
+      FLYWAY_PORT: 5432
+      FLYWAY_DATABASE_NAME: meta
+      FLYWAY_USER: postgres
+      FLYWAY_PASSWORD: test
+    depends_on:
+      - db
+
+  sample_data_db_setup:
+    image: "hbpmip/sample-data-db-setup:0.6.0"
+    container_name: "sample-data-db-setup"
+    restart: "no"
+    environment:
+      FLYWAY_HOST: db
+      FLYWAY_PORT: 5432
+      FLYWAY_DATABASE_NAME: features
+      FLYWAY_USER: postgres
+      FLYWAY_PASSWORD: test
+    depends_on:
+      - db
+
+  woken_db_setup:
+    image: "hbpmip/woken-db-setup:1.0.2"
+    container_name: "woken-db-setup"
+    restart: "no"
+    environment:
+      FLYWAY_HOST: db
+      FLYWAY_PORT: 5432
+      FLYWAY_DATABASE_NAME: woken
+      FLYWAY_USER: postgres
+      FLYWAY_PASSWORD: test
+    depends_on:
+      - db
+
+  woken:
+    build:
+      context: woken
+      dockerfile: woken/Dockerfile
+    ports:
+      - "8087:8087"
+      - "8088:8088"
+      - "9095:9095"
+      - "8000:8000"
+    environment:
+      CLUSTER_PORT: 8088
+      CLUSTER_IP: woken
+      WOKEN_PORT_8088_TCP_ADDR: woken
+      DOCKER_BRIDGE_NETWORK: "tests_default"
+      LOG_LEVEL: DEBUG
+      KAMON_ENABLED: "yes"
+      ZIPKIN_ENABLED: "yes"
+      PROMETHEUS_ENABLED: "yes"
+      SIGAR_SYSTEM_METRICS: "no"
+      JVM_SYSTEM_METRICS: "no"
+      JAVA_OPTS: "-agentlib:jdwp=transport=dt_socket,address=8000,server=y,suspend=n"
+    depends_on:
+      - chronos
+      - db
+
+  wait_woken:
+    image: "waisbrot/wait"
+    restart: "no"
+    environment:
+      TARGETS: "woken:8087,chronos:4400"
+      TIMEOUT: 60
+    depends_on:
+      - woken
+      - chronos
+
+  wokenvalidation:
+    image: hbpmip/woken-validation:2.4.10
+    ports:
+      - "8081:8081"
+      - "8082:8082"
+    environment:
+      CLUSTER_PORT: 8082
+      CLUSTER_IP: wokenvalidation
+      WOKEN_PORT_8088_TCP_ADDR: woken
+      LOG_LEVEL: DEBUG
+    depends_on:
+      - woken
+
+  wait_wokenvalidation:
+    image: "waisbrot/wait"
+    restart: "no"
+    environment:
+      TARGETS: "wokenvalidation:8081"
+      TIMEOUT: 60
+    depends_on:
+      - woken
+      - chronos
+
+  wokentest:
+    build:
+      context: ./woken-test
+      dockerfile: Dockerfile
+    hostname: "wokentest"
+    restart: "no"
+    ports:
+      - "8197:8197"
+    environment:
+      CLUSTER_PORT: 8197
+      CLUSTER_IP: wokentest
+      WOKEN_PORT_8088_TCP_ADDR: woken
+      LOG_LEVEL: DEBUG
+    depends_on:
+      - woken
+
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.15.0/24

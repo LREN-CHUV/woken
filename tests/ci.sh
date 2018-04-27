@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 #
-# Execute the integration test suite
+# Execute the integration test suite in a Continuous Integration environment
 #
 # Option:
 #   --all: execute the full suite of tests, including slow tests such as Chaos testing
@@ -114,7 +114,7 @@ done
 echo "The Algorithm Factory is now running on your system"
 
 echo
-echo "Testing Akka API..."
+echo "Running the integration tests..."
 
 $DOCKER_COMPOSE up wokentest
 
