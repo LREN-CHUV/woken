@@ -1,0 +1,449 @@
+{
+  "$id": "http://example.com/example.json",
+  "type": "object",
+  "definitions": {},
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "properties": {
+    "algorithms": {
+      "$id": "/properties/algorithms",
+      "type": "array",
+      "items": {
+        "$id": "/properties/algorithms/items",
+        "type": "object",
+        "properties": {
+          "code": {
+            "$id": "/properties/algorithms/items/properties/code",
+            "type": "string",
+            "title": "The Code Schema ",
+            "default": "",
+            "examples": [
+              "histograms"
+            ]
+          },
+          "constraints": {
+            "$id": "/properties/algorithms/items/properties/constraints",
+            "type": "object",
+            "properties": {
+              "covariables": {
+                "$id": "/properties/algorithms/items/properties/constraints/properties/covariables",
+                "type": "object",
+                "properties": {
+                  "max_count": {
+                    "$id": "/properties/algorithms/items/properties/constraints/properties/covariables/properties/max_count",
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "title": "The Max_count Schema ",
+                    "default": null,
+                    "examples": [
+                      null
+                    ]
+                  },
+                  "min_count": {
+                    "$id": "/properties/algorithms/items/properties/constraints/properties/covariables/properties/min_count",
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "title": "The Min_count Schema ",
+                    "default": 0,
+                    "examples": [
+                      0
+                    ]
+                  }
+                }
+              },
+              "groupings": {
+                "$id": "/properties/algorithms/items/properties/constraints/properties/groupings",
+                "type": "object",
+                "properties": {
+                  "max_count": {
+                    "$id": "/properties/algorithms/items/properties/constraints/properties/groupings/properties/max_count",
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "title": "The Max_count Schema ",
+                    "default": null,
+                    "examples": [
+                      null
+                    ]
+                  },
+                  "min_count": {
+                    "$id": "/properties/algorithms/items/properties/constraints/properties/groupings/properties/min_count",
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "title": "The Min_count Schema ",
+                    "default": 0,
+                    "examples": [
+                      0
+                    ]
+                  }
+                }
+              },
+              "mixed": {
+                "$id": "/properties/algorithms/items/properties/constraints/properties/mixed",
+                "type": "boolean",
+                "title": "The Mixed Schema ",
+                "default": false,
+                "examples": [
+                  true
+                ]
+              },
+              "variable": {
+                "$id": "/properties/algorithms/items/properties/constraints/properties/variable",
+                "type": "object",
+                "properties": {
+                  "binominal": {
+                    "$id": "/properties/algorithms/items/properties/constraints/properties/variable/properties/binominal",
+                    "type": "boolean",
+                    "title": "The Binominal Schema ",
+                    "default": false,
+                    "examples": [
+                      false
+                    ]
+                  },
+                  "integer": {
+                    "$id": "/properties/algorithms/items/properties/constraints/properties/variable/properties/integer",
+                    "type": "boolean",
+                    "title": "The Integer Schema ",
+                    "default": false,
+                    "examples": [
+                      true
+                    ]
+                  },
+                  "polynominal": {
+                    "$id": "/properties/algorithms/items/properties/constraints/properties/variable/properties/polynominal",
+                    "type": "boolean",
+                    "title": "The Polynominal Schema ",
+                    "default": false,
+                    "examples": [
+                      false
+                    ]
+                  },
+                  "real": {
+                    "$id": "/properties/algorithms/items/properties/constraints/properties/variable/properties/real",
+                    "type": "boolean",
+                    "title": "The Real Schema ",
+                    "default": false,
+                    "examples": [
+                      true
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "description": {
+            "$id": "/properties/algorithms/items/properties/description",
+            "type": "string",
+            "title": "The Description Schema ",
+            "default": "",
+            "examples": [
+              "Histograms..."
+            ]
+          },
+          "docker_image": {
+            "$id": "/properties/algorithms/items/properties/docker_image",
+            "type": "string",
+            "title": "The Docker_image Schema ",
+            "default": "",
+            "examples": [
+              "hbpmip/python-histograms:0.5.0"
+            ]
+          },
+          "environment": {
+            "$id": "/properties/algorithms/items/properties/environment",
+            "type": "string",
+            "title": "The Environment Schema ",
+            "default": "",
+            "examples": [
+              "Python"
+            ]
+          },
+          "label": {
+            "$id": "/properties/algorithms/items/properties/label",
+            "type": "string",
+            "title": "The Label Schema ",
+            "default": "",
+            "examples": [
+              "Histograms"
+            ]
+          },
+          "type": {
+            "$id": "/properties/algorithms/items/properties/type",
+            "type": "array",
+            "items": {
+              "$id": "/properties/algorithms/items/properties/type/items",
+              "type": "string",
+              "title": "The 0th Schema ",
+              "default": "",
+              "examples": [
+                "statistics"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "metrics": {
+      "$id": "/properties/metrics",
+      "type": "object",
+      "properties": {
+        "binominal_classification": {
+          "$id": "/properties/metrics/properties/binominal_classification",
+          "type": "array",
+          "items": {
+            "$id": "/properties/metrics/properties/binominal_classification/items",
+            "type": "object",
+            "properties": {
+              "code": {
+                "$id": "/properties/metrics/properties/binominal_classification/items/properties/code",
+                "type": "string",
+                "title": "The Code Schema ",
+                "default": "",
+                "examples": [
+                  "Confusion matrix"
+                ]
+              },
+              "label": {
+                "$id": "/properties/metrics/properties/binominal_classification/items/properties/label",
+                "type": "string",
+                "title": "The Label Schema ",
+                "default": "",
+                "examples": [
+                  "Confusion matrix"
+                ]
+              },
+              "tooltip": {
+                "$id": "/properties/metrics/properties/binominal_classification/items/properties/tooltip",
+                "type": "string",
+                "title": "The Tooltip Schema ",
+                "default": "",
+                "examples": [
+                  "To be completed"
+                ]
+              },
+              "type": {
+                "$id": "/properties/metrics/properties/binominal_classification/items/properties/type",
+                "type": "string",
+                "title": "The Type Schema ",
+                "default": "",
+                "examples": [
+                  "confusion_matrix"
+                ]
+              }
+            }
+          }
+        },
+        "classification": {
+          "$id": "/properties/metrics/properties/classification",
+          "type": "array",
+          "items": {
+            "$id": "/properties/metrics/properties/classification/items",
+            "type": "object",
+            "properties": {
+              "code": {
+                "$id": "/properties/metrics/properties/classification/items/properties/code",
+                "type": "string",
+                "title": "The Code Schema ",
+                "default": "",
+                "examples": [
+                  "Confusion matrix"
+                ]
+              },
+              "label": {
+                "$id": "/properties/metrics/properties/classification/items/properties/label",
+                "type": "string",
+                "title": "The Label Schema ",
+                "default": "",
+                "examples": [
+                  "Confusion matrix"
+                ]
+              },
+              "tooltip": {
+                "$id": "/properties/metrics/properties/classification/items/properties/tooltip",
+                "type": "string",
+                "title": "The Tooltip Schema ",
+                "default": "",
+                "examples": [
+                  "To be completed"
+                ]
+              },
+              "type": {
+                "$id": "/properties/metrics/properties/classification/items/properties/type",
+                "type": "string",
+                "title": "The Type Schema ",
+                "default": "",
+                "examples": [
+                  "confusion_matrix"
+                ]
+              }
+            }
+          }
+        },
+        "regression": {
+          "$id": "/properties/metrics/properties/regression",
+          "type": "array",
+          "items": {
+            "$id": "/properties/metrics/properties/regression/items",
+            "type": "object",
+            "properties": {
+              "code": {
+                "$id": "/properties/metrics/properties/regression/items/properties/code",
+                "type": "string",
+                "title": "The Code Schema ",
+                "default": "",
+                "examples": [
+                  "MSE"
+                ]
+              },
+              "label": {
+                "$id": "/properties/metrics/properties/regression/items/properties/label",
+                "type": "string",
+                "title": "The Label Schema ",
+                "default": "",
+                "examples": [
+                  "Mean square error"
+                ]
+              },
+              "tooltip": {
+                "$id": "/properties/metrics/properties/regression/items/properties/tooltip",
+                "type": "string",
+                "title": "The Tooltip Schema ",
+                "default": "",
+                "examples": [
+                  "To be completed"
+                ]
+              },
+              "type": {
+                "$id": "/properties/metrics/properties/regression/items/properties/type",
+                "type": "string",
+                "title": "The Type Schema ",
+                "default": "",
+                "examples": [
+                  "numeric"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "validations": {
+      "$id": "/properties/validations",
+      "type": "array",
+      "items": {
+        "$id": "/properties/validations/items",
+        "type": "object",
+        "properties": {
+          "code": {
+            "$id": "/properties/validations/items/properties/code",
+            "type": "string",
+            "title": "The Code Schema ",
+            "default": "",
+            "examples": [
+              "kFoldCrossValidation"
+            ]
+          },
+          "label": {
+            "$id": "/properties/validations/items/properties/label",
+            "type": "string",
+            "title": "The Label Schema ",
+            "default": "",
+            "examples": [
+              "Random k-fold Cross Validation"
+            ]
+          },
+          "parameters": {
+            "$id": "/properties/validations/items/properties/parameters",
+            "type": "array",
+            "items": {
+              "$id": "/properties/validations/items/properties/parameters/items",
+              "type": "object",
+              "properties": {
+                "code": {
+                  "$id": "/properties/validations/items/properties/parameters/items/properties/code",
+                  "type": "string",
+                  "title": "The Code Schema ",
+                  "default": "",
+                  "examples": [
+                    "fold"
+                  ]
+                },
+                "constraints": {
+                  "$id": "/properties/validations/items/properties/parameters/items/properties/constraints",
+                  "type": "object",
+                  "properties": {
+                    "max": {
+                      "$id": "/properties/validations/items/properties/parameters/items/properties/constraints/properties/max",
+                      "type": "integer",
+                      "title": "The Max Schema ",
+                      "default": 0,
+                      "examples": [
+                        20
+                      ]
+                    },
+                    "min": {
+                      "$id": "/properties/validations/items/properties/parameters/items/properties/constraints/properties/min",
+                      "type": "integer",
+                      "title": "The Min Schema ",
+                      "default": 0,
+                      "examples": [
+                        2
+                      ]
+                    }
+                  }
+                },
+                "default_value": {
+                  "$id": "/properties/validations/items/properties/parameters/items/properties/default_value",
+                  "type": [
+                    "number",
+                    "integer",
+                    "string",
+                    "null"
+                  ],
+                  "title": "The Default_value Schema ",
+                  "default": 0,
+                  "examples": [
+                    null
+                  ]
+                },
+                "description": {
+                  "$id": "/properties/validations/items/properties/parameters/items/properties/description",
+                  "type": "string",
+                  "title": "The Description Schema ",
+                  "default": "",
+                  "examples": [
+                    "The number of cross-validation fold"
+                  ]
+                },
+                "label": {
+                  "$id": "/properties/validations/items/properties/parameters/items/properties/label",
+                  "type": "string",
+                  "title": "The Label Schema ",
+                  "default": "",
+                  "examples": [
+                    "Fold"
+                  ]
+                },
+                "type": {
+                  "$id": "/properties/validations/items/properties/parameters/items/properties/type",
+                  "type": "string",
+                  "title": "The Type Schema ",
+                  "default": "",
+                  "examples": [
+                    "int"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -66,7 +66,7 @@ trait WebsocketSupport {
     Flow[Message]
       .collect {
         case _: TextMessage =>
-          AlgorithmLibraryService().algorithms()
+          AlgorithmLibraryService().algorithms
       }
       .map { result =>
         TextMessage(result.compactPrint)

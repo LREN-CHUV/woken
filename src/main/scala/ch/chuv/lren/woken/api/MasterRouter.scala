@@ -98,7 +98,7 @@ case class MasterRouter(config: Config,
   def receive: PartialFunction[Any, Unit] = {
 
     case MethodsQuery =>
-      sender ! MethodsResponse(algorithmLibraryService.algorithms())
+      sender ! MethodsResponse(algorithmLibraryService.algorithms)
 
     case ds: DatasetsQuery =>
       val allDatasets = datasetService.datasets()

@@ -67,7 +67,7 @@ class MiningWebService(
       listAlgorithmsFlow,
       get {
         operationName("listAlgorithms", Map("requestType" -> "http-get")) {
-          complete(AlgorithmLibraryService().algorithms())
+          complete(AlgorithmLibraryService().algorithms)
         }
       }
     )

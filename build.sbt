@@ -60,7 +60,7 @@ lazy val `woken` =
           library.dockerTestKitScalaTest % Test,
           library.dockerTestKitSpotify   % Test
         ),
-        includeFilter in (Compile, unmanagedResources) := "*.xml" || "*.conf" || "*.html",
+        includeFilter in (Compile, unmanagedResources) := "*.json" || "*.conf" || "*.xml" || "*.html",
         includeFilter in (Test, unmanagedResources) := "*.json" || "*.conf",
         // Use the customMergeStrategy in your settings
         assemblyMergeStrategy in assembly := customMergeStrategy,
