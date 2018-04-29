@@ -22,11 +22,21 @@ import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
 import cats.data.Validated._
 import cats.implicits._
 
+object AlgorithmEngine extends Enumeration {
+  type AlgorithmEngine = Value
+
+  // read-write and read-only.
+  val Docker, WokenValidation = Value
+}
+
+import AlgorithmEngine.AlgorithmEngine
+
 case class AlgorithmDefinition(code: String,
                                dockerImage: String,
                                predictive: Boolean,
                                variablesCanBeNull: Boolean,
-                               covariablesCanBeNull: Boolean)
+                               covariablesCanBeNull: Boolean,
+                               engine: AlgorithmEngine)
 
 // TODO: this should feed AlgorithmLibraryService with metadata
 
@@ -41,8 +51,9 @@ object AlgorithmsConfiguration {
       val predictive           = c.validateBoolean("predictive")
       val variablesCanBeNull   = c.validateBoolean("variablesCanBeNull")
       val covariablesCanBeNull = c.validateBoolean("covariablesCanBeNull")
+      val engine: Validation[AlgorithmEngine] = c.validateString("engine").orElse(lift("Docker")).map(AlgorithmEngine.withName)
 
-      (code, dockerImage, predictive, variablesCanBeNull, covariablesCanBeNull) mapN AlgorithmDefinition.apply
+      (code, dockerImage, predictive, variablesCanBeNull, covariablesCanBeNull, engine) mapN AlgorithmDefinition.apply
     }
   }
 
