@@ -51,7 +51,8 @@ object AlgorithmsConfiguration {
       val predictive           = c.validateBoolean("predictive")
       val variablesCanBeNull   = c.validateBoolean("variablesCanBeNull")
       val covariablesCanBeNull = c.validateBoolean("covariablesCanBeNull")
-      val engine: Validation[AlgorithmEngine] = c.validateString("engine").orElse(lift("Docker")).map(AlgorithmEngine.withName)
+      val engine: Validation[AlgorithmEngine] =
+        c.validateString("engine").orElse(lift("Docker")).map(AlgorithmEngine.withName)
 
       (code, dockerImage, predictive, variablesCanBeNull, covariablesCanBeNull, engine) mapN AlgorithmDefinition.apply
     }

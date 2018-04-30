@@ -18,20 +18,27 @@
 package ch.chuv.lren.woken.service
 
 import akka.NotUsed
-import akka.stream.{FlowShape, OverflowStrategy}
-import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Merge, Source}
+import akka.stream.{ FlowShape, OverflowStrategy }
+import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Merge, Source }
 import ch.chuv.lren.woken.fp.Traverse
-import ch.chuv.lren.woken.messages.query.{ExperimentQuery, MiningQuery, QueryResult}
+import ch.chuv.lren.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import cats.implicits.catsStdInstancesForOption
-import com.typesafe.scalalogging.{LazyLogging, Logger}
+import com.typesafe.scalalogging.{ LazyLogging, Logger }
 import ch.chuv.lren.woken.backends.woken.WokenClientService
-import ch.chuv.lren.woken.messages.datasets.{Dataset, DatasetId}
+import ch.chuv.lren.woken.core.model.VariablesMeta
+import ch.chuv.lren.woken.messages.datasets.{ Dataset, DatasetId }
 import ch.chuv.lren.woken.messages.remoting.RemoteLocation
-import ch.chuv.lren.woken.messages.variables.{VariableMetaData, VariablesForDatasetsQuery, VariablesForDatasetsResponse}
+import ch.chuv.lren.woken.messages.variables.{
+  VariableMetaData,
+  VariablesForDatasetsQuery,
+  VariablesForDatasetsResponse
+}
 
 class DispatcherService(datasets: Map[DatasetId, Dataset], wokenClientService: WokenClientService)
     extends LazyLogging {
+
+  type VariablesForDatasetsQR = (VariablesForDatasetsQuery, VariablesForDatasetsResponse)
 
   def dispatchTo(dataset: DatasetId): Option[RemoteLocation] =
     if (datasets.isEmpty)
@@ -71,12 +78,12 @@ class DispatcherService(datasets: Map[DatasetId, Dataset], wokenClientService: W
   def dispatchVariablesQueryFlow(
       datasetService: DatasetService,
       variablesMetaService: VariablesMetaService
-  ): Flow[VariablesForDatasetsQuery, VariablesForDatasetsResponse, NotUsed] =
+  ): Flow[VariablesForDatasetsQuery, VariablesForDatasetsQR, NotUsed] =
     Flow.fromGraph(GraphDSL.create() { implicit builder =>
       import GraphDSL.Implicits._
 
       val broadcast = builder.add(Broadcast[VariablesForDatasetsQuery](2))
-      val merger    = builder.add(Merge[VariablesForDatasetsResponse](2))
+      val merger    = builder.add(Merge[VariablesForDatasetsQR](2))
 
       broadcast ~> remoteDispatchVariablesQueryFlow() ~> merger
       broadcast ~> localVariablesQueryFlow(datasetService, variablesMetaService) ~> merger
@@ -85,7 +92,7 @@ class DispatcherService(datasets: Map[DatasetId, Dataset], wokenClientService: W
     })
 
   def remoteDispatchVariablesQueryFlow()
-    : Flow[VariablesForDatasetsQuery, VariablesForDatasetsResponse, NotUsed] =
+    : Flow[VariablesForDatasetsQuery, VariablesForDatasetsQR, NotUsed] =
     Flow[VariablesForDatasetsQuery]
       .map(q => {
         val target = dispatchTo(q.datasets)
@@ -99,25 +106,38 @@ class DispatcherService(datasets: Map[DatasetId, Dataset], wokenClientService: W
           l.copy(url = l.url.withPath(l.url.path / "metadata" / "variables")) -> q
       }
       .via(wokenClientService.variableMetaFlow)
-      .map(_._2)
+      .map(r => (r._2, r._3))
 
+  /**
+    * Return the flow that handles locally queries for 'variables for datasets'
+    *
+    * @param datasetService Service that provides information about known datasets
+    * @param variablesMetaService Service that provides the metadata for the variables
+    */
   def localVariablesQueryFlow(
       datasetService: DatasetService,
       variablesMetaService: VariablesMetaService
-  ): Flow[VariablesForDatasetsQuery, VariablesForDatasetsResponse, NotUsed] =
+  ): Flow[VariablesForDatasetsQuery, VariablesForDatasetsQR, NotUsed] =
     Flow[VariablesForDatasetsQuery]
-      .mapConcat[Dataset](q => {
-        logger.info(s"Known datasets: ${datasetService.datasets()}")
-        datasetService
+      .map[VariablesForDatasetsQR] { q =>
+        val datasets: Set[Dataset] = datasetService
           .datasets()
           .filter(_.location.isEmpty)
           .filter(ds => q.datasets.isEmpty || q.datasets.contains(ds.dataset))
-      })
-      .map[(DatasetId, List[VariableMetaData])] { ds =>
-        ds.dataset -> ds.tables.map(_.toUpperCase).flatMap(variablesMetaService.get).flatMap(_.select(_ => true))
+        val mergedVariables = datasets
+          .map { ds =>
+            val varsForDs = ds.tables
+              .map(_.toUpperCase)
+              .flatMap(variablesMetaService.get)
+              .flatMap(_.filterVariables(_ => true))
+              .map(_.copy(datasets = Set(ds.dataset)))
+            varsForDs.toSet
+          }
+          .foldLeft(Set[VariableMetaData]()) {
+            case (vars, toMerge) => VariablesMeta.merge(vars, toMerge, q.exhaustive)
+          }
+        (q, VariablesForDatasetsResponse(mergedVariables, None))
       }
-      .map(varsForDs => varsForDs._2.map(_.copy(datasets = Set(varsForDs._1))))
-      .map(vars => VariablesForDatasetsResponse(vars.toSet, None))
 
   def localDispatchFlow(datasets: Set[DatasetId]): Source[QueryResult, NotUsed] = ???
 

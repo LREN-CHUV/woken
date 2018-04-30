@@ -22,8 +22,8 @@ import akka.actor.{ Actor, ActorRef, OneForOneStrategy, Props }
 import akka.routing.{ OptimalSizeExploringResizer, RoundRobinPool }
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{ Sink, Source }
+import ch.chuv.lren.woken.core.model.VariablesMeta
 import ch.chuv.lren.woken.messages.variables.{
-  VariableMetaData,
   VariablesForDatasetsQuery,
   VariablesForDatasetsResponse
 }
@@ -87,29 +87,39 @@ class MetadataQueriesActor(dispatcherService: DispatcherService,
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val ec: ExecutionContext            = context.dispatcher
 
+  type VariablesForDatasetsQR = (VariablesForDatasetsQuery, VariablesForDatasetsResponse)
+
   override def receive: Receive = {
 
     case varsForDataset: VariablesForDatasets =>
-      val initiator = if (varsForDataset.replyTo == Actor.noSender) sender() else varsForDataset.replyTo
-      val query     = varsForDataset.query
+      val initiator =
+        if (varsForDataset.replyTo == Actor.noSender) sender() else varsForDataset.replyTo
+      val query = varsForDataset.query.copy(
+        datasets = datasetService
+          .datasets()
+          .map(_.dataset)
+          .filter(
+            varsForDataset.query.datasets.isEmpty || varsForDataset.query.datasets.contains(_)
+          )
+      )
+      val zero = (query, VariablesForDatasetsResponse(Set()))
 
       logger.info(s"Received query $query")
       Source
-        .single(
-          query.copy(
-            datasets = datasetService
-              .datasets()
-              .map(_.dataset)
-              .filter(query.datasets.isEmpty || query.datasets.contains(_))
-          )
-        )
+        .single(query)
         .via(dispatcherService.dispatchVariablesQueryFlow(datasetService, variablesMetaService))
-        .fold(VariablesForDatasetsResponse(Set())) {
-          case (_, n) if n.error.isDefined => n
-          case (p, _) if p.error.isDefined => p
-          case (p, n)  => p.copy(variables = merge(p.variables, n.variables))
+        .fold[VariablesForDatasetsQR](zero) {
+          case (_, (q, n)) if n.error.isDefined => (q, n)
+          case ((q, p), _) if p.error.isDefined => (q, p)
+          case ((q1, p), (q2, n)) if q1 == q2 =>
+            (q1, p.copy(variables = VariablesMeta.merge(p.variables, n.variables, q1.exhaustive)))
+          case ((q1, p), (q2, n)) if q1 != q2 =>
+            throw new IllegalStateException(
+              s"Expected matching queries, got query $q1 and response $p with query $q2 and response $n"
+            )
         }
-        .map[VariablesForDatasetsResponse] { response =>
+        .map[VariablesForDatasetsResponse] { qr =>
+          val response = qr._2
           logger.debug(s"Response $response")
           initiator ! response
           response
@@ -123,21 +133,6 @@ class MetadataQueriesActor(dispatcherService: DispatcherService,
 
     case e =>
       logger.warn(s"Received unhandled request $e of type ${e.getClass}")
-
-  }
-
-  private def merge(variables: Set[VariableMetaData], otherVars: Set[VariableMetaData]): Set[VariableMetaData] = {
-
-    variables.map { v =>
-      otherVars
-        .map(ov => v.merge(ov))
-        .foldLeft(v) {
-          case (_, Some(m)) => m
-          case (s,_) => s
-        }
-    } ++ otherVars.filterNot { v =>
-      variables.exists(_.isMergeable(v))
-    }
 
   }
 

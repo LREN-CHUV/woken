@@ -148,7 +148,10 @@ class MasterRouterTest
 
   }
 
-  val config: Config = ConfigFactory.load("test.conf")
+  val config: Config = ConfigFactory
+    .parseResourcesAnySyntax("remoteDatasets.conf")
+    .withFallback(ConfigFactory.load("test.conf"))
+    .resolve()
   val appConfig: AppConfiguration = AppConfiguration
     .read(config)
     .valueOr(

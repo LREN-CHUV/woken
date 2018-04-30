@@ -19,7 +19,7 @@ package ch.chuv.lren.woken.service
 
 import cats.effect.IO
 import ch.chuv.lren.woken.core.model.VariablesMeta
-import ch.chuv.lren.woken.dao.{MetadataInMemoryRepository, WokenInMemoryRepository}
+import ch.chuv.lren.woken.dao.{ MetadataInMemoryRepository, WokenInMemoryRepository }
 import ch.chuv.lren.woken.messages.variables.GroupMetaData
 import ch.chuv.lren.woken.messages.variables.variablesProtocol._
 import ch.chuv.lren.woken.util.JsonUtils
@@ -38,17 +38,22 @@ object TestServices extends JsonUtils {
 
   lazy val localVariablesMetaService: VariablesMetaService = {
     val churnHierarchy = loadJson("/metadata/churn_variables.json").convertTo[GroupMetaData]
-    val churnVariablesMeta = VariablesMeta(1, "churn", churnHierarchy, "CHURN", List("state","custserv_calls","churn"))
+    val churnVariablesMeta =
+      VariablesMeta(1, "churn", churnHierarchy, "CHURN", List("state", "custserv_calls", "churn"))
 
-    val sampleHierarchy = loadJson("/metadata/sample_variables.json").convertTo[GroupMetaData]
+    val sampleHierarchy     = loadJson("/metadata/sample_variables.json").convertTo[GroupMetaData]
     val sampleVariablesMeta = VariablesMeta(2, "sample", sampleHierarchy, "SAMPLE_DATA", Nil)
 
     val cdeHierarchy = loadJson("/metadata/mip_cde_variables.json").convertTo[GroupMetaData]
-    val cdeGroupings = List("dataset","gender","agegroup","alzheimerbroadcategory")
-    val featuresAVariablesMeta = VariablesMeta(3, "cde_features_a", cdeHierarchy, "CDE_FEATURES_A", cdeGroupings)
-    val featuresBVariablesMeta = VariablesMeta(4, "cde_features_b", cdeHierarchy, "CDE_FEATURES_B", cdeGroupings)
-    val featuresCVariablesMeta = VariablesMeta(5, "cde_features_c", cdeHierarchy, "CDE_FEATURES_C", cdeGroupings)
-    val featuresMixedVariablesMeta = VariablesMeta(6, "cde_features_mixed", cdeHierarchy, "CDE_FEATURES_MIXED", cdeGroupings)
+    val cdeGroupings = List("dataset", "gender", "agegroup", "alzheimerbroadcategory")
+    val featuresAVariablesMeta =
+      VariablesMeta(3, "cde_features_a", cdeHierarchy, "CDE_FEATURES_A", cdeGroupings)
+    val featuresBVariablesMeta =
+      VariablesMeta(4, "cde_features_b", cdeHierarchy, "CDE_FEATURES_B", cdeGroupings)
+    val featuresCVariablesMeta =
+      VariablesMeta(5, "cde_features_c", cdeHierarchy, "CDE_FEATURES_C", cdeGroupings)
+    val featuresMixedVariablesMeta =
+      VariablesMeta(6, "cde_features_mixed", cdeHierarchy, "CDE_FEATURES_MIXED", cdeGroupings)
 
     val metaService = VariablesMetaService(
       new MetadataInMemoryRepository[IO]().variablesMeta

@@ -43,7 +43,7 @@ class VariablesMetaTest extends WordSpec with Matchers with JsonUtils {
                       "sample_data",
                       List("state", "custserv_calls", "churn"))
 
-      val selectedMeta = meta.select(List("IQ", "score_math_course1").contains)
+      val selectedMeta = meta.filterVariables(List("IQ", "score_math_course1").contains)
 
       val expected = List(
         VariableMetaData(

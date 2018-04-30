@@ -37,7 +37,7 @@ case class VariablesMeta(id: Int,
                          defaultHistogramGroupings: List[String]) {
 
   def selectVariables(variables: List[String]): Validation[List[VariableMetaData]] = {
-    val variablesMeta = select(variables.contains)
+    val variablesMeta = filterVariables(variables.contains)
     if (variablesMeta.lengthCompare(variables.size) != 0) {
       val missingVars = variables.diff(variablesMeta.map(_.code))
       s"Found ${variablesMeta.size} out of ${variables.size} variables. Missing ${missingVars
@@ -46,7 +46,7 @@ case class VariablesMeta(id: Int,
       lift(variablesMeta)
   }
 
-  def select(filter: String => Boolean): List[VariableMetaData] = {
+  def filterVariables(filter: String => Boolean): List[VariableMetaData] = {
 
     def selectVars(group: GroupMetaData): List[VariableMetaData] =
       group.groups.map(selectVars).reduceOption(_ ++ _).getOrElse(Nil) ++ group.variables.filter(
@@ -54,6 +54,32 @@ case class VariablesMeta(id: Int,
       )
 
     selectVars(hierarchy)
+
+  }
+
+}
+
+object VariablesMeta {
+
+  def merge(variables: Set[VariableMetaData],
+            otherVars: Set[VariableMetaData],
+            exhaustive: Boolean): Set[VariableMetaData] = {
+
+    val mergedVariables = variables.map { v =>
+      otherVars
+        .map(ov => v.merge(ov))
+        .foldLeft(v) {
+          case (_, Some(m)) => m
+          case (s, _)       => s
+        }
+    }
+
+    if (exhaustive)
+      mergedVariables
+    else
+      mergedVariables ++ otherVars.filterNot { v =>
+        variables.exists(_.isMergeable(v))
+      }
 
   }
 

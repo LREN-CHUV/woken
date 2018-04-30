@@ -118,19 +118,20 @@ case class WokenClientService(node: String)(implicit val system: ActorSystem,
         case (location, query) => AkkaClusterClient.sendReceive(location, query).map((location, _))
       }
 
-  def variableMetaFlow: Flow[(RemoteLocation, VariablesForDatasetsQuery),
-                             (RemoteLocation, VariablesForDatasetsResponse),
-                             NotUsed] =
+  def variableMetaFlow
+    : Flow[(RemoteLocation, VariablesForDatasetsQuery),
+           (RemoteLocation, VariablesForDatasetsQuery, VariablesForDatasetsResponse),
+           NotUsed] =
     Flow[(RemoteLocation, VariablesForDatasetsQuery)]
-      .map(query => sendReceive(Get(query._1)).map((query._1, _)))
+      .map(query => sendReceive(Get(query._1)).map((query._1, query._2, _)))
       .mapAsync(100)(identity)
-      .mapAsync(100) {
-        case (url, response) if response.status.isSuccess() =>
+      .mapAsync[((RemoteLocation, VariablesForDatasetsQuery, VariablesForDatasetsResponse))](100) {
+        case (url, query, response) if response.status.isSuccess() =>
           val varResponse = Unmarshal(response).to[VariablesForDatasetsResponse]
-          (url.pure[Future], varResponse).mapN((_, _))
-        case (url, failure) =>
+          (url.pure[Future], query.pure[Future], varResponse).mapN((_, _, _))
+        case (url, query, failure) =>
           logger.error(s"url: $url failure: $failure")
-          (url, VariablesForDatasetsResponse(Set.empty, None)).pure[Future]
+          (url, query, VariablesForDatasetsResponse(Set.empty, None)).pure[Future]
       }
       .map(identity)
       .log("Variables for dataset response")
