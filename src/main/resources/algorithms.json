@@ -571,42 +571,6 @@
       ]
     },
     {
-      "code": "gpr",
-      "disable": true,
-      "environment": "Java/GPJ",
-      "label": "Gaussian Process Regression",
-      "type": [
-        "predictive_model"
-      ]
-    },
-    {
-      "code": "svm",
-      "disable": true,
-      "environment": "Java/RapidMiner",
-      "label": "SVM",
-      "type": [
-        "predictive_model"
-      ]
-    },
-    {
-      "code": "ffneuralnet",
-      "disable": true,
-      "environment": "Java/RapidMiner",
-      "label": "Feedforward Neural Network",
-      "type": [
-        "predictive_model"
-      ]
-    },
-    {
-      "code": "randomforest",
-      "disable": true,
-      "environment": "Java/RapidMiner",
-      "label": "Random Forest",
-      "type": [
-        "predictive_model"
-      ]
-    },
-    {
       "code": "tSNE",
       "constraints": {
         "covariables": {
