@@ -1,0 +1,204 @@
+{
+  "code": "root",
+  "groups": [
+    {
+      "code": "all",
+      "groups": [],
+      "label": "All",
+      "variables": [
+        {
+          "code": "state",
+          "description": "State",
+          "label": "State",
+          "methodology": "test",
+          "type": "text"
+        },
+        {
+          "code": "account_length",
+          "description": "Account length",
+          "label": "Account length",
+          "methodology": "test",
+          "type": "integer"
+        },
+        {
+          "code": "area_code",
+          "description": "Area code",
+          "label": "Area code",
+          "methodology": "test",
+          "type": "text"
+        },
+        {
+          "code": "phone",
+          "description": "Phone",
+          "enumerations": [
+            {
+              "code": "no",
+              "label": "no"
+            },
+            {
+              "code": "yes",
+              "label": "yes"
+            }
+          ],
+          "label": "Phone",
+          "methodology": "test",
+          "sql_type": "varchar",
+          "type": "polynominal"
+        },
+        {
+          "code": "intl_plan",
+          "description": "International plan",
+          "enumerations": [
+            {
+              "code": "no",
+              "label": "no"
+            },
+            {
+              "code": "yes",
+              "label": "yes"
+            }
+          ],
+          "label": "International plan",
+          "methodology": "test",
+          "sql_type": "varchar",
+          "type": "polynominal"
+        },
+        {
+          "code": "vmail_plan",
+          "description": "Vmail plan",
+          "enumerations": [
+            {
+              "code": "no",
+              "label": "no"
+            },
+            {
+              "code": "yes",
+              "label": "yes"
+            }
+          ],
+          "label": "VMail plan",
+          "methodology": "test",
+          "sql_type": "varchar",
+          "type": "polynominal"
+        },
+        {
+          "code": "vmail_message",
+          "description": "Number of VMail message",
+          "label": "VMail message",
+          "methodology": "test",
+          "type": "integer"
+        },
+        {
+          "code": "day_mins",
+          "description": "Day minutes",
+          "label": "Day minutes",
+          "methodology": "test",
+          "type": "real"
+        },
+        {
+          "code": "day_calls",
+          "description": "Day calls",
+          "label": "Day calls",
+          "methodology": "test",
+          "type": "real"
+        },
+        {
+          "code": "day_charge",
+          "description": "Day charge",
+          "label": "Day charge",
+          "methodology": "test",
+          "type": "real"
+        },
+        {
+          "code": "eve_mins",
+          "description": "Evening minutes",
+          "label": "Evening minutes",
+          "methodology": "test",
+          "type": "real"
+        },
+        {
+          "code": "eve_calls",
+          "description": "Evening calls",
+          "label": "Evening calls",
+          "methodology": "test",
+          "type": "real"
+        },
+        {
+          "code": "eve_charge",
+          "description": "Evening charge",
+          "label": "Evening charge",
+          "methodology": "test",
+          "type": "real"
+        },
+        {
+          "code": "night_mins",
+          "description": "Night minutes",
+          "label": "Night minutes",
+          "methodology": "test",
+          "type": "real"
+        },
+        {
+          "code": "night_calls",
+          "description": "Night calls",
+          "label": "Night calls",
+          "methodology": "test",
+          "type": "real"
+        },
+        {
+          "code": "night_charge",
+          "description": "Night charge",
+          "label": "Night charge",
+          "methodology": "test",
+          "type": "real"
+        },
+        {
+          "code": "intl_mins",
+          "description": "International minutes",
+          "label": "International minutes",
+          "methodology": "test",
+          "type": "real"
+        },
+        {
+          "code": "intl_calls",
+          "description": "International calls",
+          "label": "International calls",
+          "methodology": "test",
+          "type": "real"
+        },
+        {
+          "code": "intl_charge",
+          "description": "International charge",
+          "label": "International charge",
+          "methodology": "test",
+          "type": "real"
+        },
+        {
+          "code": "custserv_calls",
+          "description": "Customer service calls",
+          "label": "Customer service calls",
+          "methodology": "test",
+          "type": "integer"
+        },
+        {
+          "code": "churn",
+          "description": "Churn",
+          "enumerations": [
+            {
+              "code": "False",
+              "label": "no"
+            },
+            {
+              "code": "True",
+              "label": "yes"
+            }
+          ],
+          "label": "Churn",
+          "methodology": "test",
+          "sql_type": "varchar",
+          "type": "polynominal"
+        }
+      ]
+    }
+  ],
+  "label": "/"
+}

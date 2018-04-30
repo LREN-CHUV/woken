@@ -18,20 +18,17 @@
 package ch.chuv.lren.woken.service
 
 import akka.NotUsed
-import akka.stream.{ FlowShape, OverflowStrategy }
-import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Merge, Source }
+import akka.stream.{FlowShape, OverflowStrategy}
+import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Merge, Source}
 import ch.chuv.lren.woken.fp.Traverse
-import ch.chuv.lren.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryResult }
+import ch.chuv.lren.woken.messages.query.{ExperimentQuery, MiningQuery, QueryResult}
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import cats.implicits.catsStdInstancesForOption
-import com.typesafe.scalalogging.{ LazyLogging, Logger }
+import com.typesafe.scalalogging.{LazyLogging, Logger}
 import ch.chuv.lren.woken.backends.woken.WokenClientService
-import ch.chuv.lren.woken.messages.datasets.{ Dataset, DatasetId }
+import ch.chuv.lren.woken.messages.datasets.{Dataset, DatasetId}
 import ch.chuv.lren.woken.messages.remoting.RemoteLocation
-import ch.chuv.lren.woken.messages.variables.{
-  VariablesForDatasetsQuery,
-  VariablesForDatasetsResponse
-}
+import ch.chuv.lren.woken.messages.variables.{VariableMetaData, VariablesForDatasetsQuery, VariablesForDatasetsResponse}
 
 class DispatcherService(datasets: Map[DatasetId, Dataset], wokenClientService: WokenClientService)
     extends LazyLogging {
@@ -109,15 +106,15 @@ class DispatcherService(datasets: Map[DatasetId, Dataset], wokenClientService: W
       variablesMetaService: VariablesMetaService
   ): Flow[VariablesForDatasetsQuery, VariablesForDatasetsResponse, NotUsed] =
     Flow[VariablesForDatasetsQuery]
-      .map(q => {
+      .mapConcat[Dataset](q => {
+        logger.info(s"Known datasets: ${datasetService.datasets()}")
         datasetService
           .datasets()
           .filter(_.location.isEmpty)
           .filter(ds => q.datasets.isEmpty || q.datasets.contains(ds.dataset))
       })
-      .mapConcat(identity)
-      .map { ds =>
-        ds.dataset -> ds.tables.flatMap(variablesMetaService.get).flatMap(_.select(_ => true))
+      .map[(DatasetId, List[VariableMetaData])] { ds =>
+        ds.dataset -> ds.tables.map(_.toUpperCase).flatMap(variablesMetaService.get).flatMap(_.select(_ => true))
       }
       .map(varsForDs => varsForDs._2.map(_.copy(datasets = Set(varsForDs._1))))
       .map(vars => VariablesForDatasetsResponse(vars.toSet, None))

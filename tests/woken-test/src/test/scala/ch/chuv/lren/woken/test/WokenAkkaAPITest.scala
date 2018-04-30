@@ -89,7 +89,7 @@ class WokenAkkaAPITest
     waitClusterUp.acquire()
 
     // TODO: Woken should response to a Ping message
-    Thread.sleep(5000)
+    Thread.sleep(10000)
 
   }
 

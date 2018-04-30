@@ -90,9 +90,10 @@ class MetadataQueriesActor(dispatcherService: DispatcherService,
   override def receive: Receive = {
 
     case varsForDataset: VariablesForDatasets =>
-      val initiator = varsForDataset.replyTo
+      val initiator = if (varsForDataset.replyTo == Actor.noSender) sender() else varsForDataset.replyTo
       val query     = varsForDataset.query
 
+      logger.info(s"Received query $query")
       Source
         .single(
           query.copy(
@@ -103,15 +104,15 @@ class MetadataQueriesActor(dispatcherService: DispatcherService,
           )
         )
         .via(dispatcherService.dispatchVariablesQueryFlow(datasetService, variablesMetaService))
-        .fold(Set[VariableMetaData]()) {
-          _ ++ _.variables
+        .fold(VariablesForDatasetsResponse(Set())) {
+          case (_, n) if n.error.isDefined => n
+          case (p, _) if p.error.isDefined => p
+          case (p, n)  => p.copy(variables = merge(p.variables, n.variables))
         }
-        .map { varsMetaData =>
-          {
-            logger.debug(s"vars metadata ${varsMetaData.size}")
-            initiator ! VariablesForDatasetsResponse(varsMetaData)
-            VariablesForDatasetsResponse(varsMetaData)
-          }
+        .map[VariablesForDatasetsResponse] { response =>
+          logger.debug(s"Response $response")
+          initiator ! response
+          response
         }
         .runWith(Sink.last)
         .failed
@@ -120,5 +121,24 @@ class MetadataQueriesActor(dispatcherService: DispatcherService,
           initiator ! VariablesForDatasetsResponse(Set(), Some(e.getMessage))
         }
 
+    case e =>
+      logger.warn(s"Received unhandled request $e of type ${e.getClass}")
+
   }
+
+  private def merge(variables: Set[VariableMetaData], otherVars: Set[VariableMetaData]): Set[VariableMetaData] = {
+
+    variables.map { v =>
+      otherVars
+        .map(ov => v.merge(ov))
+        .foldLeft(v) {
+          case (_, Some(m)) => m
+          case (s,_) => s
+        }
+    } ++ otherVars.filterNot { v =>
+      variables.exists(_.isMergeable(v))
+    }
+
+  }
+
 }

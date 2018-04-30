@@ -177,7 +177,7 @@ class MasterRouterTest
 
   val user: UserId = UserId("test")
 
-  "Master Actor " must {
+  "Master actor" must {
 
     val router =
       system.actorOf(
@@ -190,7 +190,7 @@ class MasterRouterTest
             algorithmLibraryService,
             AlgorithmsConfiguration.factory(config),
             datasetService,
-            variablesMetaService
+            emptyVariablesMetaService
           )
         )
       )
@@ -323,7 +323,7 @@ class MasterRouterTest
             algorithmLibraryService,
             AlgorithmsConfiguration.factory(config),
             datasetService,
-            variablesMetaService,
+            emptyVariablesMetaService,
             testCoordinatorActor
           )
         )
