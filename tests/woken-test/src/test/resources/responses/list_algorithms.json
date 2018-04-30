@@ -174,7 +174,7 @@
         },
         {
           "code": "class_prior",
-          "default_value": null,
+          "default_value": "",
           "description": "Prior probabilities of the classes. If specified the priors are not adjusted according to the data. Must be numbers between 0 and 1 and sum to 1. Pass real values separated by comma.",
           "label": "class_prior",
           "type": "string"
@@ -560,7 +560,7 @@
             "max": 1.0,
             "min": 0.0
           },
-          "default_value": "0.1",
+          "default_value": 0.1,
           "description": "The minimum relative support of the rules, discovered by Hedwig. The value of this parameter must be between 0 and 1 as the parameter represents the ration of the covered examples in the entire data set.",
           "label": "support",
           "type": "number"
@@ -568,42 +568,6 @@
       ],
       "type": [
         "features_extraction"
-      ]
-    },
-    {
-      "code": "gpr",
-      "disable": true,
-      "environment": "Java/GPJ",
-      "label": "Gaussian Process Regression",
-      "type": [
-        "predictive_model"
-      ]
-    },
-    {
-      "code": "svm",
-      "disable": true,
-      "environment": "Java/RapidMiner",
-      "label": "SVM",
-      "type": [
-        "predictive_model"
-      ]
-    },
-    {
-      "code": "ffneuralnet",
-      "disable": true,
-      "environment": "Java/RapidMiner",
-      "label": "Feedforward Neural Network",
-      "type": [
-        "predictive_model"
-      ]
-    },
-    {
-      "code": "randomforest",
-      "disable": true,
-      "environment": "Java/RapidMiner",
-      "label": "Random Forest",
-      "type": [
-        "predictive_model"
       ]
     },
     {
