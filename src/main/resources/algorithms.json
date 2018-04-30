@@ -560,7 +560,7 @@
             "max": 1.0,
             "min": 0.0
           },
-          "default_value": "0.1",
+          "default_value": 0.1,
           "description": "The minimum relative support of the rules, discovered by Hedwig. The value of this parameter must be between 0 and 1 as the parameter represents the ration of the covered examples in the entire data set.",
           "label": "support",
           "type": "number"
