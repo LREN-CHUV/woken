@@ -2,6 +2,6 @@
 
 cd /opt/woken
 
-wget http://ftp.fau.de/eclipse/tools/aspectj/aspectj-1.8.13.jar
+aspectj_version=1.8.13
 
-unzip -p aspectj-1.8.13.jar lib/aspectjweaver.jar > aspectjweaver.jar
+wget -O aspectjweaver.jar http://search.maven.org/remotecontent?filepath=org/aspectj/aspectjweaver/${aspectj_version}/aspectjweaver-${aspectj_version}.jar
