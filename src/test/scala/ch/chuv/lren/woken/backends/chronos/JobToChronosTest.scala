@@ -218,8 +218,6 @@ class JobToChronosTest extends FlatSpec with Matchers {
       EnvironmentVariable("IN_DATABASE", "features"),
       EnvironmentVariable("IN_USER", "user"),
       EnvironmentVariable("IN_PASSWORD", "test"),
-      EnvironmentVariable("IN_JDBC_USER", "user"),
-      EnvironmentVariable("IN_JDBC_PASSWORD", "test"),
       EnvironmentVariable("OUT_DBI_DRIVER", "PostgreSQL"),
       EnvironmentVariable("OUT_DBAPI_DRIVER", "postgresql"),
       EnvironmentVariable("OUT_JDBC_DRIVER", "org.postgresql.Driver"),
@@ -228,9 +226,7 @@ class JobToChronosTest extends FlatSpec with Matchers {
       EnvironmentVariable("OUT_PORT", "5432"),
       EnvironmentVariable("OUT_DATABASE", "woken"),
       EnvironmentVariable("OUT_USER", "woken"),
-      EnvironmentVariable("OUT_PASSWORD", "wpwd"),
-      EnvironmentVariable("OUT_JDBC_USER", "woken"),
-      EnvironmentVariable("OUT_JDBC_PASSWORD", "wpwd")
+      EnvironmentVariable("OUT_PASSWORD", "wpwd")
     ).sortBy(_.name)
 
     val expected = ChronosJob(
