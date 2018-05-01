@@ -316,9 +316,7 @@ class WokenAkkaAPITest
         response.data should not be empty
 
         val json = response.toJson
-        println(approximate(json))
-
-        val expected = loadJson("/responses/ggparsi_data_mining.json")
+        val expected = loadJson("/responses/ggparci_data_mining.json")
 
         assertResult(approximate(expected))(approximate(json))
       }
@@ -353,6 +351,8 @@ class WokenAkkaAPITest
         assertResult(cleanMore(approximate(expected)))(
           cleanMore(approximate(json)))
       }
+
+      // TODO hinmine
 
     }
 
@@ -427,12 +427,12 @@ class WokenAkkaAPITest
 
         response.data should not be empty
 
+        // SGD Linear Model is not deterministic, cannot check exactly its results
+        val skippedTags = List("model", "validations", "metadata")
         val json = response.toJson
-        println(approximate(json))
-
         val expected = loadJson("/responses/sgd_linear_model_experiment.json")
 
-        assertResult(approximate(expected))(approximate(json))
+        assertResult(approximate(expected, skippedTags))(approximate(json, skippedTags))
       }
 
       "executes a SGD Neural Network algorithm" in {
@@ -451,12 +451,12 @@ class WokenAkkaAPITest
 
         response.data should not be empty
 
+        // SGD Neural Network is not deterministic, cannot check exactly its results
+        val skippedTags = List("neuralnet", "validations", "metadata")
         val json = response.toJson
-        println(approximate(json))
-
         val expected = loadJson("/responses/sgd_neural_network_experiment.json")
 
-        assertResult(approximate(expected))(approximate(json))
+        assertResult(approximate(expected, skippedTags))(approximate(json, skippedTags))
       }
 
       "executes a Gradient Boosting algorithm" in {
@@ -476,14 +476,11 @@ class WokenAkkaAPITest
         response.data should not be empty
 
         val json = response.toJson
-        println(approximate(json))
-
         val expected = loadJson("/responses/gradient_boosting_experiment.json")
 
         assertResult(approximate(expected))(approximate(json))
       }
 
-      // hinmine
     }
 
     // Test resiliency

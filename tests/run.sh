@@ -119,7 +119,7 @@ if [ $tests == 1 ]; then
     echo
     echo "Testing Akka API..."
 
-    $DOCKER_COMPOSE up wokentest
+    $DOCKER_COMPOSE up wokentest | tee test.log
 
 fi
 
