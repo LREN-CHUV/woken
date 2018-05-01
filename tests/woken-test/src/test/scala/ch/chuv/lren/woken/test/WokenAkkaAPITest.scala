@@ -346,11 +346,9 @@ class WokenAkkaAPITest
         val expected = loadJson("/responses/hedwig_data_mining.json")
 
         def cleanMore(s: String): String =
-          s.replaceAll("Start: .*\\n", "Start:\\n")
-            .replaceAll("Time taken: .*\\n", "Time taken:\\n")
-            .replaceAll("bk_dir=.*\\n", "bk_dir=\\n")
-
-        println(cleanMore(approximate(expected)))
+          s.replaceAll("""Start: .*?\\n""", """Start:\\n""")
+            .replaceAll("""Time taken: .*?\\n""", """Time taken:\\n""")
+            .replaceAll("""bk_dir=.*?\\n""", """bk_dir=\\n""")
 
         assertResult(cleanMore(approximate(expected)))(
           cleanMore(approximate(json)))
@@ -431,6 +429,7 @@ class WokenAkkaAPITest
 
         val json = response.toJson
         println(approximate(json))
+
         val expected = loadJson("/responses/sgd_linear_model_experiment.json")
 
         assertResult(approximate(expected))(approximate(json))
@@ -453,6 +452,8 @@ class WokenAkkaAPITest
         response.data should not be empty
 
         val json = response.toJson
+        println(approximate(json))
+
         val expected = loadJson("/responses/sgd_neural_network_experiment.json")
 
         assertResult(approximate(expected))(approximate(json))
@@ -476,6 +477,7 @@ class WokenAkkaAPITest
 
         val json = response.toJson
         println(approximate(json))
+
         val expected = loadJson("/responses/gradient_boosting_experiment.json")
 
         assertResult(approximate(expected))(approximate(json))
