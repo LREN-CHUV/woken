@@ -64,7 +64,8 @@ trait Queries {
     source.mkString.parseJson
   }
 
-  def approximate(json: JsValue, skippedTags: List[String] = List()): String = {
+  def approximate(json: JsValue,
+                  skippedTags: List[String] = List("estimator")): String = {
     val sb = new java.lang.StringBuilder()
     new ApproximatePrinter(skippedTags).print(json, sb)
     sb.toString

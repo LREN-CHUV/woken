@@ -89,12 +89,17 @@ class WokenAkkaAPITest
     waitClusterUp.acquire()
 
     // TODO: Woken should response to a Ping message
+//    val future = mediator ? DistributedPubSubMediator.Send(entryPoint,
+//      Ping(Some("woken")),
+//      localAffinity = true)
+//    val result = waitFor[R](future)
     Thread.sleep(10000)
 
   }
 
   override def afterAll: Unit = {
     cluster.leave(cluster.selfAddress)
+    cluster.down(cluster.selfAddress)
     system.terminate().onComplete { result =>
       logger.debug(s"Actor system shutdown: $result")
     }
@@ -291,6 +296,66 @@ class WokenAkkaAPITest
         assertResult(approximate(expected))(approximate(json))
       }
 
+      "uses TAU ggparci                    [visualisation, svg]" in {
+        val query = MiningQuery(
+          user = UserId("test1"),
+          variables = List(VariableId("cognitive_task2")),
+          covariables =
+            List("score_math_course1", "score_math_course2").map(VariableId),
+          grouping = Nil,
+          filters = None,
+          targetTable = Some("sample_data"),
+          algorithm = AlgorithmSpec("ggparci", Nil),
+          datasets = Set(),
+          executionPlan = None
+        )
+
+        val response: QueryResult =
+          timedQuery(query, "mine data using TAU ggparsi")
+
+        response.data should not be empty
+
+        val json = response.toJson
+        println(approximate(json))
+
+        val expected = loadJson("/responses/ggparsi_data_mining.json")
+
+        assertResult(approximate(expected))(approximate(json))
+      }
+
+      "uses JSI Hedwig                     [visualisation, text]" in {
+        val query = MiningQuery(
+          user = UserId("test1"),
+          variables = List(VariableId("cognitive_task2")),
+          covariables =
+            List("score_math_course1", "score_math_course2").map(VariableId),
+          grouping = Nil,
+          filters = None,
+          targetTable = Some("sample_data"),
+          algorithm = AlgorithmSpec("hedwig", Nil),
+          datasets = Set(),
+          executionPlan = None
+        )
+
+        val response: QueryResult =
+          timedQuery(query, "mine data using JSI Hedwig")
+
+        response.data should not be empty
+
+        val json = response.toJson
+        val expected = loadJson("/responses/hedwig_data_mining.json")
+
+        def cleanMore(s: String): String =
+          s.replaceAll("Start: .*\\n", "Start:\\n")
+            .replaceAll("Time taken: .*\\n", "Time taken:\\n")
+            .replaceAll("bk_dir=.*\\n", "bk_dir=\\n")
+
+        println(cleanMore(approximate(expected)))
+
+        assertResult(cleanMore(approximate(expected)))(
+          cleanMore(approximate(json)))
+      }
+
     }
 
     "respond to an experiment query," which {
@@ -348,12 +413,75 @@ class WokenAkkaAPITest
         assertResult(approximate(expected))(approximate(json))
       }
 
-      // sgdLinearModel
-      // sgdNeuralNetwork
-      // gradientBoosting
-      // ggparci
+      "executes a SGD Linear Model algorithm" in {
+
+        val query = experimentQuery(
+          "sgdLinearModel",
+          parameters =
+            List(CodeValue("alpha", "0.25"), CodeValue("penalty", "l1")),
+          variables = List(VariableId("alzheimerbroadcategory")),
+          covariables = List(VariableId("lefthippocampus")),
+          targetTable = Some("cde_features_mixed")
+        )
+
+        val response: QueryResult =
+          timedQuery(query, "an experiment with SGD Linear Model algorithm")
+
+        response.data should not be empty
+
+        val json = response.toJson
+        println(approximate(json))
+        val expected = loadJson("/responses/sgd_linear_model_experiment.json")
+
+        assertResult(approximate(expected))(approximate(json))
+      }
+
+      "executes a SGD Neural Network algorithm" in {
+
+        val query = experimentQuery(
+          "sgdNeuralNetwork",
+          parameters = List(CodeValue("hidden_layer_sizes", "60,30"),
+                            CodeValue("activation", "tanh")),
+          variables = List(VariableId("alzheimerbroadcategory")),
+          covariables = List(VariableId("lefthippocampus")),
+          targetTable = Some("cde_features_mixed")
+        )
+
+        val response: QueryResult =
+          timedQuery(query, "an experiment with SGD Neural Network algorithm")
+
+        response.data should not be empty
+
+        val json = response.toJson
+        val expected = loadJson("/responses/sgd_neural_network_experiment.json")
+
+        assertResult(approximate(expected))(approximate(json))
+      }
+
+      "executes a Gradient Boosting algorithm" in {
+
+        val query = experimentQuery(
+          "gradientBoosting",
+          parameters = List(CodeValue("learning_rate", "0.15"),
+                            CodeValue("max_depth", "4")),
+          variables = List(VariableId("alzheimerbroadcategory")),
+          covariables = List(VariableId("lefthippocampus")),
+          targetTable = Some("cde_features_mixed")
+        )
+
+        val response: QueryResult =
+          timedQuery(query, "an experiment with Gradient Boosting algorithm")
+
+        response.data should not be empty
+
+        val json = response.toJson
+        println(approximate(json))
+        val expected = loadJson("/responses/gradient_boosting_experiment.json")
+
+        assertResult(approximate(expected))(approximate(json))
+      }
+
       // hinmine
-      // hedwig
     }
 
     // Test resiliency
@@ -407,9 +535,10 @@ class WokenAkkaAPITest
 
   private def timedQuery[R](query: Any, description: String): R = {
     val start = System.currentTimeMillis()
-    val future = mediator ? DistributedPubSubMediator.Send(entryPoint,
-                                                           query,
-                                                           localAffinity = true)
+    val future = mediator ? DistributedPubSubMediator.Send(
+      entryPoint,
+      query,
+      localAffinity = false)
     val result = waitFor[R](future)
     val end = System.currentTimeMillis()
 
