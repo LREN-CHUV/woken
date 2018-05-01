@@ -621,7 +621,7 @@
       },
       "description": "Parallel coordinate plot with added confidence interval bands",
       "disable": false,
-      "docker_image": "hbpmip/r-ggparci:0.2.0",
+      "docker_image": "hbpmip/r-ggparci:0.2.1",
       "environment": "R",
       "label": "ggparci",
       "maturity": "experimental",
