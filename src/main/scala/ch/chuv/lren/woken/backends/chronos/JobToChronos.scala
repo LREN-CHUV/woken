@@ -36,10 +36,7 @@ object JobToChronos {
       EV(prefix + "PORT", conf.port.toString),
       EV(prefix + "DATABASE", conf.database),
       EV(prefix + "USER", conf.user),
-      EV(prefix + "PASSWORD", conf.password),
-      // LATER: Compat, to remove eventually
-      EV(prefix + "JDBC_USER", conf.user),
-      EV(prefix + "JDBC_PASSWORD", conf.password)
+      EV(prefix + "PASSWORD", conf.password)
     )
 
   def apply(job: DockerJob,
