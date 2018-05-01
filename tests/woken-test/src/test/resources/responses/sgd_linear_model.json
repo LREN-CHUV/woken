@@ -1,0 +1,383 @@
+{
+  "data": [
+    {
+      "algorithm": "python-sgd-linear-model",
+      "data": {
+        "action": [
+          {
+            "let": {
+              "x": {
+                "a.flatten": [
+                  {
+                    "new": [
+                      {
+                        "u.arr": [
+                          {
+                            "/": [
+                              {
+                                "-": [
+                                  {
+                                    "cast.double": [
+                                      {
+                                        "attr": "input",
+                                        "path": [
+                                          {
+                                            "string": "lefthippocampus"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  0.0
+                                ]
+                              },
+                              1.0
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "type": {
+                      "items": {
+                        "items": "double",
+                        "type": "array"
+                      },
+                      "type": "array"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "let": {
+              "scores": {
+                "a.map": [
+                  {
+                    "cell": "model"
+                  },
+                  {
+                    "do": [
+                      {
+                        "model.reg.linear": [
+                          "x",
+                          "r"
+                        ]
+                      }
+                    ],
+                    "params": [
+                      {
+                        "r": {
+                          "fields": [
+                            {
+                              "name": "const",
+                              "type": "double"
+                            },
+                            {
+                              "name": "coeff",
+                              "type": {
+                                "items": "double",
+                                "type": "array"
+                              }
+                            }
+                          ],
+                          "name": "Regression",
+                          "type": "record"
+                        }
+                      }
+                    ],
+                    "ret": "double"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "cell": "classes",
+            "path": [
+              {
+                "a.argmax": [
+                  "scores"
+                ]
+              }
+            ]
+          }
+        ],
+        "cells": {
+          "classes": {
+            "init": [
+              "AD",
+              "CN",
+              "Other"
+            ],
+            "rollback": false,
+            "shared": false,
+            "type": {
+              "items": "string",
+              "type": "array"
+            }
+          },
+          "model": {
+            "init": [
+              {
+                "coeff": [
+                  0.0
+                ],
+                "const": -1.00233
+              },
+              {
+                "coeff": [
+                  0.0
+                ],
+                "const": -1.0
+              },
+              {
+                "coeff": [
+                  0.0
+                ],
+                "const": 0.99827
+              }
+            ],
+            "rollback": false,
+            "shared": false,
+            "type": {
+              "items": "Regression",
+              "type": "array"
+            }
+          },
+          "validations": [
+            {
+              "code": "kfold",
+              "data": {
+                "average": {
+                  "Accuracy": 0.16705,
+                  "Confusion matrix": {
+                    "labels": [
+                      "AD",
+                      "CN",
+                      "Other"
+                    ],
+                    "values": [
+                      [
+                        0.0,
+                        0.0,
+                        274.0
+                      ],
+                      [
+                        0.0,
+                        0.0,
+                        298.0
+                      ],
+                      [
+                        859.0,
+                        0.0,
+                        287.0
+                      ]
+                    ]
+                  },
+                  "Weighted F1-score": 0.19097,
+                  "Weighted false positive rate": 0.76193,
+                  "Weighted precision": 0.22287,
+                  "Weighted recall": 0.16705,
+                  "type": "PolynomialClassificationScore"
+                },
+                "folds": {
+                  "0": {
+                    "Accuracy": 0.33411,
+                    "Confusion matrix": {
+                      "labels": [
+                        "AD",
+                        "CN",
+                        "Other"
+                      ],
+                      "values": [
+                        [
+                          0.0,
+                          0.0,
+                          274.0
+                        ],
+                        [
+                          0.0,
+                          0.0,
+                          298.0
+                        ],
+                        [
+                          0.0,
+                          0.0,
+                          287.0
+                        ]
+                      ]
+                    },
+                    "Weighted F1-score": 0.16735,
+                    "Weighted false positive rate": 0.33411,
+                    "Weighted precision": 0.11163,
+                    "Weighted recall": 0.33411,
+                    "type": "PolynomialClassificationScore"
+                  },
+                  "1": {
+                    "Accuracy": 0.0,
+                    "Confusion matrix": {
+                      "labels": [
+                        "AD",
+                        "CN",
+                        "Other"
+                      ],
+                      "values": [
+                        [
+                          0.0,
+                          0.0,
+                          0.0
+                        ],
+                        [
+                          0.0,
+                          0.0,
+                          0.0
+                        ],
+                        [
+                          0.0,
+                          0.0,
+                          0.0
+                        ]
+                      ]
+                    },
+                    "Weighted F1-score": 0.0,
+                    "Weighted false positive rate": null,
+                    "Weighted precision": 0.0,
+                    "Weighted recall": 0.0,
+                    "type": "PolynomialClassificationScore"
+                  }
+                },
+                "type": "KFoldCrossValidationScore"
+              }
+            }
+          ]
+        },
+        "fcns": {
+          "C": {
+            "do": [
+              {
+                "a.map": [
+                  "categories",
+                  {
+                    "do": [
+                      {
+                        "else": [
+                          0.0
+                        ],
+                        "if": {
+                          "==": [
+                            "cat",
+                            "x"
+                          ]
+                        },
+                        "then": [
+                          1.0
+                        ]
+                      }
+                    ],
+                    "params": [
+                      {
+                        "cat": "string"
+                      }
+                    ],
+                    "ret": "double"
+                  }
+                ]
+              }
+            ],
+            "params": [
+              {
+                "x": "string"
+              },
+              {
+                "categories": {
+                  "items": "string",
+                  "type": "array"
+                }
+              }
+            ],
+            "ret": {
+              "items": "double",
+              "type": "array"
+            }
+          },
+          "arr": {
+            "do": [
+              {
+                "new": [
+                  "x"
+                ],
+                "type": {
+                  "items": "double",
+                  "type": "array"
+                }
+              }
+            ],
+            "params": [
+              {
+                "x": "double"
+              }
+            ],
+            "ret": {
+              "items": "double",
+              "type": "array"
+            }
+          },
+          "standardize": {
+            "do": [
+              {
+                "/": [
+                  {
+                    "-": [
+                      "x",
+                      "mu"
+                    ]
+                  },
+                  "sigma"
+                ]
+              }
+            ],
+            "params": [
+              {
+                "x": "double"
+              },
+              {
+                "mu": "double"
+              },
+              {
+                "sigma": "double"
+              }
+            ],
+            "ret": "double"
+          }
+        },
+        "input": {
+          "fields": [
+            {
+              "name": "lefthippocampus",
+              "type": "double"
+            }
+          ],
+          "name": "Input",
+          "type": "record"
+        },
+        "metadata": {
+          "coef_": "[[0.0],[0.0],[0.0]]",
+          "intercept_": "[-1.0023337471,-0.9999998321,0.998268678]",
+          "score": "0.6670547148"
+        },
+        "method": "map",
+        "name": "linear_model",
+        "output": "string"
+      },
+      "jobId": "*",
+      "node": "local",
+      "timestamp": 0.0,
+      "type": "application/pfa+json"
+    }
+  ],
+  "jobId": "*",
+  "node": "local",
+  "timestamp": 0.0,
+  "type": "application/vnd.hbp.mip.experiment.pfa+json"
+}
