@@ -107,9 +107,9 @@ class WokenAkkaAPITest
 
   "Woken" should {
 
-    "respond to a query for the list of methods" in {
+    "respond to a query for the list of algorithms" in {
       val response: MethodsResponse =
-        timedQuery(MethodsQuery, "list of methods")
+        timedQuery(MethodsQuery, "list of algorithms")
       val expected = loadJson("/responses/list_algorithms.json")
 
       response.methods shouldBe expected

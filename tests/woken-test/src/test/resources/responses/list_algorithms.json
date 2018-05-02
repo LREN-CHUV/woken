@@ -627,7 +627,7 @@
       "maturity": "experimental",
       "parameters": [],
       "type": [
-        "features_extraction"
+        "dataset_exploration"
       ]
     }
   ],
