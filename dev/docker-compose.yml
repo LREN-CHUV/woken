@@ -254,7 +254,7 @@ services:
       - portalbackend
 
   frontend:
-    image: hbpmip/portal-frontend:2.10.1
+    image: hbpmip/portal-frontend:2.10.2
     depends_on:
       - portalbackend
     ports:
