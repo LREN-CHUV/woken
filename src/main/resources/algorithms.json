@@ -105,14 +105,14 @@
           },
           "default_value": 0.0001,
           "description": "Constant that multiplies the regularization term. Defaults to 0.0001 Also used to compute learning_rate when set to \u2018optimal\u2019.",
-          "label": "alpha",
+          "label": "Alpha",
           "type": "number"
         },
         {
           "code": "penalty",
           "default_value": "l2",
           "description": "The penalty (aka regularization term) to be used. Defaults to \u2018l2\u2019 which is the standard regularizer for linear SVM models. \u2018l1\u2019 and \u2018elasticnet\u2019 might bring sparsity to the model (feature selection) not achievable with \u2018l2\u2019.",
-          "label": "penalty",
+          "label": "Penalty",
           "type": "enumeration",
           "values": [
             "none",
@@ -128,8 +128,8 @@
             "min": 0.0
           },
           "default_value": 0.15,
-          "description": "The Elastic Net mixing parameter, with 0 <= l1_ratio <= 1. l1_ratio=0 corresponds to L2 penalty, l1_ratio=1 to L1. Defaults to 0.15.",
-          "label": "l1_ratio",
+          "description": "The Elastic Net mixing parameter, with 0 <= L1 ratio <= 1. L1 ratio=0 corresponds to L2 penalty, L1 ratio=1 to L1. Defaults to 0.15.",
+          "label": "L1 ratio",
           "type": "number"
         }
       ],
@@ -169,14 +169,14 @@
           },
           "default_value": 1.0,
           "description": "Additive (Laplace/Lidstone) smoothing parameter (0 for no smoothing, default to 1.)",
-          "label": "alpha",
+          "label": "Alpha",
           "type": "number"
         },
         {
           "code": "class_prior",
           "default_value": "",
           "description": "Prior probabilities of the classes. If specified the priors are not adjusted according to the data. Must be numbers between 0 and 1 and sum to 1. Pass real values separated by comma.",
-          "label": "class_prior",
+          "label": "Class prior",
           "type": "string"
         }
       ],
@@ -212,14 +212,14 @@
           "code": "hidden_layer_sizes",
           "default_value": "100",
           "description": "The ith element represents the number of neurons in the ith hidden layer. Pass integers separated by comma.",
-          "label": "hidden_layer_sizes",
+          "label": "Hidden layer sizes",
           "type": "string"
         },
         {
           "code": "activation",
           "default_value": "relu",
           "description": "Activation function for the hidden layer.",
-          "label": "activation",
+          "label": "Activation",
           "type": "enumeration",
           "values": [
             "identity",
@@ -236,7 +236,7 @@
           },
           "default_value": 0.0001,
           "description": "L2 penalty (regularization term) parameter.",
-          "label": "alpha",
+          "label": "Alpha",
           "type": "number"
         },
         {
@@ -247,7 +247,7 @@
           },
           "default_value": 0.001,
           "description": "The initial learning rate used. It controls the step-size in updating the weights.",
-          "label": "learning_rate_init",
+          "label": "Initial learning rate",
           "type": "number"
         }
       ],
@@ -287,7 +287,7 @@
           },
           "default_value": 0.1,
           "description": "learning rate shrinks the contribution of each tree by learning_rate. There is a trade-off between learning_rate and n_estimators.",
-          "label": "learning_rate",
+          "label": "Learning rate",
           "type": "number"
         },
         {
@@ -298,7 +298,7 @@
           },
           "default_value": 100,
           "description": "The number of boosting stages to perform. Gradient boosting is fairly robust to over-fitting so a large number usually results in better performance.",
-          "label": "n_estimators",
+          "label": "Number of estimators",
           "type": "int"
         },
         {
@@ -309,7 +309,7 @@
           },
           "default_value": 3,
           "description": "maximum depth of the individual regression estimators. The maximum depth limits the number of nodes in the tree. Tune this parameter for best performance; the best value depends on the interaction of the input variables.",
-          "label": "max_depth",
+          "label": "Maximum depth",
           "type": "int"
         },
         {
@@ -320,7 +320,7 @@
           },
           "default_value": 2,
           "description": "The minimum number of samples required to split an internal node.",
-          "label": "min_samples_split",
+          "label": "Minimum samples for split",
           "type": "int"
         },
         {
@@ -331,7 +331,7 @@
           },
           "default_value": 1,
           "description": "The minimum number of samples required to be at a leaf node.",
-          "label": "min_samples_leaf",
+          "label": "Minimum samples for leaf",
           "type": "int"
         },
         {
@@ -342,7 +342,7 @@
           },
           "default_value": 0.0,
           "description": "The minimum weighted fraction of the sum total of weights (of all the input samples) required to be at a leaf node. Samples have equal weight when sample_weight is not provided.",
-          "label": "min_weight_fraction_leaf",
+          "label": "Minimum weighted fraction for leaf",
           "type": "number"
         },
         {
@@ -353,7 +353,7 @@
           },
           "default_value": 0.0,
           "description": "A node will be split if this split induces a decrease of the impurity greater than or equal to this value.",
-          "label": "min_impurity_decrease",
+          "label": "Minimum impurity decrease",
           "type": "number"
         }
       ],
@@ -389,7 +389,7 @@
           "code": "design",
           "default_value": "factorial",
           "description": "The type of multi-factors design. Choose 'factorial' to enable interactions analysis or 'additive' for a model without no interaction at all.",
-          "label": "design",
+          "label": "Design",
           "type": "enumeration",
           "values": [
             "factorial",
@@ -433,7 +433,7 @@
           },
           "default_value": 5,
           "description": "The number of closest neighbours to take into consideration. Typical values range from 2 to 10.",
-          "label": "k",
+          "label": "Number of neighbours",
           "type": "int"
         }
       ],
@@ -500,14 +500,14 @@
           },
           "default_value": 0.1,
           "description": "The variable *p* used in the construction of the P-PR vectors during propositionalization. The value of this variable can be any real number between *0* and *1*. Smaller values of the damping factor ensure faster calculation of the feature vectors, however larger values of *p* mean that the algorithm is capable of performing longer walks, exploring more of the structure of the data.",
-          "label": "damping",
+          "label": "Damping",
           "type": "number"
         },
         {
           "code": "normalize",
           "default_value": "False",
           "description": "This variable determines whether the feature values of the input data instances should be normalized or not. If True, then the values of each feature are normalized to be between 0 and 1. This allows the algorithm to fairly compare two features measured with incomparable units. The value of this variable should be False if the difference in the size of the features carries inherent meaning.",
-          "label": "normalize",
+          "label": "Normalize",
           "type": "enumeration",
           "values": [
             "False",
@@ -551,7 +551,7 @@
           },
           "default_value": 10,
           "description": "The size of the beam to be used in the search. Larger values of this variable cause the search of the algorithm to take longer and return more high quality rules.",
-          "label": "bean",
+          "label": "Size of the beam",
           "type": "int"
         },
         {
@@ -562,7 +562,7 @@
           },
           "default_value": 0.1,
           "description": "The minimum relative support of the rules, discovered by Hedwig. The value of this parameter must be between 0 and 1 as the parameter represents the ration of the covered examples in the entire data set.",
-          "label": "support",
+          "label": "Minimum relative support",
           "type": "number"
         }
       ],

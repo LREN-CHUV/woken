@@ -128,7 +128,7 @@
             "min": 0.0
           },
           "default_value": 0.15,
-          "description": "The Elastic Net mixing parameter, with 0 <= l1_ratio <= 1. l1_ratio=0 corresponds to L2 penalty, l1_ratio=1 to L1. Defaults to 0.15.",
+          "description": "The Elastic Net mixing parameter, with 0 <= L1 ratio <= 1. L1 ratio=0 corresponds to L2 penalty, L1 ratio=1 to L1. Defaults to 0.15.",
           "label": "L1 ratio",
           "type": "number"
         }
@@ -174,7 +174,7 @@
         },
         {
           "code": "class_prior",
-          "default_value": null,
+          "default_value": "",
           "description": "Prior probabilities of the classes. If specified the priors are not adjusted according to the data. Must be numbers between 0 and 1 and sum to 1. Pass real values separated by comma.",
           "label": "Class prior",
           "type": "string"
@@ -286,7 +286,7 @@
             "min": 0.0
           },
           "default_value": 0.1,
-          "description": "Learning rate shrinks the contribution of each tree by learning_rate. There is a trade-off between learning_rate and n_estimators.",
+          "description": "learning rate shrinks the contribution of each tree by learning_rate. There is a trade-off between learning_rate and n_estimators.",
           "label": "Learning rate",
           "type": "number"
         },
@@ -308,7 +308,7 @@
             "min": 1
           },
           "default_value": 3,
-          "description": "Maximum depth of the individual regression estimators. The maximum depth limits the number of nodes in the tree. Tune this parameter for best performance; the best value depends on the interaction of the input variables.",
+          "description": "maximum depth of the individual regression estimators. The maximum depth limits the number of nodes in the tree. Tune this parameter for best performance; the best value depends on the interaction of the input variables.",
           "label": "Maximum depth",
           "type": "int"
         },
@@ -433,7 +433,7 @@
           },
           "default_value": 5,
           "description": "The number of closest neighbours to take into consideration. Typical values range from 2 to 10.",
-          "label": "Number of closest neighbours",
+          "label": "Number of neighbours",
           "type": "int"
         }
       ],
@@ -551,7 +551,7 @@
           },
           "default_value": 10,
           "description": "The size of the beam to be used in the search. Larger values of this variable cause the search of the algorithm to take longer and return more high quality rules.",
-          "label": "Size of beam",
+          "label": "Size of the beam",
           "type": "int"
         },
         {
