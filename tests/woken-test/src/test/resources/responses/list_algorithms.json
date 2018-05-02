@@ -543,7 +543,6 @@
       "docker_image": "hbpmip/python-tsne:0.4.1",
       "environment": "Python",
       "label": "tSNE",
-      "maturity": "experimental",
       "parameters": [],
       "type": [
         "features_extraction"
@@ -576,7 +575,7 @@
       "maturity": "experimental",
       "parameters": [],
       "type": [
-        "dataset_exploration"
+        "features_extraction"
       ]
     }
   ],
