@@ -343,7 +343,7 @@
           "default_value": 0.0,
           "description": "The minimum weighted fraction of the sum total of weights (of all the input samples) required to be at a leaf node. Samples have equal weight when sample_weight is not provided.",
           "label": "min_weight_fraction_leaf",
-          "type": "numeric"
+          "type": "number"
         },
         {
           "code": "min_impurity_decrease",
@@ -354,7 +354,7 @@
           "default_value": 0.0,
           "description": "A node will be split if this split induces a decrease of the impurity greater than or equal to this value.",
           "label": "min_impurity_decrease",
-          "type": "numeric"
+          "type": "number"
         }
       ],
       "type": [
