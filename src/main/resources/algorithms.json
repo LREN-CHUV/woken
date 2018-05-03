@@ -151,9 +151,9 @@
         "mixed": true,
         "variable": {
           "binominal": true,
-          "integer": true,
+          "integer": false,
           "polynominal": true,
-          "real": true
+          "real": false
         }
       },
       "description": "Naive Bayes using Stochastic Gradient Descent",
