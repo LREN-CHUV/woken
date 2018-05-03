@@ -152,7 +152,7 @@ class WokenAkkaAPITest
                      "list of variables for Churn dataset")
 
         response.variables should have size 21
-        val expected = loadJson("/list_churn_variables.json")
+        val expected = loadJson("/responses/list_churn_variables.json")
           .convertTo[VariablesForDatasetsResponse]
 
         response shouldBe expected
