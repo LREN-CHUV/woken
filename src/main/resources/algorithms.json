@@ -626,13 +626,13 @@
         "type": "numeric"
       },
       {
-        "code": "Weighted Precision",
+        "code": "Weighted precision",
         "label": "Weighted Precision",
         "tooltip": "To be completed",
         "type": "numeric"
       },
       {
-        "code": "Weighted Recall",
+        "code": "Weighted recall",
         "label": "Weighted Recall",
         "tooltip": "To be completed",
         "type": "numeric"
