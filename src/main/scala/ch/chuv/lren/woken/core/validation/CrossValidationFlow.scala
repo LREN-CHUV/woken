@@ -20,7 +20,8 @@ package ch.chuv.lren.woken.core.validation
 import java.util.UUID
 
 import akka.NotUsed
-import akka.actor.{ ActorContext, ActorSelection }
+import akka.actor.{ ActorContext, ActorRef }
+import akka.cluster.pubsub.{ DistributedPubSub, DistributedPubSubMediator }
 import akka.event.Logging
 import akka.pattern.ask
 import akka.stream.Materializer
@@ -91,10 +92,7 @@ case class CrossValidationFlow(
 
   private val log = Logging(context.system, getClass)
 
-  private val validationActor: ActorSelection =
-    context.actorSelection("/user/entrypoint/mainRouter/validationWorker")
-  private val scoringActor: ActorSelection =
-    context.actorSelection("/user/entrypoint/mainRouter/scoringWorker")
+  private lazy val mediator: ActorRef = DistributedPubSub(context.system).mediator
 
   import CrossValidationFlow.{ CrossValidationScore, FoldContext, FoldResult, Job }
 
@@ -226,7 +224,7 @@ case class CrossValidationFlow(
         val testData = context.validation.getTestSet(fold)._1
 
         log.info(
-          s"Send a validation work for fold $fold to validation worker: ${validationActor.pathString}"
+          s"Send a validation work for fold $fold to validation worker"
         )
         val validationQuery = ValidationQuery(fold, model, testData, context.targetMetaData)
         Future(validationQuery)
@@ -260,8 +258,7 @@ case class CrossValidationFlow(
   ): Future[FoldContext[ValidationResult]] = {
     implicit val askTimeout: Timeout = Timeout(5 minutes)
     val validationQuery              = context.response
-    log.info(s"validationQuery: $validationQuery")
-    val validationResult = (validationActor ? validationQuery).mapTo[ValidationResult]
+    val validationResult             = remoteValidate(validationQuery)
     validationResult.map(
       r =>
         FoldContext[ValidationResult](job = context.job,
@@ -292,8 +289,7 @@ case class CrossValidationFlow(
       implicit val askTimeout: Timeout = Timeout(5 minutes)
       val scoringQuery                 = ScoringQuery(algorithmOutput, groundTruth, context.targetMetaData)
       log.info(s"scoringQuery: $scoringQuery")
-      (scoringActor ? scoringQuery)
-        .mapTo[ScoringResult]
+      remoteScore(scoringQuery)
         .map(
           s =>
             FoldResult(
@@ -336,8 +332,7 @@ case class CrossValidationFlow(
       (validations.toNel, groundTruths.toNel) match {
         case (Some(r), Some(gt)) =>
           implicit val askTimeout: Timeout = Timeout(5 minutes)
-          (scoringActor ? ScoringQuery(r, gt, targetMetaData))
-            .mapTo[ScoringResult]
+          remoteScore(ScoringQuery(r, gt, targetMetaData))
             .map { score =>
               CrossValidationScore(job = job,
                                    score = score,
@@ -359,4 +354,21 @@ case class CrossValidationFlow(
     }
   }.sequence
 
+  private def remoteValidate(validationQuery: ValidationQuery): Future[ValidationResult] = {
+    implicit val askTimeout: Timeout = Timeout(5 minutes)
+    log.debug(s"validationQuery: $validationQuery")
+    val future = mediator ? DistributedPubSubMediator.Send("/user/validation",
+                                                           validationQuery,
+                                                           localAffinity = false)
+    future.mapTo[ValidationResult]
+  }
+
+  private def remoteScore(scoringQuery: ScoringQuery): Future[ScoringResult] = {
+    implicit val askTimeout: Timeout = Timeout(5 minutes)
+    log.debug(s"scoringQuery: $scoringQuery")
+    val future = mediator ? DistributedPubSubMediator.Send("/user/scoring",
+                                                           scoringQuery,
+                                                           localAffinity = false)
+    future.mapTo[ScoringResult]
+  }
 }

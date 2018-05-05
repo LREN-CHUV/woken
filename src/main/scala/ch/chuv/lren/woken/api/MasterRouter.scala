@@ -18,7 +18,6 @@
 package ch.chuv.lren.woken.api
 
 import akka.actor.{ Actor, ActorRef, Props }
-import akka.routing.FromConfig
 import akka.stream.ActorMaterializer
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.core._
@@ -83,17 +82,9 @@ case class MasterRouter(config: Config,
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val ec: ExecutionContext            = context.dispatcher
 
-  lazy val validationWorker: ActorRef = initValidationWorker
-  lazy val scoringWorker: ActorRef    = initScoringWorker
-
   lazy val metadataQueriesWorker: ActorRef   = initMetadataQueriesWorker
   lazy val miningQueriesWorker: ActorRef     = initMiningQueriesWorker
   lazy val experimentQueriesWorker: ActorRef = initExperimentQueriesWorker
-
-  if (!appConfiguration.disableWorkers) {
-    // Initialise the workers to test that they work and fail early otherwise
-    val _ = (validationWorker, scoringWorker)
-  }
 
   def receive: PartialFunction[Any, Unit] = {
 
@@ -128,12 +119,6 @@ case class MasterRouter(config: Config,
       logger.warn(s"Received unhandled request $e of type ${e.getClass}")
 
   }
-
-  private[api] def initValidationWorker: ActorRef =
-    context.actorOf(FromConfig.props(), "validationWorker")
-
-  private[api] def initScoringWorker: ActorRef =
-    context.actorOf(FromConfig.props(), "scoringWorker")
 
   private[api] def initMetadataQueriesWorker: ActorRef =
     context.actorOf(

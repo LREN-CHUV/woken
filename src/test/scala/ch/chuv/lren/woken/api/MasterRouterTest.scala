@@ -25,12 +25,7 @@ import akka.testkit.{ ImplicitSender, TestKit }
 import com.typesafe.config.{ Config, ConfigFactory }
 import ch.chuv.lren.woken.backends.DockerJob
 import ch.chuv.lren.woken.config._
-import ch.chuv.lren.woken.core.{
-  CoordinatorConfig,
-  ExperimentActor,
-  FakeCoordinatorActor,
-  FakeExperimentActor
-}
+import ch.chuv.lren.woken.core.{ CoordinatorConfig, ExperimentActor, FakeCoordinatorActor }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.util.FakeCoordinatorConfig._
 import ch.chuv.lren.woken.messages.query._
@@ -119,11 +114,6 @@ class MasterRouterTest
 //    override def newCoordinatorActor: ActorRef =
 //      system.actorOf(FakeCoordinatorActor.props("knn", None))
 
-    override def initValidationWorker: ActorRef =
-      context.actorOf(FakeActors.echoActorProps)
-
-    override def initScoringWorker: ActorRef =
-      context.actorOf(FakeActors.echoActorProps)
   }
 
   class RouterWithProbeCoordinator(config: Config,
