@@ -433,6 +433,7 @@ class WokenAkkaAPITest
         response.data should not be empty
 
         val json = response.toJson
+        println(json.prettyPrint)
         val expected = loadJson("/responses/naive_bayes_experiment.json")
 
         assertResult(approximate(expected))(approximate(json))
@@ -503,6 +504,7 @@ class WokenAkkaAPITest
         response.data should not be empty
 
         val json = response.toJson
+        println(json.prettyPrint)
         val expected = loadJson("/responses/gradient_boosting_experiment.json")
 
         assertResult(approximate(expected))(approximate(json))

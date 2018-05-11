@@ -469,6 +469,34 @@
       ]
     },
     {
+      "code": "pca",
+      "constraints": {
+        "covariables": {
+          "max_count": null,
+          "min_count": "1"
+        },
+        "groupings": {
+          "max_count": 0,
+          "min_count": 0
+        },
+        "mixed": false,
+        "variable": {
+          "binominal": false,
+          "integer": true,
+          "polynominal": false,
+          "real": true
+        }
+      },
+      "description": "Principal Components Analysis...",
+      "docker_image": "hbpmip/python-distributed-pca:0.3.0",
+      "environment": "Python",
+      "label": "PCA",
+      "parameters": [],
+      "type": [
+        "statistics"
+      ]
+    },
+    {
       "code": "hedwig",
       "constraints": {
         "covariables": {
@@ -626,13 +654,13 @@
         "type": "numeric"
       },
       {
-        "code": "Weighted Precision",
+        "code": "Weighted precision",
         "label": "Weighted Precision",
         "tooltip": "To be completed",
         "type": "numeric"
       },
       {
-        "code": "Weighted Recall",
+        "code": "Weighted recall",
         "label": "Weighted Recall",
         "tooltip": "To be completed",
         "type": "numeric"
