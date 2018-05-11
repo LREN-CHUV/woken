@@ -25,7 +25,6 @@ import ch.chuv.lren.woken.messages.datasets.{ DatasetsQuery, DatasetsResponse }
 import ch.chuv.lren.woken.service.{ DatasetService, DispatcherService }
 
 import scala.concurrent.ExecutionContext
-import ch.chuv.lren.woken.backends.DockerJob
 import ch.chuv.lren.woken.service.{ AlgorithmLibraryService, VariablesMetaService }
 import MiningQueries._
 import ch.chuv.lren.woken.dispatch.{
@@ -34,6 +33,7 @@ import ch.chuv.lren.woken.dispatch.{
   MiningQueriesActor
 }
 import ch.chuv.lren.woken.config.{ AlgorithmDefinition, AppConfiguration }
+import ch.chuv.lren.woken.core.model.Job
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.variables._
 import com.typesafe.config.Config
@@ -75,7 +75,7 @@ case class MasterRouter(config: Config,
                         datasetService: DatasetService,
                         variablesMetaService: VariablesMetaService,
                         experimentQuery2JobF: ExperimentQuery => Validation[ExperimentActor.Job],
-                        miningQuery2JobF: MiningQuery => Validation[DockerJob])
+                        miningQuery2JobF: MiningQuery => Validation[Job])
     extends Actor
     with LazyLogging {
 
@@ -86,7 +86,8 @@ case class MasterRouter(config: Config,
   lazy val miningQueriesWorker: ActorRef     = initMiningQueriesWorker
   lazy val experimentQueriesWorker: ActorRef = initExperimentQueriesWorker
 
-  def receive: PartialFunction[Any, Unit] = {
+  @SuppressWarnings(Array("org.wartremover.warts.Any"))
+  def receive: Receive = {
 
     case MethodsQuery =>
       sender ! MethodsResponse(algorithmLibraryService.algorithms)

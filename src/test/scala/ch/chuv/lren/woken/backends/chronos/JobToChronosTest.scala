@@ -17,16 +17,16 @@
 
 package ch.chuv.lren.woken.backends.chronos
 
-import ch.chuv.lren.woken.backends.DockerJob
 import ch.chuv.lren.woken.config.{ DatabaseConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.query.filters.{ InputType, Operator, SingleFilterRule }
 import ch.chuv.lren.woken.messages.variables.{ VariableId, VariableMetaData, VariableType }
+import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.features.Queries._
+import ch.chuv.lren.woken.core.model.DockerJob
 import org.scalatest.{ FlatSpec, Matchers }
 import cats.data.ValidatedNel
 import cats.syntax.validated._
-import ch.chuv.lren.woken.core.features.FeaturesQuery
 
 class JobToChronosTest extends FlatSpec with Matchers {
 

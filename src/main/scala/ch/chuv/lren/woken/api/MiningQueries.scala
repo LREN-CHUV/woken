@@ -20,14 +20,13 @@ package ch.chuv.lren.woken.api
 import java.util.UUID
 
 import cats.data.Validated
-import ch.chuv.lren.woken.backends.DockerJob
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.config.{ AlgorithmDefinition, JobsConfiguration }
 import ch.chuv.lren.woken.core.ExperimentActor
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.service.VariablesMetaService
 import ch.chuv.lren.woken.core.features.Queries._
-import ch.chuv.lren.woken.core.model.VariablesMeta
+import ch.chuv.lren.woken.core.model.{ DockerJob, Job, ValidationJob, VariablesMeta }
 import cats.data._
 import cats.implicits._
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
@@ -43,11 +42,10 @@ object MiningQueries extends LazyLogging {
       variablesMetaService: VariablesMetaService,
       jobsConfiguration: JobsConfiguration,
       algorithmLookup: String => Validation[AlgorithmDefinition]
-  )(query: MiningQuery): Validation[DockerJob] = {
+  )(query: MiningQuery): Validation[Job] = {
 
     val jobId :: featuresDb :: featuresTable :: metadata :: HNil =
       prepareQuery(variablesMetaService, jobsConfiguration, query)
-    val algorithm = algorithmLookup(query.algorithm.code)
 
     def createJob(mt: List[VariableMetaData], al: AlgorithmDefinition) = {
       val featuresQuery = query.filterDatasets
@@ -57,7 +55,20 @@ object MiningQueries extends LazyLogging {
       DockerJob(jobId, al.dockerImage, featuresDb, featuresQuery, query.algorithm, metadata = mt)
     }
 
-    (metadata, algorithm) mapN createJob
+    query.algorithm.code match {
+      case "validation" =>
+        metadata.map { m =>
+          ValidationJob(jobId = jobId,
+                        inputDb = featuresDb,
+                        inputTable = featuresTable,
+                        query = query,
+                        metadata = m)
+        }
+      case code =>
+        val algorithm = algorithmLookup(code)
+        (metadata, algorithm) mapN createJob
+    }
+
   }
 
   def experimentQuery2Job(

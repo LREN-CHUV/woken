@@ -25,10 +25,9 @@ import akka.actor.ActorContext
 import akka.event.Logging
 import akka.stream.{ FlowShape, Materializer }
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Zip }
-import ch.chuv.lren.woken.backends.DockerJob
 import ch.chuv.lren.woken.config.{ AlgorithmDefinition, JobsConfiguration }
 import ch.chuv.lren.woken.core.CoordinatorActor
-import ch.chuv.lren.woken.core.model.{ ErrorJobResult, JobResult, PfaJobResult }
+import ch.chuv.lren.woken.core.model.{ DockerJob, ErrorJobResult, JobResult, PfaJobResult }
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.dao.FeaturesDAL
 import ch.chuv.lren.woken.messages.query.{ AlgorithmSpec, MiningQuery, ValidationSpec }

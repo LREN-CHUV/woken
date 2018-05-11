@@ -26,7 +26,7 @@ object AlgorithmEngine extends Enumeration {
   type AlgorithmEngine = Value
 
   // read-write and read-only.
-  val Docker, WokenValidation = Value
+  val Docker, Validation = Value
 }
 
 import AlgorithmEngine.AlgorithmEngine

@@ -24,10 +24,9 @@ import akka.actor.{ ActorRef, OneForOneStrategy, Props }
 import akka.routing.{ OptimalSizeExploringResizer, RoundRobinPool }
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{ Sink, Source }
-import ch.chuv.lren.woken.backends.DockerJob
 import ch.chuv.lren.woken.core._
 import ch.chuv.lren.woken.core.commands.JobCommands.StartCoordinatorJob
-import ch.chuv.lren.woken.core.model.ErrorJobResult
+import ch.chuv.lren.woken.core.model.{ DockerJob, ErrorJobResult, Job, ValidationJob }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query.{ MiningQuery, QueryResult }
 import ch.chuv.lren.woken.service.DispatcherService
@@ -44,13 +43,13 @@ object MiningQueriesActor extends LazyLogging {
 
   def props(coordinatorConfig: CoordinatorConfig,
             dispatcherService: DispatcherService,
-            miningQuery2JobF: MiningQuery => Validation[DockerJob]): Props =
+            miningQuery2JobF: MiningQuery => Validation[Job]): Props =
     Props(new MiningQueriesActor(coordinatorConfig, dispatcherService, miningQuery2JobF))
 
   def roundRobinPoolProps(config: Config,
                           coordinatorConfig: CoordinatorConfig,
                           dispatcherService: DispatcherService,
-                          miningQuery2JobF: MiningQuery => Validation[DockerJob]): Props = {
+                          miningQuery2JobF: MiningQuery => Validation[Job]): Props = {
 
     val resizer = OptimalSizeExploringResizer(
       config
@@ -78,7 +77,7 @@ object MiningQueriesActor extends LazyLogging {
 class MiningQueriesActor(
     override val coordinatorConfig: CoordinatorConfig,
     dispatcherService: DispatcherService,
-    miningQuery2JobF: MiningQuery => Validation[DockerJob]
+    miningQuery2JobF: MiningQuery => Validation[Job]
 ) extends QueriesActor
     with LazyLogging {
 
@@ -87,6 +86,11 @@ class MiningQueriesActor(
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val ec: ExecutionContext            = context.dispatcher
 
+  @SuppressWarnings(
+    Array("org.wartremover.warts.Any",
+          "org.wartremover.warts.NonUnitStatements",
+          "org.wartremover.warts.Product")
+  )
   override def receive: Receive = {
 
     case mine: Mine =>
@@ -105,12 +109,25 @@ class MiningQueriesActor(
               s"Mining for $query failed with message: " + errorMsg.reduceLeft(_ + ", " + _)
             )
           initiator ! error.asQueryResult
-        },
-        job => runMiningJob(query, initiator, job)
+        }, {
+          case job: DockerJob     => runMiningJob(query, initiator, job)
+          case job: ValidationJob => ???
+          case job =>
+            val error =
+              ErrorJobResult(
+                None,
+                coordinatorConfig.jobsConf.node,
+                OffsetDateTime.now(),
+                Some(query.algorithm.code),
+                s"Unsupported job $job. Was expecting a job of type DockerJob or ValidationJob"
+              )
+            logger.error(error.toString)
+            initiator ! error.asQueryResult
+        }
       )
 
     case CoordinatorActor.Response(job, List(errorJob: ErrorJobResult), initiator) =>
-      logger.warn(s"Received error while mining ${job.query}: $errorJob")
+      logger.warn(s"Received error while mining ${job.query}: ${errorJob.toString}")
       initiator ! errorJob.asQueryResult
 
     case CoordinatorActor.Response(job, results, initiator) =>

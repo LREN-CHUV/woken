@@ -78,7 +78,10 @@ class ChronosService(jobsConfig: JobsConfiguration) extends Actor with LazyLoggi
     ActorMaterializerSettings(actorSystem)
   )
 
-  def receive: PartialFunction[Any, Unit] = {
+  @SuppressWarnings(
+    Array("org.wartremover.warts.Any", "org.wartremover.warts.NonUnitStatements")
+  )
+  def receive: Receive = {
 
     case Schedule(job, originator) =>
       import ChronosJob._
@@ -121,7 +124,7 @@ class ChronosService(jobsConfig: JobsConfiguration) extends Actor with LazyLoggi
         .recover {
 
           case _: AskTimeoutException =>
-            logger.warn(s"Post schedule to Chronos on $url timed out after $timeout")
+            logger.warn(s"Post schedule to Chronos on $url timed out after ${timeout.toString}")
             Error("Connection timeout")
 
           case e: Throwable =>

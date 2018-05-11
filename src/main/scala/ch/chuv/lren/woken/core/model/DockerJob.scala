@@ -15,13 +15,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.backends
+package ch.chuv.lren.woken.core.model
 
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.messages.query._
+import ch.chuv.lren.woken.messages.variables.variablesProtocol._
 import ch.chuv.lren.woken.messages.variables.{ VariableMetaData, variablesProtocol }
 import spray.json._
-import variablesProtocol._
 
 /**
   * Definition of a computation using an algorithm packaged as a Docker container.
@@ -40,7 +40,7 @@ case class DockerJob(
     query: FeaturesQuery,
     algorithmSpec: AlgorithmSpec,
     metadata: List[VariableMetaData]
-) {
+) extends Job {
 
   def jobName: String =
     (dockerImage.replaceAll("^.*?/", "").takeWhile(_ != ':') + "_" + jobId)

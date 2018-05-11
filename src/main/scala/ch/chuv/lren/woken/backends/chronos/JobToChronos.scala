@@ -17,10 +17,10 @@
 
 package ch.chuv.lren.woken.backends.chronos
 
-import ch.chuv.lren.woken.backends.DockerJob
 import ch.chuv.lren.woken.config.{ DatabaseConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.backends.chronos.{ EnvironmentVariable => EV }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
+import ch.chuv.lren.woken.core.model.DockerJob
 import cats.implicits._
 
 object JobToChronos {

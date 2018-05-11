@@ -55,7 +55,7 @@ object ExperimentActor {
       inputTable: String,
       query: ExperimentQuery,
       metadata: List[VariableMetaData]
-  )
+  ) extends model.Job
 
   case object Done
 
@@ -109,7 +109,7 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
     ).flow
 
   @SuppressWarnings(Array("org.wartremover.warts.Any", "org.wartremover.warts.NonUnitStatements"))
-  override def receive: PartialFunction[Any, Unit] = {
+  override def receive: Receive = {
     case StartExperimentJob(job, requestedReplyTo, initiator) if job.query.algorithms.isEmpty =>
       val replyTo = if (requestedReplyTo == Actor.noSender) sender() else requestedReplyTo
       val msg     = "Experiment contains no algorithms"

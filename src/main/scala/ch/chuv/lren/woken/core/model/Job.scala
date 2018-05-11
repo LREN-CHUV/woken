@@ -15,24 +15,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.core.monitoring
+package ch.chuv.lren.woken.core.model
 
-import akka.actor.{ Actor, DeadLetter, Props }
-import com.typesafe.scalalogging.LazyLogging
-
-object DeadLetterMonitorActor {
-  def props: Props = Props(new DeadLetterMonitorActor())
-}
-
-class DeadLetterMonitorActor extends Actor with LazyLogging {
-
-  @SuppressWarnings(Array("org.wartremover.warts.Any", "org.wartremover.warts.NonUnitStatements"))
-  def receive: Receive = {
-    case d: DeadLetter =>
-      logger.error(s"Saw dead letter $d")
-
-    case _ =>
-      logger.debug("DeadLetterMonitorActor: got a message")
-
-  }
-}
+/**
+  * Some job to complete in Woken.
+  *
+  * Jobs are issued by an external command, either a user action or another Woken process calling this server.
+  */
+trait Job

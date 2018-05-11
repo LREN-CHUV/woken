@@ -23,7 +23,6 @@ import akka.actor.{ ActorRef, ActorSystem, Props }
 import akka.stream.ActorMaterializer
 import akka.testkit.{ ImplicitSender, TestKit }
 import com.typesafe.config.{ Config, ConfigFactory }
-import ch.chuv.lren.woken.backends.DockerJob
 import ch.chuv.lren.woken.config._
 import ch.chuv.lren.woken.core.{ CoordinatorConfig, ExperimentActor, FakeCoordinatorActor }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
@@ -40,6 +39,7 @@ import ch.chuv.lren.woken.messages.variables.VariableId
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import org.scalatest.tagobjects.Slow
 import cats.data.Validated._
+import ch.chuv.lren.woken.core.model.DockerJob
 import ch.chuv.lren.woken.messages.remoting.RemoteLocation
 
 import scala.concurrent.duration._

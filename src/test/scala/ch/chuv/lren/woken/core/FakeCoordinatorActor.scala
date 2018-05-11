@@ -21,11 +21,10 @@ import java.time.OffsetDateTime
 
 import akka.actor.{ Actor, ActorContext, ActorRef, PoisonPill, Props }
 import akka.pattern.ask
-import ch.chuv.lren.woken.core.model.{ ErrorJobResult, PfaJobResult }
+import ch.chuv.lren.woken.core.model.{ DockerJob, ErrorJobResult, PfaJobResult }
 import spray.json._
 import CoordinatorActor._
 import akka.util.Timeout
-import ch.chuv.lren.woken.backends.DockerJob
 import ch.chuv.lren.woken.core.commands.JobCommands
 import ch.chuv.lren.woken.core.commands.JobCommands.StartCoordinatorJob
 
