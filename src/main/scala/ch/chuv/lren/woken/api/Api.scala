@@ -32,6 +32,8 @@ import com.typesafe.scalalogging.LazyLogging
   * web server interface.<br/>
   * Notice that it requires to be mixed in with ``core.CoreActors``, which provides access
   * to the top-level actors that make up the system.
+  *
+  * @author Ludovic Claude <ludovic.claude@chuv.ch>
   */
 trait Api extends CoreActors with Core with LazyLogging {
 

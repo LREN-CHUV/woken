@@ -60,6 +60,8 @@ import scala.util.Try
 /**
   * This trait implements ``Core`` by starting the required ``ActorSystem`` and registering the
   * termination handler to stop the system when the JVM exits.
+  *
+  * @author Ludovic Claude <ludovic.claude@chuv.ch>
   */
 @SuppressWarnings(Array("org.wartremover.warts.Throw", "org.wartremover.warts.NonUnitStatements"))
 trait BootedCore

@@ -26,8 +26,11 @@ import scala.language.higherKinds
 // Ok, end of the world IO occurs early on
 
 /**
-  * The entry point to our domain, works with repositories and validations to implement behavior
+  * Service that provides access to the job results.
+  *
   * @param repository where we get our data
+  *
+  * @author Ludovic Claude <ludovic.claude@chuv.ch>
   */
 class JobResultService(repository: JobResultRepository[IO])(implicit E: Effect[IO]) {
 

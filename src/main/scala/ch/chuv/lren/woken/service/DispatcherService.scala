@@ -35,16 +35,25 @@ import ch.chuv.lren.woken.messages.variables.{
   VariablesForDatasetsResponse
 }
 
-class DispatcherService(datasets: Map[DatasetId, Dataset], wokenClientService: WokenClientService)
+/**
+  * Creates flows that dispatch queries to local or remote Woken workers according to the datasets
+  *
+  * @param allDatasets All datasets known to this Woken instance
+  * @param wokenClientService The client service used to dispatch calls to other Woken instances
+  *
+  * @author Ludovic Claude <ludovic.claude@chuv.ch>
+  */
+class DispatcherService(allDatasets: Map[DatasetId, Dataset],
+                        wokenClientService: WokenClientService)
     extends LazyLogging {
 
   type VariablesForDatasetsQR = (VariablesForDatasetsQuery, VariablesForDatasetsResponse)
 
   def dispatchTo(dataset: DatasetId): Option[RemoteLocation] =
-    if (datasets.isEmpty)
+    if (allDatasets.isEmpty)
       None
     else
-      datasets.get(dataset).flatMap(_.location)
+      allDatasets.get(dataset).flatMap(_.location)
 
   def dispatchTo(datasets: Set[DatasetId]): (Set[RemoteLocation], Boolean) = {
     val maybeLocations = datasets.map(dispatchTo)

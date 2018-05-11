@@ -35,6 +35,8 @@ import shapeless.{ ::, HNil }
 
 /**
   * Transform incoming mining and experiment queries into jobs
+  *
+  * @author Ludovic Claude <ludovic.claude@chuv.ch>
   */
 object MiningQueries extends LazyLogging {
 

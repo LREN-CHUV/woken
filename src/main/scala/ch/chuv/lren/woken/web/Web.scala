@@ -30,6 +30,8 @@ import org.slf4j.LoggerFactory
   *
   * Benefits of separate ``ActorSystem`` include the ability to use completely different
   * configuration, especially when it comes to the threading core.model.
+  *
+  * @author Ludovic Claude <ludovic.claude@chuv.ch>
   */
 object Web extends BootedCore with Rest {
 
