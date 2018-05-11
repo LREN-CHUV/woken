@@ -296,6 +296,33 @@ class WokenAkkaAPITest
         assertResult(approximate(expected))(approximate(json))
       }
 
+      "uses PCA                            [visualisation, plotly.js]" in {
+        val query = MiningQuery(
+          user = UserId("test1"),
+          variables = List(VariableId("cognitive_task2")),
+          covariables =
+            List("score_math_course1", "score_math_course2").map(VariableId),
+          grouping = Nil,
+          filters = None,
+          targetTable = Some("sample_data"),
+          algorithm = AlgorithmSpec("pca", Nil),
+          datasets = Set(),
+          executionPlan = None
+        )
+
+        val response: QueryResult =
+          timedQuery(query, "mine data using PCA")
+
+        response.data should not be empty
+
+        val json = response.toJson
+        println(json.prettyPrint())
+        val expected =
+          loadJson("/responses/pca_data_mining.json")
+
+        assertResult(approximate(expected))(approximate(json))
+      }
+
       "uses TAU ggparci                    [visualisation, svg]" in {
         val query = MiningQuery(
           user = UserId("test1"),
