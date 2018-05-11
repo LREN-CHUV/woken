@@ -174,7 +174,7 @@ services:
       - db
 
   woken_db_setup:
-    image: "hbpmip/woken-db-setup:1.1.0"
+    image: "hbpmip/woken-db-setup:1.2.1"
     container_name: "woken-db-setup"
     restart: "no"
     environment:
