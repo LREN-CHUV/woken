@@ -516,7 +516,7 @@
         }
       },
       "description": "The Hedwig algorithm for subgroup discovery is a data mining algorithm designed for exploratory data analysis of a data set",
-      "docker_image": "hbpmip/python-jsi-hedwig:1.0.6",
+      "docker_image": "hbpmip/python-jsi-hedwig:1.0.7",
       "environment": "Python",
       "label": "JSI Hedwig",
       "parameters": [
