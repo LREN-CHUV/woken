@@ -217,7 +217,7 @@ services:
 
 
   wokennode1:
-    image: hbpmip/woken
+    image: hbpmip/woken:zipkin-tracing
     volumes:
       - ./woken-worker1/config:/opt/woken/config
     ports:
@@ -287,7 +287,7 @@ services:
       - wokenvalidationnode1
 
   wokennode2:
-    image: hbpmip/woken
+    image: hbpmip/woken:zipkin-tracing
     volumes:
       - ./woken-worker2/config:/opt/woken/config
     ports:
@@ -356,7 +356,7 @@ services:
       - wokenvalidationnode2
 
   wokencentral:
-    image: hbpmip/woken
+    image: hbpmip/woken:zipkin-tracing
     volumes:
       - ./woken-central/config:/opt/woken/config
     ports:
