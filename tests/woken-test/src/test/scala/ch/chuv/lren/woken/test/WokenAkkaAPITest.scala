@@ -25,14 +25,11 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
+import ch.chuv.lren.woken.kamon.KamonSupport
 import com.typesafe.config.{Config, ConfigFactory}
 import ch.chuv.lren.woken.messages.datasets._
 import ch.chuv.lren.woken.messages.query._
-import ch.chuv.lren.woken.messages.variables.{
-  VariableId,
-  VariablesForDatasetsQuery,
-  VariablesForDatasetsResponse
-}
+import ch.chuv.lren.woken.messages.variables.{VariableId, VariablesForDatasetsQuery, VariablesForDatasetsResponse}
 import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
 import org.scalatest.TryValues._
@@ -72,6 +69,7 @@ class WokenAkkaAPITest
       .resolve()
   }
 
+  KamonSupport.startReporters(config)
   implicit val system: ActorSystem = ActorSystem("woken", config)
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executionContext: ExecutionContextExecutor = system.dispatcher

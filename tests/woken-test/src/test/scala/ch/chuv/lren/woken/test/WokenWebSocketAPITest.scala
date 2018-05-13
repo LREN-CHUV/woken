@@ -27,12 +27,13 @@ import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials}
 import akka.http.scaladsl.model.ws.{Message, TextMessage, WebSocketRequest}
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
+import ch.chuv.lren.woken.kamon.KamonSupport
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Minutes, Span}
-import org.scalatest.{BeforeAndAfterAll, WordSpec, Matchers}
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
 import spray.json._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -40,7 +41,7 @@ import scala.concurrent.duration._
 import scala.collection.immutable.Seq
 
 class WokenWebSocketAPITest
-    extends WordSpec
+  extends WordSpec
     with Matchers
     with Queries
     with ScalaFutures
@@ -49,14 +50,17 @@ class WokenWebSocketAPITest
 
   val config: Config =
     ConfigFactory
-      .parseString("""
-                     |akka {
-                     |  actor.provider = local
-                     |}
-                   """.stripMargin)
+      .parseString(
+        """
+          |akka {
+          |  actor.provider = local
+          |}
+        """.stripMargin)
       .withFallback(ConfigFactory.load())
+      .withFallback(ConfigFactory.parseResourcesAnySyntax("kamon.conf"))
       .resolve()
 
+  KamonSupport.startReporters(config)
   implicit val system: ActorSystem = ActorSystem("WebSocketAPITest", config)
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
@@ -74,33 +78,33 @@ class WokenWebSocketAPITest
 
     "respond to a query for the list of algorithms using websocket" in {
       executeQuery(None,
-                   Some("/responses/list_algorithms.json"),
-                   s"ws://$remoteHostName:8087/mining/algorithms")
+        Some("/responses/list_algorithms.json"),
+        s"ws://$remoteHostName:8087/mining/algorithms")
     }
 
     "respond to a query for the list of datasets using websocket" in {
       executeQuery(None,
-                   Some("/responses/list_datasets.json"),
-                   s"ws://$remoteHostName:8087/metadata/datasets")
+        Some("/responses/list_datasets.json"),
+        s"ws://$remoteHostName:8087/metadata/datasets")
     }
 
     "respond to a mining query using websocket" in {
       executeQuery(Some("/responses/knn_data_mining_query.json"),
-                   Some("/responses/knn_data_mining.json"),
-                   s"ws://$remoteHostName:8087/mining/job")
+        Some("/responses/knn_data_mining.json"),
+        s"ws://$remoteHostName:8087/mining/job")
 
     }
 
     "respond to an experiment query using websocket" in {
       executeQuery(Some("/responses/knn_experiment_query.json"),
-                   Some("/responses/knn_experiment.json"),
-                   s"ws://$remoteHostName:8087/mining/experiment")
+        Some("/responses/knn_experiment.json"),
+        s"ws://$remoteHostName:8087/mining/experiment")
     }
 
   }
 
   private def assertionAsSink(
-      expectedResponse: Option[String]): Sink[Message, Future[Done]] = {
+                               expectedResponse: Option[String]): Sink[Message, Future[Done]] = {
     Sink.foreach {
       case message: TextMessage.Strict =>
         message.text.isEmpty shouldBe false
@@ -138,7 +142,7 @@ class WokenWebSocketAPITest
       Flow
         .fromSinkAndSourceMat(assertSink, probeSource)(Keep.left)
         .keepAlive(FiniteDuration(1, TimeUnit.SECONDS),
-                   () => TextMessage.apply("heart beat"))
+          () => TextMessage.apply("heart beat"))
 
     val (upgradeResponse, closed) =
       Http().singleWebSocketRequest(
