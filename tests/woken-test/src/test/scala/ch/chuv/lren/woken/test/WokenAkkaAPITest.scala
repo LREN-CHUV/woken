@@ -316,7 +316,7 @@ class WokenAkkaAPITest
         response.data should not be empty
 
         val json = response.toJson
-        println(json.prettyPrint())
+        println(json.prettyPrint)
         val expected =
           loadJson("/responses/pca_data_mining.json")
 

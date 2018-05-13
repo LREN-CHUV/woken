@@ -230,6 +230,12 @@ services:
       CLUSTER_NAME: woken-node1
       WOKEN_PORT_8088_TCP_ADDR: wokennode1
       DOCKER_BRIDGE_NETWORK: "tests_default"
+      KAMON_ENABLED: "yes"
+      KAMON_SERVICE_NAME: "woken-node-1"
+      ZIPKIN_ENABLED: "yes"
+      PROMETHEUS_ENABLED: "yes"
+      SIGAR_SYSTEM_METRICS: "no"
+      JVM_SYSTEM_METRICS: "no"
       LOG_LEVEL: DEBUG
     links:
       - zipkin
@@ -258,6 +264,12 @@ services:
       CLUSTER_IP: wokenvalidationnode1
       CLUSTER_NAME: woken-node1
       WOKEN_PORT_8088_TCP_ADDR: wokennode1
+      KAMON_ENABLED: "yes"
+      KAMON_SERVICE_NAME: "woken-validation-node-1"
+      ZIPKIN_ENABLED: "yes"
+      PROMETHEUS_ENABLED: "yes"
+      SIGAR_SYSTEM_METRICS: "no"
+      JVM_SYSTEM_METRICS: "no"
       LOG_LEVEL: DEBUG
     links:
       - zipkin
@@ -288,6 +300,12 @@ services:
       CLUSTER_NAME: woken-node2
       WOKEN_PORT_8088_TCP_ADDR: wokennode2
       DOCKER_BRIDGE_NETWORK: "tests_default"
+      KAMON_ENABLED: "yes"
+      KAMON_SERVICE_NAME: "woken-node-2"
+      ZIPKIN_ENABLED: "yes"
+      PROMETHEUS_ENABLED: "yes"
+      SIGAR_SYSTEM_METRICS: "no"
+      JVM_SYSTEM_METRICS: "no"
       LOG_LEVEL: DEBUG
     links:
       - zipkin
@@ -316,6 +334,12 @@ services:
       CLUSTER_IP: wokenvalidationnode2
       CLUSTER_NAME: woken-node2
       WOKEN_PORT_8088_TCP_ADDR: wokennode2
+      KAMON_ENABLED: "yes"
+      KAMON_SERVICE_NAME: "woken-validation-node-2"
+      ZIPKIN_ENABLED: "yes"
+      PROMETHEUS_ENABLED: "yes"
+      SIGAR_SYSTEM_METRICS: "no"
+      JVM_SYSTEM_METRICS: "no"
       LOG_LEVEL: DEBUG
     links:
       - zipkin
@@ -345,6 +369,12 @@ services:
       CLUSTER_NAME: woken-central
       WOKEN_PORT_8088_TCP_ADDR: wokencentral
       DOCKER_BRIDGE_NETWORK: "tests_default"
+      KAMON_ENABLED: "yes"
+      KAMON_SERVICE_NAME: "woken-central"
+      ZIPKIN_ENABLED: "yes"
+      PROMETHEUS_ENABLED: "yes"
+      SIGAR_SYSTEM_METRICS: "no"
+      JVM_SYSTEM_METRICS: "no"
       LOG_LEVEL: DEBUG
     links:
       - zipkin
