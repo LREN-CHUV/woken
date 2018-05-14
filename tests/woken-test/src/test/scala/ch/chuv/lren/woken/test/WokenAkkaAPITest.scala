@@ -316,7 +316,7 @@ class WokenAkkaAPITest
         response.data should not be empty
 
         val json = response.toJson
-        println(json.prettyPrint())
+        println(json.prettyPrint)
         val expected =
           loadJson("/responses/pca_data_mining.json")
 
@@ -398,6 +398,8 @@ class WokenAkkaAPITest
         val json = response.toJson
         val expected = loadJson("/responses/knn_experiment.json")
 
+        save(approximate(json), "/responses/knn_experiment.json")
+
         assertResult(approximate(expected))(approximate(json))
       }
 
@@ -413,6 +415,8 @@ class WokenAkkaAPITest
 
         val json = response.toJson
         val expected = loadJson("/responses/lr_and_anova_experiment.json")
+
+        save(approximate(json), "/responses/lr_and_anova_experiment.json")
 
         assertResult(approximate(expected))(approximate(json))
       }
@@ -435,6 +439,8 @@ class WokenAkkaAPITest
         val json = response.toJson
         println(json.prettyPrint)
         val expected = loadJson("/responses/naive_bayes_experiment.json")
+
+        save(approximate(json), "/responses/naive_bayes_experiment.json")
 
         assertResult(approximate(expected))(approximate(json))
       }
@@ -460,6 +466,8 @@ class WokenAkkaAPITest
         val json = response.toJson
         val expected = loadJson("/responses/sgd_linear_model_experiment.json")
 
+        save(approximate(json), "/responses/sgd_linear_model_experiment.json")
+
         assertResult(approximate(expected, skippedTags))(approximate(json, skippedTags))
       }
 
@@ -484,6 +492,8 @@ class WokenAkkaAPITest
         val json = response.toJson
         val expected = loadJson("/responses/sgd_neural_network_experiment.json")
 
+        save(approximate(json), "/responses/sgd_neural_network_experiment.json")
+
         assertResult(approximate(expected, skippedTags))(approximate(json, skippedTags))
       }
 
@@ -506,6 +516,8 @@ class WokenAkkaAPITest
         val json = response.toJson
         println(json.prettyPrint)
         val expected = loadJson("/responses/gradient_boosting_experiment.json")
+
+        save(approximate(json), "/responses/gradient_boosting_experiment.json")
 
         assertResult(approximate(expected))(approximate(json))
       }

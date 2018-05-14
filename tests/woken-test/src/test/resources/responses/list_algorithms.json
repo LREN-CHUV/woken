@@ -58,13 +58,13 @@
         },
         "mixed": true,
         "variable": {
-          "binominal": false,
+          "binominal": true,
           "integer": true,
-          "polynominal": false,
+          "polynominal": true,
           "real": true
         }
       },
-      "description": "Standard Linear Regression...",
+      "description": "Standard Linear Regression (or Logistic Regression for nominal variables)...",
       "docker_image": "hbpmip/python-linear-regression:0.3.0",
       "environment": "Python",
       "label": "Linear Regression",
