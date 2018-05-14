@@ -119,6 +119,7 @@ case class ValidatedAlgorithmFlow(
     *
     * @return
     */
+  @SuppressWarnings(Array("org.wartremover.warts.Any"))
   def runAlgorithmOnLocalData: Flow[ValidatedAlgorithmFlow.Job,
                                     (ValidatedAlgorithmFlow.Job, CoordinatorActor.Response),
                                     NotUsed] =
@@ -147,6 +148,7 @@ case class ValidatedAlgorithmFlow(
       .log("Learned from available local data")
       .named("learn-from-available-local-data")
 
+  @SuppressWarnings(Array("org.wartremover.warts.Any"))
   private def remoteValidate: Flow[(ValidatedAlgorithmFlow.Job, CoordinatorActor.Response),
                                    (CoordinatorActor.Response, ValidationResults),
                                    NotUsed] =
@@ -168,6 +170,15 @@ case class ValidatedAlgorithmFlow(
       .log("Remote validation results")
       .named("remote-validate")
 
+  @SuppressWarnings(
+    Array(
+      "org.wartremover.warts.Any",
+      "org.wartremover.warts.IsInstanceOf",
+      "org.wartremover.warts.Product",
+      "org.wartremover.warts.Serializable",
+      "org.wartremover.warts.Throw"
+    )
+  )
   private def dispatchRemoteValidations: Flow[
     (ValidatedAlgorithmFlow.Job, CoordinatorActor.Response),
     ValidationResults,
@@ -185,8 +196,16 @@ case class ValidatedAlgorithmFlow(
             ) {
               case r: PfaJobResult =>
                 val query = job.query.copy(
-                  algorithm = AlgorithmSpec(ValidationJob.algorithmCode,
-                                            List(CodeValue("model", r.model.compactPrint))),
+                  algorithm = AlgorithmSpec(
+                    ValidationJob.algorithmCode,
+                    List(
+                      CodeValue("model", r.model.compactPrint),
+                      CodeValue("variablesCanBeNull",
+                                job.algorithmDefinition.variablesCanBeNull.toString),
+                      CodeValue("covariablesCanBeNull",
+                                job.algorithmDefinition.covariablesCanBeNull.toString)
+                    )
+                  ),
                   executionPlan = None,
                   datasets = job.remoteValidationDatasets
                 )
@@ -210,22 +229,29 @@ case class ValidatedAlgorithmFlow(
                   .map(_._2)
                   .log("Remote validations")
                   .runWith(Sink.seq[QueryResult])
+              case other => throw new IllegalArgumentException(s"Unexpected result $other")
 
             }
       }
-      .map { l =>
+      .map[ValidationResults] { l =>
         l.map {
           case QueryResult(_, node, _, shape, _, Some(data), None) if shape == Shapes.score =>
             // Rebuild the spec from the results
             val spec = ValidationSpec("remote-validation", List(CodeValue("node", node)))
-            (spec, Right(data.convertTo[Score]))
+            (spec, Right[String, Score](data.convertTo[Score]))
           case QueryResult(_, node, _, shape, _, None, Some(error)) if shape == Shapes.error =>
             val spec = ValidationSpec("remote-validation", List(CodeValue("node", node)))
-            (spec, Left(error))
+            (spec, Left[String, Score](error))
+          case otherResult =>
+            log.error(s"Unhandled validation result: $otherResult")
+            val spec =
+              ValidationSpec("remote-validation", List(CodeValue("node", otherResult.node)))
+            (spec, Left[String, Score](s"Unhandled result of shape ${otherResult.`type`}"))
         }.toMap
 
       }
 
+  @SuppressWarnings(Array("org.wartremover.warts.Any"))
   private def crossValidate(
       parallelism: Int
   ): Flow[ValidatedAlgorithmFlow.Job, ValidationResults, NotUsed] =
@@ -256,6 +282,7 @@ case class ValidatedAlgorithmFlow(
   private def nodeOf(spec: ValidationSpec): Option[String] =
     spec.parameters.find(_.code == "node").map(_.value)
 
+  @SuppressWarnings(Array("org.wartremover.warts.Any"))
   private def buildResponse
     : Flow[(CoordinatorActor.Response, ValidationResults), ResultResponse, NotUsed] =
     Flow[(CoordinatorActor.Response, ValidationResults)]

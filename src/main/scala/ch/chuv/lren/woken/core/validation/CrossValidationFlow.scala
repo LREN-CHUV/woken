@@ -95,10 +95,8 @@ case class CrossValidationFlow(
 
   import CrossValidationFlow.{ CrossValidationScore, FoldContext, FoldResult, Job }
 
-  def crossValidate(
-      parallelism: Int
-  ): Flow[CrossValidationFlow.Job, Option[(CrossValidationFlow.Job, Either[String, Score])], NotUsed] =
-    Flow[CrossValidationFlow.Job]
+  def crossValidate(parallelism: Int): Flow[Job, Option[(Job, Either[String, Score])], NotUsed] =
+    Flow[Job]
       .map { job =>
         val validation = job.validation
         val foldCount  = validation.parametersAsMap("k").toInt
@@ -168,7 +166,7 @@ case class CrossValidationFlow(
       .log("Cross validation result")
       .named("crossValidate")
 
-  private def targetMetadata(job: Job) = {
+  private def targetMetadata(job: Job): VariableMetaData = {
     import ch.chuv.lren.woken.core.features.Queries._
     job.query.dbVariables.headOption
       .flatMap { v =>
