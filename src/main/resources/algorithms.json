@@ -38,7 +38,7 @@
         }
       },
       "description": "Statistics Summary...",
-      "docker_image": "hbpmip/python-summary-statistics:0.3.3",
+      "docker_image": "hbpmip/python-summary-statistics:0.3.4",
       "environment": "python",
       "label": "Statistics Summary",
       "type": [
