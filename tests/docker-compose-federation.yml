@@ -255,7 +255,7 @@ services:
       - chronos
 
   wokenvalidationnode1:
-    image: hbpmip/woken-validation:tracing-changes
+    image: hbpmip/woken-validation:2.5.0
     ports:
       - "18081:8081"
       - "18082:8082"
@@ -325,7 +325,7 @@ services:
       - chronos
 
   wokenvalidationnode2:
-    image: hbpmip/woken-validation:tracing-changes
+    image: hbpmip/woken-validation:2.5.0
     ports:
       - "28081:8081"
       - "28082:8082"
