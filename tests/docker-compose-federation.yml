@@ -405,6 +405,7 @@ services:
       FRONTEND_AFTER_LOGIN_URL: http://frontend/home
       FRONTEND_AFTER_LOGOUT_URL: http://frontend/services/login/hbp
       CLUSTER_IP: portalbackend
+      CLUSTER_NAME: woken-central
       CLUSTER_PORT: 8089
       WOKEN_PORT_8088_TCP_ADDR: wokencentral
       WOKEN_PORT_8088_TCP_PORT: 8088

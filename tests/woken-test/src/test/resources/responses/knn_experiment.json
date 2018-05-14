@@ -1261,7 +1261,8 @@
                   }
                 },
                 "type": "KFoldCrossValidationScore"
-              }
+              },
+              "node": "local"
             }
           ]
         },
