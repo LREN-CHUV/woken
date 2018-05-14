@@ -189,7 +189,8 @@ services:
   # The zipkin process services the UI, and also exposes a POST endpoint that
   # instrumentation can send trace data to. Scribe is enabled by default.
   zipkin:
-    image: openzipkin/zipkin:2.5.0
+    # Alternative: jaegertracing/all-in-one:1.4.1
+    image: openzipkin/zipkin:2.8.3
     container_name: zipkin
     hostname: zipkin
     # Environment settings are defined here https://github.com/openzipkin/zipkin/tree/1.19.0/zipkin-server#environment-variables

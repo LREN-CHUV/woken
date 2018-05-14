@@ -41,6 +41,7 @@ import ch.chuv.lren.woken.messages.query.{
   MiningQuery,
   ValidationSpec
 }
+import ch.chuv.lren.woken.service.DispatcherService
 import com.typesafe.scalalogging.LazyLogging
 
 /**
@@ -66,8 +67,9 @@ object ExperimentActor {
                       initiator: ActorRef)
 
   def props(coordinatorConfig: CoordinatorConfig,
-            algorithmLookup: String => Validation[AlgorithmDefinition]): Props =
-    Props(new ExperimentActor(coordinatorConfig, algorithmLookup))
+            algorithmLookup: String => Validation[AlgorithmDefinition],
+            dispatcherService: DispatcherService): Props =
+    Props(new ExperimentActor(coordinatorConfig, algorithmLookup, dispatcherService))
 
 }
 
@@ -79,7 +81,8 @@ object ExperimentActor {
   *
   */
 class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
-                      algorithmLookup: String => Validation[AlgorithmDefinition])
+                      algorithmLookup: String => Validation[AlgorithmDefinition],
+                      dispatcherService: DispatcherService)
     extends Actor
     with LazyLogging {
 
@@ -105,6 +108,7 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
       coordinatorConfig.featuresDatabase,
       coordinatorConfig.jobsConf,
       algorithmLookup,
+      dispatcherService,
       context
     ).flow
 
@@ -188,6 +192,7 @@ case class ExperimentFlow(
     featuresDatabase: FeaturesDAL,
     jobsConf: JobsConfiguration,
     algorithmLookup: String => Validation[AlgorithmDefinition],
+    dispatcherService: DispatcherService,
     context: ActorContext
 )(implicit materializer: Materializer, ec: ExecutionContext)
     extends LazyLogging {
@@ -197,7 +202,7 @@ case class ExperimentFlow(
                                          subJob: ValidatedAlgorithmFlow.Job)
 
   private val validatedAlgorithmFlow =
-    ValidatedAlgorithmFlow(executeJobAsync, featuresDatabase, jobsConf, context)
+    ValidatedAlgorithmFlow(executeJobAsync, featuresDatabase, jobsConf, dispatcherService, context)
 
   @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
   def flow: Flow[ExperimentActor.Job, Map[AlgorithmSpec, JobResult], NotUsed] =
@@ -205,22 +210,24 @@ case class ExperimentFlow(
       .fromGraph(GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
         import GraphDSL.Implicits._
 
-        // prepare graph elements
-        val jobSplitter = builder.add(splitJob)
-        val partition = builder.add(
-          Partition[AlgorithmValidationMaybe](
-            3,
-            partitioner = algoMaybe => {
-              algoMaybe.algorithmDefinition.fold(
-                { _: NonEmptyList[String] =>
-                  2
-                }, { algoDef: AlgorithmDefinition =>
-                  if (algoDef.predictive) 0 else 1
-                }
-              )
+        // TODO: detect distributed algorithms
+        val LOCAL_PREDICTIVE_ALGORITHM = 0
+        val OTHER_ALGORITHM            = 1
+        val INVALID_ALGORITHM          = 2
+
+        def partitionAlgorithmByType(algoMaybe: AlgorithmValidationMaybe): Int =
+          algoMaybe.algorithmDefinition.fold(
+            { _: NonEmptyList[String] =>
+              INVALID_ALGORITHM
+            }, { algoDef: AlgorithmDefinition =>
+              if (algoDef.predictive) LOCAL_PREDICTIVE_ALGORITHM else OTHER_ALGORITHM
             }
           )
-        )
+
+        // prepare graph elements
+        val jobSplitter = builder.add(splitJob)
+        val partition =
+          builder.add(Partition[AlgorithmValidationMaybe](3, partitionAlgorithmByType))
         val merge = builder.add(Merge[(AlgorithmSpec, JobResult)](3))
         val toMap =
           builder.add(Flow[(AlgorithmSpec, JobResult)].fold[Map[AlgorithmSpec, JobResult]](Map()) {
@@ -231,11 +238,12 @@ case class ExperimentFlow(
         // connect the graph
         jobSplitter ~> partition.in
         // Algorithm with validation
-        partition.out(0) ~> prepareMiningQuery ~> algorithmWithValidation ~> merge
+        partition
+          .out(LOCAL_PREDICTIVE_ALGORITHM) ~> prepareMiningQuery ~> localAlgorithmWithValidation ~> merge
         // Algorithm without validation
-        partition.out(1) ~> prepareMiningQuery ~> algorithmOnly ~> merge
+        partition.out(OTHER_ALGORITHM) ~> prepareMiningQuery ~> algorithmOnly ~> merge
         // Invalid algorithm
-        partition.out(2) ~> failJob ~> merge
+        partition.out(INVALID_ALGORITHM) ~> failJob ~> merge
         merge ~> toMap
 
         FlowShape(jobSplitter.in, toMap.out)
@@ -295,13 +303,14 @@ case class ExperimentFlow(
                                                 miningQuery,
                                                 job.metadata,
                                                 validations,
+                                                query.validationDatasets,
                                                 algorithmDefinition)
         logger.info(s"Prepared mining query sub job $subJob")
         AlgorithmValidation(job, algorithmSpec, subJob)
       }
       .named("prepare-mining-query")
 
-  private def algorithmWithValidation
+  private def localAlgorithmWithValidation
     : Flow[AlgorithmValidation, (AlgorithmSpec, JobResult), NotUsed] =
     Flow
       .fromGraph(GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
@@ -310,7 +319,7 @@ case class ExperimentFlow(
         val broadcast               = builder.add(Broadcast[AlgorithmValidation](2))
         val takeSpec                = Flow[AlgorithmValidation].map(_.algorithmSpec)
         val takeSubjob              = Flow[AlgorithmValidation].map(_.subJob)
-        val runAlgorithmAndValidate = validatedAlgorithmFlow.runAlgorithmAndValidate(4)
+        val runAlgorithmAndValidate = validatedAlgorithmFlow.runLocalAlgorithmAndValidate(4)
         val takeModel               = Flow[ValidatedAlgorithmFlow.ResultResponse].map(_.model)
         val zip                     = builder.add(Zip[AlgorithmSpec, JobResult]())
 
@@ -329,12 +338,12 @@ case class ExperimentFlow(
         val broadcast    = builder.add(Broadcast[AlgorithmValidation](2))
         val takeSpec     = Flow[AlgorithmValidation].map(_.algorithmSpec)
         val takeSubjob   = Flow[AlgorithmValidation].map(_.subJob)
-        val runAlgorithm = validatedAlgorithmFlow.runAlgoInDocker
+        val runAlgorithm = validatedAlgorithmFlow.runAlgorithmOnLocalData
         val takeModel    = Flow[CoordinatorActor.Response].map(extractResult)
         val zip          = builder.add(Zip[AlgorithmSpec, JobResult]())
 
         broadcast.out(0) ~> takeSpec ~> zip.in0
-        broadcast.out(1) ~> takeSubjob ~> runAlgorithm ~> takeModel ~> zip.in1
+        broadcast.out(1) ~> takeSubjob ~> runAlgorithm.map(_._2) ~> takeModel ~> zip.in1
 
         FlowShape(broadcast.in, zip.out)
       })

@@ -111,7 +111,7 @@ class MiningQueriesActor(
           initiator ! error.asQueryResult
         }, {
           case job: DockerJob     => runMiningJob(query, initiator, job)
-          case job: ValidationJob => ???
+          case job: ValidationJob => runValidationJob(query, initiator, job)
           case job =>
             val error =
               ErrorJobResult(
@@ -192,5 +192,13 @@ class MiningQueriesActor(
 
   private[dispatch] def newCoordinatorActor: ActorRef =
     context.actorOf(CoordinatorActor.props(coordinatorConfig))
+
+  private def runValidationJob(query: MiningQuery, initiator: ActorRef, job: ValidationJob): Unit =
+    dispatcherService.dispatchTo(query.datasets) match {
+      case (_, true) => startValidationJob(job, initiator)
+      case _         =>
+      // No local datasets match the query,
+      // TODO return an empty result
+    }
 
 }

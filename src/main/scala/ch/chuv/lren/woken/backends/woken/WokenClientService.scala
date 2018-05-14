@@ -57,7 +57,8 @@ case class WokenClientService(node: String)(implicit val system: ActorSystem,
   def queryFlow: Flow[(RemoteLocation, Query), (RemoteLocation, QueryResult), NotUsed] =
     Flow.fromGraph(GraphDSL.create() { implicit builder =>
       import GraphDSL.Implicits._
-      def switcher(locationAndQuery: (RemoteLocation, Query)): Int =
+
+      def partitionByRemoteLocationType(locationAndQuery: (RemoteLocation, Query)): Int =
         locationAndQuery._1.url.scheme match {
           case "http" | "https" => 0
           case "ws" | "wss"     => 1
@@ -65,8 +66,9 @@ case class WokenClientService(node: String)(implicit val system: ActorSystem,
           case _                => 1
         }
 
-      val partition = builder.add(Partition[(RemoteLocation, Query)](3, switcher))
-      val merger    = builder.add(Merge[(RemoteLocation, QueryResult)](3))
+      val partition =
+        builder.add(Partition[(RemoteLocation, Query)](3, partitionByRemoteLocationType))
+      val merger = builder.add(Merge[(RemoteLocation, QueryResult)](3))
 
       partition.out(0).via(httpQueryFlow) ~> merger
       partition.out(1).via(wsQueryFlow) ~> merger
