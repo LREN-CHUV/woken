@@ -83,6 +83,8 @@ $DOCKER_COMPOSE run sample_meta_db_setup
 
 echo "Migrate features database..."
 $DOCKER_COMPOSE run sample_data_db_setup
+$DOCKER_COMPOSE run sample_data_db_setup1
+$DOCKER_COMPOSE run sample_data_db_setup2
 
 echo "Run containers..."
 for i in 1 2 3 4 5 ; do
