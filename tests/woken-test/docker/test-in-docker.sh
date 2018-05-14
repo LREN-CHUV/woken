@@ -4,6 +4,6 @@
 
 TEST="$@"
 TEST="${TEST:-$TEST_ARGS}"
-TEST="${TEST:-testOnly -- -l org.scalatest.tags.Slow}"
+TEST="${TEST:-testOnly -- -l org.scalatest.tags.Slow -Djava.library.path=/lib}"
 
-cd /build && sbt "$TEST" -- -Djava.library.path=/lib
+cd /build && sbt "$TEST"
