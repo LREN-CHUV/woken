@@ -296,6 +296,11 @@ services:
       CLUSTER_IP: wokentest
       WOKEN_PORT_8088_TCP_ADDR: woken
       LOG_LEVEL: DEBUG
+      KAMON_ENABLED: "yes"
+      ZIPKIN_ENABLED: "yes"
+      PROMETHEUS_ENABLED: "yes"
+      SIGAR_SYSTEM_METRICS: "no"
+      JVM_SYSTEM_METRICS: "no"
     depends_on:
       - woken
 
