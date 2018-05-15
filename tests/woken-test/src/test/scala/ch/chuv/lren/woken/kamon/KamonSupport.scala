@@ -17,64 +17,32 @@
 
 package ch.chuv.lren.woken.kamon
 
-import java.io.File
-
-import com.typesafe.config.Config
+import com.typesafe.config.{Config, ConfigValueFactory}
 import com.typesafe.scalalogging.Logger
 import kamon.Kamon
-import kamon.prometheus.PrometheusReporter
-import kamon.sigar.SigarProvisioner
-import kamon.system.SystemMetrics
 import kamon.zipkin.ZipkinReporter
-import org.hyperic.sigar.{ Sigar, SigarLoader }
 import org.slf4j.LoggerFactory
-
-import scala.util.Try
 
 object KamonSupport {
 
   private val logger: Logger =
-    Logger(LoggerFactory.getLogger("WokenKamonSupport"))
+    Logger(LoggerFactory.getLogger("WokenKamonSupportInTest"))
 
   def startReporters(config: Config): Unit = {
-    val kamonConfig = config.getConfig("kamon")
+    val kamonConfig = config
+      .getConfig("kamon")
 
-    if (kamonConfig.getBoolean("enabled") || kamonConfig.getBoolean("prometheus.enabled") || kamonConfig
-          .getBoolean("zipkin.enabled")) {
+    if (kamonConfig.getBoolean("enabled") || kamonConfig.getBoolean(
+      "prometheus.enabled") || kamonConfig
+      .getBoolean("zipkin.enabled")) {
 
       logger.info("Kamon configuration:")
       logger.info(config.getConfig("kamon").toString)
       logger.info(s"Start monitoring...")
 
-      Kamon.reconfigure(config)
-
-      val hostSystemMetrics = kamonConfig.getBoolean("system-metrics.host.enabled")
-      if (hostSystemMetrics) {
-        logger.info(s"Start Sigar metrics...")
-        Try {
-          val sigarLoader = new SigarLoader(classOf[Sigar])
-          sigarLoader.load()
-        }
-
-        Try(
-          SigarProvisioner.provision(
-            new File(System.getProperty("user.home") + File.separator + ".native")
-          )
-        ).recover { case e: Exception => logger.warn("Cannot provision Sigar", e) }
-
-        if (SigarProvisioner.isNativeLoaded)
-          logger.info("Sigar metrics are available")
-        else
-          logger.warn("Sigar metrics are not available")
-      }
-
-      if (hostSystemMetrics || kamonConfig.getBoolean("system-metrics.jvm.enabled")) {
-        logger.info(s"Start collection of system metrics...")
-        SystemMetrics.startCollecting()
-      }
-
-      if (kamonConfig.getBoolean("prometheus.enabled"))
-        Kamon.addReporter(new PrometheusReporter)
+      Kamon.reconfigure(config.withValue("kamon.trace.join-remote-parents-with-same-span-id",
+        ConfigValueFactory.fromAnyRef("yes"))
+      )
 
       if (kamonConfig.getBoolean("zipkin.enabled"))
         Kamon.addReporter(new ZipkinReporter)

@@ -29,7 +29,11 @@ import ch.chuv.lren.woken.kamon.KamonSupport
 import com.typesafe.config.{Config, ConfigFactory}
 import ch.chuv.lren.woken.messages.datasets._
 import ch.chuv.lren.woken.messages.query._
-import ch.chuv.lren.woken.messages.variables.{VariableId, VariablesForDatasetsQuery, VariablesForDatasetsResponse}
+import ch.chuv.lren.woken.messages.variables.{
+  VariableId,
+  VariablesForDatasetsQuery,
+  VariablesForDatasetsResponse
+}
 import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
 import org.scalatest.TryValues._
@@ -41,6 +45,8 @@ import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Try
+
+import kamon.Kamon
 
 class WokenAkkaAPITest
     extends WordSpec
@@ -458,7 +464,8 @@ class WokenAkkaAPITest
         val json = response.toJson
         val expected = loadJson("/responses/sgd_linear_model_experiment.json")
 
-        assertResult(approximate(expected, skippedTags))(approximate(json, skippedTags))
+        assertResult(approximate(expected, skippedTags))(
+          approximate(json, skippedTags))
       }
 
       "executes a SGD Neural Network algorithm" in {
@@ -482,7 +489,8 @@ class WokenAkkaAPITest
         val json = response.toJson
         val expected = loadJson("/responses/sgd_neural_network_experiment.json")
 
-        assertResult(approximate(expected, skippedTags))(approximate(json, skippedTags))
+        assertResult(approximate(expected, skippedTags))(
+          approximate(json, skippedTags))
       }
 
       "executes a Gradient Boosting algorithm" in {
@@ -560,6 +568,7 @@ class WokenAkkaAPITest
   }
 
   private def timedQuery[R](query: Any, description: String): R = {
+    val span = Kamon.buildSpan(description.replaceAll(" ", "-")).start()
     val start = System.currentTimeMillis()
     val future = mediator ? DistributedPubSubMediator.Send(
       entryPoint,
@@ -577,6 +586,7 @@ class WokenAkkaAPITest
     }
     assert(result.isSuccess, "Query returned a failure")
 
+    span.finish()
     result.success.value
   }
 }

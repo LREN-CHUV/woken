@@ -30,6 +30,7 @@ import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 import ch.chuv.lren.woken.kamon.KamonSupport
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
+import kamon.Kamon
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Minutes, Span}
@@ -41,7 +42,7 @@ import scala.concurrent.duration._
 import scala.collection.immutable.Seq
 
 class WokenWebSocketAPITest
-  extends WordSpec
+    extends WordSpec
     with Matchers
     with Queries
     with ScalaFutures
@@ -50,8 +51,7 @@ class WokenWebSocketAPITest
 
   val config: Config =
     ConfigFactory
-      .parseString(
-        """
+      .parseString("""
           |akka {
           |  actor.provider = local
           |}
@@ -78,33 +78,33 @@ class WokenWebSocketAPITest
 
     "respond to a query for the list of algorithms using websocket" in {
       executeQuery(None,
-        Some("/responses/list_algorithms.json"),
-        s"ws://$remoteHostName:8087/mining/algorithms")
+                   Some("/responses/list_algorithms.json"),
+                   s"ws://$remoteHostName:8087/mining/algorithms")
     }
 
     "respond to a query for the list of datasets using websocket" in {
       executeQuery(None,
-        Some("/responses/list_datasets.json"),
-        s"ws://$remoteHostName:8087/metadata/datasets")
+                   Some("/responses/list_datasets.json"),
+                   s"ws://$remoteHostName:8087/metadata/datasets")
     }
 
     "respond to a mining query using websocket" in {
       executeQuery(Some("/responses/knn_data_mining_query.json"),
-        Some("/responses/knn_data_mining.json"),
-        s"ws://$remoteHostName:8087/mining/job")
+                   Some("/responses/knn_data_mining.json"),
+                   s"ws://$remoteHostName:8087/mining/job")
 
     }
 
     "respond to an experiment query using websocket" in {
       executeQuery(Some("/responses/knn_experiment_query.json"),
-        Some("/responses/knn_experiment.json"),
-        s"ws://$remoteHostName:8087/mining/experiment")
+                   Some("/responses/knn_experiment.json"),
+                   s"ws://$remoteHostName:8087/mining/experiment")
     }
 
   }
 
   private def assertionAsSink(
-                               expectedResponse: Option[String]): Sink[Message, Future[Done]] = {
+      expectedResponse: Option[String]): Sink[Message, Future[Done]] = {
     Sink.foreach {
       case message: TextMessage.Strict =>
         message.text.isEmpty shouldBe false
@@ -126,6 +126,7 @@ class WokenWebSocketAPITest
   private def executeQuery(probeData: Option[String],
                            expectedResult: Option[String],
                            endpointUrl: String): Unit = {
+    val span = Kamon.buildSpan(endpointUrl).start()
     val probeSource: Source[Message, NotUsed] = probeData match {
       case Some(probe) =>
         val source = scala.io.Source.fromURL(getClass.getResource(probe))
@@ -142,7 +143,7 @@ class WokenWebSocketAPITest
       Flow
         .fromSinkAndSourceMat(assertSink, probeSource)(Keep.left)
         .keepAlive(FiniteDuration(1, TimeUnit.SECONDS),
-          () => TextMessage.apply("heart beat"))
+                   () => TextMessage.apply("heart beat"))
 
     val (upgradeResponse, closed) =
       Http().singleWebSocketRequest(
@@ -166,6 +167,7 @@ class WokenWebSocketAPITest
 
     whenReady(closed, timeout = Timeout(Span(5, Minutes))) { result =>
       logger.debug(result.toString)
+      span.finish()
     }
 
   }
