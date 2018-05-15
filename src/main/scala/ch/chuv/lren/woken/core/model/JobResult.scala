@@ -112,7 +112,7 @@ case class PfaJobResult(jobId: String,
     val `type` = JsObject("type" -> JsString("array"), "items" -> JsString("Record"))
     JsObject(
       "type" -> `type`,
-      "items" -> values
+      "init" -> values
     )
   }
 
@@ -341,8 +341,7 @@ object JobResult {
 
       case Shapes.pfa =>
         val rawModel = queryResult.data.map(_.asJsObject).getOrElse(JsObject())
-        val validations: ValidationResults = rawModel.fields
-          .get("cells")
+        val validations: ValidationResults = rawModel.fields.get("cells")
           .flatMap(_.asJsObject.fields.get("validations"))
           .map(toValidations)
           .getOrElse(Map())
@@ -369,10 +368,10 @@ object JobResult {
         )
       case Shapes.error =>
         ErrorJobResult(jobId = queryResult.jobId,
-                       node = queryResult.node,
-                       timestamp = queryResult.timestamp,
-                       algorithm = queryResult.algorithm,
-                       error = queryResult.error.getOrElse(""))
+          node = queryResult.node,
+          timestamp = queryResult.timestamp,
+          algorithm = queryResult.algorithm,
+          error = queryResult.error.getOrElse(""))
 
       case shape if Shapes.visualisationJsonResults.contains(shape) =>
         JsonDataJobResult(
@@ -407,7 +406,7 @@ object JobResult {
     case l: JsArray =>
       l.elements.map { v =>
         val jobResult = fromQueryResult(v.convertTo[QueryResult])
-        val spec      = v.asJsObject.fields("algorithmSpec").convertTo[AlgorithmSpec]
+        val spec = v.asJsObject.fields("algorithmSpec").convertTo[AlgorithmSpec]
         spec -> jobResult
       }.toMap
     case _ => deserializationError("Expected an array")
@@ -431,7 +430,7 @@ object JobResult {
           }
         validationSpec -> score
       }.toMap
-      case _ => deserializationError("Expected an init field containing the array of validations")
+      case _ => deserializationError(s"Expected an init field containing the array of validations, found ${validations.compactPrint}")
     }
   }
 }
