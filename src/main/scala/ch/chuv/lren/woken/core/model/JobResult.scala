@@ -77,11 +77,13 @@ case class PfaJobResult(jobId: String,
 
   override def algorithmM: Option[String] = Some(algorithm)
 
-  def model: JsObject = if (validations.isEmpty) rawModel else {
-    val cells        = rawModel.fields.getOrElse("cells", JsObject()).asJsObject
-    val updatedCells = JsObject(cells.fields + ("validations" -> validationsJson))
-    JsObject(rawModel.fields + ("cells" -> updatedCells))
-  }
+  def model: JsObject =
+    if (validations.isEmpty) rawModel
+    else {
+      val cells        = rawModel.fields.getOrElse("cells", JsObject()).asJsObject
+      val updatedCells = JsObject(cells.fields + ("validations" -> validationsJson))
+      JsObject(rawModel.fields + ("cells" -> updatedCells))
+    }
 
   def injectCell(name: String, value: JsValue): PfaJobResult = {
     val cells        = rawModel.fields.getOrElse("cells", JsObject()).asJsObject
@@ -97,15 +99,15 @@ case class PfaJobResult(jobId: String,
       validations
         .map({
           case (key, Right(value)) =>
-            JsObject("code" -> JsString(key.code),
-              "validationSpec" -> key.toJson,
-              "node" -> JsString(nodeOf(key).getOrElse(node)),
-              "data" -> value.toJson)
+            JsObject("code"           -> JsString(key.code),
+                     "validationSpec" -> key.toJson,
+                     "node"           -> JsString(nodeOf(key).getOrElse(node)),
+                     "data"           -> value.toJson)
           case (key, Left(message)) =>
-            JsObject("code" -> JsString(key.code),
-              "validationSpec" -> key.toJson,
-              "node" -> JsString(nodeOf(key).getOrElse(node)),
-              "error" -> JsString(message))
+            JsObject("code"           -> JsString(key.code),
+                     "validationSpec" -> key.toJson,
+                     "node"           -> JsString(nodeOf(key).getOrElse(node)),
+                     "error"          -> JsString(message))
         })
         .toVector
     )
@@ -341,7 +343,8 @@ object JobResult {
 
       case Shapes.pfa =>
         val rawModel = queryResult.data.map(_.asJsObject).getOrElse(JsObject())
-        val validations: ValidationResults = rawModel.fields.get("cells")
+        val validations: ValidationResults = rawModel.fields
+          .get("cells")
           .flatMap(_.asJsObject.fields.get("validations"))
           .map(toValidations)
           .getOrElse(Map())
@@ -368,10 +371,10 @@ object JobResult {
         )
       case Shapes.error =>
         ErrorJobResult(jobId = queryResult.jobId,
-          node = queryResult.node,
-          timestamp = queryResult.timestamp,
-          algorithm = queryResult.algorithm,
-          error = queryResult.error.getOrElse(""))
+                       node = queryResult.node,
+                       timestamp = queryResult.timestamp,
+                       algorithm = queryResult.algorithm,
+                       error = queryResult.error.getOrElse(""))
 
       case shape if Shapes.visualisationJsonResults.contains(shape) =>
         JsonDataJobResult(
@@ -406,31 +409,34 @@ object JobResult {
     case l: JsArray =>
       l.elements.map { v =>
         val jobResult = fromQueryResult(v.convertTo[QueryResult])
-        val spec = v.asJsObject.fields("algorithmSpec").convertTo[AlgorithmSpec]
+        val spec      = v.asJsObject.fields("algorithmSpec").convertTo[AlgorithmSpec]
         spec -> jobResult
       }.toMap
     case _ => deserializationError("Expected an array")
   }
 
-  def toValidations(validations: JsValue): ValidationResults = {
+  def toValidations(validations: JsValue): ValidationResults =
     validations.asJsObject.getFields("init") match {
-      case Seq(JsArray(elements)) => elements.map { v =>
-        val validationSpecJson =
-          v.asJsObject.fields.getOrElse("validationSpec",
-            deserializationError(s"Expected a validationSpec"))
+      case Seq(JsArray(elements)) =>
+        elements.map { v =>
+          val validationSpecJson =
+            v.asJsObject.fields.getOrElse("validationSpec",
+                                          deserializationError(s"Expected a validationSpec"))
 
-        val validationSpec = validationSpecJson.convertTo[ValidationSpec]
-        val score: Either[String, Score] = v.asJsObject.fields
-          .get("data")
-          .fold {
-            val error = v.asJsObject.fields.getOrElse("error", JsString("")).convertTo[String]
-            Left(error).asInstanceOf[Either[String, Score]]
-          } { data =>
-            Right(data.convertTo[Score])
-          }
-        validationSpec -> score
-      }.toMap
-      case _ => deserializationError(s"Expected an init field containing the array of validations, found ${validations.compactPrint}")
+          val validationSpec = validationSpecJson.convertTo[ValidationSpec]
+          val score: Either[String, Score] = v.asJsObject.fields
+            .get("data")
+            .fold {
+              val error = v.asJsObject.fields.getOrElse("error", JsString("")).convertTo[String]
+              Left(error).asInstanceOf[Either[String, Score]]
+            } { data =>
+              Right(data.convertTo[Score])
+            }
+          validationSpec -> score
+        }.toMap
+      case _ =>
+        deserializationError(
+          s"Expected an init field containing the array of validations, found ${validations.compactPrint}"
+        )
     }
-  }
 }
