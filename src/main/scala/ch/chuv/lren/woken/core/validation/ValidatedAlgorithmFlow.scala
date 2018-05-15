@@ -34,8 +34,6 @@ import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.validation.{ Score, validationProtocol }
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
 import com.typesafe.scalalogging.LazyLogging
-import spray.json._
-import validationProtocol._
 
 import scala.concurrent.ExecutionContext
 
@@ -182,25 +180,10 @@ case class ValidatedAlgorithmFlow(
     Flow[(CoordinatorActor.Response, ValidationResults)]
       .map {
         case (response, validations) =>
-          val validationsJson = JsArray(
-            validations
-              .map({
-                case (key, Right(value)) =>
-                  JsObject("code" -> JsString(key.code),
-                           "node" -> JsString(nodeOf(key).getOrElse(jobsConf.node)),
-                           "data" -> value.toJson)
-                case (key, Left(message)) =>
-                  JsObject("code"  -> JsString(key.code),
-                           "node"  -> JsString(nodeOf(key).getOrElse(jobsConf.node)),
-                           "error" -> JsString(message))
-              })
-              .toVector
-          )
-
           val algorithm = response.job.algorithmSpec
           response.results.headOption match {
             case Some(pfa: PfaJobResult) =>
-              val model = pfa.ad
+              val model = pfa.copy(validations = pfa.validations ++ validations)
               ResultResponse(algorithm, Right(model))
             case Some(model) =>
               logger.warn(

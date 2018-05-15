@@ -30,22 +30,9 @@ class FakeExperimentActor() extends Actor {
   override def receive: PartialFunction[Any, Unit] = {
     case JobCommands.StartExperimentJob(job, requestedReplyTo, initiator) =>
       val replyTo = if (requestedReplyTo == Actor.noSender) sender() else requestedReplyTo
-      val pfaModels =
-        """
-         [
-           {
-             "input": [],
-             "output": [],
-             "action": [],
-             "cells": []
-           }
-         ]
-
-        """.stripMargin.parseJson.asInstanceOf[JsArray]
-
       replyTo ! Response(
         job,
-        Right(ExperimentJobResult(job.jobId, "testNode", OffsetDateTime.now(), pfaModels)),
+        Right(ExperimentJobResult(job.jobId, "testNode", Map(), OffsetDateTime.now())),
         initiator
       )
       self ! PoisonPill

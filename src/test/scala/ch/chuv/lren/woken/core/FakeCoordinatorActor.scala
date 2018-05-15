@@ -77,10 +77,10 @@ class FakeCoordinatorActor(expectedAlgorithm: String, errorMessage: Option[Strin
     val pfa =
       """
            {
-             "input": [],
-             "output": [],
+             "input": {},
+             "output": {},
              "action": [],
-             "cells": []
+             "cells": {}
            }
         """.stripMargin.parseJson.asJsObject
 

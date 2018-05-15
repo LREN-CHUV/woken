@@ -24,8 +24,9 @@ import ch.chuv.lren.woken.messages.query._
 import Shapes.{ pfa => pfaShape, _ }
 import ch.chuv.lren.woken.core.model.PfaJobResult.ValidationResults
 import ch.chuv.lren.woken.messages.validation.Score
+import ch.chuv.lren.woken.messages.APIJsonProtocol
 import spray.json._
-import queryProtocol._
+import APIJsonProtocol._
 
 /**
   * Result produced during the execution of an algorithm
@@ -79,13 +80,13 @@ case class PfaJobResult(jobId: String,
   def model: JsObject = {
     val cells        = rawModel.fields.getOrElse("cells", JsObject()).asJsObject
     val updatedCells = JsObject(cells.fields + ("validations" -> validationsJson))
-    JsObject(model.fields + ("cells" -> updatedCells))
+    JsObject(rawModel.fields + ("cells" -> updatedCells))
   }
 
   def injectCell(name: String, value: JsValue): PfaJobResult = {
-    val cells        = model.fields.getOrElse("cells", JsObject()).asJsObject
+    val cells        = rawModel.fields.getOrElse("cells", JsObject()).asJsObject
     val updatedCells = JsObject(cells.fields + (name -> value))
-    val updatedModel = JsObject(model.fields + ("cells" -> updatedCells))
+    val updatedModel = JsObject(rawModel.fields + ("cells" -> updatedCells))
 
     copy(rawModel = updatedModel)
   }
@@ -365,15 +366,7 @@ object JobResult {
 
       case Shapes.pfaExperiment =>
         val results: Map[AlgorithmSpec, JobResult] = queryResult.data
-          .map {
-            case l: JsArray =>
-              l.elements.map { v =>
-                val jobResult = fromQueryResult(v.convertTo[QueryResult])
-                val spec      = v.asJsObject.fields("algorithmSpec").convertTo[AlgorithmSpec]
-                spec -> jobResult
-              }.toMap
-            case _ => deserializationError("Expected an array")
-          }
+          .map(toExperimentResults)
           .getOrElse(Map())
 
         ExperimentJobResult(
@@ -417,4 +410,14 @@ object JobResult {
       case shape =>
         deserializationError(s"Unexpected shape $shape")
     }
+
+  def toExperimentResults(data: JsValue): Map[AlgorithmSpec, JobResult] = data match {
+    case l: JsArray =>
+      l.elements.map { v =>
+        val jobResult = fromQueryResult(v.convertTo[QueryResult])
+        val spec      = v.asJsObject.fields("algorithmSpec").convertTo[AlgorithmSpec]
+        spec -> jobResult
+      }.toMap
+    case _ => deserializationError("Expected an array")
+  }
 }
