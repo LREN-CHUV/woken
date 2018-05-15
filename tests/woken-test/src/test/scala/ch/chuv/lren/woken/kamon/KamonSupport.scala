@@ -20,6 +20,7 @@ package ch.chuv.lren.woken.kamon
 import com.typesafe.config.{Config, ConfigValueFactory}
 import com.typesafe.scalalogging.Logger
 import kamon.Kamon
+import kamon.prometheus.PrometheusReporter
 import kamon.zipkin.ZipkinReporter
 import org.slf4j.LoggerFactory
 
@@ -46,6 +47,7 @@ object KamonSupport {
 
       if (kamonConfig.getBoolean("zipkin.enabled"))
         Kamon.addReporter(new ZipkinReporter)
+       Kamon.addReporter(new PrometheusReporter)
     }
   }
 

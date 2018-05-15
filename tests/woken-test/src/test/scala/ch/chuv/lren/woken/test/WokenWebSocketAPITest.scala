@@ -30,6 +30,7 @@ import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 import ch.chuv.lren.woken.kamon.KamonSupport
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
+import kamon.Kamon
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Minutes, Span}
@@ -59,15 +60,17 @@ class WokenWebSocketAPITest
       .withFallback(ConfigFactory.parseResourcesAnySyntax("kamon.conf"))
       .resolve()
 
-  KamonSupport.startReporters(config)
   implicit val system: ActorSystem = ActorSystem("WebSocketAPITest", config)
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   implicit val executionContext: ExecutionContext = system.dispatcher
 
+  KamonSupport.startReporters(config)
+
   val remoteHostName: String = config.getString("clustering.seed-ip")
 
   override def afterAll: Unit = {
+    Kamon.stopAllReporters()
     system.terminate().onComplete { result =>
       logger.debug(s"Actor system shutdown: $result")
     }
@@ -125,6 +128,9 @@ class WokenWebSocketAPITest
   private def executeQuery(probeData: Option[String],
                            expectedResult: Option[String],
                            endpointUrl: String): Unit = {
+
+    val span = Kamon.buildSpan(endpointUrl.split("/").takeRight(2).mkString("-")).start()
+    println(endpointUrl.split("/").takeRight(2).mkString("-"))
     val probeSource: Source[Message, NotUsed] = probeData match {
       case Some(probe) =>
         val source = scala.io.Source.fromURL(getClass.getResource(probe))
@@ -144,13 +150,15 @@ class WokenWebSocketAPITest
                    () => TextMessage.apply("heart beat"))
 
     val (upgradeResponse, closed) =
-      Http().singleWebSocketRequest(
-        WebSocketRequest(
-          endpointUrl,
-          extraHeaders =
-            Seq(Authorization(BasicHttpCredentials("admin", "WoKeN")))),
-        flow
-      )
+      Kamon.withSpan(span) {
+        Http().singleWebSocketRequest(
+          WebSocketRequest(
+            endpointUrl,
+            extraHeaders =
+              Seq(Authorization(BasicHttpCredentials("admin", "WoKeN")))),
+          flow
+        )
+      }
 
     val connected = upgradeResponse.map { upgrade =>
       if (upgrade.response.status == StatusCodes.SwitchingProtocols) {
@@ -164,6 +172,7 @@ class WokenWebSocketAPITest
     connected.onComplete(t => logger.debug(t.toString))
 
     whenReady(closed, timeout = Timeout(Span(5, Minutes))) { result =>
+      span.finish()
       logger.debug(result.toString)
     }
 
