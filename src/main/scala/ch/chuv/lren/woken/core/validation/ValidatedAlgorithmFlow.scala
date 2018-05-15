@@ -209,6 +209,7 @@ case class ValidatedAlgorithmFlow(
                   executionPlan = None,
                   datasets = job.remoteValidationDatasets
                 )
+                log.info(s"Prepared remote validation query: $query")
 
                 // It's ok to drop remote validations that failed, there can be network errors
                 // Future alternative: use recover and inject a QueryResult with error, problem is we cannot know
