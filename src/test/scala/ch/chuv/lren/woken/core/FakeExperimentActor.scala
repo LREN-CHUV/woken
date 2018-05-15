@@ -20,7 +20,7 @@ package ch.chuv.lren.woken.core
 import java.time.OffsetDateTime
 
 import akka.actor.{ Actor, PoisonPill }
-import ch.chuv.lren.woken.core.model.PfaExperimentJobResult
+import ch.chuv.lren.woken.core.model.ExperimentJobResult
 import spray.json._
 import ExperimentActor._
 import ch.chuv.lren.woken.core.commands.JobCommands
@@ -45,7 +45,7 @@ class FakeExperimentActor() extends Actor {
 
       replyTo ! Response(
         job,
-        Right(PfaExperimentJobResult(job.jobId, "testNode", OffsetDateTime.now(), pfaModels)),
+        Right(ExperimentJobResult(job.jobId, "testNode", OffsetDateTime.now(), pfaModels)),
         initiator
       )
       self ! PoisonPill

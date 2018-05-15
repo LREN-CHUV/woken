@@ -72,7 +72,7 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
       }.get
     case (jobId, node, timestamp, shape, _, Some(data), None) if pfaExperiment == shape =>
       Try(
-        PfaExperimentJobResult(jobId, node, timestamp, data.parseJson.asInstanceOf[JsArray])
+        ExperimentJobResult(jobId, node, timestamp, data.parseJson.asInstanceOf[JsArray])
       ).recover {
         case t: Throwable =>
           val msg = s"Data for job $jobId for a PFA experiment is not a valid Json array"
@@ -127,7 +127,7 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
        Some(j.algorithm.take(255)),
        Some(j.model.compactPrint),
        None)
-    case j: PfaExperimentJobResult =>
+    case j: ExperimentJobResult =>
       val models = j.models.compactPrint
       (j.jobId, j.node.take(32), j.timestamp, pfaExperiment, None, Some(models), None)
     case j: ErrorJobResult =>

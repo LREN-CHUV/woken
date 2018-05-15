@@ -19,15 +19,18 @@ package ch.chuv.lren.woken.dispatch
 
 import java.time.OffsetDateTime
 
+import akka.NotUsed
 import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{ ActorRef, OneForOneStrategy, Props }
 import akka.routing.{ OptimalSizeExploringResizer, RoundRobinPool }
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{ Sink, Source }
+import akka.stream.scaladsl.{ Flow, Sink, Source }
 import ch.chuv.lren.woken.config.AlgorithmDefinition
 import ch.chuv.lren.woken.core._
 import ch.chuv.lren.woken.core.commands.JobCommands.StartExperimentJob
-import ch.chuv.lren.woken.core.model.ErrorJobResult
+import ch.chuv.lren.woken.core.model.{ ErrorJobResult, ExperimentJobResult }
+import ch.chuv.lren.woken.core.validation.RemoteValidationFlow
+import ch.chuv.lren.woken.core.validation.RemoteValidationFlow.ValidationContext
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query.{ ExperimentQuery, QueryResult }
 import ch.chuv.lren.woken.service.DispatcherService
@@ -100,6 +103,9 @@ class ExperimentQueriesActor(
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val ec: ExecutionContext            = context.dispatcher
 
+  val remoteValidationFlow: Flow[ValidationContext, ValidationContext, NotUsed] =
+    RemoteValidationFlow(dispatcherService, algorithmLookup, context).remoteValidate
+
   override def receive: Receive = {
 
     case experiment: Experiment =>
@@ -128,7 +134,27 @@ class ExperimentQueriesActor(
 
     case ExperimentActor.Response(job, Right(results), initiator) =>
       logger.info(s"Received response for experiment on ${job.query}: $results")
-      initiator ! results.asQueryResult
+      Source
+        .single(ValidationContext(job.query, results))
+        .via(remoteValidationFlow)
+        .map { r =>
+          val result = r.experimentResult.asQueryResult
+          initiator ! result
+          result
+        }
+        .recoverWithRetries(1, {
+          case e =>
+            val result = ErrorJobResult(None,
+                                        coordinatorConfig.jobsConf.node,
+                                        OffsetDateTime.now(),
+                                        None,
+                                        e.toString)
+            initiator ! result
+            Source.single(result)
+        })
+        .log("Result of experiment")
+        .runWith(Sink.last)
+    //.runWith(Sink.actorRef(initiator, None)) -- nicer, but initiator may die on first message received
 
     case e =>
       logger.warn(s"Received unhandled request $e of type ${e.getClass}")
