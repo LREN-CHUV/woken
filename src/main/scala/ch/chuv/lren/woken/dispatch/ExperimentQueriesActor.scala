@@ -187,6 +187,6 @@ class ExperimentQueriesActor(
   }
 
   private[dispatch] def newExperimentActor: ActorRef =
-    context.actorOf(ExperimentActor.props(coordinatorConfig, algorithmLookup))
+    context.actorOf(ExperimentActor.props(coordinatorConfig, algorithmLookup, dispatcherService))
 
 }

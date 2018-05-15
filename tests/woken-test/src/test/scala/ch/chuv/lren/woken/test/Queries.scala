@@ -17,6 +17,8 @@
 
 package ch.chuv.lren.woken.test
 
+import java.io.PrintStream
+
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables.VariableId
 import spray.json._
@@ -69,6 +71,13 @@ trait Queries {
     val sb = new java.lang.StringBuilder()
     new ApproximatePrinter(skippedTags).print(json, sb)
     sb.toString
+  }
+
+  def save(json: String, file: String): Unit = {
+    println(file)
+    println("-----")
+    println(json)
+    println("-----")
   }
 
   class ApproximatePrinter(val skippedTags: List[String])

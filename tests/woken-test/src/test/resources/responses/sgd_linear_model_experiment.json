@@ -123,19 +123,19 @@
                 "coeff": [
                   0.0
                 ],
+                "const": -1.00001
+              },
+              {
+                "coeff": [
+                  0.0
+                ],
                 "const": -1.00233
               },
               {
                 "coeff": [
                   0.0
                 ],
-                "const": -1.0
-              },
-              {
-                "coeff": [
-                  0.0
-                ],
-                "const": 0.99827
+                "const": 0.99825
               }
             ],
             "rollback": false,
@@ -150,7 +150,7 @@
               "code": "kfold",
               "data": {
                 "average": {
-                  "Accuracy": 0.16705,
+                  "Accuracy": 0.66705,
                   "Confusion matrix": {
                     "labels": [
                       "AD",
@@ -169,16 +169,16 @@
                         298.0
                       ],
                       [
-                        859.0,
                         0.0,
-                        287.0
+                        0.0,
+                        1146.0
                       ]
                     ]
                   },
-                  "Weighted F1-score": 0.19097,
-                  "Weighted false positive rate": 0.76193,
-                  "Weighted precision": 0.22287,
-                  "Weighted recall": 0.16705,
+                  "Weighted F1-score": 0.53383,
+                  "Weighted false positive rate": 0.66705,
+                  "Weighted precision": 0.44496,
+                  "Weighted recall": 0.66705,
                   "type": "PolynomialClassificationScore"
                 },
                 "folds": {
@@ -215,7 +215,7 @@
                     "type": "PolynomialClassificationScore"
                   },
                   "1": {
-                    "Accuracy": 0.0,
+                    "Accuracy": 1.0,
                     "Confusion matrix": {
                       "labels": [
                         "AD",
@@ -236,19 +236,20 @@
                         [
                           0.0,
                           0.0,
-                          0.0
+                          859.0
                         ]
                       ]
                     },
-                    "Weighted F1-score": 0.0,
+                    "Weighted F1-score": 1.0,
                     "Weighted false positive rate": null,
-                    "Weighted precision": 0.0,
-                    "Weighted recall": 0.0,
+                    "Weighted precision": 1.0,
+                    "Weighted recall": 1.0,
                     "type": "PolynomialClassificationScore"
                   }
                 },
                 "type": "KFoldCrossValidationScore"
-              }
+              },
+              "node": "local"
             }
           ]
         },
@@ -362,9 +363,11 @@
           "type": "record"
         },
         "metadata": {
+          "X": "{\"lefthippocampus\":{\"count\":1718.0,\"mean\":2.9127631548,\"std\":0.259451083,\"min\":1.3047,\"25%\":2.8672,\"50%\":2.8672,\"75%\":2.88555,\"max\":4.4519}}",
           "coef_": "[[0.0],[0.0],[0.0]]",
-          "intercept_": "[-1.0023337471,-0.9999998321,0.998268678]",
-          "score": "0.6670547148"
+          "intercept_": "[-1.0000080091,-1.0023325942,0.9982504719]",
+          "score": "0.6670547148",
+          "y": "{\"count\":1718,\"unique\":3,\"top\":\"Other\",\"freq\":1146}"
         },
         "method": "map",
         "name": "linear_model",

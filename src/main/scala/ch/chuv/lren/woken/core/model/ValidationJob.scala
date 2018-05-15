@@ -30,3 +30,7 @@ case class ValidationJob(
     query: MiningQuery,
     metadata: List[VariableMetaData]
 ) extends Job
+
+object ValidationJob {
+  val algorithmCode = "_validation_"
+}

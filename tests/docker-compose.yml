@@ -83,7 +83,7 @@ services:
       - mesos_master
 
   chronos:
-    image: hbpmip/chronos:3.0.2-3
+    image: hbpmip/chronos:3.0.2-4
     command: '--zk_hosts zookeeper:2181 --master zk://zookeeper:2181/mesos --zk_timeout 30000'
     restart: "always"
     hostname: chronos
@@ -189,7 +189,8 @@ services:
   # The zipkin process services the UI, and also exposes a POST endpoint that
   # instrumentation can send trace data to. Scribe is enabled by default.
   zipkin:
-    image: openzipkin/zipkin:2.5.0
+    # Alternative: jaegertracing/all-in-one:1.4.1
+    image: openzipkin/zipkin:2.8.3
     container_name: zipkin
     hostname: zipkin
     # Environment settings are defined here https://github.com/openzipkin/zipkin/tree/1.19.0/zipkin-server#environment-variables
@@ -305,7 +306,7 @@ services:
       - woken
 
   portalbackend:
-    image: hbpmip/portal-backend:2.7.14
+    image: hbpmip/portal-backend:2.8.1
     restart: "no"
     ports:
       - "65440:8080"
@@ -352,7 +353,7 @@ services:
       - portalbackend
 
   frontend:
-    image: hbpmip/portal-frontend:2.10.4
+    image: hbpmip/portal-frontend:2.10.5
     depends_on:
       - portalbackend
     ports:

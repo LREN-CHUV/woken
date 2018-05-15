@@ -24,12 +24,15 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Source
 import akka.stream.testkit.scaladsl.TestSink
 import akka.testkit.{ TestKit, TestProbe }
+import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.config.AlgorithmsConfiguration
 import ch.chuv.lren.woken.core.model.{ ErrorJobResult, JobResult, PfaJobResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil
-import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
+import ch.chuv.lren.woken.cromwell.core.ConfigUtil.{ Validation, lift }
+import ch.chuv.lren.woken.messages.datasets.{ Dataset, DatasetId }
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables.VariableId
+import ch.chuv.lren.woken.service.DispatcherService
 import ch.chuv.lren.woken.util.{ FakeCoordinatorConfig, JsonUtils }
 import com.typesafe.config.{ Config, ConfigFactory }
 import com.typesafe.scalalogging.LazyLogging
@@ -244,10 +247,10 @@ class ExperimentFlowTest
 
   object ExperimentFlowWrapper {
 
-    def propsFailingAlgorithm(errorMsg: String) =
+    def propsFailingAlgorithm(errorMsg: String): Props =
       props("", Some(FakeCoordinatorActor.executeFailingJobAsync(errorMsg)))
 
-    def propsSuccessfulAlgorithm(expectedAlgo: String) = props(expectedAlgo, None)
+    def propsSuccessfulAlgorithm(expectedAlgo: String): Props = props(expectedAlgo, None)
 
     def props(expectedAlgorithm: String, executeJob: Option[CoordinatorActor.ExecuteJobAsync]) =
       Props(new ExperimentFlowWrapper(expectedAlgorithm, executeJob))
@@ -269,8 +272,12 @@ class ExperimentFlowTest
 
     private val coordinatorActor =
       context.actorOf(FakeCoordinatorActor.props(expectedAlgorithm, None))
-    private val coordinatorConfig = FakeCoordinatorConfig.coordinatorConfig(coordinatorActor)
-    private val algorithmLookup   = AlgorithmsConfiguration.factory(config)
+    private val coordinatorConfig  = FakeCoordinatorConfig.coordinatorConfig(coordinatorActor)
+    private val algorithmLookup    = AlgorithmsConfiguration.factory(config)
+    private val wokenClientService = WokenClientService("test")
+    private val dispatcherService =
+      DispatcherService(lift(Map[DatasetId, Dataset]()), wokenClientService)
+
     val experimentFlow = ExperimentFlow(
       executeJob.getOrElse(
         FakeCoordinatorActor.executeJobAsync(FakeCoordinatorActor.props(expectedAlgorithm, None),
@@ -279,6 +286,7 @@ class ExperimentFlowTest
       coordinatorConfig.featuresDatabase,
       coordinatorConfig.jobsConf,
       algorithmLookup,
+      dispatcherService,
       context
     )
 

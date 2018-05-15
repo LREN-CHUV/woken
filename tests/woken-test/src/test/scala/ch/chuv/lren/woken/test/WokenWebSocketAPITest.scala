@@ -68,6 +68,7 @@ class WokenWebSocketAPITest
   KamonSupport.startReporters(config)
 
   val remoteHostName: String = config.getString("clustering.seed-ip")
+  val distributed: Boolean = config.getBoolean("test.distributed")
 
   override def afterAll: Unit = {
     Kamon.stopAllReporters()
@@ -85,8 +86,11 @@ class WokenWebSocketAPITest
     }
 
     "respond to a query for the list of datasets using websocket" in {
+      val reference =
+        if (distributed) "/responses/list_datasets_distributed.json"
+        else "/responses/list_datasets.json"
       executeQuery(None,
-                   Some("/responses/list_datasets.json"),
+                   Some(reference),
                    s"ws://$remoteHostName:8087/metadata/datasets")
     }
 

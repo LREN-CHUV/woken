@@ -19,16 +19,20 @@ package ch.chuv.lren.woken.dispatch
 
 import java.time.OffsetDateTime
 
+import akka.NotUsed
 import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{ ActorRef, OneForOneStrategy, Props }
 import akka.routing.{ OptimalSizeExploringResizer, RoundRobinPool }
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{ Sink, Source }
+import akka.stream.scaladsl.{ Flow, Sink, Source }
 import ch.chuv.lren.woken.core._
 import ch.chuv.lren.woken.core.commands.JobCommands.StartCoordinatorJob
 import ch.chuv.lren.woken.core.model.{ DockerJob, ErrorJobResult, Job, ValidationJob }
+import ch.chuv.lren.woken.core.validation.ValidationFlow
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
-import ch.chuv.lren.woken.messages.query.{ MiningQuery, QueryResult }
+import ch.chuv.lren.woken.messages.query.{ MiningQuery, QueryResult, Shapes }
+import ch.chuv.lren.woken.messages.validation.Score
+import ch.chuv.lren.woken.messages.validation.validationProtocol._
 import ch.chuv.lren.woken.service.DispatcherService
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
@@ -36,6 +40,8 @@ import com.typesafe.scalalogging.LazyLogging
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.util.{ Failure, Success }
+import spray.json._
 
 object MiningQueriesActor extends LazyLogging {
 
@@ -86,6 +92,13 @@ class MiningQueriesActor(
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val ec: ExecutionContext            = context.dispatcher
 
+  private val validationFlow: Flow[ValidationJob, (ValidationJob, Either[String, Score]), NotUsed] =
+    ValidationFlow(
+      CoordinatorActor.executeJobAsync(coordinatorConfig, context),
+      coordinatorConfig.featuresDatabase,
+      context
+    ).validate()
+
   @SuppressWarnings(
     Array("org.wartremover.warts.Any",
           "org.wartremover.warts.NonUnitStatements",
@@ -111,7 +124,7 @@ class MiningQueriesActor(
           initiator ! error.asQueryResult
         }, {
           case job: DockerJob     => runMiningJob(query, initiator, job)
-          case job: ValidationJob => ???
+          case job: ValidationJob => runValidationJob(initiator, job)
           case job =>
             val error =
               ErrorJobResult(
@@ -192,5 +205,62 @@ class MiningQueriesActor(
 
   private[dispatch] def newCoordinatorActor: ActorRef =
     context.actorOf(CoordinatorActor.props(coordinatorConfig))
+
+  private def runValidationJob(initiator: ActorRef, job: ValidationJob): Unit =
+    dispatcherService.dispatchTo(job.query.datasets) match {
+      case (_, true) =>
+        Source
+          .single(job)
+          .via(validationFlow)
+          .runWith(Sink.last)
+          .andThen {
+            case Success((job: ValidationJob, Right(score))) =>
+              initiator ! QueryResult(
+                Some(job.jobId),
+                coordinatorConfig.jobsConf.node,
+                OffsetDateTime.now(),
+                Shapes.score,
+                Some(ValidationJob.algorithmCode),
+                Some(score.toJson),
+                None
+              )
+            case Success((job: ValidationJob, Left(error))) =>
+              initiator ! QueryResult(
+                Some(job.jobId),
+                coordinatorConfig.jobsConf.node,
+                OffsetDateTime.now(),
+                Shapes.error,
+                Some(ValidationJob.algorithmCode),
+                None,
+                Some(error)
+              )
+            case Failure(t) =>
+              initiator ! QueryResult(
+                Some(job.jobId),
+                coordinatorConfig.jobsConf.node,
+                OffsetDateTime.now(),
+                Shapes.error,
+                Some(ValidationJob.algorithmCode),
+                None,
+                Some(t.toString)
+              )
+
+          }
+
+      case _ =>
+        logger.info(
+          s"No local datasets match the validation query, asking for datasets ${job.query.datasets.mkString(",")}"
+        )
+        // No local datasets match the query, return an empty result
+        initiator ! QueryResult(
+          Some(job.jobId),
+          coordinatorConfig.jobsConf.node,
+          OffsetDateTime.now(),
+          Shapes.score,
+          Some(ValidationJob.algorithmCode),
+          None,
+          None
+        )
+    }
 
 }

@@ -58,7 +58,7 @@ object MiningQueries extends LazyLogging {
     }
 
     query.algorithm.code match {
-      case "validation" =>
+      case ValidationJob.algorithmCode =>
         metadata.map { m =>
           ValidationJob(jobId = jobId,
                         inputDb = featuresDb,

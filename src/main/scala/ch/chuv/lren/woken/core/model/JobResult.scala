@@ -172,7 +172,7 @@ case class JsonDataJobResult(jobId: String,
                              timestamp: OffsetDateTime,
                              shape: Shape,
                              algorithm: String,
-                             data: JsValue)
+                             data: Option[JsValue])
     extends VisualisationJobResult {
 
   assert(Shapes.visualisationJsonResults.contains(shape))
@@ -198,7 +198,7 @@ case class OtherDataJobResult(jobId: String,
                               timestamp: OffsetDateTime,
                               shape: Shape,
                               algorithm: String,
-                              data: String)
+                              data: Option[String])
     extends VisualisationJobResult {
 
   assert(Shapes.visualisationOtherResults.contains(shape))
@@ -266,7 +266,7 @@ object JobResult {
           timestamp = v.timestamp,
           `type` = v.shape,
           algorithm = Some(v.algorithm),
-          data = Some(v.data),
+          data = v.data,
           error = None
         )
       case v: OtherDataJobResult =>
@@ -276,7 +276,7 @@ object JobResult {
           timestamp = v.timestamp,
           `type` = v.shape,
           algorithm = Some(v.algorithm),
-          data = Some(JsString(v.data)),
+          data = v.data.map(JsString.apply),
           error = None
         )
       case v: SerializedModelJobResult =>

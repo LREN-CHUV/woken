@@ -83,7 +83,7 @@ services:
       - mesos_master
 
   chronos:
-    image: hbpmip/chronos:3.0.2-3
+    image: hbpmip/chronos:3.0.2-4
     command: '--zk_hosts zookeeper:2181 --master zk://zookeeper:2181/mesos --zk_timeout 30000'
     restart: "always"
     hostname: chronos
@@ -144,6 +144,12 @@ services:
       DB4: portal
       USER4: portal
       PASSWORD4: portalpwd
+      DB5: features1
+      USER5: features1
+      PASSWORD5: features1pwd
+      DB6: features2
+      USER6: features2
+      PASSWORD6: features2pwd
     depends_on:
       - db
 
@@ -168,6 +174,32 @@ services:
       FLYWAY_HOST: db
       FLYWAY_PORT: 5432
       FLYWAY_DATABASE_NAME: features
+      FLYWAY_USER: postgres
+      FLYWAY_PASSWORD: test
+    depends_on:
+      - db
+
+  sample_data_db_setup1:
+    image: "hbpmip/sample-data-db-setup:0.6.1"
+    container_name: "sample-data-db-setup"
+    restart: "no"
+    environment:
+      FLYWAY_HOST: db
+      FLYWAY_PORT: 5432
+      FLYWAY_DATABASE_NAME: features1
+      FLYWAY_USER: postgres
+      FLYWAY_PASSWORD: test
+    depends_on:
+      - db
+
+  sample_data_db_setup2:
+    image: "hbpmip/sample-data-db-setup:0.6.1"
+    container_name: "sample-data-db-setup"
+    restart: "no"
+    environment:
+      FLYWAY_HOST: db
+      FLYWAY_PORT: 5432
+      FLYWAY_DATABASE_NAME: features2
       FLYWAY_USER: postgres
       FLYWAY_PASSWORD: test
     depends_on:
@@ -406,11 +438,12 @@ services:
       CLUSTER_NAME: woken-central
       WOKEN_PORT_8088_TCP_ADDR: wokencentral
       LOG_LEVEL: DEBUG
+      DISTRIBUTED: "true"
     depends_on:
       - wokencentral
 
   portalbackend:
-    image: hbpmip/portal-backend:2.7.14
+    image: hbpmip/portal-backend:2.8.1
     restart: "no"
     ports:
       - "65440:8080"
@@ -435,6 +468,7 @@ services:
       FRONTEND_AFTER_LOGIN_URL: http://frontend/home
       FRONTEND_AFTER_LOGOUT_URL: http://frontend/services/login/hbp
       CLUSTER_IP: portalbackend
+      CLUSTER_NAME: woken-central
       CLUSTER_PORT: 8089
       WOKEN_PORT_8088_TCP_ADDR: wokencentral
       WOKEN_PORT_8088_TCP_PORT: 8088
@@ -453,7 +487,7 @@ services:
       - portalbackend
 
   frontend:
-    image: hbpmip/portal-frontend:2.10.4
+    image: hbpmip/portal-frontend:2.10.5
     depends_on:
       - portalbackend
     ports:

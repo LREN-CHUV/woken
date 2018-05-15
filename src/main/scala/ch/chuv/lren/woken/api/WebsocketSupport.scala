@@ -62,6 +62,7 @@ trait WebsocketSupport {
       Supervision.Stop
   }
 
+  @SuppressWarnings(Array("org.wartremover.warts.Any"))
   def listAlgorithmsFlow: Flow[Message, Message, Any] =
     Flow[Message]
       .collect {
@@ -69,10 +70,14 @@ trait WebsocketSupport {
           AlgorithmLibraryService().algorithms
       }
       .map { result =>
-        TextMessage(result.compactPrint)
+        val serializedResult = result.compactPrint
+        logger.debug(s"Return response for list of algorithms: $serializedResult")
+        TextMessage(serializedResult)
       }
+      .log("Algorithms")
       .named("List algorithms WebSocket flow")
 
+  @SuppressWarnings(Array("org.wartremover.warts.Any"))
   def listDatasetsFlow: Flow[Message, Message, Any] =
     Flow[Message]
       .collect {
@@ -85,10 +90,14 @@ trait WebsocketSupport {
         (masterRouter ? query).mapTo[DatasetsResponse]
       }
       .map { result =>
-        TextMessage(result.toJson.compactPrint)
+        val serializedResult = result.toJson.compactPrint
+        logger.debug(s"Return response for list of datasets: $serializedResult")
+        TextMessage(serializedResult)
       }
+      .log("Datasets")
       .named("List datasets WebSocket flow")
 
+  @SuppressWarnings(Array("org.wartremover.warts.Any", "org.wartremover.warts.Throw"))
   def listVariableMetadataFlow: Flow[Message, Message, Any] =
     Flow[Message]
       .collect {
@@ -103,14 +112,21 @@ trait WebsocketSupport {
           logger.error("Deserialize failed", err)
           false
       }
-      .mapAsync(1) { query =>
-        (masterRouter ? query.get).mapTo[VariablesForDatasetsResponse]
+      .mapAsync(1) {
+        case Success(query) =>
+          (masterRouter ? query).mapTo[VariablesForDatasetsResponse]
+        case Failure(e) =>
+          throw e
       }
       .map { result =>
-        TextMessage(result.toJson.compactPrint)
+        val serializedResult = result.toJson.compactPrint
+        logger.debug(s"Return response for list of variables: $serializedResult")
+        TextMessage(serializedResult)
       }
+      .log("Variables")
       .named("List variables")
 
+  @SuppressWarnings(Array("org.wartremover.warts.Any", "org.wartremover.warts.Throw"))
   def experimentFlow: Flow[Message, Message, Any] =
     Flow[Message]
       .collect {
@@ -126,14 +142,21 @@ trait WebsocketSupport {
           false
 
       }
-      .mapAsync(1) { query =>
-        (masterRouter ? query.get).mapTo[QueryResult]
+      .mapAsync(1) {
+        case Success(query) =>
+          (masterRouter ? query).mapTo[QueryResult]
+        case Failure(e) =>
+          throw e
       }
       .map { result: QueryResult =>
-        TextMessage(result.toJson.compactPrint)
+        val serializedResult = result.toJson.compactPrint
+        logger.debug(s"Return response for experiment: $serializedResult")
+        TextMessage(serializedResult)
       }
+      .log("Result of experiment")
       .named("Experiment WebSocket flow")
 
+  @SuppressWarnings(Array("org.wartremover.warts.Any", "org.wartremover.warts.Throw"))
   def miningFlow: Flow[Message, Message, Any] =
     Flow[Message]
       .collect {
@@ -151,12 +174,17 @@ trait WebsocketSupport {
       }
       .withAttributes(ActorAttributes.supervisionStrategy(decider))
       .filter(_.isSuccess)
-      .map(_.get)
-      .mapAsync(1) { miningQuery: MiningQuery =>
-        (masterRouter ? miningQuery).mapTo[QueryResult]
+      .mapAsync(1) {
+        case Success(query) =>
+          (masterRouter ? query).mapTo[QueryResult]
+        case Failure(e) =>
+          throw e
       }
       .map { result: QueryResult =>
-        TextMessage(result.toJson.compactPrint)
+        val serializedResult = result.toJson.compactPrint
+        logger.debug(s"Return response for mining: $serializedResult")
+        TextMessage(serializedResult)
       }
+      .log("Result of mining")
       .named("Mining WebSocket flow")
 }

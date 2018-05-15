@@ -90,14 +90,17 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
         if visualisationJsonResults.contains(shape) =>
       Try {
         val json = data.parseJson
-        JsonDataJobResult(jobId, node, timestamp, shape, function.getOrElse(""), json)
+        JsonDataJobResult(jobId, node, timestamp, shape, function.getOrElse(""), Some(json))
       }.recover {
         case t: Throwable =>
           val msg = s"Data for job $jobId produced by $function is not a valid Json object"
           logger.warn(msg, t)
           ErrorJobResult(Some(jobId), node, timestamp, function, s"$msg : $t")
       }.get
-    case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
+    case (jobId, node, timestamp, shape, function, None, None | Some(""))
+        if visualisationJsonResults.contains(shape) =>
+      JsonDataJobResult(jobId, node, timestamp, shape, function.getOrElse(""), None)
+    case (jobId, node, timestamp, shape, function, data, None | Some(""))
         if visualisationOtherResults.contains(shape) =>
       OtherDataJobResult(jobId, node, timestamp, shape, function.getOrElse(""), data)
     case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
@@ -141,16 +144,10 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
        j.timestamp,
        j.shape,
        Some(j.algorithm.take(255)),
-       Some(j.data.compactPrint),
+       j.data.map(_.compactPrint),
        None)
     case j: OtherDataJobResult =>
-      (j.jobId,
-       j.node.take(32),
-       j.timestamp,
-       j.shape,
-       Some(j.algorithm.take(255)),
-       Some(j.data),
-       None)
+      (j.jobId, j.node.take(32), j.timestamp, j.shape, Some(j.algorithm.take(255)), j.data, None)
     case j: SerializedModelJobResult =>
       (j.jobId,
        j.node.take(32),
