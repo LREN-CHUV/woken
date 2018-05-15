@@ -208,7 +208,7 @@ services:
       - chronos
 
   portalbackend:
-    image: hbpmip/portal-backend:2.8.0
+    image: hbpmip/portal-backend:2.8.1
     restart: "no"
     ports:
       - "65440:8080"
