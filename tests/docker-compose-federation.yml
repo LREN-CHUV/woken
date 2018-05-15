@@ -408,7 +408,7 @@ services:
       CLUSTER_NAME: woken-central
       WOKEN_PORT_8088_TCP_ADDR: wokencentral
       LOG_LEVEL: DEBUG
-      DISTRIBUTED: true
+      DISTRIBUTED: "true"
     depends_on:
       - wokencentral
 
