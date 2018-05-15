@@ -30,7 +30,6 @@ import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 import ch.chuv.lren.woken.kamon.KamonSupport
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
-import kamon.Kamon
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Minutes, Span}
@@ -126,7 +125,6 @@ class WokenWebSocketAPITest
   private def executeQuery(probeData: Option[String],
                            expectedResult: Option[String],
                            endpointUrl: String): Unit = {
-    val span = Kamon.buildSpan(endpointUrl).start()
     val probeSource: Source[Message, NotUsed] = probeData match {
       case Some(probe) =>
         val source = scala.io.Source.fromURL(getClass.getResource(probe))
@@ -167,7 +165,6 @@ class WokenWebSocketAPITest
 
     whenReady(closed, timeout = Timeout(Span(5, Minutes))) { result =>
       logger.debug(result.toString)
-      span.finish()
     }
 
   }

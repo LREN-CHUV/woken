@@ -17,7 +17,6 @@
 
 package ch.chuv.lren.woken.web
 
-import java.io.File
 
 import scala.concurrent.duration._
 import akka.actor.ActorRef
@@ -46,17 +45,11 @@ import ch.chuv.lren.woken.ssl.WokenSSLConfiguration
 import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.kamon.KamonSupport
 import com.typesafe.scalalogging.LazyLogging
-import kamon.Kamon
-import kamon.prometheus.PrometheusReporter
-import kamon.sigar.SigarProvisioner
 import kamon.system.SystemMetrics
-import kamon.zipkin.ZipkinReporter
-import org.hyperic.sigar.{ Sigar, SigarLoader }
 
 import scala.concurrent.Future
 import scala.language.postfixOps
 import scala.sys.ShutdownHookThread
-import scala.util.Try
 
 /**
   * This trait implements ``Core`` by starting the required ``ActorSystem`` and registering the

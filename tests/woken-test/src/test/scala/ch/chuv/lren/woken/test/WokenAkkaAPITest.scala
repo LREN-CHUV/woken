@@ -46,8 +46,6 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Try
 
-import kamon.Kamon
-
 class WokenAkkaAPITest
     extends WordSpec
     with Matchers
@@ -568,7 +566,6 @@ class WokenAkkaAPITest
   }
 
   private def timedQuery[R](query: Any, description: String): R = {
-    val span = Kamon.buildSpan(description.replaceAll(" ", "-")).start()
     val start = System.currentTimeMillis()
     val future = mediator ? DistributedPubSubMediator.Send(
       entryPoint,
@@ -586,7 +583,6 @@ class WokenAkkaAPITest
     }
     assert(result.isSuccess, "Query returned a failure")
 
-    span.finish()
     result.success.value
   }
 }
