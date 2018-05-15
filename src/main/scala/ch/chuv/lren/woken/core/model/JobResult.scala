@@ -77,7 +77,7 @@ case class PfaJobResult(jobId: String,
 
   override def algorithmM: Option[String] = Some(algorithm)
 
-  def model: JsObject = {
+  def model: JsObject = if (validations.isEmpty) rawModel else {
     val cells        = rawModel.fields.getOrElse("cells", JsObject()).asJsObject
     val updatedCells = JsObject(cells.fields + ("validations" -> validationsJson))
     JsObject(rawModel.fields + ("cells" -> updatedCells))
@@ -91,23 +91,30 @@ case class PfaJobResult(jobId: String,
     copy(rawModel = updatedModel)
   }
 
-  private def validationsJson: JsArray =
-    JsArray(
+  private def validationsJson: JsObject = {
+    // TODO: generate proper Avro types
+    val values = JsArray(
       validations
         .map({
           case (key, Right(value)) =>
-            JsObject("code"           -> JsString(key.code),
-                     "validationSpec" -> key.toJson,
-                     "node"           -> JsString(nodeOf(key).getOrElse(node)),
-                     "data"           -> value.toJson)
+            JsObject("code" -> JsString(key.code),
+              "validationSpec" -> key.toJson,
+              "node" -> JsString(nodeOf(key).getOrElse(node)),
+              "data" -> value.toJson)
           case (key, Left(message)) =>
-            JsObject("code"           -> JsString(key.code),
-                     "validationSpec" -> key.toJson,
-                     "node"           -> JsString(nodeOf(key).getOrElse(node)),
-                     "error"          -> JsString(message))
+            JsObject("code" -> JsString(key.code),
+              "validationSpec" -> key.toJson,
+              "node" -> JsString(nodeOf(key).getOrElse(node)),
+              "error" -> JsString(message))
         })
         .toVector
     )
+    val `type` = JsObject("type" -> JsString("array"), "items" -> JsString("Record"))
+    JsObject(
+      "type" -> `type`,
+      "items" -> values
+    )
+  }
 
   private def nodeOf(spec: ValidationSpec): Option[String] =
     spec.parameters.find(_.code == "node").map(_.value)
@@ -337,22 +344,7 @@ object JobResult {
         val validations: ValidationResults = rawModel.fields
           .get("cells")
           .flatMap(_.asJsObject.fields.get("validations"))
-          .map(_.asInstanceOf[JsArray].elements.map { v =>
-            val validationSpecJson =
-              v.asJsObject.fields.getOrElse("validationSpec",
-                                            deserializationError(s"Expected a validationSpec"))
-
-            val validationSpec = validationSpecJson.convertTo[ValidationSpec]
-            val score: Either[String, Score] = v.asJsObject.fields
-              .get("data")
-              .fold {
-                val error = v.asJsObject.fields.getOrElse("error", JsString("")).convertTo[String]
-                Left(error).asInstanceOf[Either[String, Score]]
-              } { data =>
-                Right(data.convertTo[Score])
-              }
-            validationSpec -> score
-          }.toMap)
+          .map(toValidations)
           .getOrElse(Map())
 
         PfaJobResult(
@@ -419,5 +411,27 @@ object JobResult {
         spec -> jobResult
       }.toMap
     case _ => deserializationError("Expected an array")
+  }
+
+  def toValidations(validations: JsValue): ValidationResults = {
+    validations.asJsObject.getFields("init") match {
+      case Seq(JsArray(elements)) => elements.map { v =>
+        val validationSpecJson =
+          v.asJsObject.fields.getOrElse("validationSpec",
+            deserializationError(s"Expected a validationSpec"))
+
+        val validationSpec = validationSpecJson.convertTo[ValidationSpec]
+        val score: Either[String, Score] = v.asJsObject.fields
+          .get("data")
+          .fold {
+            val error = v.asJsObject.fields.getOrElse("error", JsString("")).convertTo[String]
+            Left(error).asInstanceOf[Either[String, Score]]
+          } { data =>
+            Right(data.convertTo[Score])
+          }
+        validationSpec -> score
+      }.toMap
+      case _ => deserializationError("Expected an init field containing the array of validations")
+    }
   }
 }

@@ -215,7 +215,8 @@ case class CrossValidationFlow(
       case CoordinatorActor.Response(_, List(pfa: PfaJobResult), _) =>
         // Prepare the results for validation
         logger.info("Received result from local method.")
-        val model    = pfa.model
+        // Take the raw model, as model contains runtime-inserted validations which are not yet compliant with PFA / Avro spec
+        val model    = pfa.rawModel
         val fold     = context.fold
         val testData = context.validation.getTestSet(fold)._1
 
