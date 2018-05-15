@@ -80,6 +80,7 @@ class WokenAkkaAPITest
   val mediator: ActorRef = DistributedPubSub(system).mediator
 
   val entryPoint = "/user/entrypoint"
+  val distributed: Boolean = config.getBoolean("test.distributed")
 
   override def beforeAll: Unit = {
     val waitClusterUp = new Semaphore(1)
@@ -468,7 +469,8 @@ class WokenAkkaAPITest
 
         //save(approximate(json), "/responses/sgd_linear_model_experiment.json")
 
-        assertResult(approximate(expected, skippedTags))(approximate(json, skippedTags))
+        assertResult(approximate(expected, skippedTags))(
+          approximate(json, skippedTags))
       }
 
       "executes a SGD Neural Network algorithm" in {
@@ -494,7 +496,8 @@ class WokenAkkaAPITest
 
         //save(approximate(json), "/responses/sgd_neural_network_experiment.json")
 
-        assertResult(approximate(expected, skippedTags))(approximate(json, skippedTags))
+        assertResult(approximate(expected, skippedTags))(
+          approximate(json, skippedTags))
       }
 
       "executes a Gradient Boosting algorithm" in {

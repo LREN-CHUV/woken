@@ -1,0 +1,34 @@
+{
+  "datasets": [
+    {
+      "anonymisationLevel": "Depersonalised",
+      "dataset": {
+        "code": "nida-synthdata"
+      },
+      "description": "Node 2 dataset",
+      "label": "NIDA",
+      "location": {
+        "url": "http://wokennode2:8087"
+      },
+      "tables": [
+        "cde_features_b",
+        "cde_features_mixed"
+      ]
+    },
+    {
+      "anonymisationLevel": "Depersonalised",
+      "dataset": {
+        "code": "desd-synthdata"
+      },
+      "description": "Node 1 dataset",
+      "label": "DESD",
+      "location": {
+        "url": "http://wokennode1:8087"
+      },
+      "tables": [
+        "cde_features_a",
+        "cde_features_mixed"
+      ]
+    }
+  ]
+}

@@ -105,9 +105,9 @@ trait Queries {
     override protected def printLeaf(j: JsValue,
                                      sb: java.lang.StringBuilder): Unit =
       j match {
-        case JsNull      => sb.append("null")
-        case JsTrue      => sb.append("true")
-        case JsFalse     => sb.append("false")
+        case JsNull  => sb.append("null")
+        case JsTrue  => sb.append("true")
+        case JsFalse => sb.append("false")
         case JsNumber(x) => {
           val approx = f"$x%1.5f"
           if (approx == "-0.00000")
