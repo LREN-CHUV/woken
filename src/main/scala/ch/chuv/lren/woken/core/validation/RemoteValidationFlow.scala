@@ -67,6 +67,7 @@ case class RemoteValidationFlow(
           .filter(_.model.isDefined)
           .buffer(10, OverflowStrategy.backpressure)
           .mapAsync(10)(buildPartialValidation)
+          .mapConcat(identity)
           .log("Remote validations")
           .runWith(Sink.seq[PartialValidation])
           .map { validations =>
@@ -84,34 +85,38 @@ case class RemoteValidationFlow(
 
   private def buildPartialValidation(
       partialValidation: PartialValidation
-  ): Future[PartialValidation] = {
+  ): Future[List[PartialValidation]] = {
     val query: MiningQuery = buildMineForValidationQuery(partialValidation)
     logger.info(s"Prepared remote validation query: $query")
 
     Source
       .single(query)
       .via(dispatcherService.dispatchRemoteMiningFlow)
-      .map(_._2)
-      .map {
-        case QueryResult(_, node, _, shape, _, Some(data), None) if shape == Shapes.score =>
-          // Rebuild the spec from the results
-          val spec  = ValidationSpec("remote-validation", List(CodeValue("node", node)))
-          val score = Right[String, Score](data.convertTo[Score])
-          (spec, score)
-        case QueryResult(_, node, _, shape, _, None, Some(error)) if shape == Shapes.error =>
-          val spec = ValidationSpec("remote-validation", List(CodeValue("node", node)))
-          (spec, Left[String, Score](error))
-        case otherResult =>
-          logger.error(s"Unhandled validation result: $otherResult")
-          val spec =
-            ValidationSpec("remote-validation", List(CodeValue("node", otherResult.node)))
-          (spec, Left[String, Score](s"Unhandled result of shape ${otherResult.`type`}"))
+      .fold(List[QueryResult]()) {
+        _ :+ _._2
       }
-      .map {
-        case (spec, score) =>
-          partialValidation.copy(model = partialValidation.model.map { m =>
-            m.copy(validations = m.validations + (spec -> score))
-          })
+      .map { l: List[QueryResult] =>
+        l.map {
+            case QueryResult(_, node, _, shape, _, Some(data), None) if shape == Shapes.score =>
+              // Rebuild the spec from the results
+              val spec  = ValidationSpec("remote-validation", List(CodeValue("node", node)))
+              val score = Right[String, Score](data.convertTo[Score])
+              (spec, score)
+            case QueryResult(_, node, _, shape, _, None, Some(error)) if shape == Shapes.error =>
+              val spec = ValidationSpec("remote-validation", List(CodeValue("node", node)))
+              (spec, Left[String, Score](error))
+            case otherResult =>
+              logger.error(s"Unhandled validation result: $otherResult")
+              val spec =
+                ValidationSpec("remote-validation", List(CodeValue("node", otherResult.node)))
+              (spec, Left[String, Score](s"Unhandled result of shape ${otherResult.`type`}"))
+          }
+          .map {
+            case (spec, score) =>
+              partialValidation.copy(model = partialValidation.model.map { m =>
+                m.copy(validations = m.validations + (spec -> score))
+              })
+          }
       }
       .runWith(Sink.last)
   }

@@ -137,21 +137,23 @@ class ExperimentQueriesActor(
       Source
         .single(ValidationContext(job.query, results))
         .via(remoteValidationFlow)
-        .map { r =>
+        .map[QueryResult] { r =>
           val result = r.experimentResult.asQueryResult
           initiator ! result
           result
         }
-        .recoverWithRetries(1, {
-          case e =>
-            val result = ErrorJobResult(None,
-                                        coordinatorConfig.jobsConf.node,
-                                        OffsetDateTime.now(),
-                                        None,
-                                        e.toString)
-            initiator ! result
-            Source.single(result)
-        })
+        .recoverWithRetries[QueryResult](
+          1, {
+            case e =>
+              val result = ErrorJobResult(None,
+                                          coordinatorConfig.jobsConf.node,
+                                          OffsetDateTime.now(),
+                                          None,
+                                          e.toString).asQueryResult
+              initiator ! result
+              Source.single(result)
+          }
+        )
         .log("Result of experiment")
         .runWith(Sink.last)
     //.runWith(Sink.actorRef(initiator, None)) -- nicer, but initiator may die on first message received
