@@ -22,7 +22,6 @@ import java.util.UUID
 
 import akka.NotUsed
 import akka.actor.{ ActorContext, ActorSystem }
-import akka.event.Logging
 import akka.stream._
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Sink, Source, Zip, ZipWith }
 import ch.chuv.lren.woken.config.{ AlgorithmDefinition, JobsConfiguration }
@@ -35,6 +34,7 @@ import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.validation.{ Score, validationProtocol }
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
 import ch.chuv.lren.woken.service.DispatcherService
+import com.typesafe.scalalogging.LazyLogging
 import spray.json._
 import validationProtocol._
 
@@ -70,11 +70,10 @@ case class ValidatedAlgorithmFlow(
     jobsConf: JobsConfiguration,
     dispatcherService: DispatcherService,
     context: ActorContext
-)(implicit materializer: Materializer, ec: ExecutionContext) {
+)(implicit materializer: Materializer, ec: ExecutionContext)
+    extends LazyLogging {
 
   import ValidatedAlgorithmFlow._
-
-  private val log = Logging(context.system, getClass)
 
   private val crossValidationFlow = CrossValidationFlow(executeJobAsync, featuresDatabase, context)
 
@@ -127,7 +126,7 @@ case class ValidatedAlgorithmFlow(
       .mapAsync(1) { job =>
         val algorithm = job.query.algorithm
 
-        log.info(s"Start job for algorithm ${algorithm.code}")
+        logger.info(s"Start job for algorithm ${algorithm.code}")
 
         // Spawn a CoordinatorActor
         val jobId = UUID.randomUUID().toString
@@ -209,14 +208,14 @@ case class ValidatedAlgorithmFlow(
                   executionPlan = None,
                   datasets = job.remoteValidationDatasets
                 )
-                log.info(s"Prepared remote validation query: $query")
+                logger.info(s"Prepared remote validation query: $query")
 
                 // It's ok to drop remote validations that failed, there can be network errors
                 // Future alternative: use recover and inject a QueryResult with error, problem is we cannot know
                 // which node caused the error
                 val decider: Supervision.Decider = {
                   case e: Exception =>
-                    log.warning(s"Could not dispatch remote validation query, $e")
+                    logger.warn(s"Could not dispatch remote validation query, $e")
                     Supervision.Resume
                   case _ => Supervision.Stop
                 }
@@ -244,7 +243,7 @@ case class ValidatedAlgorithmFlow(
             val spec = ValidationSpec("remote-validation", List(CodeValue("node", node)))
             (spec, Left[String, Score](error))
           case otherResult =>
-            log.error(s"Unhandled validation result: $otherResult")
+            logger.error(s"Unhandled validation result: $otherResult")
             val spec =
               ValidationSpec("remote-validation", List(CodeValue("node", otherResult.node)))
             (spec, Left[String, Score](s"Unhandled result of shape ${otherResult.`type`}"))

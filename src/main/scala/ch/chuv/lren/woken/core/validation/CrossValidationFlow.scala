@@ -22,7 +22,6 @@ import java.util.UUID
 import akka.NotUsed
 import akka.actor.{ ActorContext, ActorRef }
 import akka.cluster.pubsub.{ DistributedPubSub, DistributedPubSubMediator }
-import akka.event.Logging
 import akka.pattern.ask
 import akka.stream.Materializer
 import akka.stream.scaladsl.Flow
@@ -39,6 +38,7 @@ import ch.chuv.lren.woken.dao.FeaturesDAL
 import ch.chuv.lren.woken.messages.query.{ MiningQuery, ValidationSpec }
 import ch.chuv.lren.woken.messages.validation._
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
+import com.typesafe.scalalogging.LazyLogging
 import spray.json.JsValue
 
 import scala.concurrent.{ ExecutionContext, Future }
@@ -87,9 +87,8 @@ case class CrossValidationFlow(
     executeJobAsync: CoordinatorActor.ExecuteJobAsync,
     featuresDatabase: FeaturesDAL,
     context: ActorContext
-)(implicit materializer: Materializer, ec: ExecutionContext) {
-
-  private val log = Logging(context.system, getClass)
+)(implicit materializer: Materializer, ec: ExecutionContext)
+    extends LazyLogging {
 
   private lazy val mediator: ActorRef = DistributedPubSub(context.system).mediator
 
@@ -106,7 +105,7 @@ case class CrossValidationFlow(
                          job.algorithmDefinition.covariablesCanBeNull)
             .features(job.inputTable, None)
 
-        log.info(s"List of folds: $foldCount")
+        logger.info(s"List of folds: $foldCount")
 
         // TODO For now only kfold cross-validation
         val crossValidation =
@@ -146,7 +145,7 @@ case class CrossValidationFlow(
                   folds = crossValidationScore.foldScores
                     .filter {
                       case (k, ScoringResult(Left(error))) =>
-                        log.warning(s"Fold $k failed with message $error")
+                        logger.warn(s"Fold $k failed with message $error")
                         false
                       case _ => true
                     }
@@ -156,7 +155,7 @@ case class CrossValidationFlow(
                 )
               )
             case Left(error) =>
-              log.warning(s"Global score failed with message $error")
+              logger.warn(s"Global score failed with message $error")
               crossValidationScore.job -> Left(error)
           }
         }
@@ -215,12 +214,12 @@ case class CrossValidationFlow(
     (context.response match {
       case CoordinatorActor.Response(_, List(pfa: PfaJobResult), _) =>
         // Prepare the results for validation
-        log.info("Received result from local method.")
+        logger.info("Received result from local method.")
         val model    = pfa.model
         val fold     = context.fold
         val testData = context.validation.getTestSet(fold)._1
 
-        log.info(
+        logger.info(
           s"Send a validation work for fold $fold to validation worker"
         )
         val validationQuery = ValidationQuery(fold, model, testData, context.targetMetaData)
@@ -230,7 +229,7 @@ case class CrossValidationFlow(
         val message =
           s"Error on cross validation job ${error.jobId} during fold ${context.fold}" +
             s" on variable ${context.targetMetaData.code}: ${error.error}"
-        log.error(message)
+        logger.error(message)
         // On training fold fails, we notify supervisor and we stop
         Future.failed[ValidationQuery](new IllegalStateException(message))
 
@@ -238,7 +237,7 @@ case class CrossValidationFlow(
         val message =
           s"Error on cross validation job ${context.job.jobId} during fold ${context.fold}" +
             s" on variable ${context.targetMetaData.code}: Unhandled response from CoordinatorActor: $unhandled"
-        log.error(message)
+        logger.error(message)
         // On training fold fails, we notify supervisor and we stop
         Future.failed[ValidationQuery](new IllegalStateException(message))
     }).map(
@@ -285,7 +284,7 @@ case class CrossValidationFlow(
                        groundTruth: NonEmptyList[JsValue]): Future[FoldResult] = {
       implicit val askTimeout: Timeout = Timeout(5 minutes)
       val scoringQuery                 = ScoringQuery(algorithmOutput, groundTruth, context.targetMetaData)
-      log.info(s"scoringQuery: $scoringQuery")
+      logger.info(s"scoringQuery: $scoringQuery")
       remoteScore(scoringQuery)
         .map(
           s =>
@@ -304,7 +303,7 @@ case class CrossValidationFlow(
 
     foldResultV.valueOr(e => {
       val errorMsg = e.toList.mkString(",")
-      log.error(s"Cannot perform scoring on $context: $errorMsg")
+      logger.error(s"Cannot perform scoring on $context: $errorMsg")
       Future.failed(new Exception(errorMsg))
     })
   }
@@ -339,7 +338,7 @@ case class CrossValidationFlow(
         case (r, gt) =>
           val message =
             s"Final reduce for cross-validation uses empty datasets: Validations = $r, ground truths = $gt"
-          log.error(message)
+          logger.error(message)
           Future(
             CrossValidationScore(job = job,
                                  score = ScoringResult(Left(message)),
@@ -353,7 +352,7 @@ case class CrossValidationFlow(
 
   private def remoteValidate(validationQuery: ValidationQuery): Future[ValidationResult] = {
     implicit val askTimeout: Timeout = Timeout(5 minutes)
-    log.debug(s"validationQuery: $validationQuery")
+    logger.debug(s"validationQuery: $validationQuery")
     val future = mediator ? DistributedPubSubMediator.Send("/user/validation",
                                                            validationQuery,
                                                            localAffinity = false)
@@ -362,7 +361,7 @@ case class CrossValidationFlow(
 
   private def remoteScore(scoringQuery: ScoringQuery): Future[ScoringResult] = {
     implicit val askTimeout: Timeout = Timeout(5 minutes)
-    log.debug(s"scoringQuery: $scoringQuery")
+    logger.debug(s"scoringQuery: $scoringQuery")
     val future = mediator ? DistributedPubSubMediator.Send("/user/scoring",
                                                            scoringQuery,
                                                            localAffinity = false)

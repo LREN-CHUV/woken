@@ -20,7 +20,6 @@ package ch.chuv.lren.woken.core.validation
 import akka.NotUsed
 import akka.actor.{ ActorContext, ActorRef }
 import akka.cluster.pubsub.{ DistributedPubSub, DistributedPubSubMediator }
-import akka.event.Logging
 import akka.pattern.ask
 import akka.stream.Materializer
 import akka.stream.scaladsl.Flow
@@ -35,6 +34,7 @@ import ch.chuv.lren.woken.dao.FeaturesDAL
 import ch.chuv.lren.woken.messages.query.AlgorithmSpec
 import ch.chuv.lren.woken.messages.validation._
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
+import com.typesafe.scalalogging.LazyLogging
 import spray.json._
 
 import scala.concurrent.duration._
@@ -71,9 +71,8 @@ case class ValidationFlow(
     executeJobAsync: CoordinatorActor.ExecuteJobAsync,
     featuresDatabase: FeaturesDAL,
     context: ActorContext
-)(implicit materializer: Materializer, ec: ExecutionContext) {
-
-  private val log = Logging(context.system, getClass)
+)(implicit materializer: Materializer, ec: ExecutionContext)
+    extends LazyLogging {
 
   private lazy val mediator: ActorRef = DistributedPubSub(context.system).mediator
 
@@ -94,12 +93,12 @@ case class ValidationFlow(
 
         val sql = featuresQuery.sql
 
-        log.info(s"Validation query: $featuresQuery")
+        logger.info(s"Validation query: $featuresQuery")
 
         // JSON objects with fieldname corresponding to variables names
         val (_, dataframe) = featuresDatabase.runQuery(featuresDatabase.ldsmConnection, sql)
 
-        log.info(s"Query response: ${dataframe.mkString(",")}")
+        logger.info(s"Query response: ${dataframe.mkString(",")}")
 
         // Separate features from labels
         val variables = featuresQuery.dbVariables
@@ -114,7 +113,7 @@ case class ValidationFlow(
           .unzip
         val groundTruth: List[JsValue] = labels.map(_.fields.toList.head._2)
 
-        log.info(
+        logger.info(
           s"Send validation work for all local data to validation worker"
         )
         val model = modelOf(validation).getOrElse(
@@ -188,7 +187,7 @@ case class ValidationFlow(
 
       val scoringQuery = ScoringQuery(algorithmOutput, groundTruth, context.targetMetaData)
 
-      log.info(s"scoringQuery: $scoringQuery")
+      logger.info(s"scoringQuery: $scoringQuery")
       remoteScore(scoringQuery)
         .map(
           s =>
@@ -206,14 +205,14 @@ case class ValidationFlow(
 
     foldResultV.valueOr(e => {
       val errorMsg = e.toList.mkString(",")
-      log.error(s"Cannot perform scoring on $context: $errorMsg")
+      logger.error(s"Cannot perform scoring on $context: $errorMsg")
       Future.failed(new Exception(errorMsg))
     })
   }
 
   private def remoteValidate(validationQuery: ValidationQuery): Future[ValidationResult] = {
     implicit val askTimeout: Timeout = Timeout(5 minutes)
-    log.debug(s"validationQuery: $validationQuery")
+    logger.debug(s"validationQuery: $validationQuery")
     val future = mediator ? DistributedPubSubMediator.Send("/user/validation",
                                                            validationQuery,
                                                            localAffinity = false)
@@ -222,7 +221,7 @@ case class ValidationFlow(
 
   private def remoteScore(scoringQuery: ScoringQuery): Future[ScoringResult] = {
     implicit val askTimeout: Timeout = Timeout(5 minutes)
-    log.debug(s"scoringQuery: $scoringQuery")
+    logger.debug(s"scoringQuery: $scoringQuery")
     val future = mediator ? DistributedPubSubMediator.Send("/user/scoring",
                                                            scoringQuery,
                                                            localAffinity = false)
