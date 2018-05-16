@@ -21,6 +21,7 @@ import com.typesafe.config.Config
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
 import cats.data.Validated._
 import cats.implicits._
+import ch.chuv.lren.woken.messages.query.ExecutionPlan
 
 object AlgorithmEngine extends Enumeration {
   type AlgorithmEngine = Value
@@ -36,7 +37,10 @@ case class AlgorithmDefinition(code: String,
                                predictive: Boolean,
                                variablesCanBeNull: Boolean,
                                covariablesCanBeNull: Boolean,
-                               engine: AlgorithmEngine)
+                               engine: AlgorithmEngine,
+                               distributedExecutionPlan: ExecutionPlan
+                              // TODO: shape of intermediate results, we assume Python serialization for now
+                              )
 
 // TODO: this should feed AlgorithmLibraryService with metadata
 
@@ -53,8 +57,17 @@ object AlgorithmsConfiguration {
       val covariablesCanBeNull = c.validateBoolean("covariablesCanBeNull")
       val engine: Validation[AlgorithmEngine] =
         c.validateString("engine").orElse(lift("Docker")).map(AlgorithmEngine.withName)
+      val distributedExecutionPlan: Validation[ExecutionPlan] =
+        c.validateString("distributedExecutionPlan")
+            .andThen {
+              case "scatter-gather" => lift(ExecutionPlan.scatterGather)
+              case "map-reduce" => lift(ExecutionPlan.mapReduce)
+              case "streaming" => lift(ExecutionPlan.streaming)
+              case other => s"Unknown type of execution plan: $other".invalidNel[ExecutionPlan]
+            }
+          .orElse(lift(ExecutionPlan.scatterGather))
 
-      (code, dockerImage, predictive, variablesCanBeNull, covariablesCanBeNull, engine) mapN AlgorithmDefinition.apply
+      (code, dockerImage, predictive, variablesCanBeNull, covariablesCanBeNull, engine, distributedExecutionPlan) mapN AlgorithmDefinition.apply
     }
   }
 
