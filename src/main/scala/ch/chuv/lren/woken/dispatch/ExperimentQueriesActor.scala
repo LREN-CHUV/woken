@@ -28,7 +28,7 @@ import akka.stream.scaladsl.{ Flow, Sink, Source }
 import ch.chuv.lren.woken.config.AlgorithmDefinition
 import ch.chuv.lren.woken.core._
 import ch.chuv.lren.woken.core.commands.JobCommands.StartExperimentJob
-import ch.chuv.lren.woken.core.model.{ ErrorJobResult, ExperimentJobResult }
+import ch.chuv.lren.woken.core.model.{ ErrorJobResult, ExperimentJobResult, JobResult }
 import ch.chuv.lren.woken.core.validation.RemoteValidationFlow
 import ch.chuv.lren.woken.core.validation.RemoteValidationFlow.ValidationContext
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
@@ -37,7 +37,7 @@ import ch.chuv.lren.woken.service.DispatcherService
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -174,8 +174,32 @@ class ExperimentQueriesActor(
         Source
           .single(query)
           .via(dispatcherService.dispatchRemoteExperimentFlow)
+          .mapAsync(10) { result =>
+            JobResult.fromQueryResult(result._2) match {
+              case experimentResult: ExperimentJobResult =>
+                Source
+                  .single(ValidationContext(job.query, experimentResult))
+                  .via(remoteValidationFlow)
+                  .map[QueryResult] { r =>
+                    r.experimentResult.asQueryResult
+                  }
+                  .recoverWithRetries[QueryResult](
+                    1, {
+                      case e =>
+                        logger.error("Cannot perform remote validation", e)
+                        // TODO: the error message should be propagated to the final result, to inform the user
+                        Source.single(result._2)
+                    }
+                  )
+                  .log("Result of experiment")
+                  .runWith(Sink.last)
+              case r =>
+                logger.warn(s"Expected an ExperimentJobResult, found $r")
+                Future(result._2)
+            }
+          }
           .fold(List[QueryResult]()) {
-            _ :+ _._2
+            _ :+ _
           }
           .map {
             case List() =>
