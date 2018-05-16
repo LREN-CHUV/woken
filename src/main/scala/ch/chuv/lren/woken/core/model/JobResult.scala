@@ -85,6 +85,12 @@ case class PfaJobResult(jobId: String,
       JsObject(rawModel.fields + ("cells" -> updatedCells))
     }
 
+  def modelWithoutValidation: JsObject = {
+    val cells        = rawModel.fields.getOrElse("cells", JsObject()).asJsObject
+    val updatedCells = JsObject(cells.fields - "validations")
+    JsObject(rawModel.fields + ("cells" -> updatedCells))
+  }
+
   def injectCell(name: String, value: JsValue): PfaJobResult = {
     val cells        = rawModel.fields.getOrElse("cells", JsObject()).asJsObject
     val updatedCells = JsObject(cells.fields + (name -> value))

@@ -130,7 +130,7 @@ case class RemoteValidationFlow(
         ValidationJob.algorithmCode,
         List(
           // Take the raw model, as model contains runtime-inserted validations which are not yet compliant with PFA / Avro spec
-          CodeValue("model", v.model.map(_.rawModel.compactPrint).getOrElse {
+          CodeValue("model", v.model.map(_.modelWithoutValidation.compactPrint).getOrElse {
             throw new IllegalArgumentException("Expecting a model")
           }),
           CodeValue("variablesCanBeNull", algorithmDefinition.variablesCanBeNull.toString),
