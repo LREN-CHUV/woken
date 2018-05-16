@@ -322,9 +322,6 @@
         "yaxis": "y1"
       },
       {
-        "marker": {
-          "color": "black"
-        },
         "mode": "lines+markers+text",
         "showlegend": false,
         "text": [
