@@ -2,6 +2,10 @@
   "data": [
     {
       "algorithm": "python-linear-regression",
+      "algorithmSpec": {
+        "code": "linearRegression",
+        "parameters": []
+      },
       "data": {
         "college_math": {
           "coef": -0.00583,
@@ -29,6 +33,10 @@
     },
     {
       "algorithm": "python-anova",
+      "algorithmSpec": {
+        "code": "anova",
+        "parameters": []
+      },
       "data": {
         "Residual": {
           "F": "NaN",

@@ -2,6 +2,19 @@
   "data": [
     {
       "algorithm": "python-gradient-boosting",
+      "algorithmSpec": {
+        "code": "gradientBoosting",
+        "parameters": [
+          {
+            "code": "learning_rate",
+            "value": "0.15"
+          },
+          {
+            "code": "max_depth",
+            "value": "4"
+          }
+        ]
+      },
       "data": {
         "action": [
           {
@@ -31987,44 +32000,12 @@
               "type": "array"
             }
           },
-          "validations": [
-            {
-              "code": "kfold",
-              "data": {
-                "average": {
-                  "Accuracy": 1.0,
-                  "Confusion matrix": {
-                    "labels": [
-                      "AD",
-                      "CN",
-                      "Other"
-                    ],
-                    "values": [
-                      [
-                        0.0,
-                        0.0,
-                        0.0
-                      ],
-                      [
-                        0.0,
-                        0.0,
-                        0.0
-                      ],
-                      [
-                        0.0,
-                        0.0,
-                        859.0
-                      ]
-                    ]
-                  },
-                  "Weighted F1-score": 1.0,
-                  "Weighted false positive rate": null,
-                  "Weighted precision": 1.0,
-                  "Weighted recall": 1.0,
-                  "type": "PolynomialClassificationScore"
-                },
-                "folds": {
-                  "1": {
+          "validations": {
+            "init": [
+              {
+                "code": "kfold",
+                "data": {
+                  "average": {
                     "Accuracy": 1.0,
                     "Confusion matrix": {
                       "labels": [
@@ -32055,13 +32036,60 @@
                     "Weighted precision": 1.0,
                     "Weighted recall": 1.0,
                     "type": "PolynomialClassificationScore"
-                  }
+                  },
+                  "folds": {
+                    "1": {
+                      "Accuracy": 1.0,
+                      "Confusion matrix": {
+                        "labels": [
+                          "AD",
+                          "CN",
+                          "Other"
+                        ],
+                        "values": [
+                          [
+                            0.0,
+                            0.0,
+                            0.0
+                          ],
+                          [
+                            0.0,
+                            0.0,
+                            0.0
+                          ],
+                          [
+                            0.0,
+                            0.0,
+                            859.0
+                          ]
+                        ]
+                      },
+                      "Weighted F1-score": 1.0,
+                      "Weighted false positive rate": null,
+                      "Weighted precision": 1.0,
+                      "Weighted recall": 1.0,
+                      "type": "PolynomialClassificationScore"
+                    }
+                  },
+                  "type": "KFoldCrossValidationScore"
                 },
-                "type": "KFoldCrossValidationScore"
-              },
-              "node": "local"
+                "node": "local",
+                "validationSpec": {
+                  "code": "kfold",
+                  "parameters": [
+                    {
+                      "code": "k",
+                      "value": "2"
+                    }
+                  ]
+                }
+              }
+            ],
+            "type": {
+              "items": "Record",
+              "type": "array"
             }
-          ]
+          }
         },
         "fcns": {
           "C": {
