@@ -98,6 +98,7 @@ case class CrossValidationFlow(
     Flow[Job]
       .map { job =>
         val validation = job.validation
+        logger.info(s"Validation spec: $validation")
         val foldCount  = validation.parametersAsMap("k").toInt
         val featuresQuery =
           job.query
@@ -113,7 +114,7 @@ case class CrossValidationFlow(
 
         assert(
           crossValidation.partition.size == foldCount,
-          s"Excepted number of folds ($foldCount) to match the number of partitions (${crossValidation.partition.size})"
+          s"Expected number of folds ($foldCount) to match the number of partitions (${crossValidation.partition.size})"
         )
 
         // For every fold
