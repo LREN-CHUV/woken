@@ -374,7 +374,13 @@ class WokenAkkaAPITest
 
         save(approximate(json), "/responses/heatmaply_data_mining.json")
 
-        assertResult(approximate(expected))(approximate(json))
+
+        def cleanMore(s: String): String =
+          s.replaceAll(""" id=\\".*?\\"""", """ id=\\"\\"""")
+            .replaceAll(""" data-for=\\".*?\\"""", """ data-for=\\"\\"""")
+            .replaceAll("""\\"attrs\\":\{.*</script>""", """\"attrs\":{}}]}}</script>""")
+
+        assertResult(cleanMore(approximate(expected)))(cleanMore(approximate(json)))
       }
 
       "uses JSI Hedwig                     [visualisation, text]" in {
