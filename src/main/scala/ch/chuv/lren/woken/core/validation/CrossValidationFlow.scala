@@ -99,7 +99,7 @@ case class CrossValidationFlow(
       .map { job =>
         val validation = job.validation
         logger.info(s"Validation spec: $validation")
-        val foldCount  = validation.parametersAsMap("k").toInt
+        val foldCount = validation.parametersAsMap("k").toInt
         val featuresQuery =
           job.query
             .filterNulls(job.algorithmDefinition.variablesCanBeNull,
