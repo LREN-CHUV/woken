@@ -21,23 +21,23 @@ import java.time.OffsetDateTime
 
 import akka.NotUsed
 import akka.actor.SupervisorStrategy.Restart
-import akka.actor.{ ActorRef, OneForOneStrategy, Props }
-import akka.routing.{ OptimalSizeExploringResizer, RoundRobinPool }
+import akka.actor.{ActorRef, OneForOneStrategy, Props}
+import akka.routing.{OptimalSizeExploringResizer, RoundRobinPool}
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{ Flow, Sink, Source }
+import akka.stream.scaladsl.{Flow, Sink, Source}
 import ch.chuv.lren.woken.config.AlgorithmDefinition
 import ch.chuv.lren.woken.core._
 import ch.chuv.lren.woken.core.commands.JobCommands.StartExperimentJob
-import ch.chuv.lren.woken.core.model.{ ErrorJobResult, ExperimentJobResult, JobResult }
+import ch.chuv.lren.woken.core.model.{ErrorJobResult, ExperimentJobResult, JobResult}
 import ch.chuv.lren.woken.core.validation.RemoteValidationFlow
 import ch.chuv.lren.woken.core.validation.RemoteValidationFlow.ValidationContext
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
-import ch.chuv.lren.woken.messages.query.{ ExperimentQuery, QueryResult }
+import ch.chuv.lren.woken.messages.query.{ExecutionStyle, _}
 import ch.chuv.lren.woken.service.DispatcherService
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -167,12 +167,33 @@ class ExperimentQueriesActor(
                             initiator: ActorRef,
                             job: ExperimentActor.Job): Unit =
     dispatcherService.dispatchTo(query.trainingDatasets) match {
+      // Local execution of the experiment on a worker node or a standalone node
       case (_, true) => startExperimentJob(job, initiator)
+      // Execution of the experiment from the central server in a distributed mode
       case _ =>
+        val queriesByStepExecution: Map[ExecutionStyle.Value, ExperimentQuery] = job.query.algorithms
+          .flatMap { algorithm =>
+            val algorithmDefinition: AlgorithmDefinition = algorithmLookup(algorithm.code)
+              .valueOr(e => throw new IllegalStateException(e.toList.mkString(",")))
+
+            algorithmDefinition.distributedExecutionPlan.steps.map { step =>
+              (step, algorithm.copy(step = Some(step)))
+            }.toMap
+          }
+          .groupBy(_._1.execution)
+          .map {
+            case (step, algorithmSpecs) =>
+              (step, job.query.copy(algorithms = algorithmSpecs.map(_._2)))
+          }
+
         logger.info("Dispatch experiment query to remote workers...")
 
+        val mapQuery = queriesByStepExecution.getOrElse(ExecutionStyle.map, job.query)
+        val gatherQuery = queriesByStepExecution.get(ExecutionStyle.gather)
+        val reduceQuery = queriesByStepExecution.get(ExecutionStyle.reduce)
+
         Source
-          .single(query)
+          .single(mapQuery)
           .via(dispatcherService.dispatchRemoteExperimentFlow)
           .mapAsync(10) { result =>
             JobResult.fromQueryResult(result._2) match {

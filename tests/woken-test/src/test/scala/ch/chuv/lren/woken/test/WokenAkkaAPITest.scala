@@ -372,7 +372,7 @@ class WokenAkkaAPITest
         val json = response.toJson
         val expected = loadJson("/responses/heatmaply_data_mining.json")
 
-        save(approximate(json), "/responses/heatmaply_data_mining.json")
+        // save(approximate(json), "/responses/heatmaply_data_mining.json")
 
 
         def cleanMore(s: String): String =
@@ -436,7 +436,7 @@ class WokenAkkaAPITest
         val json = response.toJson
         val expected = loadJson("/responses/hinmine_data_mining.json")
 
-        save(approximate(json), "/responses/hinmine_data_mining.json")
+        // save(approximate(json), "/responses/hinmine_data_mining.json")
 
         assertResult(approximate(expected))(approximate(json))
       }

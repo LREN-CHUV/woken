@@ -135,7 +135,8 @@ case class RemoteValidationFlow(
           }),
           CodeValue("variablesCanBeNull", algorithmDefinition.variablesCanBeNull.toString),
           CodeValue("covariablesCanBeNull", algorithmDefinition.covariablesCanBeNull.toString)
-        )
+        ),
+        None
       ),
       executionPlan = None,
       datasets = v.query.validationDatasets,
