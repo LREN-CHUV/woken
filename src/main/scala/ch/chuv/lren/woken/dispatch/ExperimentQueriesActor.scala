@@ -21,7 +21,7 @@ import java.time.OffsetDateTime
 
 import akka.NotUsed
 import akka.actor.SupervisorStrategy.Restart
-import akka.actor.{ ActorRef, OneForOneStrategy, Props }
+import akka.actor.{ Actor, ActorRef, OneForOneStrategy, Props }
 import akka.routing.{ OptimalSizeExploringResizer, RoundRobinPool }
 import akka.stream.scaladsl.{ Flow, Sink, Source }
 import ch.chuv.lren.woken.config.AlgorithmDefinition
@@ -94,7 +94,7 @@ class ExperimentQueriesActor(
     dispatcherService: DispatcherService,
     algorithmLookup: String => Validation[AlgorithmDefinition],
     experimentQuery2JobF: ExperimentQuery => Validation[ExperimentActor.Job]
-) extends QueriesActor {
+) extends QueriesActor[ExperimentQuery] {
 
   import ExperimentQueriesActor.Experiment
 
@@ -104,7 +104,7 @@ class ExperimentQueriesActor(
   override def receive: Receive = {
 
     case experiment: Experiment =>
-      val initiator    = experiment.replyTo
+      val initiator    = if (experiment.replyTo == Actor.noSender) sender() else experiment.replyTo
       val query        = experiment.query
       val jobValidated = experimentQuery2JobF(query)
 
@@ -253,5 +253,11 @@ class ExperimentQueriesActor(
 
   private[dispatch] def newExperimentActor: ActorRef =
     context.actorOf(ExperimentActor.props(coordinatorConfig, algorithmLookup, dispatcherService))
+
+  private[dispatch] def addJobIds(query: ExperimentQuery, jobIds: List[String]): ExperimentQuery =
+    query.copy(algorithms = query.algorithms.map(algorithm => addJobIds(algorithm, jobIds)))
+
+  override private[dispatch] def wrap(query: ExperimentQuery, initiator: ActorRef) =
+    Experiment(query, initiator)
 
 }

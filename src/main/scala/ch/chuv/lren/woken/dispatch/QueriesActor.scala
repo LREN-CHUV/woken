@@ -34,7 +34,7 @@ import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-trait QueriesActor extends Actor with LazyLogging {
+trait QueriesActor[Q <: Query] extends Actor with LazyLogging {
 
   implicit val ec: ExecutionContext = context.dispatcher
 
@@ -44,7 +44,7 @@ trait QueriesActor extends Actor with LazyLogging {
 
   private[dispatch] def gatherAndReduce(
       queryResults: List[QueryResult],
-      reduceQuery: Option[Query]
+      reduceQuery: Option[Q]
   ): Future[QueryResult] = {
 
     import spray.json._
@@ -80,15 +80,10 @@ trait QueriesActor extends Actor with LazyLogging {
 
     Applicative[Option]
       .map2(reduceQuery, jobIdsToReduce)((_, _))
-      .map {
-        case (query: MiningQuery, jobIds) =>
-          query.copy(algorithm = addJobIds(query.algorithm, jobIds))
-        case (query: ExperimentQuery, jobIds) =>
-          query.copy(algorithms = query.algorithms.map(algorithm => addJobIds(algorithm, jobIds)))
-      }
+      .map { case (query, jobIds) => addJobIds(query, jobIds) }
       .fold(Future(resultsToCompoundGather)) { query =>
         implicit val askTimeout: Timeout = Timeout(60 minutes)
-        (self ? query)
+        (self ? wrap(query, Actor.noSender))
           .mapTo[QueryResult]
           .map { reducedResult =>
             resultsToCompoundGather :+ reducedResult
@@ -130,14 +125,14 @@ trait QueriesActor extends Actor with LazyLogging {
     error
   }
 
-  private[dispatch] def reportError(query: Query, initiator: ActorRef)(e: Throwable): Unit = {
+  private[dispatch] def reportError(query: Q, initiator: ActorRef)(e: Throwable): Unit = {
     logger.error(s"Cannot complete query $query", e)
     val error =
       ErrorJobResult(None, coordinatorConfig.jobsConf.node, OffsetDateTime.now(), None, e.toString)
     initiator ! error.asQueryResult
   }
 
-  private[dispatch] def reportErrorMessage(query: Query,
+  private[dispatch] def reportErrorMessage(query: Q,
                                            initiator: ActorRef)(errorMessage: String): Unit = {
     logger.error(s"Cannot complete query $query, cause $errorMessage")
     val error =
@@ -149,15 +144,18 @@ trait QueriesActor extends Actor with LazyLogging {
     initiator ! error.asQueryResult
   }
 
-  private[dispatch] def algorithmsOfQuery(query: Query): List[AlgorithmSpec] = query match {
+  private[dispatch] def algorithmsOfQuery(query: Q): List[AlgorithmSpec] = query match {
     case q: MiningQuery     => List(q.algorithm)
     case q: ExperimentQuery => q.algorithms
   }
 
-  private[dispatch] def addJobIds(algorithmSpec: AlgorithmSpec,
-                                  jobIds: List[String]): AlgorithmSpec =
-    algorithmSpec.copy(
-      parameters = algorithmSpec.parameters :+ CodeValue("_job_ids_", jobIds.mkString(","))
+  private[dispatch] def addJobIds(query: Q, jobIds: List[String]): Q
+
+  private[dispatch] def addJobIds(algorithm: AlgorithmSpec, jobIds: List[String]): AlgorithmSpec =
+    algorithm.copy(
+      parameters = algorithm.parameters :+ CodeValue("_job_ids_", jobIds.mkString(","))
     )
+
+  private[dispatch] def wrap(query: Q, initiator: ActorRef): Any
 
 }

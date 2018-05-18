@@ -21,7 +21,7 @@ import java.time.OffsetDateTime
 
 import akka.NotUsed
 import akka.actor.SupervisorStrategy.Restart
-import akka.actor.{ ActorRef, OneForOneStrategy, Props }
+import akka.actor.{ Actor, ActorRef, OneForOneStrategy, Props }
 import akka.routing.{ OptimalSizeExploringResizer, RoundRobinPool }
 import akka.stream.scaladsl.{ Flow, Sink, Source }
 import ch.chuv.lren.woken.config.AlgorithmDefinition
@@ -30,7 +30,7 @@ import ch.chuv.lren.woken.core.commands.JobCommands.StartCoordinatorJob
 import ch.chuv.lren.woken.core.model.{ DockerJob, ErrorJobResult, Job, ValidationJob }
 import ch.chuv.lren.woken.core.validation.ValidationFlow
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
-import ch.chuv.lren.woken.messages.query.{ ExecutionStyle, MiningQuery, QueryResult, Shapes }
+import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.validation.Score
 import ch.chuv.lren.woken.messages.validation.validationProtocol._
 import ch.chuv.lren.woken.service.DispatcherService
@@ -95,7 +95,7 @@ class MiningQueriesActor(
     dispatcherService: DispatcherService,
     algorithmLookup: String => Validation[AlgorithmDefinition],
     miningQuery2JobF: MiningQuery => Validation[Job]
-) extends QueriesActor {
+) extends QueriesActor[MiningQuery] {
 
   import MiningQueriesActor.Mine
 
@@ -114,7 +114,7 @@ class MiningQueriesActor(
   override def receive: Receive = {
 
     case mine: Mine =>
-      val initiator    = mine.replyTo
+      val initiator    = if (mine.replyTo == Actor.noSender) sender() else mine.replyTo
       val query        = mine.query
       val jobValidated = miningQuery2JobF(query)
 
@@ -140,7 +140,9 @@ class MiningQueriesActor(
     case CoordinatorActor.Response(job, results, initiator) =>
       // TODO: we can only handle one result from the Coordinator handling a mining query.
       // Containerised algorithms that can produce more than one result (e.g. PFA model + images) are ignored
-      logger.info(s"Received results for mining ${job.query}: $results")
+      logger.info(
+        s"Send back results for mining ${job.query}: ${results.toString.take(50)} to $initiator"
+      )
       val jobResult = results.head
       initiator ! jobResult.asQueryResult
 
@@ -276,5 +278,11 @@ class MiningQueriesActor(
           None
         )
     }
+
+  private[dispatch] def addJobIds(query: MiningQuery, jobIds: List[String]): MiningQuery =
+    query.copy(algorithm = addJobIds(query.algorithm, jobIds))
+
+  override private[dispatch] def wrap(query: MiningQuery, initiator: ActorRef) =
+    Mine(query, initiator)
 
 }
