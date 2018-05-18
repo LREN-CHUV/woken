@@ -162,7 +162,7 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
     Composite[JobResultColumns].imap(unsafeFromColumns)(jobResultToColumns)
 
   override def get(jobId: String): F[Option[JobResult]] =
-    sql"select job_id, node, timestamp, shape, function, data, error from job_result where job_id = $jobId"
+    sql"SELECT job_id, node, timestamp, shape, function, data, error FROM job_result WHERE job_id = $jobId"
       .query[JobResult]
       .option
       .transact(xa)

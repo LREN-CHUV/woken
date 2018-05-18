@@ -254,7 +254,10 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
         logger.info("Stopping...")
         stop(Normal)
       } else {
-        stay() using data.copy(pollDbCount = data.pollDbCount + 1) forMax repeatDuration
+        val updatedData = data.copy(pollDbCount = data.pollDbCount + 1)
+        if (updatedData.pollDbCount % 10 == 5)
+          logger.info(s"Polling job results database for job ${data.job.jobId}...")
+        stay() using updatedData forMax repeatDuration
       }
 
     // Check Chronos for the job status; prepare the next tick
