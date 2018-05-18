@@ -119,11 +119,15 @@ trait QueriesActor extends Actor with LazyLogging {
     queryResult
   }
 
-  private[dispatch] def reportError(initiator: ActorRef)(e: Throwable): Unit = {
+  private[dispatch] def reportError(initiator: ActorRef)(e: Throwable): QueryResult = {
     logger.error(s"Cannot complete query because of ${e.getMessage}", e)
-    val error =
-      ErrorJobResult(None, coordinatorConfig.jobsConf.node, OffsetDateTime.now(), None, e.toString)
-    initiator ! error.asQueryResult
+    val error = ErrorJobResult(None,
+                               coordinatorConfig.jobsConf.node,
+                               OffsetDateTime.now(),
+                               None,
+                               e.toString).asQueryResult
+    initiator ! error
+    error
   }
 
   private[dispatch] def reportError(query: Query, initiator: ActorRef)(e: Throwable): Unit = {
@@ -133,10 +137,15 @@ trait QueriesActor extends Actor with LazyLogging {
     initiator ! error.asQueryResult
   }
 
-  private[dispatch] def reportErrorMessage(query: Query, initiator: ActorRef)(errorMessage: String): Unit = {
+  private[dispatch] def reportErrorMessage(query: Query,
+                                           initiator: ActorRef)(errorMessage: String): Unit = {
     logger.error(s"Cannot complete query $query, cause $errorMessage")
     val error =
-      ErrorJobResult(None, coordinatorConfig.jobsConf.node, OffsetDateTime.now(), None, errorMessage)
+      ErrorJobResult(None,
+                     coordinatorConfig.jobsConf.node,
+                     OffsetDateTime.now(),
+                     None,
+                     errorMessage)
     initiator ! error.asQueryResult
   }
 

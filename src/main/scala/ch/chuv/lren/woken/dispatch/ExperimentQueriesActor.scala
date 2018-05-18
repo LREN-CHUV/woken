@@ -138,15 +138,10 @@ class ExperimentQueriesActor(
           result
         }
         .recoverWithRetries[QueryResult](
-          1, reportError(initiator) {
-            case e =>
-              val result = ErrorJobResult(None,
-                                          coordinatorConfig.jobsConf.node,
-                                          OffsetDateTime.now(),
-                                          None,
-                                          e.toString).asQueryResult
-              initiator ! result
-              Source.single(result)
+          1, {
+            case e: Exception =>
+              val errorResult = reportError(initiator)(e)
+              Source.single(errorResult)
           }
         )
         .log("Result of experiment")

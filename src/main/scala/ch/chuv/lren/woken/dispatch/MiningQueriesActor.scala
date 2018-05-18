@@ -118,12 +118,18 @@ class MiningQueriesActor(
       val query        = mine.query
       val jobValidated = miningQuery2JobF(query)
 
-      jobValidated.fold( errorMsg => {
-          reportErrorMessage(query, initiator)(s"Mining for $query failed with message: " + errorMsg.reduceLeft(_ + ", " + _))
+      jobValidated.fold(
+        errorMsg => {
+          reportErrorMessage(query, initiator)(
+            s"Mining for $query failed with message: " + errorMsg.reduceLeft(_ + ", " + _)
+          )
         }, {
           case job: DockerJob     => runMiningJob(query, initiator, job)
           case job: ValidationJob => runValidationJob(initiator, job)
-          case job => reportErrorMessage(query, initiator)(s"Unsupported job $job. Was expecting a job of type DockerJob or ValidationJob")
+          case job =>
+            reportErrorMessage(query, initiator)(
+              s"Unsupported job $job. Was expecting a job of type DockerJob or ValidationJob"
+            )
         }
       )
 
