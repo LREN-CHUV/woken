@@ -19,26 +19,122 @@ package ch.chuv.lren.woken.dispatch
 
 import java.time.OffsetDateTime
 
-import akka.actor.Actor
+import akka.actor.{ Actor, ActorRef }
+import akka.pattern.ask
+import akka.stream.ActorMaterializer
+import akka.util.Timeout
 import ch.chuv.lren.woken.core.CoordinatorConfig
-import ch.chuv.lren.woken.messages.query.{ QueryResult, Shapes, queryProtocol }
+import ch.chuv.lren.woken.core.model.{ ErrorJobResult, ExperimentJobResult, JobResult }
+import ch.chuv.lren.woken.messages.query._
+import cats.Applicative
+import cats.implicits._
+import com.typesafe.scalalogging.LazyLogging
 
-trait QueriesActor extends Actor {
+import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.duration._
+import scala.language.postfixOps
+
+trait QueriesActor extends Actor with LazyLogging {
+
+  implicit val ec: ExecutionContext = context.dispatcher
+
+  implicit val materializer: ActorMaterializer = ActorMaterializer()
+
   def coordinatorConfig: CoordinatorConfig
 
-  private[dispatch] def compoundResult(queryResults: List[QueryResult]): QueryResult = {
+  private[dispatch] def gatherAndReduce(
+      queryResults: List[QueryResult],
+      reduceQuery: Option[Query]
+  ): Future[QueryResult] = {
+
     import spray.json._
     import queryProtocol._
 
-    QueryResult(
-      jobId = None,
-      node = coordinatorConfig.jobsConf.node,
-      timestamp = OffsetDateTime.now(),
-      `type` = Shapes.compound,
-      algorithm = None,
-      data = Some(queryResults.toJson),
-      error = None
-    )
+    val jobIdsToReduce: Option[List[String]] = reduceQuery
+      .map(algorithmsOfQuery)
+      .map { algorithms: List[AlgorithmSpec] =>
+        queryResults
+        // TODO: cannot support a case where the same algorithm is used, but with different execution plans
+          .filter(r => r.algorithm.fold(false)(rAlgo => algorithms.exists(_.code == rAlgo)))
+          .flatMap { queryResult =>
+            // With side effect: store results in the Jobs database for consumption by the algorithms
+            JobResult.fromQueryResult(queryResult) match {
+              case experiment: ExperimentJobResult =>
+                experiment.results.valuesIterator.map { jobResult =>
+                  coordinatorConfig.jobResultService.put(jobResult)
+                  jobResult.jobIdM.getOrElse("")
+                }.toList
+              case jobResult =>
+                coordinatorConfig.jobResultService.put(jobResult)
+                List(jobResult.jobIdM.getOrElse(""))
+            }
+          }
+          .filter(_.nonEmpty)
+      }
+
+    val resultsToCompoundGather = queryResults.filter { result =>
+      reduceQuery.exists { query =>
+        result.algorithm.exists(code => algorithmsOfQuery(query).exists(_.code == code))
+      }
+    }
+
+    Applicative[Option]
+      .map2(reduceQuery, jobIdsToReduce)((_, _))
+      .map {
+        case (query: MiningQuery, jobIds) =>
+          query.copy(algorithm = addJobIds(query.algorithm, jobIds))
+        case (query: ExperimentQuery, jobIds) =>
+          query.copy(algorithms = query.algorithms.map(algorithm => addJobIds(algorithm, jobIds)))
+      }
+      .fold(Future(resultsToCompoundGather)) { query =>
+        implicit val askTimeout: Timeout = Timeout(60 minutes)
+        (self ? query)
+          .mapTo[QueryResult]
+          .map { reducedResult =>
+            resultsToCompoundGather :+ reducedResult
+          }
+      }
+      .map {
+        case Nil          => noResult()
+        case List(result) => result
+        case results =>
+          QueryResult(
+            jobId = None,
+            node = coordinatorConfig.jobsConf.node,
+            timestamp = OffsetDateTime.now(),
+            `type` = Shapes.compound,
+            algorithm = None,
+            data = Some(results.toJson),
+            error = None
+          )
+      }
+
   }
+
+  private[dispatch] def noResult(): QueryResult =
+    ErrorJobResult(None, coordinatorConfig.jobsConf.node, OffsetDateTime.now(), None, "No results").asQueryResult
+
+  private[dispatch] def reportResult(initiator: ActorRef)(queryResult: QueryResult): QueryResult = {
+    initiator ! queryResult
+    queryResult
+  }
+
+  private[dispatch] def reportError(query: Query, initiator: ActorRef)(e: Throwable): Unit = {
+    logger.error(s"Cannot complete experiment query $query", e)
+    val error =
+      ErrorJobResult(None, coordinatorConfig.jobsConf.node, OffsetDateTime.now(), None, e.toString)
+    initiator ! error.asQueryResult
+  }
+
+  private[dispatch] def algorithmsOfQuery(query: Query): List[AlgorithmSpec] = query match {
+    case q: MiningQuery     => List(q.algorithm)
+    case q: ExperimentQuery => q.algorithms
+  }
+
+  private[dispatch] def addJobIds(algorithmSpec: AlgorithmSpec,
+                                  jobIds: List[String]): AlgorithmSpec =
+    algorithmSpec.copy(
+      parameters = algorithmSpec.parameters :+ CodeValue("_job_ids_", jobIds.mkString(","))
+    )
 
 }

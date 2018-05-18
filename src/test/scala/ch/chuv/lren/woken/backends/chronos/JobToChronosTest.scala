@@ -32,7 +32,8 @@ class JobToChronosTest extends FlatSpec with Matchers {
 
   val algorithm: AlgorithmSpec = AlgorithmSpec(
     code = "knn",
-    parameters = List(CodeValue("k", "5"), CodeValue("n", "1"))
+    parameters = List(CodeValue("k", "5"), CodeValue("n", "1")),
+    step = None
   )
 
   val user: UserId = UserId("test")

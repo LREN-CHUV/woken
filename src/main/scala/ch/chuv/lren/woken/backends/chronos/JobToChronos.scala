@@ -63,14 +63,14 @@ object JobToChronos {
         EV("NODE", jobsConf.node),
         EV("DOCKER_IMAGE", job.dockerImage)
       ) ++
-        job.dockerParameters.map(kv => EV(kv._1, kv._2)) ++
+        job.environmentVariables.map(kv => EV(kv._1, kv._2)) ++
         dbEnvironment(inputDb, "IN_") ++
         dbEnvironment(outputDb, "OUT_")
 
-      // TODO: add config parameter for CPU and mem, mem should come from Docker image metadata or json descriptor
       ChronosJob(
         name = job.jobName,
-        command = "compute",
+        command = job.dockerCommand,
+        arguments = job.dockerArguments,
         shell = false,
         schedule = "R1//PT1M",
         epsilon = Some("PT5M"),
