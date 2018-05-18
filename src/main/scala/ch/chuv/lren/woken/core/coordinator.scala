@@ -157,7 +157,7 @@ private[core] object CoordinatorStates {
 class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
     extends Actor
     with LazyLogging
-    with LoggingFSM[CoordinatorStates.State, CoordinatorStates.StateData] {
+    with FSM[CoordinatorStates.State, CoordinatorStates.StateData] {
 
   import CoordinatorActor._
   import CoordinatorStates._
@@ -166,7 +166,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
   val startTime: Long                = System.currentTimeMillis
 
   startWith(WaitForNewJob, Uninitialized)
-  log.info("Local coordinator actor started...")
+  logger.info("Local coordinator actor started...")
 
   when(WaitForNewJob) {
     case Event(StartCoordinatorJob(job, requestedReplyTo, initiator), Uninitialized) =>
@@ -182,12 +182,12 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
       chronosJob.fold[State](
         { err =>
           val msg = err.toList.mkString
-          log.error(msg)
+          logger.error(msg)
           replyTo ! errorResponse(job, msg, initiator)
           stop(Failure(msg))
         }, { cj =>
           coordinatorConfig.chronosService ! Schedule(cj, self)
-          log.info(
+          logger.info(
             s"Wait for Chronos to fulfill job ${job.jobId}, Coordinator will reply to $initiator"
           )
           goto(SubmittedJobToChronos) using PartialLocalData(
@@ -207,20 +207,20 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
   when(SubmittedJobToChronos) {
 
     case Event(ChronosService.Ok, data: PartialLocalData) =>
-      log.info(s"Job ${data.job.jobId} posted to Chronos")
+      logger.info(s"Job ${data.job} posted to Chronos")
       goto(RequestFinalResult) using data
 
     case Event(e: ChronosService.Error, data: PartialLocalData) =>
       val msg =
         s"Cannot complete job ${data.job.jobId} using ${data.job.dockerImage}, received error: ${e.message}"
-      log.error(msg)
+      logger.error(msg)
       data.replyTo ! errorResponse(data.job, msg, data.initiator)
       stop(Failure(msg))
 
     case Event(_: Timeout @unchecked, data: PartialLocalData) =>
       val msg =
         s"Cannot complete job ${data.job.jobId} using ${data.job.dockerImage}, timeout while connecting to Chronos"
-      log.error(msg)
+      logger.error(msg)
       data.replyTo ! errorResponse(data.job, msg, data.initiator)
       stop(Failure(msg))
   }
@@ -233,7 +233,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
       if (System.currentTimeMillis > data.timeoutTime) {
         val msg =
           s"Cannot complete job ${data.job.jobId} using ${data.job.dockerImage}, job timed out"
-        log.error(msg)
+        logger.error(msg)
         data.replyTo ! errorResponse(data.job, msg, data.initiator)
         stop(Failure(msg))
       } else {
@@ -249,9 +249,9 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
     case Event(CheckDb, data: PartialLocalData) =>
       val results = coordinatorConfig.jobResultService.get(data.job.jobId)
       if (results.nonEmpty) {
-        log.info(s"Received results for job ${data.job.jobId}")
+        logger.info(s"Received results for job ${data.job.jobId}")
         data.replyTo ! Response(data.job, results.toList, data.initiator)
-        log.info("Stopping...")
+        logger.info("Stopping...")
         stop(Normal)
       } else {
         stay() using data.copy(pollDbCount = data.pollDbCount + 1) forMax repeatDuration
@@ -265,23 +265,23 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
     // Handle Chronos responses
     case Event(ChronosService.JobComplete(jobId, success), data: PartialLocalData) =>
       if (jobId != data.job.jobId) {
-        log.warning(
+        logger.warn(
           s"Chronos returned job complete for job #$jobId, but was expecting job #{data.job.jobId}"
         )
       }
       val results = coordinatorConfig.jobResultService.get(data.job.jobId)
       if (results.nonEmpty) {
-        log.info(s"Received results for job ${data.job.jobId}")
+        logger.info(s"Received results for job ${data.job.jobId}")
         data.replyTo ! Response(data.job, results.toList, data.initiator)
 
         val reportedSuccess = !results.exists { case _: ErrorJobResult => true; case _ => false }
         if (reportedSuccess != success) {
-          log.warning(
+          logger.warn(
             s"Chronos reported that job ${data.job.jobId} using Docker image ${data.job.dockerImage} is ${if (!success)
               "not "}successful, however the job results ${if (reportedSuccess) "do not "}contain an error"
           )
         }
-        log.info("Stopping...")
+        logger.info("Stopping...")
         stop(Normal)
       } else {
         // Use a short timeout here as Chronos reported completion of the job, we should just wait for results to
@@ -298,19 +298,19 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
 
     case Event(ChronosService.JobNotFound(jobId), data: PartialLocalData) =>
       if (jobId != data.job.jobId) {
-        log.warning(
+        logger.warn(
           s"Chronos returned job not found for job #$jobId, but was expecting job #{data.job.jobId}"
         )
       }
       val msg =
         s"Chronos lost track of job ${data.job.jobId} using ${data.job.dockerImage}, it may have been stopped manually"
-      log.error(msg)
+      logger.error(msg)
       data.replyTo ! errorResponse(data.job, msg, data.initiator)
       stop(Failure(msg))
 
     case Event(ChronosService.JobQueued(jobId), data: PartialLocalData) =>
       if (jobId != data.job.jobId) {
-        log.warning(
+        logger.warn(
           s"Chronos returned job not found for job #$jobId, but was expecting job #{data.job.jobId}"
         )
       }
@@ -319,11 +319,11 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
 
     case Event(ChronosService.JobUnknownStatus(jobId, status), data: PartialLocalData) =>
       if (jobId != data.job.jobId) {
-        log.warning(
+        logger.warn(
           s"Chronos returned job not found for job #$jobId, but was expecting job #{data.job.jobId}"
         )
       }
-      log.warning(
+      logger.warn(
         s"Chronos reported status $status for job ${data.job.jobId} using ${data.job.dockerImage}"
       )
       // Nothing more to do, wait
@@ -331,11 +331,11 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
 
     case Event(ChronosService.ChronosUnresponsive(jobId, error), data: PartialLocalData) =>
       if (jobId != data.job.jobId) {
-        log.warning(
+        logger.warn(
           s"Chronos returned job not found for job #$jobId, but was expecting job #{data.job.jobId}"
         )
       }
-      log.warning(
+      logger.warn(
         s"Chronos appear unresponsive with error $error while checking job ${data.job.jobId} using ${data.job.dockerImage}"
       )
       // TODO: if Chronos is down for too long, enter panic state!
@@ -356,7 +356,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
         val msg =
           s"Job ${data.job.jobId} using ${data.job.dockerImage} has completed in Chronos, but encountered timeout while waiting for job results.\n" +
             "Does the algorithm store its results or errors in the output database?"
-        log.error(msg)
+        logger.error(msg)
         data.replyTo ! errorResponse(data.job, msg, data.initiator)
         stop(Failure(msg))
       } else {
@@ -368,9 +368,9 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
     case Event(CheckDb, data: ExpectedLocalData) =>
       val results = coordinatorConfig.jobResultService.get(data.job.jobId)
       if (results.nonEmpty) {
-        log.info(s"Received results for job ${data.job.jobId}")
+        logger.info(s"Received results for job ${data.job.jobId}")
         data.replyTo ! Response(data.job, results.toList, data.initiator)
-        log.info("Stopping...")
+        logger.info("Stopping...")
         stop(Normal)
       } else {
         stay() using data.copy(pollDbCount = data.pollDbCount + 1) forMax repeatDuration
@@ -385,7 +385,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
 
   whenUnhandled {
     case Event(e, s) =>
-      log.warning(s"Received unhandled request $e of type ${e.getClass} in state $stateName/$s")
+      logger.warn(s"Received unhandled request $e of type ${e.getClass} in state $stateName/$s")
       stay forMax repeatDuration
   }
 

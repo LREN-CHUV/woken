@@ -138,7 +138,7 @@ class ExperimentQueriesActor(
           result
         }
         .recoverWithRetries[QueryResult](
-          1, {
+          1, reportError(initiator) {
             case e =>
               val result = ErrorJobResult(None,
                                           coordinatorConfig.jobsConf.node,
