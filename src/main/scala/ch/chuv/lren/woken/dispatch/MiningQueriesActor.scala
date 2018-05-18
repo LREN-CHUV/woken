@@ -181,15 +181,9 @@ class MiningQueriesActor(
         val algorithmDefinition: AlgorithmDefinition = algorithmLookup(algorithm.code)
           .valueOr(e => throw new IllegalStateException(e.toList.mkString(",")))
         val queriesByStepExecution: Map[ExecutionStyle.Value, MiningQuery] =
-          algorithmDefinition.distributedExecutionPlan.steps
-            .map { step =>
-              (step, algorithm.copy(step = Some(step)))
-            }
-            .map {
-              case (step, algorithmSpec) =>
-                (step.execution, query.copy(algorithm = algorithmSpec))
-            }
-            .toMap
+          algorithmDefinition.distributedExecutionPlan.steps.map { step =>
+            (step.execution, query.copy(algorithm = algorithm.copy(step = Some(step))))
+          }.toMap
 
         val mapQuery = queriesByStepExecution.getOrElse(ExecutionStyle.map, query)
         val reduceQuery =
@@ -197,9 +191,9 @@ class MiningQueriesActor(
 
         mapFlow(mapQuery)
           .mapAsync(1) {
-            case List()        => Future(noResult())
-            case List(result)  => Future(result)
-            case listOfResults => gatherAndReduce(listOfResults, reduceQuery)
+            case List()       => Future(noResult())
+            case List(result) => Future(result)
+            case mapResults   => gatherAndReduce(mapResults, reduceQuery)
           }
           .map(reportResult(initiator))
           .runWith(Sink.last)

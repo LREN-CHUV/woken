@@ -206,8 +206,8 @@ class ExperimentQueriesActor(
           .mapAsync(1) {
             case List()       => Future(noResult())
             case List(result) => Future(result)
-            case listOfResults =>
-              gatherAndReduce(listOfResults, reduceQuery)
+            case mapResults =>
+              gatherAndReduce(mapResults, reduceQuery)
           }
           .map(reportResult(initiator))
           .log("Result of experiment")

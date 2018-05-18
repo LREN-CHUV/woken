@@ -43,44 +43,57 @@ trait QueriesActor[Q <: Query] extends Actor with LazyLogging {
   def coordinatorConfig: CoordinatorConfig
 
   private[dispatch] def gatherAndReduce(
-      queryResults: List[QueryResult],
+      mapQueryResults: List[QueryResult],
       reduceQuery: Option[Q]
   ): Future[QueryResult] = {
 
     import spray.json._
     import queryProtocol._
 
-    val jobIdsToReduce: Option[List[String]] = reduceQuery
+    logger.info(s"Reduce query is $reduceQuery")
+
+    // Select in the results the results that match the reduce query
+    val resultsCandidateForReduce: List[QueryResult] = reduceQuery
       .map(algorithmsOfQuery)
-      .map { algorithms: List[AlgorithmSpec] =>
-        queryResults
+      .fold(List[QueryResult]()) { algorithms: List[AlgorithmSpec] =>
+        mapQueryResults
         // TODO: cannot support a case where the same algorithm is used, but with different execution plans
-          .filter(r => r.algorithm.fold(false)(rAlgo => algorithms.exists(_.code == rAlgo)))
-          .flatMap { queryResult =>
-            // With side effect: store results in the Jobs database for consumption by the algorithms
-            JobResult.fromQueryResult(queryResult) match {
-              case experiment: ExperimentJobResult =>
-                experiment.results.valuesIterator.map { jobResult =>
-                  coordinatorConfig.jobResultService.put(jobResult)
-                  jobResult.jobIdM.getOrElse("")
-                }.toList
-              case jobResult =>
-                coordinatorConfig.jobResultService.put(jobResult)
-                List(jobResult.jobIdM.getOrElse(""))
-            }
+          .filter { r =>
+            logger.info(
+              s"Check that result for algorithm ${r.algorithm} is in the reduce query algorithms ${algorithms.map(_.code).mkString(",")}"
+            )
+            r.algorithm.fold(false)(rAlgo => algorithms.exists(_.code == rAlgo))
           }
-          .filter(_.nonEmpty)
       }
 
-    val resultsToCompoundGather = queryResults.filter { result =>
-      reduceQuery.exists { query =>
-        result.algorithm.exists(code => algorithmsOfQuery(query).exists(_.code == code))
-      }
-    }
+    logger.info(
+      s"Select ${resultsCandidateForReduce.size} results out of ${mapQueryResults.size} for reduce operation"
+    )
 
-    Applicative[Option]
-      .map2(reduceQuery, jobIdsToReduce)((_, _))
-      .map { case (query, jobIds) => reduceUsingJobs(query, jobIds) }
+    val jobIdsToReduce: List[String] = resultsCandidateForReduce
+      .flatMap { queryResult =>
+        // With side effect: store results in the Jobs database for consumption by the algorithms
+        JobResult.fromQueryResult(queryResult) match {
+          case experiment: ExperimentJobResult =>
+            experiment.results.valuesIterator.map { jobResult =>
+              coordinatorConfig.jobResultService.put(jobResult)
+              jobResult.jobIdM.getOrElse("")
+            }.toList
+          case jobResult =>
+            coordinatorConfig.jobResultService.put(jobResult)
+            List(jobResult.jobIdM.getOrElse(""))
+        }
+      }
+      .filter(_.nonEmpty)
+
+    logger.info(s"Selected job ids ${jobIdsToReduce.mkString(",")} for reduce operation")
+
+    val resultsToCompoundGather = mapQueryResults.diff(resultsCandidateForReduce)
+
+    reduceQuery
+      .map { query =>
+        reduceUsingJobs(query, jobIdsToReduce)
+      }
       .fold(Future(resultsToCompoundGather)) { query =>
         implicit val askTimeout: Timeout = Timeout(60 minutes)
         (self ? wrap(query, Actor.noSender))
