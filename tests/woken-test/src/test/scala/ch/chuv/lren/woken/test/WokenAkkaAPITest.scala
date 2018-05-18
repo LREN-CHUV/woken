@@ -179,7 +179,7 @@ class WokenAkkaAPITest
           grouping = Nil,
           filters = None,
           targetTable = Some("sample_data"),
-          algorithm = AlgorithmSpec("knn", List(CodeValue("k", "5"))),
+          algorithm = AlgorithmSpec("knn", List(CodeValue("k", "5")), None),
           datasets = Set(),
           executionPlan = None
         )
@@ -203,7 +203,7 @@ class WokenAkkaAPITest
           grouping = Nil,
           filters = None,
           targetTable = Some("sample_data"),
-          algorithm = AlgorithmSpec("histograms", Nil),
+          algorithm = AlgorithmSpec("histograms", Nil, None),
           datasets = Set(),
           executionPlan = None
         )
@@ -227,7 +227,7 @@ class WokenAkkaAPITest
           grouping = Nil,
           filters = None,
           targetTable = Some("sample_data"),
-          algorithm = AlgorithmSpec("statisticsSummary", Nil),
+          algorithm = AlgorithmSpec("statisticsSummary", Nil, None),
           datasets = Set(),
           executionPlan = None
         )
@@ -252,7 +252,7 @@ class WokenAkkaAPITest
           grouping = Nil,
           filters = None,
           targetTable = Some("sample_data"),
-          algorithm = AlgorithmSpec("tSNE", Nil),
+          algorithm = AlgorithmSpec("tSNE", Nil, None),
           datasets = Set(),
           executionPlan = None
         )
@@ -280,7 +280,7 @@ class WokenAkkaAPITest
           grouping = Nil,
           filters = None,
           targetTable = Some("sample_data"),
-          algorithm = AlgorithmSpec("correlationHeatmap", Nil),
+          algorithm = AlgorithmSpec("correlationHeatmap", Nil, None),
           datasets = Set(),
           executionPlan = None
         )
@@ -306,7 +306,7 @@ class WokenAkkaAPITest
           grouping = Nil,
           filters = None,
           targetTable = Some("sample_data"),
-          algorithm = AlgorithmSpec("pca", Nil),
+          algorithm = AlgorithmSpec("pca", Nil, None),
           datasets = Set(),
           executionPlan = None
         )
@@ -334,7 +334,7 @@ class WokenAkkaAPITest
           grouping = Nil,
           filters = None,
           targetTable = Some("sample_data"),
-          algorithm = AlgorithmSpec("ggparci", Nil),
+          algorithm = AlgorithmSpec("ggparci", Nil, None),
           datasets = Set(),
           executionPlan = None
         )
@@ -359,7 +359,7 @@ class WokenAkkaAPITest
           grouping = Nil,
           filters = None,
           targetTable = Some("sample_data"),
-          algorithm = AlgorithmSpec("heatmaply", Nil),
+          algorithm = AlgorithmSpec("heatmaply", Nil, None),
           datasets = Set(),
           executionPlan = None
         )
@@ -374,13 +374,14 @@ class WokenAkkaAPITest
 
         // save(approximate(json), "/responses/heatmaply_data_mining.json")
 
-
         def cleanMore(s: String): String =
           s.replaceAll(""" id=\\".*?\\"""", """ id=\\"\\"""")
             .replaceAll(""" data-for=\\".*?\\"""", """ data-for=\\"\\"""")
-            .replaceAll("""\\"attrs\\":\{.*</script>""", """\"attrs\":{}}]}}</script>""")
+            .replaceAll("""\\"attrs\\":\{.*</script>""",
+                        """\"attrs\":{}}]}}</script>""")
 
-        assertResult(cleanMore(approximate(expected)))(cleanMore(approximate(json)))
+        assertResult(cleanMore(approximate(expected)))(
+          cleanMore(approximate(json)))
       }
 
       "uses JSI Hedwig                     [visualisation, text]" in {
@@ -392,7 +393,7 @@ class WokenAkkaAPITest
           grouping = Nil,
           filters = None,
           targetTable = Some("sample_data"),
-          algorithm = AlgorithmSpec("hedwig", Nil),
+          algorithm = AlgorithmSpec("hedwig", Nil, None),
           datasets = Set(),
           executionPlan = None
         )
@@ -423,7 +424,7 @@ class WokenAkkaAPITest
           grouping = Nil,
           filters = None,
           targetTable = Some("sample_data"),
-          algorithm = AlgorithmSpec("hinmine", Nil),
+          algorithm = AlgorithmSpec("hinmine", Nil, None),
           datasets = Set(),
           executionPlan = None
         )
@@ -466,8 +467,8 @@ class WokenAkkaAPITest
       "executes Linear regression and Anova algorithms" in {
 
         val query = multipleExperimentQuery(
-          List(AlgorithmSpec("linearRegression", List()),
-               AlgorithmSpec("anova", List())))
+          List(AlgorithmSpec("linearRegression", Nil, None),
+               AlgorithmSpec("anova", Nil, None)))
         val response: QueryResult =
           timedQuery(query, "an experiment with Linear regression algorithm")
 

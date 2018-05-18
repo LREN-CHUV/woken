@@ -381,7 +381,7 @@
         }
       },
       "description": "ANOVA...",
-      "docker_image": "hbpmip/python-anova:0.4.3",
+      "docker_image": "hbpmip/python-anova:0.4.4",
       "environment": "Python",
       "label": "Anova",
       "parameters": [

@@ -69,7 +69,9 @@ $DOCKER_COMPOSE run wait_zookeeper
 $DOCKER_COMPOSE up -d mesos_master
 $DOCKER_COMPOSE run wait_mesos_master
 $DOCKER_COMPOSE up -d mesos_slave
-$DOCKER_COMPOSE build wokencentraltest
+if [ $tests == 1 ]; then
+    $DOCKER_COMPOSE build wokencentraltest
+fi
 $DOCKER_COMPOSE run wait_dbs
 
 echo "Create databases..."

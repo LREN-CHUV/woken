@@ -83,7 +83,7 @@ services:
       - mesos_master
 
   chronos:
-    image: hbpmip/chronos:3.0.2-4
+    image: hbpmip/chronos:3.0.2-5
     command: '--zk_hosts zookeeper:2181 --master zk://zookeeper:2181/mesos --zk_timeout 30000'
     restart: "always"
     hostname: chronos
@@ -281,7 +281,7 @@ services:
       - chronos
 
   wokenvalidationnode1:
-    image: hbpmip/woken-validation:2.5.1
+    image: hbpmip/woken-validation:2.5.2
     ports:
       - "18081:8081"
       - "18082:8082"
@@ -339,7 +339,7 @@ services:
       - chronos
 
   wokenvalidationnode2:
-    image: hbpmip/woken-validation:2.5.1
+    image: hbpmip/woken-validation:2.5.2
     ports:
       - "28081:8081"
       - "28082:8082"

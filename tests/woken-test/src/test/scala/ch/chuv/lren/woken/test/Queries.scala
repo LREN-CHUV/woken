@@ -17,8 +17,6 @@
 
 package ch.chuv.lren.woken.test
 
-import java.io.PrintStream
-
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables.VariableId
 import spray.json._
@@ -35,7 +33,7 @@ trait Queries {
         List(VariableId("score_test1"), VariableId("college_math")),
       targetTable: Option[String] = Some("sample_data")): Query =
     multipleExperimentQuery(algorithms =
-                              List(AlgorithmSpec(algorithm, parameters)),
+                              List(AlgorithmSpec(algorithm, parameters, None)),
                             variables = variables,
                             covariables = covariables,
                             targetTable = targetTable)
