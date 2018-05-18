@@ -150,6 +150,12 @@ services:
       DB6: features2
       USER6: features2
       PASSWORD6: features2pwd
+      DB7: woken1
+      USER7: woken1
+      PASSWORD7: woken1pwd
+      DB8: woken2
+      USER8: woken2
+      PASSWORD8: woken2pwd
     depends_on:
       - db
 
@@ -213,6 +219,32 @@ services:
       FLYWAY_HOST: db
       FLYWAY_PORT: 5432
       FLYWAY_DATABASE_NAME: woken
+      FLYWAY_USER: postgres
+      FLYWAY_PASSWORD: test
+    depends_on:
+      - db
+
+  woken1_db_setup:
+    image: "hbpmip/woken-db-setup:1.2.1"
+    container_name: "woken-db-setup"
+    restart: "no"
+    environment:
+      FLYWAY_HOST: db
+      FLYWAY_PORT: 5432
+      FLYWAY_DATABASE_NAME: woken1
+      FLYWAY_USER: postgres
+      FLYWAY_PASSWORD: test
+    depends_on:
+      - db
+
+  woken2_db_setup:
+    image: "hbpmip/woken-db-setup:1.2.1"
+    container_name: "woken-db-setup"
+    restart: "no"
+    environment:
+      FLYWAY_HOST: db
+      FLYWAY_PORT: 5432
+      FLYWAY_DATABASE_NAME: woken2
       FLYWAY_USER: postgres
       FLYWAY_PASSWORD: test
     depends_on:

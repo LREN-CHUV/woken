@@ -79,6 +79,8 @@ $DOCKER_COMPOSE run create_dbs
 
 echo "Migrate woken database..."
 $DOCKER_COMPOSE run woken_db_setup
+$DOCKER_COMPOSE run woken1_db_setup
+$DOCKER_COMPOSE run woken2_db_setup
 
 echo "Migrate metadata database..."
 $DOCKER_COMPOSE run sample_meta_db_setup
