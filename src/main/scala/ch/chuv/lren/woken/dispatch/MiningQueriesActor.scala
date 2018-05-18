@@ -166,10 +166,13 @@ class MiningQueriesActor(
     dispatcherService.dispatchTo(query.datasets) match {
 
       // Local mining on a worker node or a standalone node
-      case (_, true) => startMiningJob(job, initiator)
+      case (_, true) =>
+        logger.info(s"Local data mining for query $query")
+        startMiningJob(job, initiator)
 
       // Mining from the central server using one remote node
       case (remoteLocations, false) if remoteLocations.size == 1 =>
+        logger.info(s"Remote data mining on a single node $remoteLocations for query $query")
         mapFlow(query)
           .mapAsync(1) {
             case List()        => Future(noResult())
@@ -183,7 +186,8 @@ class MiningQueriesActor(
           .foreach(reportError(query, initiator))
 
       // Execution of the experiment from the central server in a distributed mode
-      case _ =>
+      case (remoteLocations, _) =>
+        logger.info(s"Remote data mining on nodes $remoteLocations for query $query")
         val algorithm = job.algorithmSpec
         val algorithmDefinition: AlgorithmDefinition = algorithmLookup(algorithm.code)
           .valueOr(e => throw new IllegalStateException(e.toList.mkString(",")))
@@ -198,8 +202,6 @@ class MiningQueriesActor(
             }
             .toMap
 
-        logger.info("Dispatch experiment query to remote workers...")
-
         val mapQuery    = queriesByStepExecution.getOrElse(ExecutionStyle.map, query)
         val reduceQuery = queriesByStepExecution.get(ExecutionStyle.reduce)
 
@@ -209,22 +211,10 @@ class MiningQueriesActor(
             case List(result)  => Future(result)
             case listOfResults => gatherAndReduce(listOfResults, reduceQuery)
           }
-          .map { queryResult: QueryResult =>
-            initiator ! queryResult
-            queryResult
-          }
+          .map(reportResult(initiator))
           .runWith(Sink.last)
           .failed
-          .foreach { e =>
-            logger.error(s"Cannot complete mining query $query", e)
-            val error = ErrorJobResult(None,
-                                       coordinatorConfig.jobsConf.node,
-                                       OffsetDateTime.now(),
-                                       None,
-                                       e.toString)
-
-            initiator ! error.asQueryResult
-          }
+          .foreach(reportError(query, initiator))
     }
 
   private def mapFlow(mapQuery: MiningQuery) =

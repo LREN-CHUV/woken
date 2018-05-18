@@ -56,6 +56,7 @@ class DispatcherService(allDatasets: Map[DatasetId, Dataset],
       allDatasets.get(dataset).flatMap(_.location)
 
   def dispatchTo(datasets: Set[DatasetId]): (Set[RemoteLocation], Boolean) = {
+    logger.info(s"Dispatch to datasets $datasets knowing $allDatasets")
     val maybeLocations = datasets.map(dispatchTo)
     val local          = maybeLocations.isEmpty || maybeLocations.contains(None)
     val maybeSet       = Traverse.sequence(maybeLocations.filter(_.nonEmpty))

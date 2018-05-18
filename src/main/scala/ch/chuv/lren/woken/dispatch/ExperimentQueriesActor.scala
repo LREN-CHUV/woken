@@ -164,10 +164,13 @@ class ExperimentQueriesActor(
     dispatcherService.dispatchTo(query.trainingDatasets) match {
 
       // Local execution of the experiment on a worker node or a standalone node
-      case (_, true) => startExperimentJob(job, initiator)
+      case (_, true) =>
+        logger.info(s"Local experiment for query $query")
+        startExperimentJob(job, initiator)
 
       // Execution of the experiment from the central server using one remote node
       case (remoteLocations, false) if remoteLocations.size == 1 =>
+        logger.info(s"Remote experiment on a single node $remoteLocations for query $query")
         mapFlow(job.query)
           .mapAsync(1) {
             case List()        => Future(noResult())
@@ -181,7 +184,8 @@ class ExperimentQueriesActor(
           .foreach(reportError(query, initiator))
 
       // Execution of the experiment from the central server in a distributed mode
-      case _ =>
+      case (remoteLocations, _) =>
+        logger.info(s"Remote experiment on nodes $remoteLocations for query $query")
         val queriesByStepExecution: Map[ExecutionStyle.Value, ExperimentQuery] =
           job.query.algorithms
             .flatMap { algorithm =>
@@ -197,8 +201,6 @@ class ExperimentQueriesActor(
               case (step, algorithmSpecs) =>
                 (step, job.query.copy(algorithms = algorithmSpecs.map(_._2)))
             }
-
-        logger.info("Dispatch experiment query to remote workers...")
 
         val mapQuery    = queriesByStepExecution.getOrElse(ExecutionStyle.map, job.query)
         val reduceQuery = queriesByStepExecution.get(ExecutionStyle.reduce)
