@@ -92,6 +92,7 @@ case class WokenClientService(node: String)(implicit val system: ActorSystem,
         case (url, response) if response.status.isSuccess() =>
           (url.pure[Future], Unmarshal(response).to[QueryResult]).mapN((_, _))
         case (url, failure) =>
+          failure.discardEntityBytes()
           (url,
            QueryResult(None,
                        node,

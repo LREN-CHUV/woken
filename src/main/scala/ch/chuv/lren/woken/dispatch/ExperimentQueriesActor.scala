@@ -197,8 +197,10 @@ class ExperimentQueriesActor(
                 (step, job.query.copy(algorithms = algorithmSpecs.map(_._2)))
             }
 
-        val mapQuery    = queriesByStepExecution.getOrElse(ExecutionStyle.map, job.query)
-        val reduceQuery = queriesByStepExecution.get(ExecutionStyle.reduce)
+        val mapQuery = queriesByStepExecution.getOrElse(ExecutionStyle.map, job.query)
+        val reduceQuery = queriesByStepExecution
+          .get(ExecutionStyle.reduce)
+          .map(_.copy(trainingDatasets = Set(), validationDatasets = Set()))
 
         mapFlow(mapQuery)
           .mapAsync(1) {
@@ -254,7 +256,8 @@ class ExperimentQueriesActor(
   private[dispatch] def newExperimentActor: ActorRef =
     context.actorOf(ExperimentActor.props(coordinatorConfig, algorithmLookup, dispatcherService))
 
-  private[dispatch] def addJobIds(query: ExperimentQuery, jobIds: List[String]): ExperimentQuery =
+  private[dispatch] def reduceUsingJobs(query: ExperimentQuery,
+                                        jobIds: List[String]): ExperimentQuery =
     query.copy(algorithms = query.algorithms.map(algorithm => addJobIds(algorithm, jobIds)))
 
   override private[dispatch] def wrap(query: ExperimentQuery, initiator: ActorRef) =

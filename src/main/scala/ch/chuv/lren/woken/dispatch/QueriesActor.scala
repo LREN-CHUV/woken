@@ -80,7 +80,7 @@ trait QueriesActor[Q <: Query] extends Actor with LazyLogging {
 
     Applicative[Option]
       .map2(reduceQuery, jobIdsToReduce)((_, _))
-      .map { case (query, jobIds) => addJobIds(query, jobIds) }
+      .map { case (query, jobIds) => reduceUsingJobs(query, jobIds) }
       .fold(Future(resultsToCompoundGather)) { query =>
         implicit val askTimeout: Timeout = Timeout(60 minutes)
         (self ? wrap(query, Actor.noSender))
@@ -149,7 +149,7 @@ trait QueriesActor[Q <: Query] extends Actor with LazyLogging {
     case q: ExperimentQuery => q.algorithms
   }
 
-  private[dispatch] def addJobIds(query: Q, jobIds: List[String]): Q
+  private[dispatch] def reduceUsingJobs(query: Q, jobIds: List[String]): Q
 
   private[dispatch] def addJobIds(algorithm: AlgorithmSpec, jobIds: List[String]): AlgorithmSpec =
     algorithm.copy(

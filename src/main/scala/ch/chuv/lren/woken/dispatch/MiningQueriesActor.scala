@@ -191,8 +191,9 @@ class MiningQueriesActor(
             }
             .toMap
 
-        val mapQuery    = queriesByStepExecution.getOrElse(ExecutionStyle.map, query)
-        val reduceQuery = queriesByStepExecution.get(ExecutionStyle.reduce)
+        val mapQuery = queriesByStepExecution.getOrElse(ExecutionStyle.map, query)
+        val reduceQuery =
+          queriesByStepExecution.get(ExecutionStyle.reduce).map(_.copy(datasets = Set()))
 
         mapFlow(mapQuery)
           .mapAsync(1) {
@@ -279,7 +280,7 @@ class MiningQueriesActor(
         )
     }
 
-  private[dispatch] def addJobIds(query: MiningQuery, jobIds: List[String]): MiningQuery =
+  private[dispatch] def reduceUsingJobs(query: MiningQuery, jobIds: List[String]): MiningQuery =
     query.copy(algorithm = addJobIds(query.algorithm, jobIds))
 
   override private[dispatch] def wrap(query: MiningQuery, initiator: ActorRef) =
