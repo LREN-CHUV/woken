@@ -281,7 +281,7 @@ services:
 
 
   wokennode1:
-    image: hbpmip/woken:zipkin-tracing
+    image: hbpmip/woken
     volumes:
       - ./woken-worker1/config:/opt/woken/config
     ports:
@@ -319,7 +319,7 @@ services:
       - chronos
 
   wokenvalidationnode1:
-    image: hbpmip/woken-validation:2.5.2
+    image: hbpmip/woken-validation:2.5.3
     ports:
       - "18081:8081"
       - "18082:8082"
@@ -351,7 +351,7 @@ services:
       - wokenvalidationnode1
 
   wokennode2:
-    image: hbpmip/woken:zipkin-tracing
+    image: hbpmip/woken
     volumes:
       - ./woken-worker2/config:/opt/woken/config
     ports:
@@ -389,7 +389,7 @@ services:
       - chronos
 
   wokenvalidationnode2:
-    image: hbpmip/woken-validation:2.5.2
+    image: hbpmip/woken-validation:2.5.3
     ports:
       - "28081:8081"
       - "28082:8082"
@@ -420,7 +420,7 @@ services:
       - wokenvalidationnode2
 
   wokencentral:
-    image: hbpmip/woken:zipkin-tracing
+    image: hbpmip/woken
     volumes:
       - ./woken-central/config:/opt/woken/config
     ports:
@@ -475,7 +475,7 @@ services:
       - wokencentral
 
   portalbackend:
-    image: hbpmip/portal-backend:2.8.1
+    image: hbpmip/portal-backend:2.8.2
     restart: "no"
     ports:
       - "65440:8080"
