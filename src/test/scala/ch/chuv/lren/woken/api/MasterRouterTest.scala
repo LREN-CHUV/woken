@@ -252,8 +252,8 @@ class MasterRouterTest
 
         (1 to overflow).foreach { i =>
           expectMsgPF[Unit](5 seconds) {
-            case QueryResult(_, _, _, _, _, Some(_), None) => successfulStarts += 1
-            case QueryResult(_, _, _, _, _, None, Some(_)) => failures += 1
+            case QueryResult(_, _, _, _, _, Some(_), None, _) => successfulStarts += 1
+            case QueryResult(_, _, _, _, _, None, Some(_), _) => failures += 1
           }
         }
 
@@ -336,7 +336,7 @@ class MasterRouterTest
       )
 
       expectMsgPF(10 seconds, "error message") {
-        case QueryResult(_, _, _, _, _, _, Some(error)) =>
+        case QueryResult(_, _, _, _, _, _, Some(error), _) =>
           error shouldBe errorMessage
         case msg =>
           fail(s"received unexpected message $msg")

@@ -159,7 +159,7 @@ case class ExperimentJobResult(jobId: String,
     // Concatenate results
     JsArray(
       results.map { r =>
-        val obj = r._2.asQueryResult.toJson.asJsObject
+        val obj = r._2.asQueryResult(None).toJson.asJsObject
         JsObject(obj.fields + ("algorithmSpec" -> r._1.toJson))
       }.toVector
     )
@@ -276,7 +276,7 @@ case class SerializedModelJobResult(jobId: String,
 
 object JobResult {
 
-  def asQueryResult(jobResult: JobResult): QueryResult =
+  def asQueryResult(jobResult: JobResult, query: Option[Query]): QueryResult =
     jobResult match {
       case pfa: PfaJobResult =>
         QueryResult(
@@ -286,7 +286,8 @@ object JobResult {
           `type` = pfaShape,
           algorithm = Some(pfa.algorithm),
           data = Some(pfa.model),
-          error = None
+          error = None,
+          query = query
         )
       case pfa: ExperimentJobResult =>
         QueryResult(
@@ -296,7 +297,8 @@ object JobResult {
           `type` = pfaExperiment,
           algorithm = None,
           data = Some(pfa.models),
-          error = None
+          error = None,
+          query = query
         )
       case v: JsonDataJobResult =>
         QueryResult(
@@ -306,7 +308,8 @@ object JobResult {
           `type` = v.shape,
           algorithm = Some(v.algorithm),
           data = v.data,
-          error = None
+          error = None,
+          query = query
         )
       case v: OtherDataJobResult =>
         QueryResult(
@@ -316,7 +319,8 @@ object JobResult {
           `type` = v.shape,
           algorithm = Some(v.algorithm),
           data = v.data.map(JsString.apply),
-          error = None
+          error = None,
+          query = query
         )
       case v: SerializedModelJobResult =>
         QueryResult(
@@ -326,7 +330,8 @@ object JobResult {
           `type` = v.shape,
           algorithm = Some(v.algorithm),
           data = Some(JsString(Base64.getEncoder.encodeToString(v.data))),
-          error = None
+          error = None,
+          query = query
         )
       case e: ErrorJobResult =>
         QueryResult(
@@ -336,12 +341,13 @@ object JobResult {
           `type` = error,
           algorithm = e.algorithm,
           data = None,
-          error = Some(e.error)
+          error = Some(e.error),
+          query = query
         )
     }
 
   implicit class ToQueryResult(val jobResult: JobResult) extends AnyVal {
-    def asQueryResult: QueryResult = JobResult.asQueryResult(jobResult)
+    def asQueryResult(query: Option[Query]): QueryResult = JobResult.asQueryResult(jobResult, query)
   }
 
   def fromQueryResult(queryResult: QueryResult): JobResult =

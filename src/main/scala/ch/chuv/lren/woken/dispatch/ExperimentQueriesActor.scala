@@ -118,14 +118,14 @@ class ExperimentQueriesActor(
               None,
               s"Experiment $query failed with message: " + errorMsg.reduceLeft(_ + ", " + _)
             )
-          initiator ! error.asQueryResult
+          initiator ! error.asQueryResult(Some(query))
         },
         job => runExperiment(query, initiator, job)
       )
 
     case ExperimentActor.Response(job, Left(results), initiator) =>
       logger.info(s"Received error response for experiment on ${job.query}: $results")
-      initiator ! results.asQueryResult
+      initiator ! results.asQueryResult(Some(job.query))
 
     case ExperimentActor.Response(job, Right(results), initiator) =>
       logger.info(s"Received response for experiment on ${job.query}: $results")
@@ -133,14 +133,14 @@ class ExperimentQueriesActor(
         .single(ValidationContext(job.query, results))
         .via(remoteValidationFlow)
         .map[QueryResult] { r =>
-          val result = r.experimentResult.asQueryResult
+          val result = r.experimentResult.asQueryResult(Some(job.query))
           initiator ! result
           result
         }
         .recoverWithRetries[QueryResult](
           1, {
             case e: Exception =>
-              val errorResult = reportError(initiator)(e)
+              val errorResult = reportError(job.query, initiator)(e)
               Source.single(errorResult)
           }
         )
@@ -168,9 +168,9 @@ class ExperimentQueriesActor(
         logger.info(s"Remote experiment on a single node $remoteLocations for query $query")
         mapFlow(job.query)
           .mapAsync(1) {
-            case List()        => Future(noResult())
-            case List(result)  => Future(result)
-            case listOfResults => gatherAndReduce(listOfResults, None)
+            case List()        => Future(noResult(job.query))
+            case List(result)  => Future(result.copy(query = Some(query)))
+            case listOfResults => gatherAndReduce(query, listOfResults, None)
           }
           .map(reportResult(initiator))
           .log("Result of experiment")
@@ -204,10 +204,10 @@ class ExperimentQueriesActor(
 
         mapFlow(mapQuery)
           .mapAsync(1) {
-            case List()       => Future(noResult())
-            case List(result) => Future(result)
+            case List()       => Future(noResult(query))
+            case List(result) => Future(result.copy(query = Some(query)))
             case mapResults =>
-              gatherAndReduce(mapResults, reduceQuery)
+              gatherAndReduce(query, mapResults, reduceQuery)
           }
           .map(reportResult(initiator))
           .log("Result of experiment")
@@ -227,7 +227,7 @@ class ExperimentQueriesActor(
               .single(ValidationContext(mapQuery, experimentResult))
               .via(remoteValidationFlow)
               .map[QueryResult] { r =>
-                r.experimentResult.asQueryResult
+                r.experimentResult.asQueryResult(Some(mapQuery))
               }
               .recoverWithRetries[QueryResult](
                 1, {

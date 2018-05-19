@@ -135,7 +135,8 @@ class MiningQueriesActor(
 
     case CoordinatorActor.Response(job, List(errorJob: ErrorJobResult), initiator) =>
       logger.warn(s"Received error while mining ${job.query}: ${errorJob.toString}")
-      initiator ! errorJob.asQueryResult
+      // TODO: we lost track of the original query here
+      initiator ! errorJob.asQueryResult(None)
 
     case CoordinatorActor.Response(job, results, initiator) =>
       // TODO: we can only handle one result from the Coordinator handling a mining query.
@@ -144,7 +145,8 @@ class MiningQueriesActor(
         s"Send back results for mining ${job.query}: ${results.toString.take(50)} to $initiator"
       )
       val jobResult = results.head
-      initiator ! jobResult.asQueryResult
+      // TODO: we lost track of the original query here
+      initiator ! jobResult.asQueryResult(None)
 
     case e =>
       logger.warn(s"Received unhandled request $e of type ${e.getClass}")
@@ -164,9 +166,9 @@ class MiningQueriesActor(
         logger.info(s"Remote data mining on a single node $remoteLocations for query $query")
         mapFlow(query)
           .mapAsync(1) {
-            case List()        => Future(noResult())
-            case List(result)  => Future(result)
-            case listOfResults => gatherAndReduce(listOfResults, None)
+            case List()        => Future(noResult(query))
+            case List(result)  => Future(result.copy(query = Some(query)))
+            case listOfResults => gatherAndReduce(query, listOfResults, None)
           }
           .map(reportResult(initiator))
           .log("Result of experiment")
@@ -191,9 +193,9 @@ class MiningQueriesActor(
 
         mapFlow(mapQuery)
           .mapAsync(1) {
-            case List()       => Future(noResult())
-            case List(result) => Future(result)
-            case mapResults   => gatherAndReduce(mapResults, reduceQuery)
+            case List()       => Future(noResult(query))
+            case List(result) => Future(result.copy(query = Some(query)))
+            case mapResults   => gatherAndReduce(query, mapResults, reduceQuery)
           }
           .map(reportResult(initiator))
           .runWith(Sink.last)
@@ -233,7 +235,8 @@ class MiningQueriesActor(
                 Shapes.score,
                 Some(ValidationJob.algorithmCode),
                 Some(score.toJson),
-                None
+                None,
+                Some(job.query)
               )
             case Success((job: ValidationJob, Left(error))) =>
               initiator ! QueryResult(
@@ -243,7 +246,8 @@ class MiningQueriesActor(
                 Shapes.error,
                 Some(ValidationJob.algorithmCode),
                 None,
-                Some(error)
+                Some(error),
+                Some(job.query)
               )
             case Failure(t) =>
               initiator ! QueryResult(
@@ -253,7 +257,8 @@ class MiningQueriesActor(
                 Shapes.error,
                 Some(ValidationJob.algorithmCode),
                 None,
-                Some(t.toString)
+                Some(t.toString),
+                Some(job.query)
               )
 
           }
@@ -270,7 +275,8 @@ class MiningQueriesActor(
           Shapes.score,
           Some(ValidationJob.algorithmCode),
           None,
-          None
+          None,
+          Some(job.query)
         )
     }
 

@@ -82,16 +82,20 @@ case class WokenClientService(node: String)(implicit val system: ActorSystem,
       .map {
         case (location, query: MiningQuery) =>
           logger.info(s"Send Post request to ${location.url} for query $query")
-          Post(location, query).map((location, _))
+          Post(location, query).map((location, query, _))
         case (location, query: ExperimentQuery) =>
           logger.info(s"Send Post request to ${location.url} for query $query")
-          Post(location, query).map((location, _))
+          Post(location, query).map((location, query, _))
       }
       .mapAsync(100)(identity)
       .mapAsync(1) {
-        case (url, response) if response.status.isSuccess() =>
-          (url.pure[Future], Unmarshal(response).to[QueryResult]).mapN((_, _))
-        case (url, failure) =>
+        case (url, query, response) if response.status.isSuccess() =>
+          (url.pure[Future],
+           Unmarshal(response)
+             .to[QueryResult])
+            .mapN((_, _))
+            .map(rq => (rq._1, rq._2.copy(query = Some(query))))
+        case (url, query, failure) =>
           failure.discardEntityBytes()
           (url,
            QueryResult(None,
@@ -100,7 +104,8 @@ case class WokenClientService(node: String)(implicit val system: ActorSystem,
                        Shapes.error,
                        Some("dispatch"),
                        None,
-                       Some(failure.entity.toString))).pure[Future]
+                       Some(failure.entity.toString),
+                       Some(query))).pure[Future]
       }
       .map(identity)
 
