@@ -1,3 +1,4 @@
+import sbtassembly.MergeStrategy
 // *****************************************************************************
 // Projects
 // *****************************************************************************
@@ -24,6 +25,14 @@ lazy val `woken-test` =
           library.disruptor,
           library.config,
           library.scalaLogging,
+          library.kamon,
+          library.kamonAkka,
+          library.kamonAkkaHttp,
+          library.kamonAkkaRemote,
+          library.kamonPrometheus,
+          library.kamonZipkin,
+          library.kamonSystemMetrics,
+          library.kamonSigar,
           library.wokenMessages,
           library.scalaCheck   % Test,
           library.scalaTest    % Test,
@@ -52,7 +61,17 @@ lazy val library =
       val disruptor     = "3.4.2"
       val config        = "1.3.3"
       val scalaLogging  = "3.9.0"
+      val kamon           = "1.1.2"
+      val kamonAkka       = "1.0.1"
+      val kamonAkkaRemote = "1.0.1"
+      val kamonAkkaHttp   = "1.1.0"
+      val kamonReporter   = "1.0.0"
+      val kamonSystemMetrics = "1.0.0"
+      val kamonSigar      = "1.6.6-rev002"
       val wokenMessages = "2.7.5"
+    }
+    object ExclusionRules {
+      val excludeLogback = ExclusionRule(organization = "ch.qos.logback", name = "logback-classic")
     }
     val scalaCheck: ModuleID       = "org.scalacheck"    %% "scalacheck"   % Version.scalaCheck
     val scalaTest: ModuleID        = "org.scalatest"     %% "scalatest"    % Version.scalaTest
@@ -69,6 +88,14 @@ lazy val library =
     val log4jSlf4j: ModuleID       = "org.apache.logging.log4j" % "log4j-slf4j-impl" % Version.log4j
     val disruptor: ModuleID        = "com.lmax"           % "disruptor"    % Version.disruptor
     val config: ModuleID           = "com.typesafe"       % "config"       % Version.config
+    val kamon: ModuleID        = "io.kamon" %% "kamon-core" % Version.kamon excludeAll ExclusionRules.excludeLogback
+    val kamonAkka: ModuleID    = "io.kamon" %% "kamon-akka-2.5" % Version.kamonAkka excludeAll ExclusionRules.excludeLogback
+    val kamonAkkaRemote: ModuleID = "io.kamon" %% "kamon-akka-remote-2.5" % Version.kamonAkkaRemote excludeAll ExclusionRules.excludeLogback
+    val kamonAkkaHttp: ModuleID = "io.kamon" %% "kamon-akka-http-2.5" % Version.kamonAkkaHttp excludeAll ExclusionRules.excludeLogback
+    val kamonSystemMetrics: ModuleID = "io.kamon" %% "kamon-system-metrics" % Version.kamonSystemMetrics excludeAll ExclusionRules.excludeLogback
+    val kamonPrometheus: ModuleID = "io.kamon" %% "kamon-prometheus" % Version.kamonReporter excludeAll ExclusionRules.excludeLogback
+    val kamonZipkin: ModuleID  =  "io.kamon" %% "kamon-zipkin" % Version.kamonReporter excludeAll ExclusionRules.excludeLogback
+    val kamonSigar: ModuleID   = "io.kamon"           % "sigar-loader" % Version.kamonSigar
     val scalaLogging: ModuleID = "com.typesafe.scala-logging" %% "scala-logging" % Version.scalaLogging
     val wokenMessages: ModuleID    = "ch.chuv.lren.woken" %% "woken-messages" % Version.wokenMessages
   }
@@ -124,3 +151,36 @@ lazy val scalafmtSettings =
     scalafmtOnCompile.in(Sbt) := false,
     scalafmtVersion := "1.4.0"
   )
+
+
+// Create a new MergeStrategy for aop.xml files
+val aopMerge: MergeStrategy = new MergeStrategy {
+  val name = "aopMerge"
+  import scala.xml._
+  import scala.xml.dtd._
+
+  def apply(tempDir: File, path: String, files: Seq[File]): Either[String, Seq[(File, String)]] = {
+    val dt = DocType("aspectj", PublicID("-//AspectJ//DTD//EN", "http://www.eclipse.org/aspectj/dtd/aspectj.dtd"), Nil)
+    val file = MergeStrategy.createMergeTarget(tempDir, path)
+    val xmls: Seq[Elem] = files.map(XML.loadFile)
+    val aspectsChildren: Seq[Node] = xmls.flatMap(_ \\ "aspectj" \ "aspects" \ "_")
+    val weaverChildren: Seq[Node] = xmls.flatMap(_ \\ "aspectj" \ "weaver" \ "_")
+    val options: String = xmls.map(x => (x \\ "aspectj" \ "weaver" \ "@options").text).mkString(" ").trim
+    val weaverAttr = if (options.isEmpty) Null else new UnprefixedAttribute("options", options, Null)
+    val aspects = new Elem(null, "aspects", Null, TopScope, false, aspectsChildren: _*)
+    val weaver = new Elem(null, "weaver", weaverAttr, TopScope, false, weaverChildren: _*)
+    val aspectj = new Elem(null, "aspectj", Null, TopScope, false, aspects, weaver)
+    XML.save(file.toString, aspectj, "UTF-8", xmlDecl = false, dt)
+    IO.append(file, IO.Newline.getBytes(IO.defaultCharset))
+    Right(Seq(file -> path))
+  }
+}
+
+// Use defaultMergeStrategy with a case for aop.xml
+// I like this better than the inline version mentioned in assembly's README
+val customMergeStrategy: String => MergeStrategy = {
+  case PathList("META-INF", "aop.xml") =>
+    aopMerge
+  case s =>
+    MergeStrategy.defaultMergeStrategy(s)
+}

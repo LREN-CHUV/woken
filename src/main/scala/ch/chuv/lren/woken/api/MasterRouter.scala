@@ -17,27 +17,24 @@
 
 package ch.chuv.lren.woken.api
 
-import akka.actor.{ Actor, ActorRef, Props }
+import akka.actor.{Actor, ActorRef, Props}
 import akka.stream.ActorMaterializer
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.core._
-import ch.chuv.lren.woken.messages.datasets.{ DatasetsQuery, DatasetsResponse }
-import ch.chuv.lren.woken.service.{ DatasetService, DispatcherService }
+import ch.chuv.lren.woken.messages.datasets.{DatasetsQuery, DatasetsResponse}
+import ch.chuv.lren.woken.service.{DatasetService, DispatcherService}
 
 import scala.concurrent.ExecutionContext
-import ch.chuv.lren.woken.service.{ AlgorithmLibraryService, VariablesMetaService }
+import ch.chuv.lren.woken.service.{AlgorithmLibraryService, VariablesMetaService}
 import MiningQueries._
-import ch.chuv.lren.woken.dispatch.{
-  ExperimentQueriesActor,
-  MetadataQueriesActor,
-  MiningQueriesActor
-}
-import ch.chuv.lren.woken.config.{ AlgorithmDefinition, AppConfiguration }
+import ch.chuv.lren.woken.dispatch.{ExperimentQueriesActor, MetadataQueriesActor, MiningQueriesActor}
+import ch.chuv.lren.woken.config.{AlgorithmDefinition, AppConfiguration}
 import ch.chuv.lren.woken.core.model.Job
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.variables._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
+import kamon.Kamon
 
 object MasterRouter {
 
@@ -90,9 +87,11 @@ case class MasterRouter(config: Config,
   def receive: Receive = {
 
     case MethodsQuery =>
+      Kamon.currentSpan().mark("MethodsQueryRequestReceived")
       sender ! MethodsResponse(algorithmLibraryService.algorithms)
 
     case ds: DatasetsQuery =>
+      Kamon.currentSpan().mark("DatasetsQueryRequestReceived")
       val allDatasets = datasetService.datasets()
       val table       = ds.table.getOrElse(coordinatorConfig.jobsConf.featuresTable)
       val datasets =
@@ -111,9 +110,11 @@ case class MasterRouter(config: Config,
     // TODO To be implemented
 
     case query: MiningQuery =>
+      Kamon.currentSpan().mark("MiningQueryRequestReceived")
       miningQueriesWorker forward MiningQueriesActor.Mine(query, sender())
 
     case query: ExperimentQuery =>
+      Kamon.currentSpan().mark("ExperimentQueryRequestReceived")
       experimentQueriesWorker forward ExperimentQueriesActor.Experiment(query, sender())
 
     case e =>

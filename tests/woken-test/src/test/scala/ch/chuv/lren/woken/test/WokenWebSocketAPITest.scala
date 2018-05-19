@@ -27,12 +27,14 @@ import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials}
 import akka.http.scaladsl.model.ws.{Message, TextMessage, WebSocketRequest}
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
+import ch.chuv.lren.woken.kamon.KamonSupport
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
+import kamon.Kamon
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Minutes, Span}
-import org.scalatest.{BeforeAndAfterAll, WordSpec, Matchers}
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
 import spray.json._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -50,11 +52,12 @@ class WokenWebSocketAPITest
   val config: Config =
     ConfigFactory
       .parseString("""
-                     |akka {
-                     |  actor.provider = local
-                     |}
-                   """.stripMargin)
+          |akka {
+          |  actor.provider = local
+          |}
+        """.stripMargin)
       .withFallback(ConfigFactory.load())
+      .withFallback(ConfigFactory.parseResourcesAnySyntax("kamon.conf"))
       .resolve()
 
   implicit val system: ActorSystem = ActorSystem("WebSocketAPITest", config)
@@ -62,10 +65,13 @@ class WokenWebSocketAPITest
 
   implicit val executionContext: ExecutionContext = system.dispatcher
 
+  KamonSupport.startReporters(config)
+
   val remoteHostName: String = config.getString("clustering.seed-ip")
   val distributed: Boolean = config.getBoolean("test.distributed")
 
   override def afterAll: Unit = {
+    Kamon.stopAllReporters()
     system.terminate().onComplete { result =>
       logger.debug(s"Actor system shutdown: $result")
     }
@@ -126,6 +132,9 @@ class WokenWebSocketAPITest
   private def executeQuery(probeData: Option[String],
                            expectedResult: Option[String],
                            endpointUrl: String): Unit = {
+
+    val span = Kamon.buildSpan(endpointUrl.split("/").takeRight(2).mkString("-")).start()
+
     val probeSource: Source[Message, NotUsed] = probeData match {
       case Some(probe) =>
         val source = scala.io.Source.fromURL(getClass.getResource(probe))
@@ -145,13 +154,15 @@ class WokenWebSocketAPITest
                    () => TextMessage.apply("heart beat"))
 
     val (upgradeResponse, closed) =
-      Http().singleWebSocketRequest(
-        WebSocketRequest(
-          endpointUrl,
-          extraHeaders =
-            Seq(Authorization(BasicHttpCredentials("admin", "WoKeN")))),
-        flow
-      )
+      Kamon.withSpan(span) {
+        Http().singleWebSocketRequest(
+          WebSocketRequest(
+            endpointUrl,
+            extraHeaders =
+              Seq(Authorization(BasicHttpCredentials("admin", "WoKeN")))),
+          flow
+        )
+      }
 
     val connected = upgradeResponse.map { upgrade =>
       if (upgrade.response.status == StatusCodes.SwitchingProtocols) {
@@ -165,6 +176,7 @@ class WokenWebSocketAPITest
     connected.onComplete(t => logger.debug(t.toString))
 
     whenReady(closed, timeout = Timeout(Span(5, Minutes))) { result =>
+      span.finish()
       logger.debug(result.toString)
     }
 
