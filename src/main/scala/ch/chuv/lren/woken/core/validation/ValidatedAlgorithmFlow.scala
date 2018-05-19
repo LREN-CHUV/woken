@@ -21,9 +21,9 @@ import java.time.OffsetDateTime
 import java.util.UUID
 
 import akka.NotUsed
-import akka.actor.{ ActorContext, ActorSystem }
+import akka.actor.ActorContext
 import akka.stream._
-import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Sink, Source, Zip, ZipWith }
+import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Zip }
 import ch.chuv.lren.woken.config.{ AlgorithmDefinition, JobsConfiguration }
 import ch.chuv.lren.woken.core.CoordinatorActor
 import ch.chuv.lren.woken.core.model._
@@ -33,10 +33,7 @@ import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.validation.{ Score, validationProtocol }
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
-import ch.chuv.lren.woken.service.DispatcherService
 import com.typesafe.scalalogging.LazyLogging
-import spray.json._
-import validationProtocol._
 
 import scala.concurrent.ExecutionContext
 
@@ -60,7 +57,7 @@ object ValidatedAlgorithmFlow {
 
   type ValidationResults = Map[ValidationSpec, Either[String, Score]]
 
-  case class ResultResponse(algorithm: AlgorithmSpec, model: JobResult)
+  case class ResultResponse(algorithm: AlgorithmSpec, model: Either[ErrorJobResult, PfaJobResult])
 
 }
 
@@ -68,7 +65,6 @@ case class ValidatedAlgorithmFlow(
     executeJobAsync: CoordinatorActor.ExecuteJobAsync,
     featuresDatabase: FeaturesDAL,
     jobsConf: JobsConfiguration,
-    dispatcherService: DispatcherService,
     context: ActorContext
 )(implicit materializer: Materializer, ec: ExecutionContext)
     extends LazyLogging {
@@ -101,11 +97,11 @@ case class ValidatedAlgorithmFlow(
 
         // prepare graph elements
         val broadcast = builder.add(Broadcast[ValidatedAlgorithmFlow.Job](2))
-        val zip       = builder.add(ZipWith(mergeValidations _))
+        val zip       = builder.add(Zip[CoordinatorActor.Response, ValidationResults]())
         val response  = builder.add(buildResponse)
 
         // connect the graph
-        broadcast.out(0) ~> runAlgorithmOnLocalData ~> remoteValidate ~> zip.in0
+        broadcast.out(0) ~> runAlgorithmOnLocalData.map(_._2) ~> zip.in0
         broadcast.out(1) ~> crossValidate(parallelism) ~> zip.in1
         zip.out ~> response
 
@@ -148,110 +144,6 @@ case class ValidatedAlgorithmFlow(
       .named("learn-from-available-local-data")
 
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
-  private def remoteValidate: Flow[(ValidatedAlgorithmFlow.Job, CoordinatorActor.Response),
-                                   (CoordinatorActor.Response, ValidationResults),
-                                   NotUsed] =
-    Flow
-      .fromGraph(GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
-        import GraphDSL.Implicits._
-
-        // prepare graph elements
-        val broadcast =
-          builder.add(Broadcast[(ValidatedAlgorithmFlow.Job, CoordinatorActor.Response)](2))
-        val zip = builder.add(Zip[CoordinatorActor.Response, ValidationResults]())
-
-        // connect the graph
-        broadcast.out(0).map(_._2) ~> zip.in0
-        broadcast.out(1) ~> dispatchRemoteValidations ~> zip.in1
-
-        FlowShape(broadcast.in, zip.out)
-      })
-      .log("Remote validation results")
-      .named("remote-validate")
-
-  @SuppressWarnings(
-    Array(
-      "org.wartremover.warts.Any",
-      "org.wartremover.warts.IsInstanceOf",
-      "org.wartremover.warts.Product",
-      "org.wartremover.warts.Serializable",
-      "org.wartremover.warts.Throw"
-    )
-  )
-  private def dispatchRemoteValidations: Flow[
-    (ValidatedAlgorithmFlow.Job, CoordinatorActor.Response),
-    ValidationResults,
-    NotUsed
-  ] =
-    Flow[(ValidatedAlgorithmFlow.Job, CoordinatorActor.Response)]
-      .mapAsync(1) {
-        case (job, response) =>
-          response.results
-            .find(r => r.isInstanceOf[PfaJobResult])
-            .fold(
-              throw new IllegalArgumentException(
-                "Expected one PFA result in the results of a predictive algorithm"
-              )
-            ) {
-              case r: PfaJobResult =>
-                val query = job.query.copy(
-                  algorithm = AlgorithmSpec(
-                    ValidationJob.algorithmCode,
-                    List(
-                      CodeValue("model", r.model.compactPrint),
-                      CodeValue("variablesCanBeNull",
-                                job.algorithmDefinition.variablesCanBeNull.toString),
-                      CodeValue("covariablesCanBeNull",
-                                job.algorithmDefinition.covariablesCanBeNull.toString)
-                    )
-                  ),
-                  executionPlan = None,
-                  datasets = job.remoteValidationDatasets
-                )
-                logger.info(s"Prepared remote validation query: $query")
-
-                // It's ok to drop remote validations that failed, there can be network errors
-                // Future alternative: use recover and inject a QueryResult with error, problem is we cannot know
-                // which node caused the error
-                val decider: Supervision.Decider = {
-                  case e: Exception =>
-                    logger.warn(s"Could not dispatch remote validation query, $e")
-                    Supervision.Resume
-                  case _ => Supervision.Stop
-                }
-                implicit val system: ActorSystem = context.system
-                implicit val materializer: Materializer = ActorMaterializer(
-                  ActorMaterializerSettings(system).withSupervisionStrategy(decider)
-                )
-                Source
-                  .single(query)
-                  .via(dispatcherService.dispatchRemoteMiningFlow)
-                  .map(_._2)
-                  .log("Remote validations")
-                  .runWith(Sink.seq[QueryResult])
-              case other => throw new IllegalArgumentException(s"Unexpected result $other")
-
-            }
-      }
-      .map[ValidationResults] { l =>
-        l.map {
-          case QueryResult(_, node, _, shape, _, Some(data), None) if shape == Shapes.score =>
-            // Rebuild the spec from the results
-            val spec = ValidationSpec("remote-validation", List(CodeValue("node", node)))
-            (spec, Right[String, Score](data.convertTo[Score]))
-          case QueryResult(_, node, _, shape, _, None, Some(error)) if shape == Shapes.error =>
-            val spec = ValidationSpec("remote-validation", List(CodeValue("node", node)))
-            (spec, Left[String, Score](error))
-          case otherResult =>
-            logger.error(s"Unhandled validation result: $otherResult")
-            val spec =
-              ValidationSpec("remote-validation", List(CodeValue("node", otherResult.node)))
-            (spec, Left[String, Score](s"Unhandled result of shape ${otherResult.`type`}"))
-        }.toMap
-
-      }
-
-  @SuppressWarnings(Array("org.wartremover.warts.Any"))
   private def crossValidate(
       parallelism: Int
   ): Flow[ValidatedAlgorithmFlow.Job, ValidationResults, NotUsed] =
@@ -288,35 +180,29 @@ case class ValidatedAlgorithmFlow(
     Flow[(CoordinatorActor.Response, ValidationResults)]
       .map {
         case (response, validations) =>
-          val validationsJson = JsArray(
-            validations
-              .map({
-                case (key, Right(value)) =>
-                  JsObject("code" -> JsString(key.code),
-                           "node" -> JsString(nodeOf(key).getOrElse(jobsConf.node)),
-                           "data" -> value.toJson)
-                case (key, Left(message)) =>
-                  JsObject("code"  -> JsString(key.code),
-                           "node"  -> JsString(nodeOf(key).getOrElse(jobsConf.node)),
-                           "error" -> JsString(message))
-              })
-              .toVector
-          )
-
           val algorithm = response.job.algorithmSpec
           response.results.headOption match {
             case Some(pfa: PfaJobResult) =>
-              val model = pfa.injectCell("validations", validationsJson)
-              ResultResponse(algorithm, model)
+              val model = pfa.copy(validations = pfa.validations ++ validations)
+              ResultResponse(algorithm, Right(model))
             case Some(model) =>
-              ResultResponse(algorithm, model)
+              logger.warn(
+                s"Expected a PfaJobResult, got $model. All results and validations are discarded"
+              )
+              val jobResult =
+                ErrorJobResult(Some(response.job.jobId),
+                               node = jobsConf.node,
+                               OffsetDateTime.now(),
+                               Some(algorithm.code),
+                               s"Expected a PfaJobResult, got ${model.getClass.getName}")
+              ResultResponse(algorithm, Left(jobResult))
             case None =>
-              ResultResponse(algorithm,
-                             ErrorJobResult(Some(response.job.jobId),
-                                            node = jobsConf.node,
-                                            OffsetDateTime.now(),
-                                            Some(algorithm.code),
-                                            "No results"))
+              val jobResult = ErrorJobResult(Some(response.job.jobId),
+                                             node = jobsConf.node,
+                                             OffsetDateTime.now(),
+                                             Some(algorithm.code),
+                                             "No results")
+              ResultResponse(algorithm, Left(jobResult))
           }
       }
       .log("Response")

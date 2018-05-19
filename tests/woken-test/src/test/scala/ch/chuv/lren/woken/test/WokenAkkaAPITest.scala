@@ -323,7 +323,7 @@ class WokenAkkaAPITest
         val expected =
           loadJson("/responses/pca_data_mining.json")
 
-        save(approximate(json), "/responses/pca_data_mining.json")
+        // save(approximate(json), "/responses/pca_data_mining.json")
 
         assertResult(approximate(expected))(approximate(json))
       }
@@ -351,6 +351,39 @@ class WokenAkkaAPITest
         val expected = loadJson("/responses/ggparci_data_mining.json")
 
         assertResult(approximate(expected))(approximate(json))
+      }
+
+      "uses TAU heatmaply                  [visualisation, plotly.js]" in {
+        val query = MiningQuery(
+          user = UserId("test1"),
+          variables = List(VariableId("cognitive_task2")),
+          covariables =
+            List("score_math_course1", "score_math_course2").map(VariableId),
+          grouping = Nil,
+          filters = None,
+          targetTable = Some("sample_data"),
+          algorithm = AlgorithmSpec("heatmaply", Nil),
+          datasets = Set(),
+          executionPlan = None
+        )
+
+        val response: QueryResult =
+          timedQuery(query, "mine data using TAU heatmaply")
+
+        response.data should not be empty
+
+        val json = response.toJson
+        val expected = loadJson("/responses/heatmaply_data_mining.json")
+
+        // save(approximate(json), "/responses/heatmaply_data_mining.json")
+
+
+        def cleanMore(s: String): String =
+          s.replaceAll(""" id=\\".*?\\"""", """ id=\\"\\"""")
+            .replaceAll(""" data-for=\\".*?\\"""", """ data-for=\\"\\"""")
+            .replaceAll("""\\"attrs\\":\{.*</script>""", """\"attrs\":{}}]}}</script>""")
+
+        assertResult(cleanMore(approximate(expected)))(cleanMore(approximate(json)))
       }
 
       "uses JSI Hedwig                     [visualisation, text]" in {
@@ -384,7 +417,32 @@ class WokenAkkaAPITest
           cleanMore(approximate(json)))
       }
 
-      // TODO hinmine
+      "uses JSI hinmine                    [feature generation, tabular results]" in {
+        val query = MiningQuery(
+          user = UserId("test1"),
+          variables = List(VariableId("cognitive_task2")),
+          covariables =
+            List("score_math_course1", "score_math_course2").map(VariableId),
+          grouping = Nil,
+          filters = None,
+          targetTable = Some("sample_data"),
+          algorithm = AlgorithmSpec("hinmine", Nil),
+          datasets = Set(),
+          executionPlan = None
+        )
+
+        val response: QueryResult =
+          timedQuery(query, "mine data using JSI hinmine")
+
+        response.data should not be empty
+
+        val json = response.toJson
+        val expected = loadJson("/responses/hinmine_data_mining.json")
+
+        // save(approximate(json), "/responses/hinmine_data_mining.json")
+
+        assertResult(approximate(expected))(approximate(json))
+      }
 
     }
 

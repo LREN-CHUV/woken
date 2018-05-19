@@ -98,7 +98,8 @@ case class CrossValidationFlow(
     Flow[Job]
       .map { job =>
         val validation = job.validation
-        val foldCount  = validation.parametersAsMap("k").toInt
+        logger.info(s"Validation spec: $validation")
+        val foldCount = validation.parametersAsMap("k").toInt
         val featuresQuery =
           job.query
             .filterNulls(job.algorithmDefinition.variablesCanBeNull,
@@ -113,7 +114,7 @@ case class CrossValidationFlow(
 
         assert(
           crossValidation.partition.size == foldCount,
-          s"Excepted number of folds ($foldCount) to match the number of partitions (${crossValidation.partition.size})"
+          s"Expected number of folds ($foldCount) to match the number of partitions (${crossValidation.partition.size})"
         )
 
         // For every fold
@@ -215,7 +216,8 @@ case class CrossValidationFlow(
       case CoordinatorActor.Response(_, List(pfa: PfaJobResult), _) =>
         // Prepare the results for validation
         logger.info("Received result from local method.")
-        val model    = pfa.model
+        // Take the raw model, as model contains runtime-inserted validations which are not yet compliant with PFA / Avro spec
+        val model    = pfa.modelWithoutValidation
         val fold     = context.fold
         val testData = context.validation.getTestSet(fold)._1
 

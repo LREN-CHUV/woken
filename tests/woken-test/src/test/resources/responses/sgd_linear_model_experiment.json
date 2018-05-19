@@ -2,6 +2,19 @@
   "data": [
     {
       "algorithm": "python-sgd-linear-model",
+      "algorithmSpec": {
+        "code": "sgdLinearModel",
+        "parameters": [
+          {
+            "code": "alpha",
+            "value": "0.25"
+          },
+          {
+            "code": "penalty",
+            "value": "l1"
+          }
+        ]
+      },
       "data": {
         "action": [
           {
@@ -123,19 +136,19 @@
                 "coeff": [
                   0.0
                 ],
+                "const": -1.0
+              },
+              {
+                "coeff": [
+                  0.0
+                ],
                 "const": -1.00001
               },
               {
                 "coeff": [
                   0.0
                 ],
-                "const": -1.00233
-              },
-              {
-                "coeff": [
-                  0.0
-                ],
-                "const": 0.99825
+                "const": 0.99693
               }
             ],
             "rollback": false,
@@ -145,45 +158,13 @@
               "type": "array"
             }
           },
-          "validations": [
-            {
-              "code": "kfold",
-              "data": {
-                "average": {
-                  "Accuracy": 0.66705,
-                  "Confusion matrix": {
-                    "labels": [
-                      "AD",
-                      "CN",
-                      "Other"
-                    ],
-                    "values": [
-                      [
-                        0.0,
-                        0.0,
-                        274.0
-                      ],
-                      [
-                        0.0,
-                        0.0,
-                        298.0
-                      ],
-                      [
-                        0.0,
-                        0.0,
-                        1146.0
-                      ]
-                    ]
-                  },
-                  "Weighted F1-score": 0.53383,
-                  "Weighted false positive rate": 0.66705,
-                  "Weighted precision": 0.44496,
-                  "Weighted recall": 0.66705,
-                  "type": "PolynomialClassificationScore"
-                },
-                "folds": {
-                  "0": {
-                    "Accuracy": 0.33411,
+          "validations": {
+            "init": [
+              {
+                "code": "kfold",
+                "data": {
+                  "average": {
+                    "Accuracy": 0.16705,
                     "Confusion matrix": {
                       "labels": [
                         "AD",
@@ -203,55 +184,102 @@
                         ],
                         [
                           0.0,
-                          0.0,
+                          859.0,
                           287.0
                         ]
                       ]
                     },
-                    "Weighted F1-score": 0.16735,
-                    "Weighted false positive rate": 0.33411,
-                    "Weighted precision": 0.11163,
-                    "Weighted recall": 0.33411,
+                    "Weighted F1-score": 0.19097,
+                    "Weighted false positive rate": 0.77198,
+                    "Weighted precision": 0.22287,
+                    "Weighted recall": 0.16705,
                     "type": "PolynomialClassificationScore"
                   },
-                  "1": {
-                    "Accuracy": 1.0,
-                    "Confusion matrix": {
-                      "labels": [
-                        "AD",
-                        "CN",
-                        "Other"
-                      ],
-                      "values": [
-                        [
-                          0.0,
-                          0.0,
-                          0.0
+                  "folds": {
+                    "0": {
+                      "Accuracy": 0.33411,
+                      "Confusion matrix": {
+                        "labels": [
+                          "AD",
+                          "CN",
+                          "Other"
                         ],
-                        [
-                          0.0,
-                          0.0,
-                          0.0
-                        ],
-                        [
-                          0.0,
-                          0.0,
-                          859.0
+                        "values": [
+                          [
+                            0.0,
+                            0.0,
+                            274.0
+                          ],
+                          [
+                            0.0,
+                            0.0,
+                            298.0
+                          ],
+                          [
+                            0.0,
+                            0.0,
+                            287.0
+                          ]
                         ]
-                      ]
+                      },
+                      "Weighted F1-score": 0.16735,
+                      "Weighted false positive rate": 0.33411,
+                      "Weighted precision": 0.11163,
+                      "Weighted recall": 0.33411,
+                      "type": "PolynomialClassificationScore"
                     },
-                    "Weighted F1-score": 1.0,
-                    "Weighted false positive rate": null,
-                    "Weighted precision": 1.0,
-                    "Weighted recall": 1.0,
-                    "type": "PolynomialClassificationScore"
-                  }
+                    "1": {
+                      "Accuracy": 0.0,
+                      "Confusion matrix": {
+                        "labels": [
+                          "AD",
+                          "CN",
+                          "Other"
+                        ],
+                        "values": [
+                          [
+                            0.0,
+                            0.0,
+                            0.0
+                          ],
+                          [
+                            0.0,
+                            0.0,
+                            0.0
+                          ],
+                          [
+                            0.0,
+                            0.0,
+                            0.0
+                          ]
+                        ]
+                      },
+                      "Weighted F1-score": 0.0,
+                      "Weighted false positive rate": null,
+                      "Weighted precision": 0.0,
+                      "Weighted recall": 0.0,
+                      "type": "PolynomialClassificationScore"
+                    }
+                  },
+                  "type": "KFoldCrossValidationScore"
                 },
-                "type": "KFoldCrossValidationScore"
-              },
-              "node": "local"
+                "node": "local",
+                "validationSpec": {
+                  "code": "kfold",
+                  "parameters": [
+                    {
+                      "code": "k",
+                      "value": "2"
+                    }
+                  ]
+                }
+              }
+            ],
+            "type": {
+              "items": "Record",
+              "type": "array"
             }
-          ]
+          }
         },
         "fcns": {
           "C": {
@@ -365,7 +393,7 @@
         "metadata": {
           "X": "{\"lefthippocampus\":{\"count\":1718.0,\"mean\":2.9127631548,\"std\":0.259451083,\"min\":1.3047,\"25%\":2.8672,\"50%\":2.8672,\"75%\":2.88555,\"max\":4.4519}}",
           "coef_": "[[0.0],[0.0],[0.0]]",
-          "intercept_": "[-1.0000080091,-1.0023325942,0.9982504719]",
+          "intercept_": "[-0.9999987905,-1.000007283,0.9969327844]",
           "score": "0.6670547148",
           "y": "{\"count\":1718,\"unique\":3,\"top\":\"Other\",\"freq\":1146}"
         },

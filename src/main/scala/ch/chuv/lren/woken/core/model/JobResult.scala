@@ -20,9 +20,13 @@ package ch.chuv.lren.woken.core.model
 import java.time.OffsetDateTime
 import java.util.Base64
 
-import ch.chuv.lren.woken.messages.query.{ AlgorithmSpec, QueryResult, Shapes, queryProtocol }
+import ch.chuv.lren.woken.messages.query._
 import Shapes.{ pfa => pfaShape, _ }
+import ch.chuv.lren.woken.core.model.PfaJobResult.ValidationResults
+import ch.chuv.lren.woken.messages.validation.Score
+import ch.chuv.lren.woken.messages.APIJsonProtocol
 import spray.json._
+import APIJsonProtocol._
 
 /**
   * Result produced during the execution of an algorithm
@@ -46,6 +50,10 @@ sealed trait JobResult extends Product with Serializable {
 
 }
 
+object PfaJobResult {
+  type ValidationResults = Map[ValidationSpec, Either[String, Score]]
+}
+
 /**
   * A PFA result (Portable Format for Analytics http://dmg.org/pfa/)
   *
@@ -53,13 +61,14 @@ sealed trait JobResult extends Product with Serializable {
   * @param node Node where the algorithm is executed
   * @param timestamp Date of execution
   * @param algorithm Name of the algorithm
-  * @param model PFA model
+  * @param rawModel PFA model, without validations that are injected dynamically. The full model can be retrived by the method `model`
   */
 case class PfaJobResult(jobId: String,
                         node: String,
                         timestamp: OffsetDateTime,
                         algorithm: String,
-                        model: JsObject)
+                        rawModel: JsObject,
+                        validations: ValidationResults = Map())
     extends JobResult {
 
   def shape: Shape = pfaShape
@@ -68,13 +77,55 @@ case class PfaJobResult(jobId: String,
 
   override def algorithmM: Option[String] = Some(algorithm)
 
-  def injectCell(name: String, value: JsValue): PfaJobResult = {
-    val cells        = model.fields.getOrElse("cells", JsObject()).asJsObject
-    val updatedCells = JsObject(cells.fields + (name -> value))
-    val updatedModel = JsObject(model.fields + ("cells" -> updatedCells))
+  def model: JsObject =
+    if (validations.isEmpty) rawModel
+    else {
+      val cells        = rawModel.fields.getOrElse("cells", JsObject()).asJsObject
+      val updatedCells = JsObject(cells.fields + ("validations" -> validationsJson))
+      JsObject(rawModel.fields + ("cells" -> updatedCells))
+    }
 
-    copy(model = updatedModel)
+  def modelWithoutValidation: JsObject = {
+    val cells        = rawModel.fields.getOrElse("cells", JsObject()).asJsObject
+    val updatedCells = JsObject(cells.fields - "validations")
+    JsObject(rawModel.fields + ("cells" -> updatedCells))
   }
+
+  def injectCell(name: String, value: JsValue): PfaJobResult = {
+    val cells        = rawModel.fields.getOrElse("cells", JsObject()).asJsObject
+    val updatedCells = JsObject(cells.fields + (name -> value))
+    val updatedModel = JsObject(rawModel.fields + ("cells" -> updatedCells))
+
+    copy(rawModel = updatedModel)
+  }
+
+  private def validationsJson: JsObject = {
+    // TODO: generate proper Avro types
+    val values = JsArray(
+      validations
+        .map({
+          case (key, Right(value)) =>
+            JsObject("code"           -> JsString(key.code),
+                     "validationSpec" -> key.toJson,
+                     "node"           -> JsString(nodeOf(key).getOrElse(node)),
+                     "data"           -> value.toJson)
+          case (key, Left(message)) =>
+            JsObject("code"           -> JsString(key.code),
+                     "validationSpec" -> key.toJson,
+                     "node"           -> JsString(nodeOf(key).getOrElse(node)),
+                     "error"          -> JsString(message))
+        })
+        .toVector
+    )
+    val `type` = JsObject("type" -> JsString("array"), "items" -> JsString("Record"))
+    JsObject(
+      "type" -> `type`,
+      "init" -> values
+    )
+  }
+
+  private def nodeOf(spec: ValidationSpec): Option[String] =
+    spec.parameters.find(_.code == "node").map(_.value)
 
 }
 
@@ -84,12 +135,12 @@ case class PfaJobResult(jobId: String,
   * @param jobId Id of the job
   * @param node Node where the algorithm is executed
   * @param timestamp Date of execution
-  * @param models List of models produced by the experiment
+  * @param results List of models produced by the experiment
   */
-case class PfaExperimentJobResult(jobId: String,
-                                  node: String,
-                                  timestamp: OffsetDateTime,
-                                  models: JsArray)
+case class ExperimentJobResult(jobId: String,
+                               node: String,
+                               results: Map[AlgorithmSpec, JobResult],
+                               timestamp: OffsetDateTime = OffsetDateTime.now())
     extends JobResult {
 
   def shape: Shape = pfaExperiment
@@ -98,14 +149,7 @@ case class PfaExperimentJobResult(jobId: String,
 
   override def algorithmM: Option[String] = None
 
-}
-
-object PfaExperimentJobResult {
-
-  def apply(results: Map[AlgorithmSpec, JobResult],
-            experimentJobId: String,
-            experimentNode: String): PfaExperimentJobResult = {
-
+  def models: JsArray = {
     implicit val offsetDateTimeJsonFormat: RootJsonFormat[OffsetDateTime] =
       queryProtocol.OffsetDateTimeJsonFormat
 
@@ -113,19 +157,14 @@ object PfaExperimentJobResult {
     import queryProtocol._
 
     // Concatenate results
-    val output = JsArray(
-      results
-        .map(r => r._2.asQueryResult.toJson)
-        .toVector
-    )
-
-    PfaExperimentJobResult(
-      jobId = experimentJobId,
-      node = experimentNode,
-      timestamp = OffsetDateTime.now(),
-      models = output
+    JsArray(
+      results.map { r =>
+        val obj = r._2.asQueryResult.toJson.asJsObject
+        JsObject(obj.fields + ("algorithmSpec" -> r._1.toJson))
+      }.toVector
     )
   }
+
 }
 
 /**
@@ -249,7 +288,7 @@ object JobResult {
           data = Some(pfa.model),
           error = None
         )
-      case pfa: PfaExperimentJobResult =>
+      case pfa: ExperimentJobResult =>
         QueryResult(
           jobId = Some(pfa.jobId),
           node = pfa.node,
@@ -305,4 +344,105 @@ object JobResult {
     def asQueryResult: QueryResult = JobResult.asQueryResult(jobResult)
   }
 
+  def fromQueryResult(queryResult: QueryResult): JobResult =
+    queryResult.`type` match {
+
+      case Shapes.pfa =>
+        val rawModel = queryResult.data.map(_.asJsObject).getOrElse(JsObject())
+        val validations: ValidationResults = rawModel.fields
+          .get("cells")
+          .flatMap(_.asJsObject.fields.get("validations"))
+          .map(toValidations)
+          .getOrElse(Map())
+
+        PfaJobResult(
+          jobId = queryResult.jobId.getOrElse(""),
+          node = queryResult.node,
+          timestamp = queryResult.timestamp,
+          algorithm = queryResult.algorithm.getOrElse(""),
+          rawModel = rawModel,
+          validations = validations
+        )
+
+      case Shapes.pfaExperiment =>
+        val results: Map[AlgorithmSpec, JobResult] = queryResult.data
+          .map(toExperimentResults)
+          .getOrElse(Map())
+
+        ExperimentJobResult(
+          jobId = queryResult.jobId.getOrElse(""),
+          node = queryResult.node,
+          timestamp = queryResult.timestamp,
+          results = results
+        )
+      case Shapes.error =>
+        ErrorJobResult(jobId = queryResult.jobId,
+                       node = queryResult.node,
+                       timestamp = queryResult.timestamp,
+                       algorithm = queryResult.algorithm,
+                       error = queryResult.error.getOrElse(""))
+
+      case shape if Shapes.visualisationJsonResults.contains(shape) =>
+        JsonDataJobResult(
+          jobId = queryResult.jobId.getOrElse(""),
+          node = queryResult.node,
+          timestamp = queryResult.timestamp,
+          algorithm = queryResult.algorithm.getOrElse(""),
+          shape = shape,
+          data = queryResult.data
+        )
+
+      case shape if Shapes.visualisationOtherResults.contains(shape) =>
+        OtherDataJobResult(
+          jobId = queryResult.jobId.getOrElse(""),
+          node = queryResult.node,
+          timestamp = queryResult.timestamp,
+          algorithm = queryResult.algorithm.getOrElse(""),
+          shape = shape,
+          data = queryResult.data.map {
+            case JsString(s) => s
+            case _ =>
+              deserializationError("Expected a string")
+              ""
+          }
+        )
+
+      case shape =>
+        deserializationError(s"Unexpected shape $shape")
+    }
+
+  def toExperimentResults(data: JsValue): Map[AlgorithmSpec, JobResult] = data match {
+    case l: JsArray =>
+      l.elements.map { v =>
+        val jobResult = fromQueryResult(v.convertTo[QueryResult])
+        val spec      = v.asJsObject.fields("algorithmSpec").convertTo[AlgorithmSpec]
+        spec -> jobResult
+      }.toMap
+    case _ => deserializationError("Expected an array")
+  }
+
+  def toValidations(validations: JsValue): ValidationResults =
+    validations.asJsObject.getFields("init") match {
+      case Seq(JsArray(elements)) =>
+        elements.map { v =>
+          val validationSpecJson =
+            v.asJsObject.fields.getOrElse("validationSpec",
+                                          deserializationError(s"Expected a validationSpec"))
+
+          val validationSpec = validationSpecJson.convertTo[ValidationSpec]
+          val score: Either[String, Score] = v.asJsObject.fields
+            .get("data")
+            .fold {
+              val error = v.asJsObject.fields.getOrElse("error", JsString("")).convertTo[String]
+              Left(error).asInstanceOf[Either[String, Score]]
+            } { data =>
+              Right(data.convertTo[Score])
+            }
+          validationSpec -> score
+        }.toMap
+      case _ =>
+        deserializationError(
+          s"Expected an init field containing the array of validations, found ${validations.compactPrint}"
+        )
+    }
 }

@@ -548,6 +548,53 @@
       ]
     },
     {
+      "code": "hinmine",
+      "constraints": {
+        "covariables": {
+          "max_count": null,
+          "min_count": "1"
+        },
+        "groupings": {
+          "max_count": 0,
+          "min_count": 0
+        },
+        "mixed": false,
+        "variable": {
+          "binominal": true,
+          "integer": true,
+          "polynominal": true,
+          "real": true
+        }
+      },
+      "description": "The HINMINE algorithm for network-based propositionalization is an algorithm for data analysis based on network analysis methods",
+      "docker_image": "hbpmip/python-jsi-hinmine:0.3.0",
+      "environment": "Python",
+      "label": "JSI Hinmine",
+      "parameters": [
+        {
+          "code": "normalize",
+          "default_value": "true",
+          "description": "Check if the algorithm should first normalize the data. Data normalization normalizes the range of each feature to [-1, 1] and can be useful when comparing two instances. However, if two features have different values for a non-arbitrary reason, normalization should not be performed",
+          "label": "Normalize data",
+          "type": "boolean"
+        },
+        {
+          "code": "0.85",
+          "constraints": {
+            "max": 1.0,
+            "min": 0.0
+          },
+          "default_value": 0.85,
+          "description": "Damping factor of the PageRank algorithm used in calculating feature values for the data instances. It represents the probability of a random walker in a network to continue its random walk as oposed to teleporting to a random node",
+          "label": "Damping factor",
+          "type": "number"
+        }
+      ],
+      "type": [
+        "features_extraction"
+      ]
+    },
+    {
       "code": "tSNE",
       "constraints": {
         "covariables": {
@@ -595,11 +642,41 @@
           "real": true
         }
       },
-      "description": "Parallel coordinate plot with added confidence interval bands",
+      "description": "Parallel coordinates plot with added confidence interval bands",
       "disable": false,
       "docker_image": "hbpmip/r-ggparci:0.2.1",
       "environment": "R",
-      "label": "ggparci",
+      "label": "TAU ggparci",
+      "maturity": "experimental",
+      "parameters": [],
+      "type": [
+        "features_extraction"
+      ]
+    },
+    {
+      "code": "heatmaply",
+      "constraints": {
+        "covariables": {
+          "max_count": null,
+          "min_count": 1
+        },
+        "groupings": {
+          "max_count": 0,
+          "min_count": 0
+        },
+        "mixed": true,
+        "variable": {
+          "binominal": true,
+          "integer": true,
+          "polynominal": true,
+          "real": true
+        }
+      },
+      "description": "Interactive Heat Maps",
+      "disable": false,
+      "docker_image": "hbpmip/r-heatmaply:0.2.0",
+      "environment": "R",
+      "label": "TAU Heatmaply",
       "maturity": "experimental",
       "parameters": [],
       "type": [

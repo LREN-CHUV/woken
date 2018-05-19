@@ -330,7 +330,7 @@ class MasterRouterTest
         grouping = Nil,
         filters = None,
         targetTable = Some("sample_data"),
-        algorithm = AlgorithmSpec("knn", List(CodeValue("k", "5"))),
+        algorithm = AlgorithmSpec("knn", List(CodeValue("k", "5")), None),
         datasets = Set(),
         executionPlan = None
       )

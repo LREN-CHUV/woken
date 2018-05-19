@@ -2,6 +2,10 @@
   "data": [
     {
       "algorithm": "python-sgd-naive-bayes",
+      "algorithmSpec": {
+        "code": "naiveBayes",
+        "parameters": []
+      },
       "data": {
         "action": [
           {
@@ -370,45 +374,13 @@
               "type": "array"
             }
           },
-          "validations": [
-            {
-              "code": "kfold",
-              "data": {
-                "average": {
-                  "Accuracy": 0.66705,
-                  "Confusion matrix": {
-                    "labels": [
-                      "AD",
-                      "CN",
-                      "Other"
-                    ],
-                    "values": [
-                      [
-                        0.0,
-                        0.0,
-                        274.0
-                      ],
-                      [
-                        0.0,
-                        0.0,
-                        298.0
-                      ],
-                      [
-                        0.0,
-                        0.0,
-                        1146.0
-                      ]
-                    ]
-                  },
-                  "Weighted F1-score": 0.53383,
-                  "Weighted false positive rate": 0.66705,
-                  "Weighted precision": 0.44496,
-                  "Weighted recall": 0.66705,
-                  "type": "PolynomialClassificationScore"
-                },
-                "folds": {
-                  "0": {
-                    "Accuracy": 0.33411,
+          "validations": {
+            "init": [
+              {
+                "code": "kfold",
+                "data": {
+                  "average": {
+                    "Accuracy": 0.66705,
                     "Confusion matrix": {
                       "labels": [
                         "AD",
@@ -429,54 +401,101 @@
                         [
                           0.0,
                           0.0,
-                          287.0
+                          1146.0
                         ]
                       ]
                     },
-                    "Weighted F1-score": 0.16735,
-                    "Weighted false positive rate": 0.33411,
-                    "Weighted precision": 0.11163,
-                    "Weighted recall": 0.33411,
+                    "Weighted F1-score": 0.53383,
+                    "Weighted false positive rate": 0.66705,
+                    "Weighted precision": 0.44496,
+                    "Weighted recall": 0.66705,
                     "type": "PolynomialClassificationScore"
                   },
-                  "1": {
-                    "Accuracy": 1.0,
-                    "Confusion matrix": {
-                      "labels": [
-                        "AD",
-                        "CN",
-                        "Other"
-                      ],
-                      "values": [
-                        [
-                          0.0,
-                          0.0,
-                          0.0
+                  "folds": {
+                    "0": {
+                      "Accuracy": 0.33411,
+                      "Confusion matrix": {
+                        "labels": [
+                          "AD",
+                          "CN",
+                          "Other"
                         ],
-                        [
-                          0.0,
-                          0.0,
-                          0.0
-                        ],
-                        [
-                          0.0,
-                          0.0,
-                          859.0
+                        "values": [
+                          [
+                            0.0,
+                            0.0,
+                            274.0
+                          ],
+                          [
+                            0.0,
+                            0.0,
+                            298.0
+                          ],
+                          [
+                            0.0,
+                            0.0,
+                            287.0
+                          ]
                         ]
-                      ]
+                      },
+                      "Weighted F1-score": 0.16735,
+                      "Weighted false positive rate": 0.33411,
+                      "Weighted precision": 0.11163,
+                      "Weighted recall": 0.33411,
+                      "type": "PolynomialClassificationScore"
                     },
-                    "Weighted F1-score": 1.0,
-                    "Weighted false positive rate": null,
-                    "Weighted precision": 1.0,
-                    "Weighted recall": 1.0,
-                    "type": "PolynomialClassificationScore"
-                  }
+                    "1": {
+                      "Accuracy": 1.0,
+                      "Confusion matrix": {
+                        "labels": [
+                          "AD",
+                          "CN",
+                          "Other"
+                        ],
+                        "values": [
+                          [
+                            0.0,
+                            0.0,
+                            0.0
+                          ],
+                          [
+                            0.0,
+                            0.0,
+                            0.0
+                          ],
+                          [
+                            0.0,
+                            0.0,
+                            859.0
+                          ]
+                        ]
+                      },
+                      "Weighted F1-score": 1.0,
+                      "Weighted false positive rate": null,
+                      "Weighted precision": 1.0,
+                      "Weighted recall": 1.0,
+                      "type": "PolynomialClassificationScore"
+                    }
+                  },
+                  "type": "KFoldCrossValidationScore"
                 },
-                "type": "KFoldCrossValidationScore"
-              },
-              "node": "local"
+                "node": "local",
+                "validationSpec": {
+                  "code": "kfold",
+                  "parameters": [
+                    {
+                      "code": "k",
+                      "value": "2"
+                    }
+                  ]
+                }
+              }
+            ],
+            "type": {
+              "items": "Record",
+              "type": "array"
             }
-          ]
+          }
         },
         "fcns": {
           "C": {

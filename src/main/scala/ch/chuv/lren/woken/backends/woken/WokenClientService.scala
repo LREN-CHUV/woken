@@ -81,10 +81,10 @@ case class WokenClientService(node: String)(implicit val system: ActorSystem,
     Flow[(RemoteLocation, Query)]
       .map {
         case (location, query: MiningQuery) =>
-          logger.info(s"Send Post request to ${location.url}")
+          logger.info(s"Send Post request to ${location.url} for query $query")
           Post(location, query).map((location, _))
         case (location, query: ExperimentQuery) =>
-          logger.info(s"Send Post request to ${location.url}")
+          logger.info(s"Send Post request to ${location.url} for query $query")
           Post(location, query).map((location, _))
       }
       .mapAsync(100)(identity)

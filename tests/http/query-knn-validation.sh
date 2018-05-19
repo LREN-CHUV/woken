@@ -12,4 +12,4 @@ http -v --verify=no -a admin:WoKeN --timeout 180 POST http://localhost:8087/mini
          algorithms:='[{"code":"knn", "name": "knn", "parameters": []}]' \
          validations:='[{"code":"kfold", "name": "kfold", "parameters": [{"code": "k", "value": "2"}]}]' \
          trainingDatasets:='[{"code":"desd-synthdata"}]' \
-         validationDatasets:='[{"code":"nida-synthdata"}]'
+         validationDatasets:='[{"code":"qqni-synthdata"}]'

@@ -287,7 +287,7 @@ services:
       - chronos
 
   wokenvalidationnode1:
-    image: hbpmip/woken-validation:2.5.0
+    image: hbpmip/woken-validation:2.5.1
     ports:
       - "18081:8081"
       - "18082:8082"
@@ -357,7 +357,7 @@ services:
       - chronos
 
   wokenvalidationnode2:
-    image: hbpmip/woken-validation:2.5.0
+    image: hbpmip/woken-validation:2.5.1
     ports:
       - "28081:8081"
       - "28082:8082"
@@ -473,6 +473,10 @@ services:
       WOKEN_PORT_8088_TCP_ADDR: wokencentral
       WOKEN_PORT_8088_TCP_PORT: 8088
       WOKEN_AKKA_PATH: "/user/entrypoint"
+      EXAREME_URL: http://prozac.madgik.di.uoa.gr:9090/mining/query
+      LOGGING_LEVEL_WEB: DEBUG
+      LOGGING_LEVEL_HIBERNATE: WARN
+      SESSION_TIMEOUT: 2592000
     depends_on:
       - db
       - wokencentral
@@ -487,7 +491,7 @@ services:
       - portalbackend
 
   frontend:
-    image: hbpmip/portal-frontend:2.10.5
+    image: hbpmip/portal-frontend:2.10.9
     depends_on:
       - portalbackend
     ports:
@@ -500,7 +504,7 @@ services:
       PORTAL_BACKEND_CONTEXT: services
       MODE: federation
       INSTANCE_NAME: DEV
-      VERSION: "2.7.0-dev (Woken dev, Validation 2.4.10, Backend 2.7.10, Frontend 2.9.13)"
+      VERSION: "2.7.0-dev (Woken dev, Validation 2.5.0, Backend 2.8.1, Frontend 2.10.9)"
 
 networks:
   default:

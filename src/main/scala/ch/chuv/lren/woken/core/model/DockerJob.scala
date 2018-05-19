@@ -19,9 +19,10 @@ package ch.chuv.lren.woken.core.model
 
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.messages.query._
-import ch.chuv.lren.woken.messages.variables.variablesProtocol._
 import ch.chuv.lren.woken.messages.variables.{ VariableMetaData, variablesProtocol }
+import com.typesafe.scalalogging.LazyLogging
 import spray.json._
+import variablesProtocol._
 
 /**
   * Definition of a computation using an algorithm packaged as a Docker container.
@@ -40,13 +41,14 @@ case class DockerJob(
     query: FeaturesQuery,
     algorithmSpec: AlgorithmSpec,
     metadata: List[VariableMetaData]
-) extends Job {
+) extends Job
+    with LazyLogging {
 
   def jobName: String =
     (dockerImage.replaceAll("^.*?/", "").takeWhile(_ != ':') + "_" + jobId)
       .replaceAll("[/.-]", "_")
 
-  def dockerParameters: Map[String, String] =
+  def environmentVariables: Map[String, String] =
     Map[String, String](
       "PARAM_query"       -> query.sql,
       "PARAM_variables"   -> query.dbVariables.mkString(","),
@@ -55,8 +57,24 @@ case class DockerJob(
       "PARAM_meta"        -> metadata.map(m => m.code -> m).toMap.toJson.compactPrint
     ) ++ algoParameters
 
+  def dockerCommand: String = "compute"
+
+  def dockerArguments: List[String] = algorithmSpec.step.fold(List[String]()) {
+    step: ExecutionStep =>
+      step.operation match {
+        case Compute("compute")       => Nil
+        case Compute("compute-local") => List("--mode", "intermediate")
+        case Compute("compute-global") =>
+          List("--mode", "aggregate", "--job-ids") ++
+            algorithmSpec.parametersAsMap.getOrElse("_job_ids_", "").split(",")
+        case unhandled =>
+          logger.warn(s"Unhandled operation $unhandled")
+          Nil
+      }
+  }
+
   private[this] def algoParameters: Map[String, String] = {
-    val parameters = algorithmSpec.parametersAsMap
+    val parameters = algorithmSpec.parametersAsMap.filterKeys(_ != "_job_ids_")
     parameters.map({ case (key, value) => ("MODEL_PARAM_" + key, value) })
   }
 

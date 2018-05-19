@@ -221,7 +221,7 @@ class ChronosService(jobsConfig: JobsConfiguration) extends Actor with LazyLoggi
               case _: StatusCodes.Success => ()
               case _ =>
                 logger.error(
-                  s"Request to cleanup job in Chronos failed with error $statusCode: $responseMsg"
+                  s"Request $url to cleanup job in Chronos failed with error $statusCode: $responseMsg"
                 )
             }
         }

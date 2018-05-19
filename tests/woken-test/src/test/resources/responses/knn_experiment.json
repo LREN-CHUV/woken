@@ -2,6 +2,15 @@
   "data": [
     {
       "algorithm": "python-knn",
+      "algorithmSpec": {
+        "code": "knn",
+        "parameters": [
+          {
+            "code": "k",
+            "value": "5"
+          }
+        ]
+      },
       "data": {
         "action": [
           {
@@ -1230,41 +1239,56 @@
             "shared": false,
             "type": "int"
           },
-          "validations": [
-            {
-              "code": "kfold",
-              "data": {
-                "average": {
-                  "Explained variance": 55.95716,
-                  "MAE": 13.67188,
-                  "MSE": 251.68215,
-                  "R-squared": -1.53371,
-                  "RMSE": 15.86449,
-                  "type": "RegressionScore"
-                },
-                "folds": {
-                  "0": {
-                    "Explained variance": 200.33604,
-                    "MAE": 13.46102,
-                    "MSE": 215.32844,
-                    "R-squared": -17.55395,
-                    "RMSE": 14.67407,
+          "validations": {
+            "init": [
+              {
+                "code": "kfold",
+                "data": {
+                  "average": {
+                    "Explained variance": 55.95716,
+                    "MAE": 13.67188,
+                    "MSE": 251.68215,
+                    "R-squared": -1.53371,
+                    "RMSE": 15.86449,
                     "type": "RegressionScore"
                   },
-                  "1": {
-                    "Explained variance": 190.04155,
-                    "MAE": 13.88274,
-                    "MSE": 288.03585,
-                    "R-squared": -2.10001,
-                    "RMSE": 16.97162,
-                    "type": "RegressionScore"
-                  }
+                  "folds": {
+                    "0": {
+                      "Explained variance": 200.33604,
+                      "MAE": 13.46102,
+                      "MSE": 215.32844,
+                      "R-squared": -17.55395,
+                      "RMSE": 14.67407,
+                      "type": "RegressionScore"
+                    },
+                    "1": {
+                      "Explained variance": 190.04155,
+                      "MAE": 13.88274,
+                      "MSE": 288.03585,
+                      "R-squared": -2.10001,
+                      "RMSE": 16.97162,
+                      "type": "RegressionScore"
+                    }
+                  },
+                  "type": "KFoldCrossValidationScore"
                 },
-                "type": "KFoldCrossValidationScore"
-              },
-              "node": "local"
+                "node": "local",
+                "validationSpec": {
+                  "code": "kfold",
+                  "parameters": [
+                    {
+                      "code": "k",
+                      "value": "2"
+                    }
+                  ]
+                }
+              }
+            ],
+            "type": {
+              "items": "Record",
+              "type": "array"
             }
-          ]
+          }
         },
         "fcns": {
           "C": {

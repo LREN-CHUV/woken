@@ -74,7 +74,7 @@ class ExperimentFlowTest
       grouping = Nil,
       filters = None,
       targetTable = Some("sample_data"),
-      algorithms = List(AlgorithmSpec(algorithm, parameters)),
+      algorithms = List(AlgorithmSpec(algorithm, parameters, None)),
       validations = List(ValidationSpec("kfold", List(CodeValue("k", "2")))),
       trainingDatasets = Set(),
       testingDatasets = Set(),
@@ -136,7 +136,7 @@ class ExperimentFlowTest
       testProbe.expectMsgPF(20 seconds, "error") {
         case response: ExperimentResponse =>
           response.result.nonEmpty shouldBe true
-          response.result.head._1 shouldBe AlgorithmSpec("invalid-algo", Nil)
+          response.result.head._1 shouldBe AlgorithmSpec("invalid-algo", Nil, None)
           response.result.head._2 match {
             case ejr: ErrorJobResult =>
               ejr.error shouldBe "Could not find key: algorithms.invalid-algo"
@@ -158,7 +158,7 @@ class ExperimentFlowTest
         case response: ExperimentResponse =>
           print(response)
           response.result.nonEmpty shouldBe true
-          response.result.head._1 shouldBe AlgorithmSpec("knn", Nil)
+          response.result.head._1 shouldBe AlgorithmSpec("knn", Nil, None)
           response.result.head._2 match {
             case ejr: ErrorJobResult => ejr.error shouldBe "Algorithm execution failed"
             case _                   => fail("Response should be of type ErrorJobResponse")
@@ -182,7 +182,8 @@ class ExperimentFlowTest
           println(response.result)
           response.result.nonEmpty shouldBe true
           response.result.head._1 shouldBe AlgorithmSpec("anova",
-                                                         List(CodeValue("design", "factorial")))
+                                                         List(CodeValue("design", "factorial")),
+                                                         None)
           response.result.head._2 match {
             case pfa: PfaJobResult =>
               pfa.algorithm shouldBe "anova"
@@ -206,7 +207,7 @@ class ExperimentFlowTest
       testProbe.expectMsgPF(20 seconds, "error") {
         case response: ExperimentResponse =>
           response.result.nonEmpty shouldBe true
-          response.result.head._1 shouldBe AlgorithmSpec("knn", List(CodeValue("k", "5")))
+          response.result.head._1 shouldBe AlgorithmSpec("knn", List(CodeValue("k", "5")), None)
           response.result.head._2 match {
             case ejr: ErrorJobResult => ejr.error.nonEmpty shouldBe true
             case _                   => fail("Response should be of type ErrorJobResponse")

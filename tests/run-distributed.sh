@@ -103,7 +103,6 @@ $DOCKER_COMPOSE run wait_wokenvalidationnode1
 $DOCKER_COMPOSE run wait_wokenvalidationnode2
 
 $DOCKER_COMPOSE up -d wokencentral
-
 $DOCKER_COMPOSE run wait_wokencentral
 
 for i in 1 2 3 4 5 ; do
