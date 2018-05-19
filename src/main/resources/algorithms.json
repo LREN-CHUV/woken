@@ -461,7 +461,7 @@
         }
       },
       "description": "Correlation heatmap...",
-      "docker_image": "hbpmip/python-correlation-heatmap:0.3.1",
+      "docker_image": "hbpmip/python-correlation-heatmap:0.4.0",
       "environment": "python",
       "label": "Correlation heatmap",
       "type": [
@@ -488,7 +488,7 @@
         }
       },
       "description": "Principal Components Analysis...",
-      "docker_image": "hbpmip/python-distributed-pca:0.3.1",
+      "docker_image": "hbpmip/python-distributed-pca:0.4.0",
       "environment": "Python",
       "label": "PCA",
       "parameters": [],
