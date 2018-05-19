@@ -139,7 +139,7 @@ case class RemoteValidationFlow(
         None
       ),
       executionPlan = None,
-      datasets = v.query.validationDatasets,
+      datasets = v.query.validationDatasets.diff(dispatcherService.localDatasets),
       user = v.query.user,
       variables = v.query.variables,
       covariables = v.query.covariables,

@@ -256,7 +256,7 @@ case class CrossValidationFlow(
   ): Future[FoldContext[ValidationResult]] = {
     implicit val askTimeout: Timeout = Timeout(5 minutes)
     val validationQuery              = context.response
-    val validationResult             = remoteValidate(validationQuery)
+    val validationResult             = callValidate(validationQuery)
     validationResult.map(
       r =>
         FoldContext[ValidationResult](job = context.job,
@@ -287,7 +287,7 @@ case class CrossValidationFlow(
       implicit val askTimeout: Timeout = Timeout(5 minutes)
       val scoringQuery                 = ScoringQuery(algorithmOutput, groundTruth, context.targetMetaData)
       logger.info(s"scoringQuery: $scoringQuery")
-      remoteScore(scoringQuery)
+      callScore(scoringQuery)
         .map(
           s =>
             FoldResult(
@@ -330,7 +330,7 @@ case class CrossValidationFlow(
       (validations.toNel, groundTruths.toNel) match {
         case (Some(r), Some(gt)) =>
           implicit val askTimeout: Timeout = Timeout(5 minutes)
-          remoteScore(ScoringQuery(r, gt, targetMetaData))
+          callScore(ScoringQuery(r, gt, targetMetaData))
             .map { score =>
               CrossValidationScore(job = job,
                                    score = score,
@@ -352,7 +352,7 @@ case class CrossValidationFlow(
     }
   }.sequence
 
-  private def remoteValidate(validationQuery: ValidationQuery): Future[ValidationResult] = {
+  private def callValidate(validationQuery: ValidationQuery): Future[ValidationResult] = {
     implicit val askTimeout: Timeout = Timeout(5 minutes)
     logger.debug(s"validationQuery: $validationQuery")
     val future = mediator ? DistributedPubSubMediator.Send("/user/validation",
@@ -361,7 +361,7 @@ case class CrossValidationFlow(
     future.mapTo[ValidationResult]
   }
 
-  private def remoteScore(scoringQuery: ScoringQuery): Future[ScoringResult] = {
+  private def callScore(scoringQuery: ScoringQuery): Future[ScoringResult] = {
     implicit val askTimeout: Timeout = Timeout(5 minutes)
     logger.debug(s"scoringQuery: $scoringQuery")
     val future = mediator ? DistributedPubSubMediator.Send("/user/scoring",

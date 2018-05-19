@@ -29,9 +29,8 @@ import ch.chuv.lren.woken.core.CoordinatorActor
 import ch.chuv.lren.woken.core.model._
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.dao.FeaturesDAL
-import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.messages.query._
-import ch.chuv.lren.woken.messages.validation.{ Score, validationProtocol }
+import ch.chuv.lren.woken.messages.validation.Score
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
 import com.typesafe.scalalogging.LazyLogging
 
@@ -45,7 +44,6 @@ object ValidatedAlgorithmFlow {
                  query: MiningQuery,
                  metadata: List[VariableMetaData],
                  validations: List[ValidationSpec],
-                 remoteValidationDatasets: Set[DatasetId],
                  algorithmDefinition: AlgorithmDefinition) {
     // Invariants
     assert(query.algorithm.code == algorithmDefinition.code)
@@ -76,8 +74,7 @@ case class ValidatedAlgorithmFlow(
   /**
     * Run a predictive and local algorithm and perform its validation procedure.
     *
-    * If the algorithm is predictive, validate it using cross-validation for validation with local data
-    * and if the algorithm is not distributed, validate using remote datasets if any.
+    * If the algorithm is predictive, validate it using cross-validation for validation with local data.
     *
     * @param parallelism Parallelism factor
     * @return A flow that executes an algorithm and its validation procedures
@@ -89,11 +86,6 @@ case class ValidatedAlgorithmFlow(
     Flow
       .fromGraph(GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
         import GraphDSL.Implicits._
-
-        def mergeValidations(respWithRemoteValidations: (CoordinatorActor.Response,
-                                                         ValidationResults),
-                             crossValidations: ValidationResults) =
-          (respWithRemoteValidations._1, respWithRemoteValidations._2 ++ crossValidations)
 
         // prepare graph elements
         val broadcast = builder.add(Broadcast[ValidatedAlgorithmFlow.Job](2))

@@ -308,7 +308,6 @@ case class ExperimentFlow(
                                                 miningQuery,
                                                 job.metadata,
                                                 validations,
-                                                query.validationDatasets,
                                                 algorithmDefinition)
         logger.info(s"Prepared mining query sub job $subJob")
         AlgorithmValidation(job, algorithmSpec, subJob)

@@ -49,6 +49,10 @@ class DispatcherService(allDatasets: Map[DatasetId, Dataset],
 
   type VariablesForDatasetsQR = (VariablesForDatasetsQuery, VariablesForDatasetsResponse)
 
+  lazy val localDatasets: Set[DatasetId] = allDatasets.filter {
+    case (_, dataset) => dataset.location.isEmpty
+  }.keySet
+
   def dispatchTo(dataset: DatasetId): Option[RemoteLocation] =
     if (allDatasets.isEmpty)
       None
