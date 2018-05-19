@@ -58,11 +58,16 @@ trait QueriesActor[Q <: Query] extends Actor with LazyLogging {
         mapQueryResults
         // TODO: cannot support a case where the same algorithm is used, but with different execution plans
           .filter { r =>
-            logger.info(
-              s"Check that result for algorithm ${r.algorithm} is in the reduce query algorithms ${algorithms.map(_.code).mkString(",")}"
-            )
-            r.algorithm.fold(false)(rAlgo => algorithms.exists(_.code == rAlgo))
+          logger.info(
+            s"Check that algorithms in query ${r.query.map(algorithmsOfQuery)} are in the reduce query algorithms ${algorithms.map(_.code).mkString(",")}"
+          )
+          r.query.fold(false) {
+            case q: MiningQuery => algorithms.exists(_.code == q.algorithm.code)
+            case q: ExperimentQuery => q.algorithms.exists { qAlgorithm =>
+              algorithms.exists(_.code == qAlgorithm.code)
+            }
           }
+        }
       }
 
     logger.info(
@@ -150,7 +155,7 @@ trait QueriesActor[Q <: Query] extends Actor with LazyLogging {
     initiator ! error.asQueryResult(Some(initialQuery))
   }
 
-  private[dispatch] def algorithmsOfQuery(query: Q): List[AlgorithmSpec] = query match {
+  private[dispatch] def algorithmsOfQuery(query: Query): List[AlgorithmSpec] = query match {
     case q: MiningQuery     => List(q.algorithm)
     case q: ExperimentQuery => q.algorithms
   }
