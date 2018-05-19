@@ -38,6 +38,7 @@ import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.variables._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
+import kamon.Kamon
 
 object MasterRouter {
 
@@ -90,9 +91,11 @@ case class MasterRouter(config: Config,
   def receive: Receive = {
 
     case MethodsQuery =>
+      Kamon.currentSpan().mark("MethodsQueryRequestReceived")
       sender ! MethodsResponse(algorithmLibraryService.algorithms)
 
     case ds: DatasetsQuery =>
+      Kamon.currentSpan().mark("DatasetsQueryRequestReceived")
       val allDatasets = datasetService.datasets()
       val table       = ds.table.getOrElse(coordinatorConfig.jobsConf.featuresTable)
       val datasets =
@@ -111,9 +114,11 @@ case class MasterRouter(config: Config,
     // TODO To be implemented
 
     case query: MiningQuery =>
+      Kamon.currentSpan().mark("MiningQueryRequestReceived")
       miningQueriesWorker forward MiningQueriesActor.Mine(query, sender())
 
     case query: ExperimentQuery =>
+      Kamon.currentSpan().mark("ExperimentQueryRequestReceived")
       experimentQueriesWorker forward ExperimentQueriesActor.Experiment(query, sender())
 
     case e =>

@@ -22,3 +22,8 @@ addSbtPlugin("com.lucidchart"    % "sbt-scalafmt"    % "1.15")
 
 // Copyright headers
 addSbtPlugin("de.heikoseeberger" % "sbt-header"      % "4.1.0")
+
+// Kamon
+resolvers += Resolver.bintrayRepo("kamon-io", "sbt-plugins")
+
+addSbtPlugin("io.kamon" % "sbt-aspectj-runner" % "1.1.0")

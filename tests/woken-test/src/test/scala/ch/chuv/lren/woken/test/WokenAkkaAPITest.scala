@@ -25,15 +25,13 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
+import ch.chuv.lren.woken.kamon.KamonSupport
 import com.typesafe.config.{Config, ConfigFactory}
 import ch.chuv.lren.woken.messages.datasets._
 import ch.chuv.lren.woken.messages.query._
-import ch.chuv.lren.woken.messages.variables.{
-  VariableId,
-  VariablesForDatasetsQuery,
-  VariablesForDatasetsResponse
-}
+import ch.chuv.lren.woken.messages.variables.{VariableId, VariablesForDatasetsQuery, VariablesForDatasetsResponse}
 import com.typesafe.scalalogging.LazyLogging
+import kamon.Kamon
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
 import org.scalatest.TryValues._
 import org.scalatest.tagobjects.Slow
@@ -72,6 +70,7 @@ class WokenAkkaAPITest
       .resolve()
   }
 
+
   implicit val system: ActorSystem = ActorSystem("woken", config)
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executionContext: ExecutionContextExecutor = system.dispatcher
@@ -81,6 +80,8 @@ class WokenAkkaAPITest
 
   val entryPoint = "/user/entrypoint"
   val distributed: Boolean = config.getBoolean("test.distributed")
+
+  KamonSupport.startReporters(config)
 
   override def beforeAll: Unit = {
     val waitClusterUp = new Semaphore(1)
@@ -101,6 +102,7 @@ class WokenAkkaAPITest
   override def afterAll: Unit = {
     cluster.leave(cluster.selfAddress)
     cluster.down(cluster.selfAddress)
+    Kamon.stopAllReporters()
     system.terminate().onComplete { result =>
       logger.debug(s"Actor system shutdown: $result")
     }
@@ -317,6 +319,7 @@ class WokenAkkaAPITest
         response.data should not be empty
 
         val json = response.toJson
+
         val expected =
           loadJson("/responses/pca_data_mining.json")
 
@@ -635,11 +638,15 @@ class WokenAkkaAPITest
   }
 
   private def timedQuery[R](query: Any, description: String): R = {
+    val span = Kamon.buildSpan(description.replaceAll(" ", "-")).start()
     val start = System.currentTimeMillis()
-    val future = mediator ? DistributedPubSubMediator.Send(
-      entryPoint,
-      query,
-      localAffinity = false)
+    val future = Kamon.withSpan(span){
+      mediator ? DistributedPubSubMediator.Send(
+        entryPoint,
+        query,
+        localAffinity = false)
+    }
+
     val result = waitFor[R](future)
     val end = System.currentTimeMillis()
 
@@ -651,6 +658,7 @@ class WokenAkkaAPITest
       logger.error(result.toString)
     }
     assert(result.isSuccess, "Query returned a failure")
+    span.finish()
 
     result.success.value
   }

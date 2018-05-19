@@ -58,16 +58,18 @@ trait QueriesActor[Q <: Query] extends Actor with LazyLogging {
         mapQueryResults
         // TODO: cannot support a case where the same algorithm is used, but with different execution plans
           .filter { r =>
-          logger.info(
-            s"Check that algorithms in query ${r.query.map(algorithmsOfQuery)} are in the reduce query algorithms ${algorithms.map(_.toString).mkString(",")}"
-          )
-          r.query.fold(false) {
-            case q: MiningQuery => algorithms.exists(_.code == q.algorithm.code)
-            case q: ExperimentQuery => q.algorithms.exists { qAlgorithm =>
-              algorithms.exists(_.code == qAlgorithm.code)
+            logger.info(
+              s"Check that algorithms in query ${r.query
+                .map(algorithmsOfQuery)} are in the reduce query algorithms ${algorithms.map(_.toString).mkString(",")}"
+            )
+            r.query.fold(false) {
+              case q: MiningQuery => algorithms.exists(_.code == q.algorithm.code)
+              case q: ExperimentQuery =>
+                q.algorithms.exists { qAlgorithm =>
+                  algorithms.exists(_.code == qAlgorithm.code)
+                }
             }
           }
-        }
       }
 
     logger.info(
