@@ -3,6 +3,144 @@
   "data": {
     "data": [
       {
+        "name": "explained variance",
+        "showlegend": false,
+        "type": "bar",
+        "x": [
+          "PC 1",
+          "PC 2",
+          "PC 3",
+          "PC 4",
+          "PC 5"
+        ],
+        "xaxis": "x1",
+        "y": [
+          66.73864,
+          33.10222,
+          0.15914
+        ],
+        "yaxis": "y1"
+      },
+      {
+        "name": "cumulative explained variance",
+        "showlegend": false,
+        "type": "scatter",
+        "x": [
+          "PC 1",
+          "PC 2",
+          "PC 3",
+          "PC 4",
+          "PC 5"
+        ],
+        "xaxis": "x1",
+        "y": [
+          66.73864,
+          99.84086,
+          100.0
+        ],
+        "yaxis": "y1"
+      },
+      {
+        "name": "PC1",
+        "showlegend": false,
+        "type": "bar",
+        "x": [
+          "cognitive_task2",
+          "score_math_course1",
+          "score_math_course2"
+        ],
+        "xaxis": "x2",
+        "y": [
+          0.08337,
+          -0.70491,
+          -0.70438
+        ],
+        "yaxis": "y2"
+      },
+      {
+        "name": "PC2",
+        "showlegend": false,
+        "type": "bar",
+        "x": [
+          "cognitive_task2",
+          "score_math_course1",
+          "score_math_course2"
+        ],
+        "xaxis": "x2",
+        "y": [
+          -0.99648,
+          -0.05259,
+          -0.06532
+        ],
+        "yaxis": "y2"
+      },
+      {
+        "marker": {
+          "color": "black"
+        },
+        "mode": "lines+markers+text",
+        "showlegend": false,
+        "text": [
+          null,
+          "cognitive_task2"
+        ],
+        "type": "scatter",
+        "x": [
+          0.0,
+          0.08337
+        ],
+        "xaxis": "x3",
+        "y": [
+          0.0,
+          -0.99648
+        ],
+        "yaxis": "y3"
+      },
+      {
+        "marker": {
+          "color": "black"
+        },
+        "mode": "lines+markers+text",
+        "showlegend": false,
+        "text": [
+          null,
+          "score_math_course1"
+        ],
+        "type": "scatter",
+        "x": [
+          0.0,
+          -0.70491
+        ],
+        "xaxis": "x3",
+        "y": [
+          0.0,
+          -0.05259
+        ],
+        "yaxis": "y3"
+      },
+      {
+        "marker": {
+          "color": "black"
+        },
+        "mode": "lines+markers+text",
+        "showlegend": false,
+        "text": [
+          null,
+          "score_math_course2"
+        ],
+        "type": "scatter",
+        "x": [
+          0.0,
+          -0.70438
+        ],
+        "xaxis": "x3",
+        "y": [
+          0.0,
+          -0.06532
+        ],
+        "yaxis": "y3"
+      },
+      {
         "marker": {
           "line": {
             "color": "rgba(217, 217, 217, 0.14)",
@@ -166,7 +304,7 @@
           -0.29846,
           1.70725
         ],
-        "xaxis": "x1",
+        "xaxis": "x4",
         "y": [
           0.47402,
           0.45452,
@@ -319,144 +457,6 @@
           -3.08323,
           -2.38624
         ],
-        "yaxis": "y1"
-      },
-      {
-        "marker": {
-          "color": "black"
-        },
-        "mode": "lines+markers+text",
-        "showlegend": false,
-        "text": [
-          null,
-          "cognitive_task2"
-        ],
-        "type": "scatter",
-        "x": [
-          0.0,
-          0.08337
-        ],
-        "xaxis": "x2",
-        "y": [
-          0.0,
-          -0.99648
-        ],
-        "yaxis": "y2"
-      },
-      {
-        "marker": {
-          "color": "black"
-        },
-        "mode": "lines+markers+text",
-        "showlegend": false,
-        "text": [
-          null,
-          "score_math_course1"
-        ],
-        "type": "scatter",
-        "x": [
-          0.0,
-          -0.70491
-        ],
-        "xaxis": "x2",
-        "y": [
-          0.0,
-          -0.05259
-        ],
-        "yaxis": "y2"
-      },
-      {
-        "marker": {
-          "color": "black"
-        },
-        "mode": "lines+markers+text",
-        "showlegend": false,
-        "text": [
-          null,
-          "score_math_course2"
-        ],
-        "type": "scatter",
-        "x": [
-          0.0,
-          -0.70438
-        ],
-        "xaxis": "x2",
-        "y": [
-          0.0,
-          -0.06532
-        ],
-        "yaxis": "y2"
-      },
-      {
-        "name": "explained variance",
-        "showlegend": false,
-        "type": "bar",
-        "x": [
-          "PC 1",
-          "PC 2",
-          "PC 3",
-          "PC 4",
-          "PC 5"
-        ],
-        "xaxis": "x3",
-        "y": [
-          66.73864,
-          33.10222,
-          0.15914
-        ],
-        "yaxis": "y3"
-      },
-      {
-        "name": "cumulative explained variance",
-        "showlegend": false,
-        "type": "scatter",
-        "x": [
-          "PC 1",
-          "PC 2",
-          "PC 3",
-          "PC 4",
-          "PC 5"
-        ],
-        "xaxis": "x3",
-        "y": [
-          66.73864,
-          99.84086,
-          100.0
-        ],
-        "yaxis": "y3"
-      },
-      {
-        "name": "PC1",
-        "showlegend": false,
-        "type": "bar",
-        "x": [
-          "cognitive_task2",
-          "score_math_course1",
-          "score_math_course2"
-        ],
-        "xaxis": "x4",
-        "y": [
-          0.08337,
-          -0.70491,
-          -0.70438
-        ],
-        "yaxis": "y4"
-      },
-      {
-        "name": "PC2",
-        "showlegend": false,
-        "type": "bar",
-        "x": [
-          "cognitive_task2",
-          "score_math_course1",
-          "score_math_course2"
-        ],
-        "xaxis": "x4",
-        "y": [
-          -0.99648,
-          -0.05259,
-          -0.06532
-        ],
         "yaxis": "y4"
       }
     ],
@@ -467,7 +467,7 @@
             "size": 16.0
           },
           "showarrow": false,
-          "text": "Samples scores",
+          "text": "Scree plot",
           "x": 0.225,
           "xanchor": "center",
           "xref": "paper",
@@ -480,7 +480,7 @@
             "size": 16.0
           },
           "showarrow": false,
-          "text": "Variables scores",
+          "text": "Eigen-components",
           "x": 0.775,
           "xanchor": "center",
           "xref": "paper",
@@ -493,7 +493,7 @@
             "size": 16.0
           },
           "showarrow": false,
-          "text": "Scree plot",
+          "text": "Variables scores",
           "x": 0.225,
           "xanchor": "center",
           "xref": "paper",
@@ -506,7 +506,7 @@
             "size": 16.0
           },
           "showarrow": false,
-          "text": "Eigen-components",
+          "text": "Samples scores",
           "x": 0.775,
           "xanchor": "center",
           "xref": "paper",
@@ -524,10 +524,10 @@
           "type": "circle",
           "x0": -1.0,
           "x1": 1.0,
-          "xref": "x2",
+          "xref": "x3",
           "y0": -1.0,
           "y1": 1.0,
-          "yref": "y2"
+          "yref": "y3"
         }
       ],
       "title": "Principal Component Analysis",
@@ -537,14 +537,20 @@
         "domain": [
           0.0,
           0.45
-        ],
-        "title": "PC1 (66.7%)"
+        ]
       },
       "xaxis2": {
         "anchor": "y2",
         "domain": [
           0.55,
           1.0
+        ]
+      },
+      "xaxis3": {
+        "anchor": "y3",
+        "domain": [
+          0.0,
+          0.45
         ],
         "range": [
           -1.05,
@@ -552,19 +558,13 @@
         ],
         "title": "PC1 (66.7%)"
       },
-      "xaxis3": {
-        "anchor": "y3",
-        "domain": [
-          0.0,
-          0.45
-        ]
-      },
       "xaxis4": {
         "anchor": "y4",
         "domain": [
           0.55,
           1.0
-        ]
+        ],
+        "title": "PC1 (66.7%)"
       },
       "yaxis1": {
         "anchor": "x1",
@@ -572,19 +572,14 @@
           0.625,
           1.0
         ],
-        "title": "PC2 (33.1%)"
+        "title": "Explained variance in percent"
       },
       "yaxis2": {
         "anchor": "x2",
         "domain": [
           0.625,
           1.0
-        ],
-        "range": [
-          -1.05,
-          1.05
-        ],
-        "title": "PC2 (33.1%)"
+        ]
       },
       "yaxis3": {
         "anchor": "x3",
@@ -592,14 +587,19 @@
           0.0,
           0.375
         ],
-        "title": "Explained variance in percent"
+        "range": [
+          -1.05,
+          1.05
+        ],
+        "title": "PC2 (33.1%)"
       },
       "yaxis4": {
         "anchor": "x4",
         "domain": [
           0.0,
           0.375
-        ]
+        ],
+        "title": "PC2 (33.1%)"
       }
     }
   },

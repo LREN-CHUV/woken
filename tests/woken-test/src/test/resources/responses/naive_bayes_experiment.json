@@ -623,6 +623,43 @@
   ],
   "jobId": "*",
   "node": "local",
+  "query": {
+    "algorithms": [
+      {
+        "code": "naiveBayes",
+        "parameters": []
+      }
+    ],
+    "covariables": [
+      {
+        "code": "lefthippocampus"
+      }
+    ],
+    "grouping": [],
+    "targetTable": "cde_features_mixed",
+    "testingDatasets": [],
+    "trainingDatasets": [],
+    "user": {
+      "code": "test1"
+    },
+    "validationDatasets": [],
+    "validations": [
+      {
+        "code": "kfold",
+        "parameters": [
+          {
+            "code": "k",
+            "value": "2"
+          }
+        ]
+      }
+    ],
+    "variables": [
+      {
+        "code": "alzheimerbroadcategory"
+      }
+    ]
+  },
   "timestamp": 0.0,
   "type": "application/vnd.hbp.mip.experiment.pfa+json"
 }

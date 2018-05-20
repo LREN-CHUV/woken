@@ -75,6 +75,50 @@
   ],
   "jobId": "*",
   "node": "local",
+  "query": {
+    "algorithms": [
+      {
+        "code": "linearRegression",
+        "parameters": []
+      },
+      {
+        "code": "anova",
+        "parameters": []
+      }
+    ],
+    "covariables": [
+      {
+        "code": "score_test1"
+      },
+      {
+        "code": "college_math"
+      }
+    ],
+    "grouping": [],
+    "targetTable": "sample_data",
+    "testingDatasets": [],
+    "trainingDatasets": [],
+    "user": {
+      "code": "test1"
+    },
+    "validationDatasets": [],
+    "validations": [
+      {
+        "code": "kfold",
+        "parameters": [
+          {
+            "code": "k",
+            "value": "2"
+          }
+        ]
+      }
+    ],
+    "variables": [
+      {
+        "code": "cognitive_task2"
+      }
+    ]
+  },
   "timestamp": 0.0,
   "type": "application/vnd.hbp.mip.experiment.pfa+json"
 }

@@ -32218,6 +32218,52 @@
   ],
   "jobId": "*",
   "node": "local",
+  "query": {
+    "algorithms": [
+      {
+        "code": "gradientBoosting",
+        "parameters": [
+          {
+            "code": "learning_rate",
+            "value": "0.15"
+          },
+          {
+            "code": "max_depth",
+            "value": "4"
+          }
+        ]
+      }
+    ],
+    "covariables": [
+      {
+        "code": "lefthippocampus"
+      }
+    ],
+    "grouping": [],
+    "targetTable": "cde_features_mixed",
+    "testingDatasets": [],
+    "trainingDatasets": [],
+    "user": {
+      "code": "test1"
+    },
+    "validationDatasets": [],
+    "validations": [
+      {
+        "code": "kfold",
+        "parameters": [
+          {
+            "code": "k",
+            "value": "2"
+          }
+        ]
+      }
+    ],
+    "variables": [
+      {
+        "code": "alzheimerbroadcategory"
+      }
+    ]
+  },
   "timestamp": 0.0,
   "type": "application/vnd.hbp.mip.experiment.pfa+json"
 }
