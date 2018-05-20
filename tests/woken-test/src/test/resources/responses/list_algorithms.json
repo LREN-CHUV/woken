@@ -20,7 +20,7 @@
         }
       },
       "description": "Histograms...",
-      "docker_image": "hbpmip/python-histograms:0.5.1",
+      "docker_image": "hbpmip/python-histograms:0.6.0",
       "environment": "Python",
       "label": "Histograms",
       "type": [
@@ -38,7 +38,7 @@
         }
       },
       "description": "Statistics Summary...",
-      "docker_image": "hbpmip/python-summary-statistics:0.3.4",
+      "docker_image": "hbpmip/python-summary-statistics:0.4.0",
       "environment": "python",
       "label": "Statistics Summary",
       "type": [
@@ -421,7 +421,7 @@
         }
       },
       "description": "K-nearest neighbors...",
-      "docker_image": "hbpmip/python-knn:0.3.2",
+      "docker_image": "hbpmip/python-knn:0.4.0",
       "environment": "Python",
       "label": "K-nearest neighbors",
       "parameters": [
@@ -649,6 +649,46 @@
       "label": "TAU ggparci",
       "maturity": "experimental",
       "parameters": [],
+      "type": [
+        "features_extraction"
+      ]
+    },
+    {
+      "code": "kmeans",
+      "constraints": {
+        "covariables": {
+          "max_count": null,
+          "min_count": "1"
+        },
+        "groupings": {
+          "max_count": 0,
+          "min_count": 0
+        },
+        "mixed": false,
+        "variable": {
+          "binominal": false,
+          "integer": true,
+          "polynominal": false,
+          "real": true
+        }
+      },
+      "description": "K-means...",
+      "docker_image": "hbpmip/python-distributed-kmeans:0.1.1",
+      "environment": "Python",
+      "label": "Distributed K-means",
+      "parameters": [
+        {
+          "code": "n_clusters",
+          "constraints": {
+            "max": null,
+            "min": 1
+          },
+          "default_value": 3,
+          "description": "The number of clusters. The final number of clusters is also influenced by the number of nodes - total number of output clusters is floor(n_clusters * n_nodes / 2).",
+          "label": "Number of clusters",
+          "type": "int"
+        }
+      ],
       "type": [
         "features_extraction"
       ]
