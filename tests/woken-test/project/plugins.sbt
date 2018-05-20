@@ -5,7 +5,7 @@ resolvers += Classpaths.sbtPluginReleases
 resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/"
 
 // App Packaging
-addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.5")
+addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.6")
 
 // Dependency Resolution
 addSbtPlugin("io.get-coursier" % "sbt-coursier" % "1.0.0")
