@@ -507,12 +507,12 @@
           "max_count": 0,
           "min_count": 0
         },
-        "mixed": false,
+        "mixed": true,
         "variable": {
           "binominal": true,
-          "integer": true,
+          "integer": false,
           "polynominal": true,
-          "real": true
+          "real": false
         }
       },
       "description": "The Hedwig algorithm for subgroup discovery is a data mining algorithm designed for exploratory data analysis of a data set",
@@ -673,7 +673,7 @@
         }
       },
       "description": "K-means...",
-      "docker_image": "hbpmip/python-distributed-kmeans:0.1.1",
+      "docker_image": "hbpmip/python-distributed-kmeans:0.2.0",
       "environment": "Python",
       "label": "Distributed K-means",
       "parameters": [
