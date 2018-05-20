@@ -101,7 +101,6 @@ class ChronosService(jobsConfig: JobsConfiguration) extends Actor with LazyLoggi
         .map[ScheduleResponse] {
 
           case HttpResponse(statusCode: StatusCode, _, entity, _) =>
-
             statusCode match {
 
               case _: StatusCodes.Success =>

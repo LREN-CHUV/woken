@@ -1,5 +1,5 @@
-import sbtassembly.MergeStrategy
 import sbt.ExclusionRule
+import sbtassembly.MergeStrategy
 
 // *****************************************************************************
 // Projects
@@ -126,6 +126,8 @@ lazy val library =
     val akkaHttpJson: ModuleID = "com.typesafe.akka" %% "akka-http-spray-json" % Version.akkaHttp
     val akkaHttpCors: ModuleID = "ch.megard"         %% "akka-http-cors" % Version.akkaHttpCors
     val akkaHttpSwagger: ModuleID = "com.github.swagger-akka-http"   %% "swagger-akka-http" % Version.akkaHttpSwagger
+
+    // Kamon
     val kamon: ModuleID        = "io.kamon" %% "kamon-core" % Version.kamon excludeAll ExclusionRules.excludeLogback
     val kamonAkka: ModuleID    = "io.kamon" %% "kamon-akka-2.5" % Version.kamonAkka excludeAll ExclusionRules.excludeLogback
     val kamonAkkaRemote: ModuleID = "io.kamon" %% "kamon-akka-remote-2.5" % Version.kamonAkkaRemote excludeAll ExclusionRules.excludeLogback
@@ -134,6 +136,7 @@ lazy val library =
     val kamonPrometheus: ModuleID = "io.kamon" %% "kamon-prometheus" % Version.kamonReporter excludeAll ExclusionRules.excludeLogback
     val kamonZipkin: ModuleID  =  "io.kamon" %% "kamon-zipkin" % Version.kamonReporter excludeAll ExclusionRules.excludeLogback
     val kamonSigar: ModuleID   = "io.kamon"           % "sigar-loader" % Version.kamonSigar
+
     val swaggerJaxrs: ModuleID  = "io.swagger"        % "swagger-jaxrs" % Version.swaggerJaxrs
     val swaggerUI: ModuleID    = "org.webjars"        % "swagger-ui"   % Version.swaggerUI
     val sprayJson: ModuleID    = "io.spray"          %% "spray-json"   % Version.sprayJson
@@ -154,6 +157,7 @@ lazy val library =
     val dockerTestKitScalaTest: ModuleID = "com.whisk" %% "docker-testkit-scalatest" % Version.dockerTestKit excludeAll ExclusionRules.excludeLogback
     val dockerTestKitSpotify: ModuleID = "com.whisk" %% "docker-testkit-impl-spotify" % Version.dockerTestKit excludeAll ExclusionRules.excludeLogback
     val wokenMessages: ModuleID = "ch.chuv.lren.woken" %% "woken-messages" % Version.wokenMessages
+
   }
 
 resolvers += "HBPMedical Bintray Repo" at "https://dl.bintray.com/hbpmedical/maven/"
