@@ -1,3 +1,6 @@
+import sbt.ExclusionRule
+import sbtassembly.MergeStrategy
+
 // *****************************************************************************
 // Projects
 // *****************************************************************************
@@ -50,16 +53,10 @@ lazy val `woken-test` =
 lazy val library =
   new {
     object Version {
-      val scalaCheck    = "1.13.5"
-      val scalaTest     = "3.0.5"
-      val akka          = "2.5.12"
-      val akkaHttp      = "10.1.1"
-      val sprayJson     = "1.3.4"
-      val slf4j         = "1.7.25"
-      val log4j         = "2.11.0"
-      val disruptor     = "3.4.2"
-      val config        = "1.3.3"
-      val scalaLogging  = "3.9.0"
+      val scalaCheck      = "1.13.5"
+      val scalaTest       = "3.0.5"
+      val akka            = "2.5.12"
+      val akkaHttp        = "10.1.1"
       val kamon           = "1.1.2"
       val kamonAkka       = "1.0.1"
       val kamonAkkaRemote = "1.0.1"
@@ -67,26 +64,29 @@ lazy val library =
       val kamonReporter   = "1.0.0"
       val kamonSystemMetrics = "1.0.0"
       val kamonSigar      = "1.6.6-rev002"
-      val wokenMessages = "2.8.1"
+      val sprayJson       = "1.3.4"
+      val slf4j           = "1.7.25"
+      val log4j           = "2.11.0"
+      val disruptor       = "3.4.2"
+      val scalaLogging    = "3.9.0"
+      val config          = "1.3.3"
+      val wokenMessages   = "2.8.1"
     }
     object ExclusionRules {
       val excludeLogback = ExclusionRule(organization = "ch.qos.logback", name = "logback-classic")
     }
-    val scalaCheck: ModuleID       = "org.scalacheck"    %% "scalacheck"   % Version.scalaCheck
-    val scalaTest: ModuleID        = "org.scalatest"     %% "scalatest"    % Version.scalaTest
-    val akkaActor: ModuleID        = "com.typesafe.akka" %% "akka-actor"   % Version.akka
-    val akkaRemote: ModuleID       = "com.typesafe.akka" %% "akka-remote"  % Version.akka
-    val akkaCluster: ModuleID      = "com.typesafe.akka" %% "akka-cluster" % Version.akka
+    val scalaCheck: ModuleID   = "org.scalacheck"    %% "scalacheck"   % Version.scalaCheck
+    val scalaTest: ModuleID    = "org.scalatest"     %% "scalatest"    % Version.scalaTest
+    val akkaActor: ModuleID    = "com.typesafe.akka" %% "akka-actor"   % Version.akka
+    val akkaRemote: ModuleID   = "com.typesafe.akka" %% "akka-remote"  % Version.akka
+    val akkaCluster: ModuleID  = "com.typesafe.akka" %% "akka-cluster" % Version.akka
     val akkaClusterTools: ModuleID = "com.typesafe.akka" %% "akka-cluster-tools" % Version.akka
-    val akkaSlf4j: ModuleID        = "com.typesafe.akka" %% "akka-slf4j"   % Version.akka
-    val akkaTestkit: ModuleID      = "com.typesafe.akka" %% "akka-testkit" % Version.akka
-    val akkaHttp: ModuleID         = "com.typesafe.akka" %% "akka-http" % Version.akkaHttp
-    val akkaHttpJson: ModuleID     = "com.typesafe.akka" %% "akka-http-spray-json" % Version.akkaHttp
-    val sprayJson: ModuleID        = "io.spray"          %% "spray-json"   % Version.sprayJson
-    val slf4j: ModuleID            = "org.slf4j"          % "slf4j-api"    % Version.slf4j
-    val log4jSlf4j: ModuleID       = "org.apache.logging.log4j" % "log4j-slf4j-impl" % Version.log4j
-    val disruptor: ModuleID        = "com.lmax"           % "disruptor"    % Version.disruptor
-    val config: ModuleID           = "com.typesafe"       % "config"       % Version.config
+    val akkaSlf4j: ModuleID    = "com.typesafe.akka" %% "akka-slf4j"   % Version.akka
+    val akkaTestkit: ModuleID  = "com.typesafe.akka" %% "akka-testkit" % Version.akka
+    val akkaHttp: ModuleID     = "com.typesafe.akka" %% "akka-http" % Version.akkaHttp
+    val akkaHttpJson: ModuleID = "com.typesafe.akka" %% "akka-http-spray-json" % Version.akkaHttp
+
+    // Kamon
     val kamon: ModuleID        = "io.kamon" %% "kamon-core" % Version.kamon excludeAll ExclusionRules.excludeLogback
     val kamonAkka: ModuleID    = "io.kamon" %% "kamon-akka-2.5" % Version.kamonAkka excludeAll ExclusionRules.excludeLogback
     val kamonAkkaRemote: ModuleID = "io.kamon" %% "kamon-akka-remote-2.5" % Version.kamonAkkaRemote excludeAll ExclusionRules.excludeLogback
@@ -95,8 +95,14 @@ lazy val library =
     val kamonPrometheus: ModuleID = "io.kamon" %% "kamon-prometheus" % Version.kamonReporter excludeAll ExclusionRules.excludeLogback
     val kamonZipkin: ModuleID  =  "io.kamon" %% "kamon-zipkin" % Version.kamonReporter excludeAll ExclusionRules.excludeLogback
     val kamonSigar: ModuleID   = "io.kamon"           % "sigar-loader" % Version.kamonSigar
+
+    val sprayJson: ModuleID    = "io.spray"          %% "spray-json"   % Version.sprayJson
+    val slf4j: ModuleID        = "org.slf4j"          % "slf4j-api"    % Version.slf4j
+    val log4jSlf4j: ModuleID   = "org.apache.logging.log4j" % "log4j-slf4j-impl" % Version.log4j
+    val disruptor: ModuleID    = "com.lmax"           % "disruptor"    % Version.disruptor
     val scalaLogging: ModuleID = "com.typesafe.scala-logging" %% "scala-logging" % Version.scalaLogging
-    val wokenMessages: ModuleID    = "ch.chuv.lren.woken" %% "woken-messages" % Version.wokenMessages
+    val config: ModuleID       = "com.typesafe"       % "config"       % Version.config
+    val wokenMessages: ModuleID = "ch.chuv.lren.woken" %% "woken-messages" % Version.wokenMessages
   }
 
 resolvers += "HBPMedical Bintray Repo" at "https://dl.bintray.com/hbpmedical/maven/"
@@ -150,7 +156,6 @@ lazy val scalafmtSettings =
     scalafmtOnCompile.in(Sbt) := false,
     scalafmtVersion := "1.4.0"
   )
-
 
 // Create a new MergeStrategy for aop.xml files
 val aopMerge: MergeStrategy = new MergeStrategy {
