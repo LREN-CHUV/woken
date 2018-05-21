@@ -29,18 +29,18 @@ case class QueryOffset(start: Int, count: Int) {
 
 object Queries {
 
+  /** Convert variable to lowercase as Postgres returns lowercase fields in its result set
+    * Variables codes are sanitized to ensure valid database field names using the following conversions:
+    * + replace - by _
+    * + prepend _ to the variable name if it starts by a number
+    */
+  def toField(feature: FeatureIdentifier): String = feature match {
+    case v: VariableId => v.code.toLowerCase().replaceAll("-", "_").replaceFirst("^(\\d)", "_$1")
+    case _             => throw new NotImplementedError("Need to add support for groups as a feature")
+  }
+
   // TODO: add support for GroupId as feature
   implicit class QueryEnhanced[Q <: Query](val query: Q) extends AnyVal {
-
-    /** Convert variable to lowercase as Postgres returns lowercase fields in its result set
-      * Variables codes are sanitized to ensure valid database field names using the following conversions:
-      * + replace - by _
-      * + prepend _ to the variable name if it starts by a number
-      */
-    private[this] def toField(feature: FeatureIdentifier) = feature match {
-      case v: VariableId => v.code.toLowerCase().replaceAll("-", "_").replaceFirst("^(\\d)", "_$1")
-      case _             => throw new NotImplementedError("Need to add support for groups as a feature")
-    }
 
     def dbAllVars: List[String] = (dbVariables ++ dbCovariables ++ dbGrouping).distinct
 

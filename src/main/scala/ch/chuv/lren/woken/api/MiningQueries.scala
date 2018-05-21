@@ -29,6 +29,7 @@ import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.core.model.{ DockerJob, Job, ValidationJob, VariablesMeta }
 import cats.data._
 import cats.implicits._
+import ch.chuv.lren.woken.core.features.Queries
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
 import com.typesafe.scalalogging.LazyLogging
 import shapeless.{ ::, HNil }
@@ -46,11 +47,11 @@ object MiningQueries extends LazyLogging {
       algorithmLookup: String => Validation[AlgorithmDefinition]
   )(query: MiningQuery): Validation[Job] = {
 
-    val jobId :: featuresDb :: featuresTable :: metadata :: HNil =
+    val jobId :: featuresDb :: featuresTable :: metadata :: validatedQuery :: HNil =
       prepareQuery(variablesMetaService, jobsConfiguration, query)
 
-    def createJob(mt: List[VariableMetaData], al: AlgorithmDefinition) = {
-      val featuresQuery = query.filterDatasets
+    def createJob(mt: List[VariableMetaData], q: MiningQuery, al: AlgorithmDefinition) = {
+      val featuresQuery = q.filterDatasets
         .filterNulls(al.variablesCanBeNull, al.covariablesCanBeNull)
         .features(featuresTable, None)
 
@@ -68,7 +69,7 @@ object MiningQueries extends LazyLogging {
         }
       case code =>
         val algorithm = algorithmLookup(code)
-        (metadata, algorithm) mapN createJob
+        (metadata, validatedQuery, algorithm) mapN createJob
     }
 
   }
@@ -78,21 +79,22 @@ object MiningQueries extends LazyLogging {
       jobsConfiguration: JobsConfiguration
   )(query: ExperimentQuery): Validation[ExperimentActor.Job] = {
 
-    val jobId :: featuresDb :: featuresTable :: metadata :: HNil =
+    val jobId :: featuresDb :: featuresTable :: metadata :: validatedQuery :: HNil =
       prepareQuery(variablesMetaService, jobsConfiguration, query)
 
-    metadata.andThen { mt: List[VariableMetaData] =>
+    def createJob(mt: List[VariableMetaData], q: ExperimentQuery) =
       ExperimentActor
-        .Job(jobId, featuresDb, featuresTable, query.filterDatasets, metadata = mt)
-        .validNel[String]
-    }
+        .Job(jobId, featuresDb, featuresTable, q.filterDatasets, metadata = mt)
+
+    (metadata, validatedQuery) mapN createJob
+
   }
 
-  private def prepareQuery(
+  private def prepareQuery[Q <: Query](
       variablesMetaService: VariablesMetaService,
       jobsConfiguration: JobsConfiguration,
-      query: Query
-  ): String :: String :: String :: Validation[List[VariableMetaData]] :: HNil = {
+      query: Q
+  ): String :: String :: String :: Validation[List[VariableMetaData]] :: Validation[Q] :: HNil = {
     val jobId         = UUID.randomUUID().toString
     val featuresDb    = jobsConfiguration.featuresDb
     val featuresTable = query.targetTable.getOrElse(jobsConfiguration.featuresTable)
@@ -104,7 +106,26 @@ object MiningQueries extends LazyLogging {
     val metadata: Validation[List[VariableMetaData]] =
       variablesMeta.andThen(v => v.selectVariables(query.dbAllVars))
 
-    jobId :: featuresDb :: featuresTable :: metadata :: HNil
+    val validatedQuery = variablesMeta.map { v =>
+      val existingDbCovariables = v.filterVariables(query.dbCovariables.contains).map(_.code)
+      val existingCovariables = query.covariables.filter { covar =>
+        existingDbCovariables.contains(Queries.toField(covar))
+      }
+      val existingDbGroupings = v.filterVariables(query.dbGrouping.contains).map(_.code)
+      val existingGroupings = query.grouping.filter { grouping =>
+        existingDbGroupings.contains(Queries.toField(grouping))
+      }
+
+      query match {
+        case q: MiningQuery =>
+          q.copy(covariables = existingCovariables, grouping = existingGroupings).asInstanceOf[Q]
+        case q: ExperimentQuery =>
+          q.copy(covariables = existingCovariables, grouping = existingGroupings).asInstanceOf[Q]
+      }
+
+    }
+
+    jobId :: featuresDb :: featuresTable :: metadata :: validatedQuery :: HNil
   }
 
 }
