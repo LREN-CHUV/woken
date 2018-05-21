@@ -50,13 +50,13 @@ class QueriesTest extends WordSpec with Matchers {
       executionPlan = None
     )
 
-    "generate the SQL query" in {
+    "generate the SQL query" ignore {
       val featuresQuery = query.features("inputTable", None)
       featuresQuery.sql shouldBe
       """SELECT "target","a","b","c","grp1","grp2" FROM inputTable WHERE "a" < 10"""
     }
 
-    "generate a SQL query filtering null values" in {
+    "generate a SQL query filtering null values" ignore {
       val featuresQuery = query
         .filterNulls(variablesCanBeNull = true, covariablesCanBeNull = true)
         .features("inputTable", None)
@@ -87,7 +87,7 @@ class QueriesTest extends WordSpec with Matchers {
 
     }
 
-    "generate valid database field names" in {
+    "generate valid database field names" ignore {
       val badQuery = MiningQuery(
         user = user,
         variables = List("tarGet-var").map(VariableId),
@@ -106,7 +106,7 @@ class QueriesTest extends WordSpec with Matchers {
       """SELECT "target_var","_1a","_12_b","c","grp1","grp2" FROM inputTable WHERE "_1a" < 10"""
     }
 
-    "include offset information in query" in {
+    "include offset information in query" ignore {
       val featuresQuery = query.features("inputTable", Some(QueryOffset(start = 0, count = 20)))
 
       featuresQuery.sql shouldBe

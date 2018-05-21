@@ -127,7 +127,8 @@ object Queries {
       }
 
       // TODO: should read the subjectcode primary key from the table definition
-      val selectOrdered = s"$selectFiltered ORDER BY abs(('x'||substr(md5(subjectcode),1,16))::bit(64)::BIGINT)"
+      val selectOrdered =
+        s"$selectFiltered ORDER BY abs(('x'||substr(md5(subjectcode),1,16))::bit(64)::BIGINT)"
 
       val sqlQuery = offset.fold(selectOrdered) { o =>
         s"$selectOrdered EXCEPT ALL ($selectOrdered OFFSET ${o.start} LIMIT ${o.count})"

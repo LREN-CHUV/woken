@@ -202,7 +202,7 @@ class JobToChronosTest extends FlatSpec with Matchers {
       EnvironmentVariable("MODEL_PARAM_n", "1"),
       EnvironmentVariable(
         "PARAM_query",
-        """SELECT "target","a","b","c","grp1","grp2" FROM features_table WHERE "target" IS NOT NULL AND "a" IS NOT NULL AND "b" IS NOT NULL AND "c" IS NOT NULL AND "grp1" IS NOT NULL AND "grp2" IS NOT NULL AND "a" < 10"""
+        """SELECT "target","a","b","c","grp1","grp2" FROM features_table WHERE "target" IS NOT NULL AND "a" IS NOT NULL AND "b" IS NOT NULL AND "c" IS NOT NULL AND "grp1" IS NOT NULL AND "grp2" IS NOT NULL AND "a" < 10 ORDER BY abs(('x'||substr(md5(subjectcode),1,16))::bit(64)::BIGINT)"""
       ),
       EnvironmentVariable("PARAM_grouping", "grp1,grp2"),
       EnvironmentVariable(
