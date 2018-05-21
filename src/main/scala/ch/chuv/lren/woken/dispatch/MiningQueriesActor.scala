@@ -166,19 +166,7 @@ class MiningQueriesActor(
   private def runMiningJob(query: MiningQuery, initiator: ActorRef, job: DockerJob): Unit = {
 
     // Detection of histograms in federation mode
-    val forceLocal = if (query.algorithm.code == "histogram") {
-
-      import ch.chuv.lren.woken.core.features.Queries._
-      val metadataKey =
-        query.targetTable.getOrElse(coordinatorConfig.jobsConf.metadataKeyForFeaturesTable)
-      val variablesMeta: VariablesMeta = variablesMetaService
-        .get(metadataKey)
-        .getOrElse(throw new IllegalArgumentException("Should know about " + metadataKey))
-      val variablesMetadata: List[VariableMetaData] =
-        variablesMeta.selectVariables(query.dbVariables).valueOr(_ => List())
-
-      variablesMetadata.exists(_.`type` == VariableType.real)
-    } else false
+    val forceLocal = (query.algorithm.code == "histograms")
 
     if (forceLocal) {
       logger.info(s"Local data mining for query $query")
