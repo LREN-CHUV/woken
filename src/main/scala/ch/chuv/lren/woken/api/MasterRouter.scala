@@ -140,6 +140,7 @@ case class MasterRouter(config: Config,
       MiningQueriesActor.roundRobinPoolProps(config,
                                              coordinatorConfig,
                                              dispatcherService,
+                                             variablesMetaService,
                                              algorithmLookup,
                                              miningQuery2JobF),
       name = "miningQueries"

@@ -24,16 +24,18 @@ import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{ Actor, ActorRef, OneForOneStrategy, Props }
 import akka.routing.{ OptimalSizeExploringResizer, RoundRobinPool }
 import akka.stream.scaladsl.{ Flow, Sink, Source }
+import cats.data.{ NonEmptyList, Validated }
 import ch.chuv.lren.woken.config.AlgorithmDefinition
 import ch.chuv.lren.woken.core._
 import ch.chuv.lren.woken.core.commands.JobCommands.StartCoordinatorJob
-import ch.chuv.lren.woken.core.model.{ DockerJob, ErrorJobResult, Job, ValidationJob }
+import ch.chuv.lren.woken.core.model._
 import ch.chuv.lren.woken.core.validation.ValidationFlow
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.validation.Score
 import ch.chuv.lren.woken.messages.validation.validationProtocol._
-import ch.chuv.lren.woken.service.DispatcherService
+import ch.chuv.lren.woken.messages.variables.{ VariableMetaData, VariableType }
+import ch.chuv.lren.woken.service.{ DispatcherService, VariablesMetaService }
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 
@@ -49,11 +51,13 @@ object MiningQueriesActor extends LazyLogging {
 
   def props(coordinatorConfig: CoordinatorConfig,
             dispatcherService: DispatcherService,
+            variablesMetaService: VariablesMetaService,
             algorithmLookup: String => Validation[AlgorithmDefinition],
             miningQuery2JobF: MiningQuery => Validation[Job]): Props =
     Props(
       new MiningQueriesActor(coordinatorConfig,
                              dispatcherService,
+                             variablesMetaService,
                              algorithmLookup,
                              miningQuery2JobF)
     )
@@ -61,6 +65,7 @@ object MiningQueriesActor extends LazyLogging {
   def roundRobinPoolProps(config: Config,
                           coordinatorConfig: CoordinatorConfig,
                           dispatcherService: DispatcherService,
+                          variablesMetaService: VariablesMetaService,
                           algorithmLookup: String => Validation[AlgorithmDefinition],
                           miningQuery2JobF: MiningQuery => Validation[Job]): Props = {
 
@@ -84,7 +89,11 @@ object MiningQueriesActor extends LazyLogging {
       supervisorStrategy = miningSupervisorStrategy
     ).props(
       MiningQueriesActor
-        .props(coordinatorConfig, dispatcherService, algorithmLookup, miningQuery2JobF)
+        .props(coordinatorConfig,
+               dispatcherService,
+               variablesMetaService,
+               algorithmLookup,
+               miningQuery2JobF)
     )
   }
 
@@ -93,6 +102,7 @@ object MiningQueriesActor extends LazyLogging {
 class MiningQueriesActor(
     override val coordinatorConfig: CoordinatorConfig,
     dispatcherService: DispatcherService,
+    variablesMetaService: VariablesMetaService,
     algorithmLookup: String => Validation[AlgorithmDefinition],
     miningQuery2JobF: MiningQuery => Validation[Job]
 ) extends QueriesActor[MiningQuery] {
@@ -153,55 +163,76 @@ class MiningQueriesActor(
 
   }
 
-  private def runMiningJob(query: MiningQuery, initiator: ActorRef, job: DockerJob): Unit =
-    dispatcherService.dispatchTo(query.datasets) match {
+  private def runMiningJob(query: MiningQuery, initiator: ActorRef, job: DockerJob): Unit = {
 
-      // Local mining on a worker node or a standalone node
-      case (_, true) =>
-        logger.info(s"Local data mining for query $query")
-        startMiningJob(job, initiator)
+    // Detection of histograms in federation mode
+    val forceLocal = if (query.algorithm.code == "histogram") {
 
-      // Mining from the central server using one remote node
-      case (remoteLocations, false) if remoteLocations.size == 1 =>
-        logger.info(s"Remote data mining on a single node $remoteLocations for query $query")
-        mapFlow(query)
-          .mapAsync(1) {
-            case List()        => Future(noResult(query))
-            case List(result)  => Future(result.copy(query = Some(query)))
-            case listOfResults => gatherAndReduce(query, listOfResults, None)
-          }
-          .map(reportResult(initiator))
-          .log("Result of experiment")
-          .runWith(Sink.last)
-          .failed
-          .foreach(reportError(query, initiator))
+      import ch.chuv.lren.woken.core.features.Queries._
+      val metadataKey =
+        query.targetTable.getOrElse(coordinatorConfig.jobsConf.metadataKeyForFeaturesTable)
+      val variablesMeta: VariablesMeta = variablesMetaService
+        .get(metadataKey)
+        .getOrElse(throw new IllegalArgumentException("Should know about " + metadataKey))
+      val variablesMetadata: List[VariableMetaData] =
+        variablesMeta.selectVariables(query.dbVariables).valueOr(_ => List())
 
-      // Execution of the experiment from the central server in a distributed mode
-      case (remoteLocations, _) =>
-        logger.info(s"Remote data mining on nodes $remoteLocations for query $query")
-        val algorithm = job.algorithmSpec
-        val algorithmDefinition: AlgorithmDefinition = algorithmLookup(algorithm.code)
-          .valueOr(e => throw new IllegalStateException(e.toList.mkString(",")))
-        val queriesByStepExecution: Map[ExecutionStyle.Value, MiningQuery] =
-          algorithmDefinition.distributedExecutionPlan.steps.map { step =>
-            (step.execution, query.copy(algorithm = algorithm.copy(step = Some(step))))
-          }.toMap
+      variablesMetadata.exists(_.`type` == VariableType.real)
+    } else false
 
-        val mapQuery = queriesByStepExecution.getOrElse(ExecutionStyle.map, query)
-        val reduceQuery =
-          queriesByStepExecution.get(ExecutionStyle.reduce).map(_.copy(datasets = Set()))
+    if (forceLocal) {
+      logger.info(s"Local data mining for query $query")
+      startMiningJob(job, initiator)
+    } else
+      dispatcherService.dispatchTo(query.datasets) match {
 
-        mapFlow(mapQuery)
-          .mapAsync(1) {
-            case List()       => Future(noResult(query))
-            case List(result) => Future(result.copy(query = Some(query)))
-            case mapResults   => gatherAndReduce(query, mapResults, reduceQuery)
-          }
-          .map(reportResult(initiator))
-          .runWith(Sink.last)
-          .failed
-          .foreach(reportError(query, initiator))
-    }
+        // Local mining on a worker node or a standalone node
+        case (_, true) =>
+          logger.info(s"Local data mining for query $query")
+          startMiningJob(job, initiator)
+
+        // Mining from the central server using one remote node
+        case (remoteLocations, false) if remoteLocations.size == 1 =>
+          logger.info(s"Remote data mining on a single node $remoteLocations for query $query")
+          mapFlow(query)
+            .mapAsync(1) {
+              case List()        => Future(noResult(query))
+              case List(result)  => Future(result.copy(query = Some(query)))
+              case listOfResults => gatherAndReduce(query, listOfResults, None)
+            }
+            .map(reportResult(initiator))
+            .log("Result of experiment")
+            .runWith(Sink.last)
+            .failed
+            .foreach(reportError(query, initiator))
+
+        // Execution of the experiment from the central server in a distributed mode
+        case (remoteLocations, _) =>
+          logger.info(s"Remote data mining on nodes $remoteLocations for query $query")
+          val algorithm = job.algorithmSpec
+          val algorithmDefinition: AlgorithmDefinition = algorithmLookup(algorithm.code)
+            .valueOr(e => throw new IllegalStateException(e.toList.mkString(",")))
+          val queriesByStepExecution: Map[ExecutionStyle.Value, MiningQuery] =
+            algorithmDefinition.distributedExecutionPlan.steps.map { step =>
+              (step.execution, query.copy(algorithm = algorithm.copy(step = Some(step))))
+            }.toMap
+
+          val mapQuery = queriesByStepExecution.getOrElse(ExecutionStyle.map, query)
+          val reduceQuery =
+            queriesByStepExecution.get(ExecutionStyle.reduce).map(_.copy(datasets = Set()))
+
+          mapFlow(mapQuery)
+            .mapAsync(1) {
+              case List()       => Future(noResult(query))
+              case List(result) => Future(result.copy(query = Some(query)))
+              case mapResults   => gatherAndReduce(query, mapResults, reduceQuery)
+            }
+            .map(reportResult(initiator))
+            .runWith(Sink.last)
+            .failed
+            .foreach(reportError(query, initiator))
+      }
+  }
 
   private def mapFlow(mapQuery: MiningQuery) =
     Source
