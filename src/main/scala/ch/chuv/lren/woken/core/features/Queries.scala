@@ -126,8 +126,11 @@ object Queries {
         s"$selectOnly WHERE ${filters.withAdaptedFieldName.toSqlWhere}"
       }
 
-      val sqlQuery = offset.fold(selectFiltered) { o =>
-        s"$selectFiltered EXCEPT ALL ($selectFiltered OFFSET ${o.start} LIMIT ${o.count})"
+      // TODO: should read the subjectcode primary key from the table definition
+      val selectOrdered = s"$selectFiltered ORDER BY abs(('x'||substr(md5(subjectcode),1,16))::bit(64)::BIGINT)"
+
+      val sqlQuery = offset.fold(selectOrdered) { o =>
+        s"$selectOrdered EXCEPT ALL ($selectOrdered OFFSET ${o.start} LIMIT ${o.count})"
       }
 
       FeaturesQuery(dbVariables, dbCovariables, dbGrouping, inputTable, sqlQuery)
