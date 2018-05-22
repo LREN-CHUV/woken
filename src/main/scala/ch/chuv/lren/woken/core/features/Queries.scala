@@ -137,7 +137,7 @@ object Queries {
         s"""$selectFieldsOrdered FROM $inputTable ORDER BY "_sort_""""
 
       val selectOrderedFiltered = query.filters.fold(selectOrdered) { filters =>
-        s"$selectOrdered WHERE ${filters.withAdaptedFieldName.toSqlWhere}"
+        s"$selectFieldsOrdered FROM $inputTable WHERE ${filters.withAdaptedFieldName.toSqlWhere} ORDER BY "_sort_""
       }
 
       val sqlQuery = offset.fold(selectFiltered) { o =>
