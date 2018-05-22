@@ -131,10 +131,10 @@ object Queries {
 
       // TODO: should read the subjectcode primary key from the table definition
       val selectFieldsOrdered =
-        s"$selectFields, abs(('x'||substr(md5(subjectcode),1,16))::bit(64)::BIGINT) as \"_sort_\""
+        s"""$selectFields, abs(('x'||substr(md5(subjectcode),1,16))::bit(64)::BIGINT) as "_sort_""""
 
       val selectOrdered =
-        s"SELECT $selectFieldsOrdered FROM $inputTable ORDER BY \"_sort_\""
+        s"""SELECT $selectFieldsOrdered FROM $inputTable ORDER BY "_sort_""""
       
       val sqlQuery = offset.fold(selectFiltered) { o =>
         s"$selectOrdered EXCEPT ALL ($selectOrdered OFFSET ${o.start} LIMIT ${o.count})"
