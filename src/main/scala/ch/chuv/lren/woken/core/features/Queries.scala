@@ -133,15 +133,18 @@ object Queries {
       val selectFieldsOrdered =
         s"""$selectFields, abs(('x'||substr(md5(subjectcode),1,16))::bit(64)::BIGINT) as "_sort_""""
 
-      val selectOrdered =
-        s"""$selectFieldsOrdered FROM $inputTable ORDER BY "_sort_""""
+      val selectOrderedReady =
+        s"""$selectFieldsOrdered FROM $inputTable"""
 
-      val selectOrderedFiltered = query.filters.fold(selectOrdered) { filters =>
-        s"""$selectFieldsOrdered FROM $inputTable WHERE ${filters.withAdaptedFieldName.toSqlWhere} ORDER BY "_sort_""""
+      val selectOrderedFiltered = query.filters.fold(selectOrderedReady) { filters =>
+        s"""$selectFieldsOrdered FROM $inputTable WHERE ${filters.withAdaptedFieldName.toSqlWhere}"""
       }
 
+      val selectOrdered =
+        s"""$selectOrderedFiltered ORDER BY "_sort_""""
+
       val sqlQuery = offset.fold(selectFiltered) { o =>
-        s"$selectOrderedFiltered EXCEPT ALL ($selectOrderedFiltered OFFSET ${o.start} LIMIT ${o.count})"
+        s"""$selectOrderedFiltered EXCEPT ALL ($selectOrdered OFFSET ${o.start} LIMIT ${o.count}) ORDER BY "_sort_""""
       }
 
       FeaturesQuery(dbVariables, dbCovariables, dbGrouping, inputTable, sqlQuery)
