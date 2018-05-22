@@ -17,10 +17,8 @@
 
 package ch.chuv.lren.woken.backends
 
-import java.util.concurrent.TimeUnit
-
 import akka.actor.ActorSystem
-import akka.{ Done, NotUsed }
+import akka.Done
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.marshalling.PredefinedToResponseMarshallers
@@ -33,7 +31,6 @@ import ch.chuv.lren.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryRe
 
 import scala.collection.immutable.Seq
 import scala.concurrent.{ Future, Promise }
-import scala.concurrent.duration.FiniteDuration
 import spray.json._
 import ch.chuv.lren.woken.messages.query.queryProtocol._
 import ch.chuv.lren.woken.messages.remoting.RemoteLocation
@@ -73,11 +70,11 @@ object WebSocketClient extends SprayJsonSupport with PredefinedToResponseMarshal
           promise.failure(new RuntimeException(s"Response type format is not supported: $err"))
       }
 
-    val source: Source[Message, NotUsed] = Source.single(TextMessage.Strict(query))
-    val flow: Flow[Message, Message, (Future[Done], NotUsed)] =
+    val source: Source[Message, Promise[Option[Message]]] =
+      Source.single(TextMessage.Strict(query)).concatMat(Source.maybe[Message])(Keep.right)
+    val flow: Flow[Message, Message, Future[Done]] =
       Flow
-        .fromSinkAndSourceMat(sink, source)(Keep.both)
-        .keepAlive(FiniteDuration(1, TimeUnit.SECONDS), () => TextMessage.apply("heart beat"))
+        .fromSinkAndSourceMat(sink, source)(Keep.left)
 
     val (upgradeResponse, closed) =
       Http().singleWebSocketRequest(
