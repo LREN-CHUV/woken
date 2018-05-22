@@ -135,7 +135,6 @@ object Queries {
 
       val selectOrdered =
         s"""$selectFieldsOrdered FROM $inputTable ORDER BY "_sort_""""
-        s"""SELECT $selectFieldsOrdered FROM $inputTable ORDER BY "_sort_""""
 
       val sqlQuery = offset.fold(selectFiltered) { o =>
         s"$selectOrdered EXCEPT ALL ($selectOrdered OFFSET ${o.start} LIMIT ${o.count})"

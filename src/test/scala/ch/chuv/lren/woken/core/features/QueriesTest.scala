@@ -106,13 +106,16 @@ class QueriesTest extends WordSpec with Matchers {
       """SELECT "target_var","_1a","_12_b","c","grp1","grp2" FROM inputTable WHERE "_1a" < 10"""
     }
 
-    "include offset information in query" is {
-      val featuresQuery = query.features("inputTable", Some(QueryOffset(start = 0, count = 20)))
+    "include offset information in query" in {
+      val featuresQuery: FeaturesQuery =
+        query.features("inputTable", Some(QueryOffset(start = 0, count = 20)))
 
-      featuresQuery.sql shouldBe
-      """SELECT "target","a","b","c","grp1","grp2", abs(('x'||substr(md5(subjectcode),1,16))::bit(64)::BIGINT) as "_sort_" FROM inputTable WHERE "a" < 10
-        | EXCEPT ALL (SELECT "target","a","b","c","grp1","grp2", abs(('x'||substr(md5(subjectcode),1,16))::bit(64)::BIGINT) as "_sort_" FROM inputTable WHERE "a" < 10 ORDER BY "_sort_" OFFSET 0 LIMIT 20) ORDER BY "_sort_"""".stripMargin
-        .replace("\n", "")
+      val expected: String =
+        """SELECT "target","a","b","c","grp1","grp2", abs(('x'||substr(md5(subjectcode),1,16))::bit(64)::BIGINT) as "_sort_" FROM inputTable WHERE "a" < 10 EXCEPT ALL (SELECT "target","a","b","c","grp1","grp2", abs(('x'||substr(md5(subjectcode),1,16))::bit(64)::BIGINT) as "_sort_" FROM inputTable WHERE "a" < 10 ORDER BY "_sort_" OFFSET 0 LIMIT 20) ORDER BY "_sort_" """.trim
+
+      println(featuresQuery.sql)
+      featuresQuery.sql shouldBe expected
+
     }
 
   }
