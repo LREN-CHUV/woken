@@ -152,7 +152,7 @@
             "title": "The Docker_image Schema ",
             "default": "",
             "examples": [
-              "hbpmip/python-histograms:0.6.0"
+              "hbpmip/python-histograms:0.6.1"
             ]
           },
           "environment": {

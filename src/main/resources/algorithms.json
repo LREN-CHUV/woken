@@ -20,7 +20,7 @@
         }
       },
       "description": "Histograms...",
-      "docker_image": "hbpmip/python-histograms:0.6.0",
+      "docker_image": "hbpmip/python-histograms:0.6.1",
       "environment": "Python",
       "label": "Histograms",
       "type": [
