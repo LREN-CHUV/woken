@@ -131,7 +131,7 @@ object Queries {
         s"$selectFiltered ORDER BY abs(('x'||substr(md5(subjectcode),1,16))::bit(64)::BIGINT)"
 
       val sqlQuery = offset.fold(selectOrdered) { o =>
-        s"$selectOrdered EXCEPT ALL ($selectOrdered OFFSET ${o.start} LIMIT ${o.count})"
+        s"$selectFiltered EXCEPT ALL ($selectOrdered OFFSET ${o.start} LIMIT ${o.count}) ORDER BY abs(('x'||substr(md5(subjectcode),1,16))::bit(64)::BIGINT)"
       }
 
       FeaturesQuery(dbVariables, dbCovariables, dbGrouping, inputTable, sqlQuery)
