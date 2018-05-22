@@ -123,7 +123,7 @@ object Queries {
         s"SELECT ${query.dbAllVars.map(_.identifier).mkString(",")}"
 
       val selectOnly =
-        s"SELECT $selectFields FROM $inputTable"
+        s"$selectFields FROM $inputTable"
 
       val selectFiltered = query.filters.fold(selectOnly) { filters =>
         s"$selectOnly WHERE ${filters.withAdaptedFieldName.toSqlWhere}"
@@ -134,7 +134,7 @@ object Queries {
         s"""$selectFields, abs(('x'||substr(md5(subjectcode),1,16))::bit(64)::BIGINT) as "_sort_""""
 
       val selectOrdered =
-        s"""SELECT $selectFieldsOrdered FROM $inputTable ORDER BY "_sort_""""
+        s"""$selectFieldsOrdered FROM $inputTable ORDER BY "_sort_""""
       
       val sqlQuery = offset.fold(selectFiltered) { o =>
         s"$selectOrdered EXCEPT ALL ($selectOrdered OFFSET ${o.start} LIMIT ${o.count})"
