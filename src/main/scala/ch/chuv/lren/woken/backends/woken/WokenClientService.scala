@@ -87,8 +87,8 @@ case class WokenClientService(node: String)(implicit val system: ActorSystem,
           logger.info(s"Send Post request to ${location.url} for query $query")
           Post(location, query).map((location, query, _))
       }
-      .mapAsync(100)(identity)
-      .mapAsync(1) {
+      .mapAsync(10)(identity)
+      .mapAsync(10) {
         case (url, query, response) if response.status.isSuccess() =>
           (url.pure[Future],
            Unmarshal(response)
@@ -132,12 +132,13 @@ case class WokenClientService(node: String)(implicit val system: ActorSystem,
            NotUsed] =
     Flow[(RemoteLocation, VariablesForDatasetsQuery)]
       .map(query => sendReceive(Get(query._1)).map((query._1, query._2, _)))
-      .mapAsync(100)(identity)
-      .mapAsync[((RemoteLocation, VariablesForDatasetsQuery, VariablesForDatasetsResponse))](100) {
+      .mapAsync(10)(identity)
+      .mapAsync[((RemoteLocation, VariablesForDatasetsQuery, VariablesForDatasetsResponse))](10) {
         case (url, query, response) if response.status.isSuccess() =>
           val varResponse = Unmarshal(response).to[VariablesForDatasetsResponse]
           (url.pure[Future], query.pure[Future], varResponse).mapN((_, _, _))
         case (url, query, failure) =>
+          failure.discardEntityBytes()
           logger.error(s"url: $url failure: $failure")
           (url, query, VariablesForDatasetsResponse(Set.empty, None)).pure[Future]
       }
