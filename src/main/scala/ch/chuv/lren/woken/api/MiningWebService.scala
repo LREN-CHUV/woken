@@ -23,6 +23,7 @@ import akka.http.scaladsl.marshalling.PredefinedToResponseMarshallers
 import akka.pattern.ask
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.model.StatusCodes._
+import akka.stream.ActorMaterializer
 import ch.chuv.lren.woken.api.swagger.MiningServiceApi
 import ch.chuv.lren.woken.config.{ AppConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.messages.query._
@@ -53,6 +54,7 @@ class MiningWebService(
     with TracingDirectives
     with LazyLogging {
 
+  implicit val materializer: ActorMaterializer    = ActorMaterializer()
   implicit val executionContext: ExecutionContext = system.dispatcher
   implicit val timeout: Timeout                   = Timeout(180.seconds)
 

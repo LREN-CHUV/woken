@@ -22,6 +22,7 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.unmarshalling.PredefinedFromStringUnmarshallers._
 import akka.http.scaladsl.model.StatusCodes._
+import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import akka.pattern.ask
 import ch.chuv.lren.woken.api.swagger.MetadataServiceApi
@@ -60,6 +61,7 @@ class MetadataWebService(
     with TracingDirectives
     with LazyLogging {
 
+  implicit val materializer: ActorMaterializer    = ActorMaterializer()
   implicit val executionContext: ExecutionContext = system.dispatcher
   implicit val timeout: Timeout                   = Timeout(180.seconds)
 

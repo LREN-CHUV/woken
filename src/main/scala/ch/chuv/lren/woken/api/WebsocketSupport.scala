@@ -20,6 +20,7 @@ package ch.chuv.lren.woken.api
 import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.http.scaladsl.model.ws.{ Message, TextMessage }
+import akka.stream.Materializer
 import akka.stream.scaladsl.Flow
 import akka.util.Timeout
 import ch.chuv.lren.woken.config.{ AppConfiguration, JobsConfiguration }
@@ -30,8 +31,9 @@ import ch.chuv.lren.woken.messages.query.{
   QueryResult,
   queryProtocol
 }
+import scala.concurrent.{ ExecutionContext, Future }
+import scala.util.{ Failure, Success, Try }
 
-import scala.concurrent.ExecutionContext
 import spray.json._
 import queryProtocol._
 import akka.stream.{ ActorAttributes, Supervision }
@@ -42,8 +44,6 @@ import ch.chuv.lren.woken.messages.variables.{
 }
 import com.typesafe.scalalogging.LazyLogging
 
-import scala.util.{ Failure, Success, Try }
-
 trait WebsocketSupport {
   this: LazyLogging =>
 
@@ -52,6 +52,7 @@ trait WebsocketSupport {
   val jobsConf: JobsConfiguration
   implicit val timeout: Timeout
   implicit val executionContext: ExecutionContext
+  implicit val materializer: Materializer
 
   private val decider: Supervision.Decider = {
     case err: Exception =>
@@ -130,10 +131,14 @@ trait WebsocketSupport {
   def experimentFlow: Flow[Message, Message, Any] =
     Flow[Message]
       .collect {
-        case TextMessage.Strict(jsonEncodedString) =>
-          Try {
-            jsonEncodedString.parseJson.convertTo[ExperimentQuery]
-          }
+        case TextMessage.Strict(jsonEncodedString) => Future(jsonEncodedString)
+        case TextMessage.Streamed(stream)          => stream.runFold("")(_ + _)
+      }
+      .mapAsync(3)(identity)
+      .map { jsonEncodedString =>
+        Try {
+          jsonEncodedString.parseJson.convertTo[ExperimentQuery]
+        }
       }
       .filter {
         case Success(_) => true
@@ -142,7 +147,7 @@ trait WebsocketSupport {
           false
 
       }
-      .mapAsync(1) {
+      .mapAsync(3) {
         case Success(query) =>
           (masterRouter ? query).mapTo[QueryResult]
         case Failure(e) =>
@@ -160,10 +165,14 @@ trait WebsocketSupport {
   def miningFlow: Flow[Message, Message, Any] =
     Flow[Message]
       .collect {
-        case TextMessage.Strict(jsonEncodedString) =>
-          Try {
-            jsonEncodedString.parseJson.convertTo[MiningQuery]
-          }
+        case TextMessage.Strict(jsonEncodedString) => Future(jsonEncodedString)
+        case TextMessage.Streamed(stream)          => stream.runFold("")(_ + _)
+      }
+      .mapAsync(3)(identity)
+      .map { jsonEncodedString =>
+        Try {
+          jsonEncodedString.parseJson.convertTo[ExperimentQuery]
+        }
       }
       .filter {
         case Success(_) => true
@@ -173,8 +182,7 @@ trait WebsocketSupport {
 
       }
       .withAttributes(ActorAttributes.supervisionStrategy(decider))
-      .filter(_.isSuccess)
-      .mapAsync(1) {
+      .mapAsync(3) {
         case Success(query) =>
           (masterRouter ? query).mapTo[QueryResult]
         case Failure(e) =>
