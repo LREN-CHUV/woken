@@ -96,7 +96,7 @@ object WebSocketClient
 
     val source: Source[Message, Promise[Option[Message]]] =
       Source.single(TextMessage.Strict(query)).concatMat(Source.maybe[Message])(Keep.right)
-    val flow: Flow[Message, Message, Future[Done]] =
+    val flow: Flow[Message, Message, NotUsed] =
       Flow
         .fromSinkAndSourceMat(sink, source)(Keep.left)
 
