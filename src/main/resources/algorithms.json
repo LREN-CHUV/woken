@@ -19,7 +19,7 @@
           "real": true
         }
       },
-      "description": "Histograms...",
+      "description": "Histogram of nominal or continuous variable grouped by nominal variables in independent variables.",
       "docker_image": "hbpmip/python-histograms:0.6.1",
       "environment": "Python",
       "label": "Histograms",
@@ -37,7 +37,7 @@
           "real": true
         }
       },
-      "description": "Statistics Summary...",
+      "description": "Summary statistics for both nominal and continuous variables grouped by nominal variables.",
       "docker_image": "hbpmip/python-summary-statistics:0.4.0",
       "environment": "python",
       "label": "Statistics Summary",
@@ -64,7 +64,7 @@
           "real": true
         }
       },
-      "description": "Standard Linear Regression (or Logistic Regression for nominal variables)...",
+      "description": "Standard Linear Regression (or Logistic Regression for nominal variables).",
       "docker_image": "hbpmip/python-linear-regression:0.3.1",
       "environment": "Python",
       "label": "Linear Regression",
@@ -92,7 +92,7 @@
           "real": true
         }
       },
-      "description": "Linear model using Stochastic Gradient Descent...",
+      "description": "Linear model trained with Stochastic Gradient Descent. Works with both continuous or nominal variables (logistic regression)",
       "docker_image": "hbpmip/python-sgd-linear-model:0.3.3",
       "environment": "Python",
       "label": "SGD Linear model",
@@ -156,7 +156,7 @@
           "real": false
         }
       },
-      "description": "Naive Bayes using Stochastic Gradient Descent",
+      "description": "Naive Bayes trained with Stochastic Gradient Descent that can handle both continuous and nominal covariables. Only works for classification.",
       "docker_image": "hbpmip/python-sgd-naive-bayes:0.3.3",
       "environment": "Python",
       "label": "Naive Bayes",
@@ -203,7 +203,7 @@
           "real": true
         }
       },
-      "description": "Neural Network using Stochastic Gradient Descent...",
+      "description": "Feedforward Neural Network trained with Stochastic Gradient Descent for both regression and classification.",
       "docker_image": "hbpmip/python-sgd-neural-network:0.3.3",
       "environment": "Python",
       "label": "SGD Neural Network",
@@ -274,7 +274,7 @@
           "real": true
         }
       },
-      "description": "Gradient Boosting...",
+      "description": "Gradient Boosting for both regression and classification. Produces prediction model in the form of an ensemble of weak prediction models (decision trees).",
       "docker_image": "hbpmip/python-gradient-boosting:0.3.3",
       "environment": "Python",
       "label": "Gradient Boosting",
@@ -380,7 +380,7 @@
           "real": true
         }
       },
-      "description": "ANOVA...",
+      "description": "Analysis of variance (ANOVA) for analyzing differences among group means. Supports factorial and additive design.",
       "docker_image": "hbpmip/python-anova:0.4.4",
       "environment": "Python",
       "label": "Anova",
@@ -420,7 +420,7 @@
           "real": true
         }
       },
-      "description": "K-nearest neighbors...",
+      "description": "K-nearest neighbors is a non-parametric method used for classification and regression that makes prediction based on K closest training examples.",
       "docker_image": "hbpmip/python-knn:0.4.0",
       "environment": "Python",
       "label": "K-nearest neighbors",
@@ -460,7 +460,7 @@
           "real": true
         }
       },
-      "description": "Correlation heatmap...",
+      "description": "Correlation heatmap shows dependence between continuous random variables. For nominal variables it shows pairwise cross-tabs.",
       "docker_image": "hbpmip/python-correlation-heatmap:0.4.1",
       "environment": "python",
       "label": "Correlation heatmap",
@@ -487,7 +487,7 @@
           "real": true
         }
       },
-      "description": "Principal Components Analysis...",
+      "description": "Principal Components Analysis (PCA) performs dimensionality reduction on data and shows biplot of the first two principal components.",
       "docker_image": "hbpmip/python-distributed-pca:0.4.1",
       "environment": "Python",
       "label": "PCA",
@@ -613,7 +613,7 @@
           "real": true
         }
       },
-      "description": "tSNE...",
+      "description": "tSNE is a machine learning algorithm for nonlinear dimensionality reduction. It embeds high-dimensional data for visualization in a low-dimensional space of two or three dimensions.",
       "disable": false,
       "docker_image": "hbpmip/python-tsne:0.4.2",
       "environment": "Python",
@@ -672,7 +672,7 @@
           "real": true
         }
       },
-      "description": "K-means...",
+      "description": "K-means is a method for vector quantization used for cluster analysis.",
       "docker_image": "hbpmip/python-distributed-kmeans:0.2.1",
       "environment": "Python",
       "label": "Distributed K-means",
