@@ -185,7 +185,7 @@ case class CrossValidationFlow(
     // Spawn a LocalCoordinatorActor for that one particular fold
     val jobId = UUID.randomUUID().toString
     val featuresQuery =
-      job.query
+      job.query.filterDatasets
         .filterNulls(job.algorithmDefinition.variablesCanBeNull,
                      job.algorithmDefinition.covariablesCanBeNull)
         .features(job.inputTable, Some(offset))

@@ -83,8 +83,7 @@ object MiningQueries extends LazyLogging {
       prepareQuery(variablesMetaService, jobsConfiguration, query)
 
     def createJob(mt: List[VariableMetaData], q: ExperimentQuery) =
-      ExperimentActor
-        .Job(jobId, featuresDb, featuresTable, q.filterDatasets, metadata = mt)
+      ExperimentActor.Job(jobId, featuresDb, featuresTable, q, metadata = mt)
 
     (metadata, validatedQuery) mapN createJob
 
@@ -118,9 +117,15 @@ object MiningQueries extends LazyLogging {
 
       query match {
         case q: MiningQuery =>
-          q.copy(covariables = existingCovariables, grouping = existingGroupings).asInstanceOf[Q]
+          q.copy(covariables = existingCovariables,
+                  grouping = existingGroupings,
+                  targetTable = Some(featuresTable))
+            .asInstanceOf[Q]
         case q: ExperimentQuery =>
-          q.copy(covariables = existingCovariables, grouping = existingGroupings).asInstanceOf[Q]
+          q.copy(covariables = existingCovariables,
+                  grouping = existingGroupings,
+                  targetTable = Some(featuresTable))
+            .asInstanceOf[Q]
       }
 
     }

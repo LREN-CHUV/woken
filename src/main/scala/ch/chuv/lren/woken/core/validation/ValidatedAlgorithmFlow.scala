@@ -119,7 +119,7 @@ case class ValidatedAlgorithmFlow(
         // Spawn a CoordinatorActor
         val jobId = UUID.randomUUID().toString
         val featuresQuery =
-          job.query
+          job.query.filterDatasets
             .filterNulls(job.algorithmDefinition.variablesCanBeNull,
                          job.algorithmDefinition.covariablesCanBeNull)
             .features(job.inputTable, None)
