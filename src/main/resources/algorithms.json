@@ -67,7 +67,7 @@
       "description": "Standard Linear Regression (or Logistic Regression for nominal variables).",
       "docker_image": "hbpmip/python-linear-regression:0.3.1",
       "environment": "Python",
-      "label": "Linear Regression",
+      "label": "Bayesian Linear Regression",
       "parameters": [],
       "type": [
         "statistics"
