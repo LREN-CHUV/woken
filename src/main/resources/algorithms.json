@@ -673,7 +673,7 @@
         }
       },
       "description": "K-means...",
-      "docker_image": "hbpmip/python-distributed-kmeans:0.2.0",
+      "docker_image": "hbpmip/python-distributed-kmeans:0.2.1",
       "environment": "Python",
       "label": "Distributed K-means",
       "parameters": [
