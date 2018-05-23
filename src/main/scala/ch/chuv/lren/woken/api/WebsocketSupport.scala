@@ -171,7 +171,7 @@ trait WebsocketSupport {
       .mapAsync(3)(identity)
       .map { jsonEncodedString =>
         Try {
-          jsonEncodedString.parseJson.convertTo[ExperimentQuery]
+          jsonEncodedString.parseJson.convertTo[MiningQuery]
         }
       }
       .filter {
