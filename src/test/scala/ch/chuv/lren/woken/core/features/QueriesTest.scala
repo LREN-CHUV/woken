@@ -42,6 +42,7 @@ class QueriesTest extends WordSpec with Matchers {
       user = user,
       variables = List("target").map(VariableId),
       covariables = List("a", "b", "c").map(VariableId),
+      covariablesMustExist = false,
       grouping = List("grp1", "grp2").map(VariableId),
       filters = Some(rule),
       targetTable = None,
@@ -92,6 +93,7 @@ class QueriesTest extends WordSpec with Matchers {
         user = user,
         variables = List("tarGet-var").map(VariableId),
         covariables = List("1a", "12-b", "c").map(VariableId),
+        covariablesMustExist = false,
         grouping = List("grp1", "grp2").map(VariableId),
         filters =
           Some(SingleFilterRule("a", "1a", "number", InputType.number, Operator.less, List("10"))),

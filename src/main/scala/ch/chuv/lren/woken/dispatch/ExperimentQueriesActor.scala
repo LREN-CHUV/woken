@@ -194,7 +194,8 @@ class ExperimentQueriesActor(
             .groupBy(_._1.execution)
             .map {
               case (step, algorithmSpecs) =>
-                (step, job.query.copy(algorithms = algorithmSpecs.map(_._2)))
+                (step,
+                 job.query.copy(covariablesMustExist = true, algorithms = algorithmSpecs.map(_._2)))
             }
 
         val mapQuery = queriesByStepExecution.getOrElse(ExecutionStyle.map, job.query)

@@ -28,6 +28,7 @@ import ch.chuv.lren.woken.service.VariablesMetaService
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.core.model.{ DockerJob, Job, ValidationJob, VariablesMeta }
 import cats.data._
+import cats.data.Validated._
 import cats.implicits._
 import ch.chuv.lren.woken.core.features.Queries
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
@@ -102,32 +103,43 @@ object MiningQueries extends LazyLogging {
       variablesMetaService.get(metadataKey),
       NonEmptyList(s"Cannot find metadata for table $metadataKey", Nil)
     )
-    val metadata: Validation[List[VariableMetaData]] =
-      variablesMeta.andThen(v => v.selectVariables(query.dbAllVars))
 
     val validatedQuery = variablesMeta.map { v =>
-      val existingDbCovariables = v.filterVariables(query.dbCovariables.contains).map(_.code)
-      val existingCovariables = query.covariables.filter { covar =>
-        existingDbCovariables.contains(Queries.toField(covar))
-      }
-      val existingDbGroupings = v.filterVariables(query.dbGrouping.contains).map(_.code)
-      val existingGroupings = query.grouping.filter { grouping =>
-        existingDbGroupings.contains(Queries.toField(grouping))
-      }
+      if (query.covariablesMustExist)
+        query
+      else {
 
-      query match {
-        case q: MiningQuery =>
-          q.copy(covariables = existingCovariables,
-                  grouping = existingGroupings,
-                  targetTable = Some(featuresTable))
-            .asInstanceOf[Q]
-        case q: ExperimentQuery =>
-          q.copy(covariables = existingCovariables,
-                  grouping = existingGroupings,
-                  targetTable = Some(featuresTable))
-            .asInstanceOf[Q]
-      }
+        // Take only the covariables (and groupings) known to exist on the target table
+        val existingDbCovariables = v.filterVariables(query.dbCovariables.contains).map(_.code)
+        val existingCovariables = query.covariables.filter { covar =>
+          existingDbCovariables.contains(Queries.toField(covar))
+        }
+        val existingDbGroupings = v.filterVariables(query.dbGrouping.contains).map(_.code)
+        val existingGroupings = query.grouping.filter { grouping =>
+          existingDbGroupings.contains(Queries.toField(grouping))
+        }
 
+        query match {
+          case q: MiningQuery =>
+            q.copy(covariables = existingCovariables,
+                    grouping = existingGroupings,
+                    targetTable = Some(featuresTable))
+              .asInstanceOf[Q]
+          case q: ExperimentQuery =>
+            q.copy(covariables = existingCovariables,
+                    grouping = existingGroupings,
+                    targetTable = Some(featuresTable))
+              .asInstanceOf[Q]
+        }
+      }
+    }
+
+    val m: Validation[(VariablesMeta, Q)] =
+      (variablesMeta, validatedQuery) mapN Tuple2.apply
+
+    val metadata: Validation[List[VariableMetaData]] = m.andThen {
+      case (v, q) =>
+        v.selectVariables(q.dbAllVars)
     }
 
     jobId :: featuresDb :: featuresTable :: metadata :: validatedQuery :: HNil

@@ -295,6 +295,7 @@ case class ExperimentFlow(
           user = query.user,
           variables = query.variables,
           covariables = query.covariables,
+          covariablesMustExist = query.covariablesMustExist,
           grouping = query.grouping,
           filters = query.filters,
           targetTable = Some(job.inputTable),

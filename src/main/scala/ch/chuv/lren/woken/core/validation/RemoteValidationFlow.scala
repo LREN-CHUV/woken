@@ -143,6 +143,7 @@ case class RemoteValidationFlow(
       user = v.query.user,
       variables = v.query.variables,
       covariables = v.query.covariables,
+      covariablesMustExist = true,
       grouping = v.query.grouping,
       filters = v.query.filters,
       targetTable = v.query.targetTable

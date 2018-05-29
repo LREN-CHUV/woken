@@ -24,7 +24,6 @@ import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{ Actor, ActorRef, OneForOneStrategy, Props }
 import akka.routing.{ OptimalSizeExploringResizer, RoundRobinPool }
 import akka.stream.scaladsl.{ Flow, Sink, Source }
-import cats.data.{ NonEmptyList, Validated }
 import ch.chuv.lren.woken.config.AlgorithmDefinition
 import ch.chuv.lren.woken.core._
 import ch.chuv.lren.woken.core.commands.JobCommands.StartCoordinatorJob
@@ -34,7 +33,6 @@ import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.validation.Score
 import ch.chuv.lren.woken.messages.validation.validationProtocol._
-import ch.chuv.lren.woken.messages.variables.{ VariableMetaData, VariableType }
 import ch.chuv.lren.woken.service.{ DispatcherService, VariablesMetaService }
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
@@ -166,7 +164,7 @@ class MiningQueriesActor(
   private def runMiningJob(query: MiningQuery, initiator: ActorRef, job: DockerJob): Unit = {
 
     // Detection of histograms in federation mode
-    val forceLocal = (query.algorithm.code == "histograms")
+    val forceLocal = query.algorithm.code == "histograms"
 
     if (forceLocal) {
       logger.info(s"Local data mining for query $query")
@@ -202,7 +200,9 @@ class MiningQueriesActor(
             .valueOr(e => throw new IllegalStateException(e.toList.mkString(",")))
           val queriesByStepExecution: Map[ExecutionStyle.Value, MiningQuery] =
             algorithmDefinition.distributedExecutionPlan.steps.map { step =>
-              (step.execution, query.copy(algorithm = algorithm.copy(step = Some(step))))
+              (step.execution,
+               query.copy(covariablesMustExist = true,
+                          algorithm = algorithm.copy(step = Some(step))))
             }.toMap
 
           val mapQuery = queriesByStepExecution.getOrElse(ExecutionStyle.map, query)
