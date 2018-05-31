@@ -19,7 +19,7 @@ package ch.chuv.lren.woken.dao
 
 import cats._
 import cats.implicits._
-import ch.chuv.lren.woken.core.model.VariablesMeta
+import ch.chuv.lren.woken.core.model.{TableDescription, VariablesMeta}
 
 import scala.collection.concurrent.TrieMap
 import scala.language.higherKinds
@@ -31,6 +31,8 @@ trait MetadataRepository[F[_]] extends Repository {
 
   def variablesMeta: VariablesMetaRepository[F]
 
+  def tablesCatalog: TablesCatalogRepository[F]
+
 }
 
 trait VariablesMetaRepository[F[_]] extends Repository {
@@ -38,6 +40,14 @@ trait VariablesMetaRepository[F[_]] extends Repository {
   def put(variablesMeta: VariablesMeta): F[VariablesMeta]
 
   def get(targetFeaturesTable: String): F[Option[VariablesMeta]]
+
+}
+
+trait TablesCatalogRepository[F[_]] extends Repository {
+
+  def put(table: TableDescription): F[TableDescription]
+
+  def get(table: String): F[Option[TableDescription]]
 
 }
 
@@ -54,6 +64,20 @@ class MetadataInMemoryRepository[F[_]: Applicative] extends MetadataRepository[F
 
     override def get(targetFeaturesTable: String): F[Option[VariablesMeta]] =
       cache.get(targetFeaturesTable).pure[F]
+
+  }
+
+  override val tablesCatalog: TablesCatalogRepository[F] = new TablesCatalogRepository[F] {
+
+    private val cache = new TrieMap[String, TableDescription]
+
+    override def put(table: TableDescription): F[TableDescription] = {
+      cache.put(table.name, table)
+      table.pure[F]
+    }
+
+    override def get(table: String): F[Option[TableDescription]] =
+      cache.get(table).pure[F]
 
   }
 
