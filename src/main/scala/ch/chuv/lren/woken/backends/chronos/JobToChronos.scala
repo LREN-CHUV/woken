@@ -45,13 +45,13 @@ object JobToChronos {
             jdbcConfF: String => Validation[DatabaseConfiguration]): Validation[ChronosJob] = {
 
     val container = dockerBridgeNetwork.fold(
-      Container(`type` = ContainerType.DOCKER, image = job.dockerImage)
+      Container(`type` = ContainerType.DOCKER, image = job.algorithmDefinition.dockerImage)
     )(
       bridge =>
         // LATER: adding --network=<bridge> is still required, despite having the information in networkInfos
         // networkInfos = List(Network(name = bridge)),
         Container(`type` = ContainerType.DOCKER,
-                  image = job.dockerImage,
+                  image = job.algorithmDefinition.dockerImage,
                   network = NetworkMode.BRIDGE,
                   parameters = List(Parameter("network", bridge)))
     )
@@ -61,7 +61,7 @@ object JobToChronos {
       val environmentVariables: List[EV] = List(
         EV("JOB_ID", job.jobId),
         EV("NODE", jobsConf.node),
-        EV("DOCKER_IMAGE", job.dockerImage)
+        EV("DOCKER_IMAGE", job.algorithmDefinition.dockerImage)
       ) ++
         job.environmentVariables.map(kv => EV(kv._1, kv._2)) ++
         dbEnvironment(inputDb, "IN_") ++

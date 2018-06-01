@@ -23,7 +23,7 @@ import cats.data.Validated
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.config.{ AlgorithmDefinition, JobsConfiguration }
 import ch.chuv.lren.woken.core.ExperimentActor
-import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
+import ch.chuv.lren.woken.cromwell.core.ConfigUtil.{ Validation, lift }
 import ch.chuv.lren.woken.service.VariablesMetaService
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.core.model.{ DockerJob, Job, ValidationJob, VariablesMeta }
@@ -51,12 +51,12 @@ object MiningQueries extends LazyLogging {
     val jobId :: featuresDb :: featuresTable :: metadata :: validatedQuery :: HNil =
       prepareQuery(variablesMetaService, jobsConfiguration, query)
 
-    def createJob(mt: List[VariableMetaData], q: MiningQuery, al: AlgorithmDefinition) = {
+    def createJob(mt: List[VariableMetaData], q: MiningQuery, ad: AlgorithmDefinition) = {
       val featuresQuery = q.filterDatasets
-        .filterNulls(al.variablesCanBeNull, al.covariablesCanBeNull)
+        .filterNulls(ad.variablesCanBeNull, ad.covariablesCanBeNull)
         .features(featuresTable, None)
 
-      DockerJob(jobId, al.dockerImage, featuresDb, featuresQuery, query.algorithm, metadata = mt)
+      DockerJob(jobId, featuresDb, featuresQuery, query.algorithm, ad, metadata = mt)
     }
 
     query.algorithm.code match {
@@ -77,16 +77,32 @@ object MiningQueries extends LazyLogging {
 
   def experimentQuery2Job(
       variablesMetaService: VariablesMetaService,
-      jobsConfiguration: JobsConfiguration
+      jobsConfiguration: JobsConfiguration,
+      algorithmLookup: String => Validation[AlgorithmDefinition]
   )(query: ExperimentQuery): Validation[ExperimentActor.Job] = {
 
     val jobId :: featuresDb :: featuresTable :: metadata :: validatedQuery :: HNil =
       prepareQuery(variablesMetaService, jobsConfiguration, query)
 
-    def createJob(mt: List[VariableMetaData], q: ExperimentQuery) =
-      ExperimentActor.Job(jobId, featuresDb, featuresTable, q, metadata = mt)
+    def createJob(mt: List[VariableMetaData],
+                  q: ExperimentQuery,
+                  algorithms: Map[AlgorithmSpec, AlgorithmDefinition]) =
+      ExperimentActor.Job(jobId,
+                          featuresDb,
+                          featuresTable,
+                          q,
+                          metadata = mt,
+                          algorithms = algorithms)
 
-    (metadata, validatedQuery) mapN createJob
+    val validatedAlgorithms: Validation[Map[AlgorithmSpec, AlgorithmDefinition]] =
+      query.algorithms
+        .map { algorithm =>
+          (lift(algorithm), algorithmLookup(algorithm.code)) mapN Tuple2.apply
+        }
+        .traverse[Validation, (AlgorithmSpec, AlgorithmDefinition)](identity)
+        .map(_.toMap)
+
+    (metadata, validatedQuery, validatedAlgorithms) mapN createJob
 
   }
 
@@ -104,7 +120,7 @@ object MiningQueries extends LazyLogging {
       NonEmptyList(s"Cannot find metadata for table $metadataKey", Nil)
     )
 
-    val validatedQuery = variablesMeta.map { v =>
+    val validatedQuery: Validation[Q] = variablesMeta.map { v =>
       if (query.covariablesMustExist)
         query
       else {

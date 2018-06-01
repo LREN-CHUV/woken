@@ -192,10 +192,10 @@ case class CrossValidationFlow(
 
     val subJob = DockerJob(
       jobId = jobId,
-      dockerImage = job.algorithmDefinition.dockerImage,
       inputDb = job.inputDb,
       query = featuresQuery,
       algorithmSpec = job.query.algorithm,
+      algorithmDefinition = job.algorithmDefinition,
       metadata = job.metadata
     )
 

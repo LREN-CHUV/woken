@@ -23,7 +23,6 @@ import akka.stream._
 import akka.stream.scaladsl.{ Flow, Sink, Source }
 import ch.chuv.lren.woken.config.AlgorithmDefinition
 import ch.chuv.lren.woken.core.model.{ ExperimentJobResult, PfaJobResult, ValidationJob }
-import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.APIJsonProtocol
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.validation.Score
@@ -36,17 +35,19 @@ import APIJsonProtocol._
 
 object RemoteValidationFlow {
 
-  case class ValidationContext(query: ExperimentQuery, experimentResult: ExperimentJobResult)
+  case class ValidationContext(query: ExperimentQuery,
+                               algorithms: Map[AlgorithmSpec, AlgorithmDefinition],
+                               experimentResult: ExperimentJobResult)
   case class PartialValidation(query: ExperimentQuery,
                                experimentResult: ExperimentJobResult,
                                algorithmSpec: AlgorithmSpec,
+                               algorithmDefinition: AlgorithmDefinition,
                                model: Option[PfaJobResult])
 
 }
 
 case class RemoteValidationFlow(
     dispatcherService: DispatcherService,
-    algorithmLookup: String => Validation[AlgorithmDefinition],
     context: ActorContext
 )(implicit materializer: Materializer, ec: ExecutionContext)
     extends LazyLogging {
@@ -57,10 +58,20 @@ case class RemoteValidationFlow(
   def remoteValidate: Flow[ValidationContext, ValidationContext, NotUsed] =
     Flow[ValidationContext]
       .mapAsync(1) { ctx =>
+        def definitionOf(spec: AlgorithmSpec) =
+          ctx.algorithms.getOrElse(
+            spec,
+            throw new IllegalStateException(s"Expected a definition matching algorithm spec $spec")
+          )
         val partialValidations: List[PartialValidation] = ctx.experimentResult.results.map {
           case (spec, model: PfaJobResult) =>
-            PartialValidation(ctx.query, ctx.experimentResult, spec, Some(model))
-          case (spec, _) => PartialValidation(ctx.query, ctx.experimentResult, spec, None)
+            PartialValidation(ctx.query,
+                              ctx.experimentResult,
+                              spec,
+                              definitionOf(spec),
+                              Some(model))
+          case (spec, _) =>
+            PartialValidation(ctx.query, ctx.experimentResult, spec, definitionOf(spec), None)
         }.toList
 
         Source(partialValidations)
@@ -121,33 +132,28 @@ case class RemoteValidationFlow(
       .runWith(Sink.last)
   }
 
-  private def buildMineForValidationQuery(v: PartialValidation) = {
-    val algorithmDefinition: AlgorithmDefinition = algorithmLookup(v.algorithmSpec.code)
-      .valueOr(e => throw new IllegalStateException(e.toList.mkString(",")))
-
-    MiningQuery(
-      algorithm = AlgorithmSpec(
-        ValidationJob.algorithmCode,
-        List(
-          // Take the raw model, as model contains runtime-inserted validations which are not yet compliant with PFA / Avro spec
-          CodeValue("model", v.model.map(_.modelWithoutValidation.compactPrint).getOrElse {
-            throw new IllegalArgumentException("Expecting a model")
-          }),
-          CodeValue("variablesCanBeNull", algorithmDefinition.variablesCanBeNull.toString),
-          CodeValue("covariablesCanBeNull", algorithmDefinition.covariablesCanBeNull.toString)
-        ),
-        None
+  private def buildMineForValidationQuery(v: PartialValidation) = MiningQuery(
+    algorithm = AlgorithmSpec(
+      ValidationJob.algorithmCode,
+      List(
+        // Take the raw model, as model contains runtime-inserted validations which are not yet compliant with PFA / Avro spec
+        CodeValue("model", v.model.map(_.modelWithoutValidation.compactPrint).getOrElse {
+          throw new IllegalArgumentException("Expecting a model")
+        }),
+        CodeValue("variablesCanBeNull", v.algorithmDefinition.variablesCanBeNull.toString),
+        CodeValue("covariablesCanBeNull", v.algorithmDefinition.covariablesCanBeNull.toString)
       ),
-      executionPlan = None,
-      datasets = v.query.validationDatasets.diff(dispatcherService.localDatasets),
-      user = v.query.user,
-      variables = v.query.variables,
-      covariables = v.query.covariables,
-      covariablesMustExist = true,
-      grouping = v.query.grouping,
-      filters = v.query.filters,
-      targetTable = v.query.targetTable
-    )
-  }
+      None
+    ),
+    executionPlan = None,
+    datasets = v.query.validationDatasets.diff(dispatcherService.localDatasets),
+    user = v.query.user,
+    variables = v.query.variables,
+    covariables = v.query.covariables,
+    covariablesMustExist = true,
+    grouping = v.query.grouping,
+    filters = v.query.filters,
+    targetTable = v.query.targetTable
+  )
 
 }

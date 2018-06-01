@@ -57,10 +57,9 @@ object MasterRouter {
         coordinatorConfig,
         dispatcherService,
         algorithmLibraryService,
-        algorithmLookup,
         datasetService,
         variablesMetaService,
-        experimentQuery2Job(variablesMetaService, coordinatorConfig.jobsConf),
+        experimentQuery2Job(variablesMetaService, coordinatorConfig.jobsConf, algorithmLookup),
         miningQuery2Job(variablesMetaService, coordinatorConfig.jobsConf, algorithmLookup)
       )
     )
@@ -72,7 +71,6 @@ case class MasterRouter(config: Config,
                         coordinatorConfig: CoordinatorConfig,
                         dispatcherService: DispatcherService,
                         algorithmLibraryService: AlgorithmLibraryService,
-                        algorithmLookup: String => Validation[AlgorithmDefinition],
                         datasetService: DatasetService,
                         variablesMetaService: VariablesMetaService,
                         experimentQuery2JobF: ExperimentQuery => Validation[ExperimentActor.Job],
@@ -141,7 +139,6 @@ case class MasterRouter(config: Config,
                                              coordinatorConfig,
                                              dispatcherService,
                                              variablesMetaService,
-                                             algorithmLookup,
                                              miningQuery2JobF),
       name = "miningQueries"
     )
@@ -151,7 +148,6 @@ case class MasterRouter(config: Config,
       ExperimentQueriesActor.roundRobinPoolProps(config,
                                                  coordinatorConfig,
                                                  dispatcherService,
-                                                 algorithmLookup,
                                                  experimentQuery2JobF),
       name = "experimentQueries"
     )

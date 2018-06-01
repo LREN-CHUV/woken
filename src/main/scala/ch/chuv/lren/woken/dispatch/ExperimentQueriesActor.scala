@@ -46,20 +46,15 @@ object ExperimentQueriesActor extends LazyLogging {
 
   def props(coordinatorConfig: CoordinatorConfig,
             dispatcherService: DispatcherService,
-            algorithmLookup: String => Validation[AlgorithmDefinition],
             experimentQuery2JobF: ExperimentQuery => Validation[ExperimentActor.Job]): Props =
     Props(
-      new ExperimentQueriesActor(coordinatorConfig,
-                                 dispatcherService,
-                                 algorithmLookup,
-                                 experimentQuery2JobF)
+      new ExperimentQueriesActor(coordinatorConfig, dispatcherService, experimentQuery2JobF)
     )
 
   def roundRobinPoolProps(
       config: Config,
       coordinatorConfig: CoordinatorConfig,
       dispatcherService: DispatcherService,
-      algorithmLookup: String => Validation[AlgorithmDefinition],
       experimentQuery2JobF: ExperimentQuery => Validation[ExperimentActor.Job]
   ): Props = {
 
@@ -83,7 +78,7 @@ object ExperimentQueriesActor extends LazyLogging {
       supervisorStrategy = experimentSupervisorStrategy
     ).props(
       ExperimentQueriesActor
-        .props(coordinatorConfig, dispatcherService, algorithmLookup, experimentQuery2JobF)
+        .props(coordinatorConfig, dispatcherService, experimentQuery2JobF)
     )
   }
 
@@ -92,14 +87,13 @@ object ExperimentQueriesActor extends LazyLogging {
 class ExperimentQueriesActor(
     override val coordinatorConfig: CoordinatorConfig,
     dispatcherService: DispatcherService,
-    algorithmLookup: String => Validation[AlgorithmDefinition],
     experimentQuery2JobF: ExperimentQuery => Validation[ExperimentActor.Job]
 ) extends QueriesActor[ExperimentQuery] {
 
   import ExperimentQueriesActor.Experiment
 
   val remoteValidationFlow: Flow[ValidationContext, ValidationContext, NotUsed] =
-    RemoteValidationFlow(dispatcherService, algorithmLookup, context).remoteValidate
+    RemoteValidationFlow(dispatcherService, context).remoteValidate
 
   override def receive: Receive = {
 
@@ -130,7 +124,7 @@ class ExperimentQueriesActor(
     case ExperimentActor.Response(job, Right(results), initiator) =>
       logger.info(s"Received response for experiment on ${job.query}: $results")
       Source
-        .single(ValidationContext(job.query, results))
+        .single(ValidationContext(job.query, job.algorithms, results))
         .via(remoteValidationFlow)
         .map[QueryResult] { r =>
           val result = r.experimentResult.asQueryResult(Some(job.query))
@@ -166,7 +160,7 @@ class ExperimentQueriesActor(
       // Execution of the experiment from the central server using one remote node
       case (remoteLocations, false) if remoteLocations.size == 1 =>
         logger.info(s"Remote experiment on a single node $remoteLocations for query $query")
-        mapFlow(job.query)
+        mapFlow(job.query, job.algorithms)
           .mapAsync(1) {
             case List()        => Future(noResult(job.query))
             case List(result)  => Future(result.copy(query = Some(query)))
@@ -184,8 +178,7 @@ class ExperimentQueriesActor(
         val queriesByStepExecution: Map[ExecutionStyle.Value, ExperimentQuery] =
           job.query.algorithms
             .flatMap { algorithm =>
-              val algorithmDefinition: AlgorithmDefinition = algorithmLookup(algorithm.code)
-                .valueOr(e => throw new IllegalStateException(e.toList.mkString(",")))
+              val algorithmDefinition = job.definitionOf(algorithm)
 
               algorithmDefinition.distributedExecutionPlan.steps.map { step =>
                 (step, algorithm.copy(step = Some(step)))
@@ -203,7 +196,7 @@ class ExperimentQueriesActor(
           .get(ExecutionStyle.reduce)
           .map(_.copy(trainingDatasets = Set(), validationDatasets = Set()))
 
-        mapFlow(mapQuery)
+        mapFlow(mapQuery, job.algorithms)
           .mapAsync(1) {
             case List()       => Future(noResult(query))
             case List(result) => Future(result.copy(query = Some(query)))
@@ -217,7 +210,8 @@ class ExperimentQueriesActor(
           .foreach(reportError(query, initiator))
     }
 
-  private def mapFlow(mapQuery: ExperimentQuery) =
+  private def mapFlow(mapQuery: ExperimentQuery,
+                      algorithms: Map[AlgorithmSpec, AlgorithmDefinition]) =
     Source
       .single(mapQuery)
       .via(dispatcherService.dispatchRemoteExperimentFlow)
@@ -225,7 +219,7 @@ class ExperimentQueriesActor(
         JobResult.fromQueryResult(result._2) match {
           case experimentResult: ExperimentJobResult =>
             Source
-              .single(ValidationContext(mapQuery, experimentResult))
+              .single(ValidationContext(mapQuery, algorithms, experimentResult))
               .via(remoteValidationFlow)
               .map[QueryResult] { r =>
                 r.experimentResult.asQueryResult(Some(mapQuery))
@@ -255,7 +249,7 @@ class ExperimentQueriesActor(
   }
 
   private[dispatch] def newExperimentActor: ActorRef =
-    context.actorOf(ExperimentActor.props(coordinatorConfig, algorithmLookup, dispatcherService))
+    context.actorOf(ExperimentActor.props(coordinatorConfig, dispatcherService))
 
   private[dispatch] def reduceUsingJobs(query: ExperimentQuery,
                                         jobIds: List[String]): ExperimentQuery =

@@ -17,6 +17,7 @@
 
 package ch.chuv.lren.woken.core.model
 
+import ch.chuv.lren.woken.config.AlgorithmDefinition
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables.{ VariableMetaData, variablesProtocol }
@@ -28,24 +29,24 @@ import variablesProtocol._
   * Definition of a computation using an algorithm packaged as a Docker container.
   *
   * @param jobId Id of the job. Must be unique
-  * @param dockerImage Name of the Docker image to use. Include the version to ensure reproducibility
   * @param inputDb Name of the input database
   * @param query A representation of the query selecting features
   * @param algorithmSpec Specifications for the algorithm. We use only the parameters here, the algorithm having already been used to select the Docker image to execute.
+  * @param algorithmDefinition: Definition of the algorithm and how to execute it in Docker
   * @param metadata Metadata associated with each field used in the query
   */
 case class DockerJob(
     jobId: String,
-    dockerImage: String,
     inputDb: String,
     query: FeaturesQuery,
     algorithmSpec: AlgorithmSpec,
+    algorithmDefinition: AlgorithmDefinition,
     metadata: List[VariableMetaData]
 ) extends Job
     with LazyLogging {
 
   def jobName: String =
-    (dockerImage.replaceAll("^.*?/", "").takeWhile(_ != ':') + "_" + jobId)
+    (algorithmDefinition.dockerImage.replaceAll("^.*?/", "").takeWhile(_ != ':') + "_" + jobId)
       .replaceAll("[/.-]", "_")
 
   def environmentVariables: Map[String, String] =

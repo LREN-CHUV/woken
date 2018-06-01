@@ -17,7 +17,12 @@
 
 package ch.chuv.lren.woken.backends.chronos
 
-import ch.chuv.lren.woken.config.{ DatabaseConfiguration, JobsConfiguration }
+import ch.chuv.lren.woken.config.{
+  AlgorithmDefinition,
+  AlgorithmEngine,
+  DatabaseConfiguration,
+  JobsConfiguration
+}
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.query.filters.{ InputType, Operator, SingleFilterRule }
 import ch.chuv.lren.woken.messages.variables.{ VariableId, VariableMetaData, VariableType }
@@ -35,6 +40,14 @@ class JobToChronosTest extends FlatSpec with Matchers {
     parameters = List(CodeValue("k", "5"), CodeValue("n", "1")),
     step = None
   )
+
+  val algorithmDefinition = AlgorithmDefinition("knn",
+                                                "hbpmip/test",
+                                                false,
+                                                false,
+                                                false,
+                                                AlgorithmEngine.Docker,
+                                                ExecutionPlan.scatterGather)
 
   val user: UserId = UserId("test")
 
@@ -185,10 +198,10 @@ class JobToChronosTest extends FlatSpec with Matchers {
 
     val dockerJob = DockerJob(
       jobId = "1234",
-      dockerImage = "hbpmpi/test",
       inputDb = "features_db",
       query = featuresQuery,
       algorithmSpec = query.algorithm,
+      algorithmDefinition = algorithmDefinition,
       metadata = metadata
     )
 
@@ -197,7 +210,7 @@ class JobToChronosTest extends FlatSpec with Matchers {
     val environmentVariables = List(
       EnvironmentVariable("JOB_ID", "1234"),
       EnvironmentVariable("NODE", "test"),
-      EnvironmentVariable("DOCKER_IMAGE", "hbpmpi/test"),
+      EnvironmentVariable("DOCKER_IMAGE", "hbpmip/test"),
       EnvironmentVariable("PARAM_variables", "target"),
       EnvironmentVariable("MODEL_PARAM_k", "5"),
       EnvironmentVariable("MODEL_PARAM_n", "1"),
@@ -259,10 +272,10 @@ class JobToChronosTest extends FlatSpec with Matchers {
 
     val dockerJob = DockerJob(
       jobId = "1234",
-      dockerImage = "hbpmpi/test",
       inputDb = "unknown_db",
       query = featuresQuery,
       algorithmSpec = query.algorithm,
+      algorithmDefinition = algorithmDefinition,
       metadata = metadata
     )
 

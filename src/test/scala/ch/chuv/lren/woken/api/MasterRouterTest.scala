@@ -66,7 +66,8 @@ class MasterRouterTest
         inputDb = "",
         inputTable = "",
         query = query,
-        metadata = Nil
+        metadata = Nil,
+        algorithms = Map()
       )
     )
 
@@ -78,10 +79,12 @@ class MasterRouterTest
     ConfigUtil.lift(
       DockerJob(
         jobId = UUID.randomUUID().toString,
-        dockerImage = "",
         inputDb = "",
         query = featuresQuery,
         algorithmSpec = query.algorithm,
+        algorithmDefinition = AlgorithmsConfiguration
+          .factory(config)(query.algorithm.code)
+          .getOrElse(throw new IllegalArgumentException("Unknown algorithm")),
         metadata = Nil
       )
     )
@@ -92,7 +95,6 @@ class MasterRouterTest
                               coordinatorConfig: CoordinatorConfig,
                               dispatcherService: DispatcherService,
                               algorithmLibraryService: AlgorithmLibraryService,
-                              algorithmLookup: String => Validation[AlgorithmDefinition],
                               datasetService: DatasetService,
                               variablesMetaService: VariablesMetaService)
       extends MasterRouter(
@@ -101,7 +103,6 @@ class MasterRouterTest
         coordinatorConfig,
         dispatcherService,
         algorithmLibraryService,
-        algorithmLookup,
         datasetService,
         variablesMetaService,
         experimentQuery2job,
@@ -121,7 +122,6 @@ class MasterRouterTest
                                    coordinatorConfig: CoordinatorConfig,
                                    dispatcherService: DispatcherService,
                                    algorithmLibraryService: AlgorithmLibraryService,
-                                   algorithmLookup: String => Validation[AlgorithmDefinition],
                                    datasetService: DatasetService,
                                    variablesMetaService: VariablesMetaService,
                                    coordinatorActor: ActorRef)
@@ -130,7 +130,6 @@ class MasterRouterTest
                                     coordinatorConfig,
                                     dispatcherService,
                                     algorithmLibraryService,
-                                    algorithmLookup,
                                     datasetService,
                                     variablesMetaService) {
 
@@ -181,7 +180,6 @@ class MasterRouterTest
             coordinatorConfig,
             dispatcherService,
             algorithmLibraryService,
-            AlgorithmsConfiguration.factory(config),
             datasetService,
             emptyVariablesMetaService
           )
@@ -317,7 +315,6 @@ class MasterRouterTest
             coordinatorConfig,
             dispatcherService,
             algorithmLibraryService,
-            AlgorithmsConfiguration.factory(config),
             datasetService,
             emptyVariablesMetaService,
             testCoordinatorActor

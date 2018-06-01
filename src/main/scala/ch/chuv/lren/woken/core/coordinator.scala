@@ -212,14 +212,14 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
 
     case Event(e: ChronosService.Error, data: PartialLocalData) =>
       val msg =
-        s"Cannot complete job ${data.job.jobId} using ${data.job.dockerImage}, received error: ${e.message}"
+        s"Cannot complete job ${data.job.jobId} using ${data.job.algorithmDefinition.dockerImage}, received error: ${e.message}"
       logger.error(msg)
       data.replyTo ! errorResponse(data.job, msg, data.initiator)
       stop(Failure(msg))
 
     case Event(_: Timeout @unchecked, data: PartialLocalData) =>
       val msg =
-        s"Cannot complete job ${data.job.jobId} using ${data.job.dockerImage}, timeout while connecting to Chronos"
+        s"Cannot complete job ${data.job.jobId} using ${data.job.algorithmDefinition.dockerImage}, timeout while connecting to Chronos"
       logger.error(msg)
       data.replyTo ! errorResponse(data.job, msg, data.initiator)
       stop(Failure(msg))
@@ -232,7 +232,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
     case Event(StateTimeout, data: PartialLocalData) =>
       if (System.currentTimeMillis > data.timeoutTime) {
         val msg =
-          s"Cannot complete job ${data.job.jobId} using ${data.job.dockerImage}, job timed out"
+          s"Cannot complete job ${data.job.jobId} using ${data.job.algorithmDefinition.dockerImage}, job timed out"
         logger.error(msg)
         data.replyTo ! errorResponse(data.job, msg, data.initiator)
         stop(Failure(msg))
@@ -280,7 +280,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
         val reportedSuccess = !results.exists { case _: ErrorJobResult => true; case _ => false }
         if (reportedSuccess != success) {
           logger.warn(
-            s"Chronos reported that job ${data.job.jobId} using Docker image ${data.job.dockerImage} is ${if (!success)
+            s"Chronos reported that job ${data.job.jobId} using Docker image ${data.job.algorithmDefinition.dockerImage} is ${if (!success)
               "not "}successful, however the job results ${if (reportedSuccess) "do not "}contain an error"
           )
         }
@@ -306,7 +306,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
         )
       }
       val msg =
-        s"Chronos lost track of job ${data.job.jobId} using ${data.job.dockerImage}, it may have been stopped manually"
+        s"Chronos lost track of job ${data.job.jobId} using ${data.job.algorithmDefinition.dockerImage}, it may have been stopped manually"
       logger.error(msg)
       data.replyTo ! errorResponse(data.job, msg, data.initiator)
       stop(Failure(msg))
@@ -327,7 +327,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
         )
       }
       logger.warn(
-        s"Chronos reported status $status for job ${data.job.jobId} using ${data.job.dockerImage}"
+        s"Chronos reported status $status for job ${data.job.jobId} using ${data.job.algorithmDefinition.dockerImage}"
       )
       // Nothing more to do, wait
       stay() forMax repeatDuration
@@ -339,7 +339,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
         )
       }
       logger.warn(
-        s"Chronos appear unresponsive with error $error while checking job ${data.job.jobId} using ${data.job.dockerImage}"
+        s"Chronos appear unresponsive with error $error while checking job ${data.job.jobId} using ${data.job.algorithmDefinition.dockerImage}"
       )
       // TODO: if Chronos is down for too long, enter panic state!
       // Nothing more to do, wait
@@ -357,7 +357,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
     case Event(StateTimeout, data: ExpectedLocalData) =>
       if (System.currentTimeMillis > data.timeoutTime) {
         val msg =
-          s"Job ${data.job.jobId} using ${data.job.dockerImage} has completed in Chronos, but encountered timeout while waiting for job results.\n" +
+          s"Job ${data.job.jobId} using ${data.job.algorithmDefinition.dockerImage} has completed in Chronos, but encountered timeout while waiting for job results.\n" +
             "Does the algorithm store its results or errors in the output database?"
         logger.error(msg)
         data.replyTo ! errorResponse(data.job, msg, data.initiator)

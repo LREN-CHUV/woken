@@ -24,7 +24,6 @@ import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{ Actor, ActorRef, OneForOneStrategy, Props }
 import akka.routing.{ OptimalSizeExploringResizer, RoundRobinPool }
 import akka.stream.scaladsl.{ Flow, Sink, Source }
-import ch.chuv.lren.woken.config.AlgorithmDefinition
 import ch.chuv.lren.woken.core._
 import ch.chuv.lren.woken.core.commands.JobCommands.StartCoordinatorJob
 import ch.chuv.lren.woken.core.model._
@@ -50,13 +49,11 @@ object MiningQueriesActor extends LazyLogging {
   def props(coordinatorConfig: CoordinatorConfig,
             dispatcherService: DispatcherService,
             variablesMetaService: VariablesMetaService,
-            algorithmLookup: String => Validation[AlgorithmDefinition],
             miningQuery2JobF: MiningQuery => Validation[Job]): Props =
     Props(
       new MiningQueriesActor(coordinatorConfig,
                              dispatcherService,
                              variablesMetaService,
-                             algorithmLookup,
                              miningQuery2JobF)
     )
 
@@ -64,7 +61,6 @@ object MiningQueriesActor extends LazyLogging {
                           coordinatorConfig: CoordinatorConfig,
                           dispatcherService: DispatcherService,
                           variablesMetaService: VariablesMetaService,
-                          algorithmLookup: String => Validation[AlgorithmDefinition],
                           miningQuery2JobF: MiningQuery => Validation[Job]): Props = {
 
     val resizer = OptimalSizeExploringResizer(
@@ -87,11 +83,7 @@ object MiningQueriesActor extends LazyLogging {
       supervisorStrategy = miningSupervisorStrategy
     ).props(
       MiningQueriesActor
-        .props(coordinatorConfig,
-               dispatcherService,
-               variablesMetaService,
-               algorithmLookup,
-               miningQuery2JobF)
+        .props(coordinatorConfig, dispatcherService, variablesMetaService, miningQuery2JobF)
     )
   }
 
@@ -101,7 +93,6 @@ class MiningQueriesActor(
     override val coordinatorConfig: CoordinatorConfig,
     dispatcherService: DispatcherService,
     variablesMetaService: VariablesMetaService,
-    algorithmLookup: String => Validation[AlgorithmDefinition],
     miningQuery2JobF: MiningQuery => Validation[Job]
 ) extends QueriesActor[MiningQuery] {
 
@@ -195,9 +186,8 @@ class MiningQueriesActor(
         // Execution of the experiment from the central server in a distributed mode
         case (remoteLocations, _) =>
           logger.info(s"Remote data mining on nodes $remoteLocations for query $query")
-          val algorithm = job.algorithmSpec
-          val algorithmDefinition: AlgorithmDefinition = algorithmLookup(algorithm.code)
-            .valueOr(e => throw new IllegalStateException(e.toList.mkString(",")))
+          val algorithm           = job.algorithmSpec
+          val algorithmDefinition = job.algorithmDefinition
           val queriesByStepExecution: Map[ExecutionStyle.Value, MiningQuery] =
             algorithmDefinition.distributedExecutionPlan.steps.map { step =>
               (step.execution,

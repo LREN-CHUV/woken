@@ -90,7 +90,8 @@ class ExperimentFlowTest
         inputDb = "featuresDb",
         inputTable = query.targetTable.getOrElse("sample_data"),
         query = query,
-        metadata = Nil
+        metadata = Nil,
+        algorithms = Map()
       )
     )
 
@@ -262,7 +263,7 @@ class ExperimentFlowTest
 
     case class SplitFlowCommand(job: ExperimentActor.Job)
 
-    case class SplitFlowResponse(algorithmMaybe: Option[AlgorithmValidationMaybe])
+    case class SplitFlowResponse(algorithmMaybe: Option[ExperimentFlow.JobForAlgorithmPreparation])
 
   }
 
@@ -288,7 +289,6 @@ class ExperimentFlowTest
       ),
       coordinatorConfig.featuresDatabase,
       coordinatorConfig.jobsConf,
-      algorithmLookup,
       dispatcherService,
       context
     )
@@ -313,7 +313,7 @@ class ExperimentFlowTest
         val result = Source
           .single(job)
           .via(experimentFlow.splitJob)
-          .runWith(TestSink.probe[AlgorithmValidationMaybe])
+          .runWith(TestSink.probe[ExperimentFlow.JobForAlgorithmPreparation])
           .request(1)
           .receiveWithin(10 seconds, 1)
         originator ! SplitFlowResponse(result.headOption)

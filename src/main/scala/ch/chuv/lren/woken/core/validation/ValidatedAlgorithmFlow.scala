@@ -125,10 +125,10 @@ case class ValidatedAlgorithmFlow(
             .features(job.inputTable, None)
         val subJob =
           DockerJob(jobId,
-                    job.algorithmDefinition.dockerImage,
                     job.inputDb,
                     featuresQuery,
                     job.query.algorithm,
+                    job.algorithmDefinition,
                     job.metadata)
         executeJobAsync(subJob).map(response => (job, response))
       }
