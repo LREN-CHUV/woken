@@ -44,9 +44,10 @@ import ch.chuv.lren.woken.ssl.WokenSSLConfiguration
 import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.kamon.KamonSupport
 import com.typesafe.scalalogging.LazyLogging
+import kamon.Kamon
 import kamon.system.SystemMetrics
 
-import scala.concurrent.Future
+import scala.concurrent.{ Await, Future }
 import scala.language.postfixOps
 import scala.sys.ShutdownHookThread
 
@@ -167,6 +168,7 @@ trait BootedCore
     ClusterClientReceptionist(system).registerService(mainRouter)
 
     monitorDeadLetters()
+
   }
 
   override def startServices(): Unit = {
@@ -182,15 +184,25 @@ trait BootedCore
                                                                      appConfig.networkInterface,
                                                                    port = appConfig.webServicesPort)
 
+    system.registerOnTermination {
+      cluster.leave(cluster.selfAddress)
+      Kamon.stopAllReporters()
+      SystemMetrics.stopCollecting()
+    }
+
     /**
       * Ensure that the constructed ActorSystem is shut down when the JVM shuts down
       */
     val _: ShutdownHookThread = sys.addShutdownHook {
-      SystemMetrics.stopCollecting()
-      binding
+      // Attempt to leave the cluster before shutting down
+      val serverShutdown = binding
         .flatMap(_.unbind())
         .flatMap(_ => system.terminate())
-        .onComplete(_ => ())
+
+      serverShutdown.onComplete(_ => ())
+
+      val _ = Await.result(serverShutdown, 5.seconds)
+
     }
 
   }
