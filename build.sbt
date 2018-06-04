@@ -1,6 +1,11 @@
 import sbt.ExclusionRule
 import sbtassembly.MergeStrategy
 
+
+autoCompilerPlugins := true
+
+addCompilerPlugin("com.lihaoyi" %% "acyclic" % "0.1.7")
+
 // *****************************************************************************
 // Projects
 // *****************************************************************************
@@ -50,6 +55,7 @@ lazy val `woken` =
           library.yaml,
           library.wokenMessages,
           //library.scalaCache,
+          library.acyclic                % Provided,
           library.scalaCheck             % Test,
           library.scalaTest              % Test,
           library.scalaMock              % Test,
@@ -106,6 +112,7 @@ lazy val library =
       val scalaCache      = "0.21.0"
       val dockerTestKit   = "0.9.6"
       val diff            = "1.2.0"
+      val acyclic         = "0.1.7"
       val wokenMessages   = "2.8.2"
     }
     object ExclusionRules {
@@ -159,6 +166,7 @@ lazy val library =
     val dockerTestKitScalaTest: ModuleID = "com.whisk" %% "docker-testkit-scalatest" % Version.dockerTestKit excludeAll ExclusionRules.excludeLogback
     val dockerTestKitSpotify: ModuleID = "com.whisk" %% "docker-testkit-impl-spotify" % Version.dockerTestKit excludeAll ExclusionRules.excludeLogback
     val diff: ModuleID         = "ai.x"              %% "diff"         % Version.diff
+    val acyclic: ModuleID      = "com.lihaoyi"       %% "acyclic"      % Version.acyclic
     val wokenMessages: ModuleID = "ch.chuv.lren.woken" %% "woken-messages" % Version.wokenMessages
 
   }

@@ -26,7 +26,7 @@ import ch.chuv.lren.woken.service.{ DatasetService, DispatcherService }
 
 import scala.concurrent.ExecutionContext
 import ch.chuv.lren.woken.service.{ AlgorithmLibraryService, VariablesMetaService }
-import MiningQueries._
+import ch.chuv.lren.woken.service.QueryToJob._
 import ch.chuv.lren.woken.dispatch.{
   ExperimentQueriesActor,
   MetadataQueriesActor,

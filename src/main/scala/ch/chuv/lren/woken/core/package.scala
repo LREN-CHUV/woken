@@ -20,4 +20,9 @@ package ch.chuv.lren.woken
 /**
   * Core concepts and actors
   */
-package object core {}
+package object core {
+
+  // TODO Use acyclic to reduce inter-dependencies and reorganise code
+  //import acyclic.pkg
+
+}

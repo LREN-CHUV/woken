@@ -270,7 +270,7 @@ class JobToChronosTest extends FlatSpec with Matchers {
     }
 
     println(DiffShow.diff[ChronosJob](chronosJob.getOrElse(expected), expected).string)
-    */
+     */
 
     chronosJob.getOrElse(None) shouldBe expected
   }
