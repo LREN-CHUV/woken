@@ -147,6 +147,15 @@ object ConfigUtil {
         case _: ConfigException.WrongType => s"key $key cannot be parsed to a Config".invalidNel
       }
 
+    def validateConfigList(key: String): Validation[List[Config]] =
+      try {
+        config.getConfigList(key).asInstanceOf[List[Config]].validNel
+      } catch {
+        case _: ConfigException.Missing => s"Could not find key: $key".invalidNel
+        case _: ConfigException.WrongType =>
+          s"key $key cannot be parsed to a list of config".invalidNel
+      }
+
   }
 
   implicit class EnhancedValidation[I <: AnyRef](val value: I) extends AnyVal {

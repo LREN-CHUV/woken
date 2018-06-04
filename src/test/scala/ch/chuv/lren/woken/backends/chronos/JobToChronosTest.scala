@@ -66,7 +66,8 @@ class JobToChronosTest extends FlatSpec with Matchers {
       database = "features",
       user = "user",
       password = "test",
-      poolSize = 5
+      poolSize = 5,
+      tables = Set()
     ).validNel,
     "woken_db" -> DatabaseConfiguration(
       dbiDriver = "PostgreSQL",
@@ -78,7 +79,8 @@ class JobToChronosTest extends FlatSpec with Matchers {
       database = "woken",
       user = "woken",
       password = "wpwd",
-      poolSize = 5
+      poolSize = 5,
+      tables = Set()
     ).validNel
   ).withDefaultValue("".invalidNel)
 

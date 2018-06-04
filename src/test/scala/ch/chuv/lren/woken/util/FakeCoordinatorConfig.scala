@@ -37,7 +37,8 @@ object FakeCoordinatorConfig {
                           database = "db",
                           user = "",
                           password = "",
-                          poolSize = 5)
+                          poolSize = 5,
+                          tables = Set())
   val noJobsConf =
     JobsConfiguration("testNode",
                       "noone",

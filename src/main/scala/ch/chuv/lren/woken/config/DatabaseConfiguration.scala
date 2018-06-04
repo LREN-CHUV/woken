@@ -24,8 +24,11 @@ import cats.Monad
 import cats.implicits._
 import cats.effect._
 import cats.data.Validated._
+import ch.chuv.lren.woken.core.model.{ TableColumn, TableDescription }
 import com.typesafe.config.Config
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
+import ch.chuv.lren.woken.fp.Traverse
+import ch.chuv.lren.woken.messages.variables.SqlType
 
 import scala.language.higherKinds
 
@@ -51,11 +54,13 @@ final case class DatabaseConfiguration(dbiDriver: String,
                                        database: String,
                                        user: String,
                                        password: String,
-                                       poolSize: Int)
+                                       poolSize: Int,
+                                       tables: Set[TableDescription])
 
 object DatabaseConfiguration {
 
   def read(config: Config, path: List[String]): Validation[DatabaseConfiguration] = {
+
     val dbConfig = config.validateConfig(path.mkString("."))
 
     dbConfig.andThen { db =>
@@ -74,7 +79,53 @@ object DatabaseConfiguration {
       val poolSize: Validation[Int] =
         db.validateInt("pool_size").orElse(lift(10))
 
-      (dbiDriver, dbApiDriver, jdbcDriver, jdbcUrl, host, port, database, user, password, poolSize) mapN DatabaseConfiguration.apply
+      val tableNames: Validation[Set[String]] = db.validateConfig("tables").map(_.keys)
+
+      val tableFactory: String => Validation[TableDescription] =
+        table => readTable(db, List("tables", table), path.last)
+
+      val tables: Validation[Set[TableDescription]] = {
+        tableNames.andThen { names: Set[String] =>
+          val m: Set[Validation[TableDescription]] = names.map(tableFactory)
+          Traverse.sequence(m)
+        }
+      }
+
+      (dbiDriver,
+       dbApiDriver,
+       jdbcDriver,
+       jdbcUrl,
+       host,
+       port,
+       database,
+       user,
+       password,
+       poolSize,
+       tables) mapN DatabaseConfiguration.apply
+    }
+  }
+
+  private def readTable(config: Config,
+                        path: List[String],
+                        database: String): Validation[TableDescription] = {
+    val tableConfig = config.validateConfig(path.mkString("."))
+
+    tableConfig.andThen { table =>
+      val tableName = path.lastOption.map(lift).getOrElse("Empty path".invalidNel[String])
+      val primaryKey: Validation[List[TableColumn]] = table
+        .validateConfigList("primaryKey")
+        .andThen { cl =>
+          cl.map { col =>
+              val name: Validation[String] = col.validateString("name")
+              val sqlType: Validation[SqlType.Value] =
+                col.validateString("sqlType").map(SqlType.withName)
+
+              (name, sqlType) mapN TableColumn
+            }
+            .traverse[Validation, TableColumn](identity)
+        }
+
+      (lift(database), tableName, primaryKey, lift(None)) mapN TableDescription
     }
   }
 
