@@ -235,7 +235,7 @@ case class ExperimentFlow(
         // prepare graph elements
         val jobSplitter = builder.add(splitJob)
         val partition =
-          builder.add(Partition[JobForAlgorithmPreparation](3, partitionAlgorithmByType))
+          builder.add(Partition[JobForAlgorithmPreparation](2, partitionAlgorithmByType))
         val merge = builder.add(Merge[AlgorithmResult](2))
         val toMap =
           builder.add(Flow[AlgorithmResult].fold[Map[AlgorithmSpec, JobResult]](Map()) { (m, r) =>

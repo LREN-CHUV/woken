@@ -17,12 +17,7 @@
 
 package ch.chuv.lren.woken.backends.chronos
 
-import ch.chuv.lren.woken.config.{
-  AlgorithmDefinition,
-  AlgorithmEngine,
-  DatabaseConfiguration,
-  JobsConfiguration
-}
+import ch.chuv.lren.woken.config.{ DatabaseConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.query.filters.{ InputType, Operator, SingleFilterRule }
 import ch.chuv.lren.woken.messages.variables.{ VariableId, VariableMetaData, VariableType }
@@ -32,22 +27,9 @@ import ch.chuv.lren.woken.core.model.DockerJob
 import org.scalatest.{ FlatSpec, Matchers }
 import cats.data.ValidatedNel
 import cats.syntax.validated._
+import ch.chuv.lren.woken.Predefined.Algorithms.{ knnDefinition, knnWithK5 }
 
 class JobToChronosTest extends FlatSpec with Matchers {
-
-  val algorithm: AlgorithmSpec = AlgorithmSpec(
-    code = "knn",
-    parameters = List(CodeValue("k", "5"), CodeValue("n", "1")),
-    step = None
-  )
-
-  val algorithmDefinition = AlgorithmDefinition("knn",
-                                                "hbpmip/test",
-                                                false,
-                                                false,
-                                                false,
-                                                AlgorithmEngine.Docker,
-                                                ExecutionPlan.scatterGather)
 
   val user: UserId = UserId("test")
 
@@ -64,7 +46,7 @@ class JobToChronosTest extends FlatSpec with Matchers {
     filters = Some(rule),
     targetTable = None,
     datasets = Set(),
-    algorithm = algorithm,
+    algorithm = knnWithK5,
     executionPlan = None
   )
 
@@ -201,7 +183,7 @@ class JobToChronosTest extends FlatSpec with Matchers {
       inputDb = "features_db",
       query = featuresQuery,
       algorithmSpec = query.algorithm,
-      algorithmDefinition = algorithmDefinition,
+      algorithmDefinition = knnDefinition,
       metadata = metadata
     )
 
@@ -210,10 +192,9 @@ class JobToChronosTest extends FlatSpec with Matchers {
     val environmentVariables = List(
       EnvironmentVariable("JOB_ID", "1234"),
       EnvironmentVariable("NODE", "test"),
-      EnvironmentVariable("DOCKER_IMAGE", "hbpmip/test"),
+      EnvironmentVariable("DOCKER_IMAGE", "hbpmip/python-knn"),
       EnvironmentVariable("PARAM_variables", "target"),
       EnvironmentVariable("MODEL_PARAM_k", "5"),
-      EnvironmentVariable("MODEL_PARAM_n", "1"),
       EnvironmentVariable(
         "PARAM_query",
         """SELECT "target","a","b","c","grp1","grp2" FROM features_table WHERE "target" IS NOT NULL AND "a" IS NOT NULL AND "b" IS NOT NULL AND "c" IS NOT NULL AND "grp1" IS NOT NULL AND "grp2" IS NOT NULL AND "a" < 10"""
@@ -245,7 +226,7 @@ class JobToChronosTest extends FlatSpec with Matchers {
     ).sortBy(_.name)
 
     val expected = ChronosJob(
-      name = "test_1234",
+      name = "python_knn_1234",
       description = None,
       command = "compute",
       arguments = Nil,
@@ -255,7 +236,9 @@ class JobToChronosTest extends FlatSpec with Matchers {
       executor = None,
       executorFlags = None,
       container = Some(
-        Container(`type` = ContainerType.DOCKER, image = "hbpmpi/test", network = NetworkMode.HOST)
+        Container(`type` = ContainerType.DOCKER,
+                  image = "hbpmip/python-knn",
+                  network = NetworkMode.HOST)
       ),
       cpus = Some(1.0),
       mem = Some(256.0),
@@ -264,6 +247,30 @@ class JobToChronosTest extends FlatSpec with Matchers {
       environmentVariables = environmentVariables,
       retries = 0
     )
+
+    /*
+    import ai.x.diff.DiffShow
+    import ai.x.diff.conversions._
+    import ai.x.diff.{ Different, Identical }
+    import ch.chuv.lren.woken.backends.chronos.ContainerType.ContainerType
+    import ch.chuv.lren.woken.backends.chronos.NetworkMode.NetworkMode
+
+    implicit def ContainerTypeDiffShow: DiffShow[ContainerType] = new DiffShow[ContainerType] {
+      def show(t: ContainerType) = "\"" ++ t.toString ++ "\""
+      def diff(left: ContainerType, right: ContainerType) =
+        if (left == right) Identical(left) else Different(left, right)(this, this)
+      override def diffable(left: ContainerType, right: ContainerType) = true
+    }
+
+    implicit def NetworkModeDiffShow: DiffShow[NetworkMode] = new DiffShow[NetworkMode] {
+      def show(t: NetworkMode) = "\"" ++ t.toString ++ "\""
+      def diff(left: NetworkMode, right: NetworkMode) =
+        if (left == right) Identical(left) else Different(left, right)(this, this)
+      override def diffable(left: NetworkMode, right: NetworkMode) = true
+    }
+
+    println(DiffShow.diff[ChronosJob](chronosJob.getOrElse(expected), expected).string)
+    */
 
     chronosJob.getOrElse(None) shouldBe expected
   }
@@ -275,7 +282,7 @@ class JobToChronosTest extends FlatSpec with Matchers {
       inputDb = "unknown_db",
       query = featuresQuery,
       algorithmSpec = query.algorithm,
-      algorithmDefinition = algorithmDefinition,
+      algorithmDefinition = knnDefinition,
       metadata = metadata
     )
 

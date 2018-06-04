@@ -58,7 +58,8 @@ lazy val `woken` =
           library.doobieScalaTest        % Test,
           library.catsScalaTest          % Test,
           library.dockerTestKitScalaTest % Test,
-          library.dockerTestKitSpotify   % Test
+          library.dockerTestKitSpotify   % Test,
+          library.diff                   % Test
         ),
         includeFilter in (Compile, unmanagedResources) := "*.json" || "*.conf" || "*.xml" || "*.html",
         includeFilter in (Test, unmanagedResources) := "*.json" || "*.conf",
@@ -104,6 +105,7 @@ lazy val library =
       val snakeyaml       = "1.21"
       val scalaCache      = "0.21.0"
       val dockerTestKit   = "0.9.6"
+      val diff            = "1.2.0"
       val wokenMessages   = "2.8.2"
     }
     object ExclusionRules {
@@ -156,6 +158,7 @@ lazy val library =
     val scalaCache: ModuleID   = "com.github.cb372"  %% "scalacache-core" % Version.scalaCache
     val dockerTestKitScalaTest: ModuleID = "com.whisk" %% "docker-testkit-scalatest" % Version.dockerTestKit excludeAll ExclusionRules.excludeLogback
     val dockerTestKitSpotify: ModuleID = "com.whisk" %% "docker-testkit-impl-spotify" % Version.dockerTestKit excludeAll ExclusionRules.excludeLogback
+    val diff: ModuleID         = "ai.x"              %% "diff"         % Version.diff
     val wokenMessages: ModuleID = "ch.chuv.lren.woken" %% "woken-messages" % Version.wokenMessages
 
   }

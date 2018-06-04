@@ -42,6 +42,13 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
+import ch.chuv.lren.woken.Predefined.Algorithms.{
+  anovaDefinition,
+  anovaFactorial,
+  knnDefinition,
+  knnWithK5
+}
+
 /**
   * Experiment flow should always complete with success, but the error is reported inside the response.
   */
@@ -91,7 +98,7 @@ class ExperimentFlowTest
         inputTable = query.targetTable.getOrElse("sample_data"),
         query = query,
         metadata = Nil,
-        algorithms = Map()
+        algorithms = Map(knnWithK5 -> knnDefinition, anovaFactorial -> anovaDefinition)
       )
     )
 
@@ -128,7 +135,7 @@ class ExperimentFlowTest
 
     }
 
-    "complete with success in case of a query containing an invalid algorithm" in {
+    "fail in case of a query containing an invalid algorithm" in {
       val experimentWrapper =
         system.actorOf(ExperimentFlowWrapper.propsFailingAlgorithm("Algorithm not defined"))
       val experiment    = experimentQuery("invalid-algo", Nil)
@@ -138,13 +145,8 @@ class ExperimentFlowTest
       testProbe.send(experimentWrapper, experimentJob.toOption.get)
       testProbe.expectMsgPF(20 seconds, "error") {
         case response: ExperimentResponse =>
-          response.result.nonEmpty shouldBe true
-          response.result.head._1 shouldBe AlgorithmSpec("invalid-algo", Nil, None)
-          response.result.head._2 match {
-            case ejr: ErrorJobResult =>
-              ejr.error shouldBe "Could not find key: algorithms.invalid-algo"
-            case _ => fail("Response should be of type ErrorJobResponse")
-          }
+          println(response)
+          response.result.isEmpty shouldBe true
       }
 
     }

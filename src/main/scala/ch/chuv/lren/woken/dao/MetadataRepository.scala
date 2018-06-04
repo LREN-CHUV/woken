@@ -19,7 +19,7 @@ package ch.chuv.lren.woken.dao
 
 import cats._
 import cats.implicits._
-import ch.chuv.lren.woken.core.model.{TableDescription, VariablesMeta}
+import ch.chuv.lren.woken.core.model.{ TableDescription, VariablesMeta }
 
 import scala.collection.concurrent.TrieMap
 import scala.language.higherKinds
@@ -72,12 +72,12 @@ class MetadataInMemoryRepository[F[_]: Applicative] extends MetadataRepository[F
     private val cache = new TrieMap[String, TableDescription]
 
     override def put(table: TableDescription): F[TableDescription] = {
-      cache.put(table.name, table)
+      cache.put(table.tableName.toUpperCase, table)
       table.pure[F]
     }
 
     override def get(table: String): F[Option[TableDescription]] =
-      cache.get(table).pure[F]
+      cache.get(table.toUpperCase).pure[F]
 
   }
 
