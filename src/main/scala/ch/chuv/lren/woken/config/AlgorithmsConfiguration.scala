@@ -21,26 +21,8 @@ import com.typesafe.config.Config
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
 import cats.data.Validated._
 import cats.implicits._
+import ch.chuv.lren.woken.core.model.{ AlgorithmDefinition, AlgorithmEngine }
 import ch.chuv.lren.woken.messages.query.ExecutionPlan
-
-object AlgorithmEngine extends Enumeration {
-  type AlgorithmEngine = Value
-
-  // read-write and read-only.
-  val Docker, Validation = Value
-}
-
-import AlgorithmEngine.AlgorithmEngine
-
-case class AlgorithmDefinition(code: String,
-                               dockerImage: String,
-                               predictive: Boolean,
-                               variablesCanBeNull: Boolean,
-                               covariablesCanBeNull: Boolean,
-                               engine: AlgorithmEngine,
-                               distributedExecutionPlan: ExecutionPlan
-                               // TODO: shape of intermediate results, we assume Python serialization for now
-)
 
 // TODO: this should feed AlgorithmLibraryService with metadata
 
@@ -55,7 +37,7 @@ object AlgorithmsConfiguration {
       val predictive           = c.validateBoolean("predictive")
       val variablesCanBeNull   = c.validateBoolean("variablesCanBeNull")
       val covariablesCanBeNull = c.validateBoolean("covariablesCanBeNull")
-      val engine: Validation[AlgorithmEngine] =
+      val engine: Validation[AlgorithmEngine.Value] =
         c.validateString("engine").orElse(lift("Docker")).map(AlgorithmEngine.withName)
       val distributedExecutionPlan: Validation[ExecutionPlan] =
         c.validateString("distributedExecutionPlan")

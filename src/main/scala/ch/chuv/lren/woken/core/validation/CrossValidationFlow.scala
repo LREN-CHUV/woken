@@ -28,10 +28,14 @@ import akka.stream.scaladsl.Flow
 import akka.util.Timeout
 import cats.data.{ NonEmptyList, Validated }
 import cats.implicits._
-import ch.chuv.lren.woken.config.AlgorithmDefinition
 import ch.chuv.lren.woken.core.features.QueryOffset
 import ch.chuv.lren.woken.core.CoordinatorActor
-import ch.chuv.lren.woken.core.model.{ DockerJob, ErrorJobResult, PfaJobResult }
+import ch.chuv.lren.woken.core.model.{
+  AlgorithmDefinition,
+  DockerJob,
+  ErrorJobResult,
+  PfaJobResult
+}
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.dao.FeaturesDAL

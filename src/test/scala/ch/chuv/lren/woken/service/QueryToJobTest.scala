@@ -18,9 +18,9 @@
 package ch.chuv.lren.woken.service
 
 import cats.scalatest.{ ValidatedMatchers, ValidatedValues }
-import ch.chuv.lren.woken.config.{ AlgorithmDefinition, AlgorithmsConfiguration, JobsConfiguration }
+import ch.chuv.lren.woken.config.{ AlgorithmsConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.core.features.FeaturesQuery
-import ch.chuv.lren.woken.core.model.{ CdeVariables, DockerJob, ValidationJob }
+import ch.chuv.lren.woken.core.model.{ AlgorithmDefinition, CdeVariables, DockerJob, ValidationJob }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.messages.query._

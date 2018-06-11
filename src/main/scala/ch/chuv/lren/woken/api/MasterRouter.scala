@@ -32,8 +32,8 @@ import ch.chuv.lren.woken.dispatch.{
   MetadataQueriesActor,
   MiningQueriesActor
 }
-import ch.chuv.lren.woken.config.{ AlgorithmDefinition, AppConfiguration }
-import ch.chuv.lren.woken.core.model.Job
+import ch.chuv.lren.woken.config.AppConfiguration
+import ch.chuv.lren.woken.core.model.{ AlgorithmDefinition, Job }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.variables._
 import com.typesafe.config.Config

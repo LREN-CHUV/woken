@@ -11,4 +11,5 @@ test-output/
 .classpath
 .project
 .settings/
+.bloop/
 dev-tests/

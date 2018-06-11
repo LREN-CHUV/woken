@@ -24,7 +24,7 @@ import akka.NotUsed
 import akka.actor.ActorContext
 import akka.stream._
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Zip }
-import ch.chuv.lren.woken.config.{ AlgorithmDefinition, JobsConfiguration }
+import ch.chuv.lren.woken.config.JobsConfiguration
 import ch.chuv.lren.woken.core.CoordinatorActor
 import ch.chuv.lren.woken.core.model._
 import ch.chuv.lren.woken.core.features.Queries._

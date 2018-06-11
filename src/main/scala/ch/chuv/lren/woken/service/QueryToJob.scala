@@ -22,11 +22,11 @@ import java.util.UUID
 import cats.data.Validated._
 import cats.data.{ Validated, _ }
 import cats.implicits._
-import ch.chuv.lren.woken.config.{ AlgorithmDefinition, JobsConfiguration }
+import ch.chuv.lren.woken.config.JobsConfiguration
 import ch.chuv.lren.woken.core.ExperimentActor
 import ch.chuv.lren.woken.core.features.Queries
 import ch.chuv.lren.woken.core.features.Queries._
-import ch.chuv.lren.woken.core.model.{ DockerJob, Job, ValidationJob, VariablesMeta }
+import ch.chuv.lren.woken.core.model._
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.{ Validation, lift }
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables.VariableMetaData

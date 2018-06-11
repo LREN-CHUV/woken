@@ -17,7 +17,6 @@
 
 package ch.chuv.lren.woken.core.model
 
-import ch.chuv.lren.woken.config.AlgorithmDefinition
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables.{ VariableMetaData, variablesProtocol }

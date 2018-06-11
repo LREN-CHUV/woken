@@ -30,7 +30,7 @@ import ch.chuv.lren.woken.core.validation.ValidatedAlgorithmFlow
 import scala.concurrent.ExecutionContext
 import scala.util.{ Failure, Success }
 import ch.chuv.lren.woken.core.commands.JobCommands.StartExperimentJob
-import ch.chuv.lren.woken.config.{ AlgorithmDefinition, JobsConfiguration }
+import ch.chuv.lren.woken.config.JobsConfiguration
 import ch.chuv.lren.woken.core.model._
 import ch.chuv.lren.woken.dao.FeaturesDAL
 import ch.chuv.lren.woken.messages.query._

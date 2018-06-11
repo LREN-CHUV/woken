@@ -17,7 +17,7 @@
 
 package ch.chuv.lren.woken
 
-import ch.chuv.lren.woken.config.{ AlgorithmDefinition, AlgorithmEngine }
+import ch.chuv.lren.woken.core.model.{ AlgorithmDefinition, AlgorithmEngine }
 import ch.chuv.lren.woken.messages.query.{ AlgorithmSpec, CodeValue, ExecutionPlan }
 
 /**
