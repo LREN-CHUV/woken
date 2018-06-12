@@ -82,7 +82,7 @@ trait BootedCore
   private lazy val fsIO: IO[FeaturesService] = for {
     xa <- DatabaseConfiguration.dbTransactor(featuresDbConnection)
     _  <- DatabaseConfiguration.testConnection[IO](xa)
-    featuresDb = new FeaturesRepositoryDAO[IO](xa)
+    featuresDb = new FeaturesRepositoryDAO[IO](xa, featuresDbConnection.tables)
   } yield {
     FeaturesService(featuresDb)
   }
@@ -214,13 +214,21 @@ trait BootedCore
 
     datasetsService.datasets().filter(_.location.isEmpty).foreach { dataset =>
       dataset.tables.foreach { tableName =>
-        val table = featuresService.featuresTable(tableName)
-        if (table.count(dataset.dataset) == 0) {
-          logger.error(
-            s"Table $tableName contains no value for dataset ${dataset.dataset.code}"
+        featuresService
+          .featuresTable(tableName)
+          .fold(
+            { error: String =>
+              logger.error(error)
+              System.exit(1)
+            }, { table: FeaturesTableService =>
+              if (table.count(dataset.dataset) == 0) {
+                logger.error(
+                  s"Table $tableName contains no value for dataset ${dataset.dataset.code}"
+                )
+                System.exit(1)
+              }
+            }
           )
-          System.exit(1)
-        }
       }
     }
 

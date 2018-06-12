@@ -18,6 +18,7 @@
 package ch.chuv.lren.woken.dao
 
 import ch.chuv.lren.woken.core.features.FeaturesQuery
+import ch.chuv.lren.woken.core.model.TableDescription
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import spray.json.JsObject
 
@@ -28,7 +29,9 @@ import scala.language.higherKinds
   */
 trait FeaturesRepository[F[_]] extends Repository {
 
-  def featuresTable(table: String, seed: Double = 0.67): FeaturesTableRepository[F]
+  def tables: Set[TableDescription]
+
+  def featuresTable(table: String): Option[FeaturesTableRepository[F]]
 
 }
 

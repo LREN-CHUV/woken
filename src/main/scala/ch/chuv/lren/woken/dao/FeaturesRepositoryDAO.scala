@@ -26,24 +26,25 @@ import doobie._
 import doobie.implicits._
 import spray.json._
 import DefaultJsonProtocol._
+import ch.chuv.lren.woken.core.model.TableDescription
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 
 import scala.language.higherKinds
 
-class FeaturesRepositoryDAO[F[_]: Monad](val xa: Transactor[F]) extends FeaturesRepository[F] {
+class FeaturesRepositoryDAO[F[_]: Monad](val xa: Transactor[F],
+                                         override val tables: Set[TableDescription])
+    extends FeaturesRepository[F] {
 
-  override def featuresTable(table: String, seed: Double = 0.67): FeaturesTableRepository[F] =
-    new FeaturesTableRepositoryDAO[F](xa, table, seed)
+  override def featuresTable(table: String): Option[FeaturesTableRepository[F]] =
+    tables.find(_.tableName == table).map(t => new FeaturesTableRepositoryDAO[F](xa, t))
 
 }
 
-class FeaturesTableRepositoryDAO[F[_]: Monad](val xa: Transactor[F],
-                                              val table: String,
-                                              val seed: Double = 0.67)
+class FeaturesTableRepositoryDAO[F[_]: Monad](val xa: Transactor[F], val table: TableDescription)
     extends FeaturesTableRepository[F] {
 
   override def count: F[Int] = {
-    val q: Fragment = fr"SELECT count(*) FROM " ++ Fragment.const(table)
+    val q: Fragment = fr"SELECT count(*) FROM " ++ Fragment.const(table.tableName)
     q.query[Int]
       .unique
       .transact(xa)
@@ -53,12 +54,12 @@ class FeaturesTableRepositoryDAO[F[_]: Monad](val xa: Transactor[F],
 
     val checkDatasetColumn = sql"""
       SELECT EXISTS (SELECT 1 FROM information_schema.columns
-        WHERE table_name=$table and column_name='dataset')"""
+        WHERE table_name=${table.tableName} and column_name='dataset')"""
 
     checkDatasetColumn.query[Boolean].unique.transact(xa).flatMap { hasDatasetColumn =>
       if (hasDatasetColumn) {
         val q: Fragment = sql"SELECT count(*) FROM " ++ Fragment
-          .const(table) ++ fr"WHERE dataset = ${dataset.code}"
+          .const(table.tableName) ++ fr"WHERE dataset = ${dataset.code}"
         q.query[Int]
           .unique
           .transact(xa)
@@ -66,6 +67,7 @@ class FeaturesTableRepositoryDAO[F[_]: Monad](val xa: Transactor[F],
     }
   }
 
+  @SuppressWarnings(Array("org.wartremover.warts.Null"))
   override def features(query: FeaturesQuery): F[(List[ColumnMeta], Stream[JsObject])] =
     connProg(query.sql).transact(xa).map {
       case (h, d) =>
@@ -95,7 +97,7 @@ class FeaturesTableRepositoryDAO[F[_]: Monad](val xa: Transactor[F],
 
   /** Construct a parameterized query and process it with a custom program. */
   private def connProg(sql: String): ConnectionIO[(Headers, Data)] =
-    HC.prepareStatement(s"SELECT setseed($seed); $sql")(prepareAndExec)
+    HC.prepareStatement(s"SELECT setseed(${table.seed}); $sql")(prepareAndExec)
 
   /** Configure and run a PreparedStatement. We don't know the column count or types. */
   private def prepareAndExec: PreparedStatementIO[(Headers, Data)] =

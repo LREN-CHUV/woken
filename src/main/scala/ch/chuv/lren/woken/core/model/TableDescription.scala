@@ -40,5 +40,6 @@ case class TableDescription(
     database: String,
     tableName: String,
     primaryKey: List[TableColumn],
-    owner: Option[UserId]
+    owner: Option[UserId],
+    seed: Double
 )

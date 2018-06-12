@@ -124,8 +124,9 @@ object DatabaseConfiguration {
             }
             .traverse[Validation, TableColumn](identity)
         }
+      val seed: Validation[Double] = table.validateDouble("seed").orElse(lift(0.67))
 
-      (lift(database), tableName, primaryKey, lift(None)) mapN TableDescription
+      (lift(database), tableName, primaryKey, lift(None), seed) mapN TableDescription
     }
   }
 

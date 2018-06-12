@@ -30,15 +30,17 @@ class FeaturesService(repository: FeaturesRepository[IO])(implicit E: Effect[IO]
   private val featuresTableCache: mutable.Map[String, FeaturesTableService] =
     new mutable.WeakHashMap[String, FeaturesTableService]()
 
-  def featuresTable(table: String): FeaturesTableService = {
-    val ft = featuresTableCache.get(table.toUpperCase)
-    ft.fold {
-      val featuresTable = repository.featuresTable(table.toUpperCase)
-      val service       = new FeaturesTableService(featuresTable)
-      featuresTableCache.put(table.toUpperCase, service)
-      service
-    }(identity)
-  }
+  def featuresTable(table: String): Either[String, FeaturesTableService] =
+    featuresTableCache
+      .get(table.toUpperCase)
+      .orElse {
+        repository.featuresTable(table.toUpperCase).map { featuresTable =>
+          val service = new FeaturesTableService(featuresTable)
+          featuresTableCache.put(table.toUpperCase, service)
+          service
+        }
+      }
+      .toRight(s"Table $table cannot be found or has not been configured")
 
 }
 
