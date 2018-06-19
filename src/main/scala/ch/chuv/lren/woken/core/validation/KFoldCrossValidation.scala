@@ -18,7 +18,7 @@
 package ch.chuv.lren.woken.core.validation
 
 import ch.chuv.lren.woken.core.features.{ FeaturesQuery, QueryOffset }
-import ch.chuv.lren.woken.dao.FeaturesDAL
+import ch.chuv.lren.woken.service.FeaturesService
 import com.typesafe.scalalogging.LazyLogging
 import spray.json.{ JsValue, _ }
 
@@ -89,25 +89,25 @@ object KFoldCrossValidation extends LazyLogging {
 
   def apply(query: FeaturesQuery,
             foldCount: Int,
-            featuresDAL: FeaturesDAL): KFoldCrossValidation = {
-
-    val sql = query.sql
+            featuresService: FeaturesService): Either[String, KFoldCrossValidation] = {
 
     logger.info(s"Cross validation query: $query")
 
     // JSON objects with fieldname corresponding to variables names
-    val (_, d) = featuresDAL.runQuery(featuresDAL.ldsmConnection, sql)
+    featuresService.featuresTable(query.dbTable).right.map { table =>
+      val (_, d) = table.features(query).unsafeRunSync()
+      logger.info(s"Query response: ${d.mkString(",")}")
 
-    logger.info(s"Query response: ${d.mkString(",")}")
+      // Separate features from labels
+      val variables = query.dbVariables
+      val features  = query.dbCovariables ++ query.dbGrouping
 
-    // Separate features from labels
-    val variables = query.dbVariables
-    val features  = query.dbCovariables ++ query.dbGrouping
+      logger.info(s"Variables: ${variables.mkString(",")}")
+      logger.info(s"Features: ${features.mkString(",")}")
 
-    logger.info(s"Variables: ${variables.mkString(",")}")
-    logger.info(s"Features: ${features.mkString(",")}")
+      apply(dataframe = d, variables = variables, features = features, foldCount = foldCount)
+    }
 
-    apply(dataframe = d, variables = variables, features = features, foldCount = foldCount)
   }
 
   def apply(dataframe: Stream[JsObject],

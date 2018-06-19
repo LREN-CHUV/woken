@@ -15,10 +15,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.core
+package ch.chuv.lren.woken
 
-package object features {
+package object fp {
 
-  //import acyclic.pkg
+  import acyclic.pkg
 
 }

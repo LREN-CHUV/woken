@@ -17,6 +17,21 @@
 
 package ch.chuv.lren.woken.core.features
 
+import ch.chuv.lren.woken.core.model.TableColumn
+import ch.chuv.lren.woken.messages.query.filters._
+import ch.chuv.lren.woken.messages.query.filters.FilterRule._
+import ch.chuv.lren.woken.messages.variables.SqlType
+
+sealed trait Sampling
+
+case class LeaveOutPartition(folds: Integer,
+                             excludeFold: Integer,
+                             orderColumn: Option[TableColumn],
+                             seed: Double)
+    extends Sampling {
+  assert(excludeFold < folds)
+}
+
 /**
   * A query for selecting data features in a table
   *
@@ -24,12 +39,82 @@ package ch.chuv.lren.woken.core.features
   * @param dbCovariables List of covariables (independent features)
   * @param dbGrouping List of fields to use in a group by statement (or equivalent when an algorithm supporting grouping is used)
   * @param dbTable Database table containing the data
-  * @param sql Full SQL query, ready for execution
+  * @param filters Filters to apply on the data
+  * @param sampling Sampling method used to select
   */
 case class FeaturesQuery(
     dbVariables: List[String],
     dbCovariables: List[String],
     dbGrouping: List[String],
     dbTable: String,
-    sql: String
-)
+    filters: Option[FilterRule],
+    sampling: Option[Sampling]
+) {
+
+  def dbAllVars: List[String] = (dbVariables ++ dbCovariables ++ dbGrouping).distinct
+
+  /**
+    * Full SQL query, ready for execution
+    *
+    * @return a SQL query
+    */
+  @SuppressWarnings(Array("org.wartremover.warts.Throw"))
+  def sql: String =
+    sampling match {
+      case None => selectFiltered(selectOnly, filters)
+
+      case Some(LeaveOutPartition(folds, excludeFold, Some(orderColumn), _))
+          if orderColumn.sqlType == SqlType.char || orderColumn.sqlType == SqlType.varchar =>
+        selectExcludingFold(excludeFold, windowOrderByStrCol(folds, orderColumn))
+
+      case Some(LeaveOutPartition(folds, excludeFold, Some(orderColumn), _))
+          if orderColumn.sqlType == SqlType.int =>
+        selectExcludingFold(excludeFold, windowOrderByIntCol(folds, orderColumn))
+
+      case Some(LeaveOutPartition(folds, excludeFold, None, seed)) =>
+        s"SELECT setseed($seed); ${selectExcludingFold(excludeFold, windowOrderRandom(folds))}"
+
+      case _ => throw new NotImplementedError(s"Unhandled sampling $sampling")
+    }
+
+  private def selectFields = s"SELECT ${dbAllVars.map(_.identifier).mkString(",")}"
+
+  private def selectOnly = s"""$selectFields FROM "$dbTable""""
+
+  private def selectFiltered(select: String, filters: Option[FilterRule]) =
+    filters.fold(selectOnly) { filters =>
+      s"$select WHERE ${filters.withAdaptedFieldName.toSqlWhere}"
+    }
+
+  private def windowOrderByStrCol(folds: Integer, orderColumn: TableColumn): String =
+    s"""ntile($folds) over (order by abs(('x'||substr(md5("${orderColumn.name}"),1,16))::bit(64)::BIGINT)) as "_window_""""
+
+  // Requires pseudo_encrypt function - https://wiki.postgresql.org/wiki/Pseudo_encrypt
+  private def windowOrderByIntCol(folds: Integer, orderColumn: TableColumn): String =
+    s"""ntile($folds) over (order by pseudo_encrypt("${orderColumn.name}")) as "_window_""""
+
+  private def windowOrderRandom(folds: Integer): String =
+    s"""ntile($folds) over (order by random()) as "_window_""""
+
+  private def filtersExcludingWindow(excludeWindow: Integer): FilterRule = filters match {
+    case None =>
+      excludWindowRule(excludeWindow)
+    case Some(rule) =>
+      CompoundFilterRule(Condition.and, List(rule, excludWindowRule(excludeWindow)))
+  }
+
+  private def excludWindowRule(excludeWindow: Integer) =
+    SingleFilterRule("_window_",
+                     "_window_",
+                     "int",
+                     InputType.number,
+                     Operator.notEqual,
+                     List(s"$excludeWindow"))
+
+  private def selectExcludingFold(excludeFold: Integer, windowRowDefinition: String): String = {
+    val filtersExcludingFold = filtersExcludingWindow(excludeFold + 1)
+    selectFiltered(s"""$selectFields,$windowRowDefinition FROM "$dbTable"""",
+                   Some(filtersExcludingFold))
+  }
+
+}

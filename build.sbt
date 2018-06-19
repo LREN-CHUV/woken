@@ -107,7 +107,7 @@ lazy val library =
       val kittens         = "1.0.0-RC3"
       val catsScalaTest   = "2.3.1"
       val config          = "1.3.3"
-      val doobie          = "0.5.2"
+      val doobie          = "0.5.3"
       val snakeyaml       = "1.21"
       val scalaCache      = "0.21.0"
       val dockerTestKit   = "0.9.6"
@@ -183,6 +183,7 @@ lazy val settings = commonSettings ++ gitSettings ++ scalafmtSettings
 lazy val commonSettings =
   Seq(
     scalaVersion := "2.11.12",
+    ensimeScalaVersion in ThisBuild := "2.11.12",
     organization in ThisBuild := "ch.chuv.lren.woken",
     organizationName in ThisBuild := "LREN CHUV for Human Brain Project",
     homepage in ThisBuild := Some(url(s"https://github.com/HBPMedical/${name.value}/#readme")),

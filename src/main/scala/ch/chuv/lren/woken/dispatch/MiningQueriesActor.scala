@@ -101,7 +101,7 @@ class MiningQueriesActor(
   private val validationFlow: Flow[ValidationJob, (ValidationJob, Either[String, Score]), NotUsed] =
     ValidationFlow(
       CoordinatorActor.executeJobAsync(coordinatorConfig, context),
-      coordinatorConfig.featuresDatabase,
+      coordinatorConfig.featuresService,
       context
     ).validate()
 

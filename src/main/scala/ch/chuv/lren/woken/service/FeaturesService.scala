@@ -25,7 +25,31 @@ import spray.json.JsObject
 
 import scala.collection.mutable
 
-class FeaturesService(repository: FeaturesRepository[IO])(implicit E: Effect[IO]) {
+object FeaturesService {
+  def apply(repo: FeaturesRepository[IO])(implicit E: Effect[IO]): FeaturesService =
+    new FeaturesServiceImpl(repo)
+}
+
+trait FeaturesService {
+
+  def featuresTable(table: String): Either[String, FeaturesTableService]
+
+}
+
+trait FeaturesTableService {
+
+  def count: IO[Int]
+
+  def count(dataset: DatasetId): IO[Int]
+
+  type Headers = List[ColumnMeta]
+
+  def features(query: FeaturesQuery): IO[(Headers, Stream[JsObject])]
+
+}
+
+class FeaturesServiceImpl(repository: FeaturesRepository[IO])(implicit E: Effect[IO])
+    extends FeaturesService {
 
   private val featuresTableCache: mutable.Map[String, FeaturesTableService] =
     new mutable.WeakHashMap[String, FeaturesTableService]()
@@ -35,7 +59,7 @@ class FeaturesService(repository: FeaturesRepository[IO])(implicit E: Effect[IO]
       .get(table.toUpperCase)
       .orElse {
         repository.featuresTable(table.toUpperCase).map { featuresTable =>
-          val service = new FeaturesTableService(featuresTable)
+          val service = new FeaturesTableServiceImpl(featuresTable)
           featuresTableCache.put(table.toUpperCase, service)
           service
         }
@@ -44,23 +68,13 @@ class FeaturesService(repository: FeaturesRepository[IO])(implicit E: Effect[IO]
 
 }
 
-class FeaturesTableService(repository: FeaturesTableRepository[IO])(implicit E: Effect[IO]) {
+class FeaturesTableServiceImpl(repository: FeaturesTableRepository[IO])(implicit E: Effect[IO])
+    extends FeaturesTableService {
 
-  def countIO: IO[Int] = repository.count
-  def count: Int       = countIO.unsafeRunSync()
+  def count: IO[Int] = repository.count
 
-  def countIO(dataset: DatasetId): IO[Int] = repository.count(dataset)
-  def count(dataset: DatasetId): Int       = countIO(dataset).unsafeRunSync()
+  def count(dataset: DatasetId): IO[Int] = repository.count(dataset)
 
-  type Headers = List[ColumnMeta]
+  def features(query: FeaturesQuery): IO[(Headers, Stream[JsObject])] = repository.features(query)
 
-  def featuresIO(query: FeaturesQuery): IO[(Headers, Stream[JsObject])] = repository.features(query)
-  def features(query: FeaturesQuery): (Headers, Stream[JsObject]) =
-    featuresIO(query).unsafeRunSync()
-
-}
-
-object FeaturesService {
-  def apply(repo: FeaturesRepository[IO])(implicit E: Effect[IO]): FeaturesService =
-    new FeaturesService(repo)
 }

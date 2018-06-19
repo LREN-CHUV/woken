@@ -31,6 +31,7 @@ trait MetadataRepository[F[_]] extends Repository {
 
   def variablesMeta: VariablesMetaRepository[F]
 
+  // TODO: rename to tablesInventory
   def tablesCatalog: TablesCatalogRepository[F]
 
 }

@@ -22,7 +22,7 @@ import cats.data.Validated.Valid
 import ch.chuv.lren.woken.config.{ DatabaseConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.core.CoordinatorConfig
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil
-import ch.chuv.lren.woken.dao.FeaturesDAL
+import ch.chuv.lren.woken.service.{ FeaturesService, TestServices }
 import ch.chuv.lren.woken.service.TestServices.jobResultService
 
 object FakeCoordinatorConfig {
@@ -51,14 +51,14 @@ object FakeCoordinatorConfig {
                       0.5,
                       512)
 
-  val fakeFeaturesDAL                                                     = FeaturesDAL(noDbConfig)
+  val fakeFeaturesService: FeaturesService                                = TestServices.emptyFeaturesService
   val jdbcConfigs: String => ConfigUtil.Validation[DatabaseConfiguration] = _ => Valid(noDbConfig)
 
   def coordinatorConfig(chronosService: ActorRef): CoordinatorConfig =
     CoordinatorConfig(
       chronosService,
       None,
-      fakeFeaturesDAL,
+      fakeFeaturesService,
       jobResultService,
       noJobsConf,
       jdbcConfigs.apply

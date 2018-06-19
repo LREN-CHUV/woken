@@ -124,3 +124,41 @@ class FeaturesTableRepositoryDAO[F[_]: Monad](val xa: Transactor[F], val table: 
     } yield ColumnMeta(col, colName, colType)
 
 }
+
+class GeneratedFeaturesTableRepositoryDAO[F[_]: Monad](val xa: Transactor[F],
+                                                       val table: TableDescription)
+    extends FeaturesTableRepositoryDAO[F](xa, table) {
+
+  def create: F[Unit] = {
+    val createSequence =
+      sql"""
+
+      CREATE SEQUENCE IF NOT EXISTS gen_features_table_seq
+        START WITH 1
+        INCREMENT BY 1
+        MINVALUE 1
+        NO MAXVALUE
+        CACHE 1;
+    """
+
+    val nextVal = sql"""
+      SELECT nextval('gen_features_table_seq');
+    """
+
+    val create =
+      sql"""
+
+      CREATE OR REPLACE VIEW {{ view.name }} ({{{ view.columns }}})
+        AS SELECT {{{ table1.qualifiedColumns }}},{{{ table2.qualifiedColumnsNoId }}} FROM {{ table1.name }}
+             LEFT OUTER JOIN {{ table2.name }} ON ({{{ table1.qualifiedId }}} = {{{ table2.qualifiedId }}});
+      """
+
+    for {
+      _ <- createSequence.update
+
+    }
+  }
+
+  def update(): F[Unit] = {}
+
+}

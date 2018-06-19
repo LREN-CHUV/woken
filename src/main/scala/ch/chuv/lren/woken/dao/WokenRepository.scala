@@ -34,7 +34,7 @@ trait WokenRepository[F[_]] extends Repository {
 }
 
 /**
-  * Algebra for persistance of JobResult
+  * Algebra for persistence of JobResult
   */
 trait JobResultRepository[F[_]] extends Repository {
 
@@ -51,7 +51,7 @@ class WokenInMemoryRepository[F[_]: Applicative] extends WokenRepository[F] {
     private val cache = new TrieMap[String, JobResult]
 
     override def put(result: JobResult): F[JobResult] = {
-      cache.put(result.jobIdM.getOrElse(""), result)
+      val _ = cache.put(result.jobIdM.getOrElse(""), result)
       result.pure[F]
     }
 

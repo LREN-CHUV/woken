@@ -22,6 +22,10 @@ import ch.chuv.lren.woken.core.model.TableDescription
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import spray.json.JsObject
 
+import cats._
+import cats.implicits._
+
+import scala.collection.concurrent.TrieMap
 import scala.language.higherKinds
 
 /**
@@ -47,4 +51,31 @@ trait FeaturesTableRepository[F[_]] extends Repository {
 
   def features(query: FeaturesQuery): F[(Headers, Stream[JsObject])]
 
+}
+
+class FeaturesInMemoryRepository[F[_]: Applicative](override val tables: Set[TableDescription])
+    extends FeaturesRepository[F] {
+
+  private val cache = new TrieMap[String, FeaturesTableRepository[F]]()
+
+  override def featuresTable(table: String): Option[FeaturesTableRepository[F]] =
+    Some(
+      cache
+        .getOrElse(table, {
+          val ftr = new FeaturesTableInMemoryRepository[F]()
+          val _   = cache.put(table, ftr)
+          ftr
+        })
+    )
+
+}
+
+class FeaturesTableInMemoryRepository[F[_]: Applicative] extends FeaturesTableRepository[F] {
+
+  override def count: F[Int] = 0.pure[F]
+
+  override def count(dataset: DatasetId): F[Int] = 0.pure[F]
+
+  override def features(query: FeaturesQuery): F[(Headers, Stream[JsObject])] =
+    (List[ColumnMeta](), List[JsObject]().toStream).pure[F]
 }

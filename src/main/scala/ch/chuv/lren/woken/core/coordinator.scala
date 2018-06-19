@@ -31,8 +31,7 @@ import ch.chuv.lren.woken.config.{ DatabaseConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.core.commands.JobCommands.StartCoordinatorJob
 import ch.chuv.lren.woken.core.model.{ DockerJob, ErrorJobResult, JobResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
-import ch.chuv.lren.woken.dao.FeaturesDAL
-import ch.chuv.lren.woken.service.JobResultService
+import ch.chuv.lren.woken.service.{ FeaturesService, JobResultService }
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.duration._
@@ -44,7 +43,7 @@ import scala.language.higherKinds
 // TODO: featuresDatabase needed by CrossValidationActor, not by CoordinatorActor
 case class CoordinatorConfig(chronosService: ActorRef,
                              dockerBridgeNetwork: Option[String],
-                             featuresDatabase: FeaturesDAL,
+                             featuresService: FeaturesService,
                              jobResultService: JobResultService,
                              jobsConf: JobsConfiguration,
                              jdbcConfF: String => Validation[DatabaseConfiguration])
@@ -247,7 +246,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
 
     // Check the database for the job result; prepare the next tick or send back the response if the job completed
     case Event(CheckDb, data: PartialLocalData) =>
-      val results = coordinatorConfig.jobResultService.get(data.job.jobId)
+      val results = coordinatorConfig.jobResultService.get(data.job.jobId).unsafeRunSync()
       if (results.nonEmpty) {
         logger.info(s"Received results for job ${data.job.jobId}")
         data.replyTo ! Response(data.job, results.toList, data.initiator)
@@ -272,7 +271,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
           s"Chronos returned job complete for job #$jobId, but was expecting job #{data.job.jobId}"
         )
       }
-      val results = coordinatorConfig.jobResultService.get(data.job.jobId)
+      val results = coordinatorConfig.jobResultService.get(data.job.jobId).unsafeRunSync()
       if (results.nonEmpty) {
         logger.info(s"Received results for job ${data.job.jobId}")
         data.replyTo ! Response(data.job, results.toList, data.initiator)
@@ -369,7 +368,7 @@ class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
 
     // Check the database for the job result; prepare the next tick or send back the response if the job completed
     case Event(CheckDb, data: ExpectedLocalData) =>
-      val results = coordinatorConfig.jobResultService.get(data.job.jobId)
+      val results = coordinatorConfig.jobResultService.get(data.job.jobId).unsafeRunSync()
       if (results.nonEmpty) {
         logger.info(s"Received results for job ${data.job.jobId}")
         data.replyTo ! Response(data.job, results.toList, data.initiator)

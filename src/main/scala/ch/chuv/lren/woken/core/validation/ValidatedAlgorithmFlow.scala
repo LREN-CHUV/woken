@@ -28,10 +28,10 @@ import ch.chuv.lren.woken.config.JobsConfiguration
 import ch.chuv.lren.woken.core.CoordinatorActor
 import ch.chuv.lren.woken.core.model._
 import ch.chuv.lren.woken.core.features.Queries._
-import ch.chuv.lren.woken.dao.FeaturesDAL
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.validation.Score
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
+import ch.chuv.lren.woken.service.FeaturesService
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.ExecutionContext
@@ -61,7 +61,7 @@ object ValidatedAlgorithmFlow {
 
 case class ValidatedAlgorithmFlow(
     executeJobAsync: CoordinatorActor.ExecuteJobAsync,
-    featuresDatabase: FeaturesDAL,
+    featuresService: FeaturesService,
     jobsConf: JobsConfiguration,
     context: ActorContext
 )(implicit materializer: Materializer, ec: ExecutionContext)
@@ -69,7 +69,7 @@ case class ValidatedAlgorithmFlow(
 
   import ValidatedAlgorithmFlow._
 
-  private val crossValidationFlow = CrossValidationFlow(executeJobAsync, featuresDatabase, context)
+  private val crossValidationFlow = CrossValidationFlow(executeJobAsync, featuresService, context)
 
   /**
     * Run a predictive and local algorithm and perform its validation procedure.

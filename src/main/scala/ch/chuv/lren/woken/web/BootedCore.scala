@@ -33,12 +33,7 @@ import ch.chuv.lren.woken.config.{
   DatasetsConfiguration
 }
 import ch.chuv.lren.woken.core.{ CoordinatorConfig, Core, CoreActors }
-import ch.chuv.lren.woken.dao.{
-  FeaturesDAL,
-  FeaturesRepositoryDAO,
-  MetadataRepositoryDAO,
-  WokenRepositoryDAO
-}
+import ch.chuv.lren.woken.dao.{ FeaturesRepositoryDAO, MetadataRepositoryDAO, WokenRepositoryDAO }
 import ch.chuv.lren.woken.service._
 import ch.chuv.lren.woken.ssl.WokenSSLConfiguration
 import ch.chuv.lren.woken.backends.woken.WokenClientService
@@ -77,8 +72,6 @@ trait BootedCore
     .factory(config)(jobsConfig.featuresDb)
     .valueOr(configurationFailed)
 
-  override lazy val featuresDAL = FeaturesDAL(featuresDbConnection)
-
   private lazy val fsIO: IO[FeaturesService] = for {
     xa <- DatabaseConfiguration.dbTransactor(featuresDbConnection)
     _  <- DatabaseConfiguration.testConnection[IO](xa)
@@ -86,7 +79,8 @@ trait BootedCore
   } yield {
     FeaturesService(featuresDb)
   }
-  private lazy val featuresService: FeaturesService = fsIO.unsafeRunSync()
+
+  override lazy val featuresService: FeaturesService = fsIO.unsafeRunSync()
 
   private lazy val jrsIO: IO[JobResultService] = for {
     xa <- DatabaseConfiguration.dbTransactor(resultsDbConfig)
@@ -100,7 +94,7 @@ trait BootedCore
   override lazy val coordinatorConfig = CoordinatorConfig(
     chronosHttp,
     appConfig.dockerBridgeNetwork,
-    featuresDAL,
+    featuresService,
     jobResultService,
     jobsConfig,
     DatabaseConfiguration.factory(config)

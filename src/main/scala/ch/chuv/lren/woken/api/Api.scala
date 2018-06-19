@@ -20,8 +20,7 @@ package ch.chuv.lren.woken.api
 import akka.http.scaladsl.model.StatusCodes
 import ch.chuv.lren.woken.api.swagger.SwaggerService
 import ch.chuv.lren.woken.core.{ CoordinatorConfig, Core, CoreActors }
-import ch.chuv.lren.woken.dao.FeaturesDAL
-import ch.chuv.lren.woken.service.JobResultService
+import ch.chuv.lren.woken.service.{ FeaturesService, JobResultService }
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
@@ -37,7 +36,7 @@ import com.typesafe.scalalogging.LazyLogging
   */
 trait Api extends CoreActors with Core with LazyLogging {
 
-  def featuresDAL: FeaturesDAL
+  def featuresService: FeaturesService
   def jobResultService: JobResultService
   def coordinatorConfig: CoordinatorConfig
 

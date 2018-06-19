@@ -13,3 +13,7 @@ test-output/
 .settings/
 .bloop/
 dev-tests/
+.ensime
+.ensime_cache/
+.vscode/
+*.log

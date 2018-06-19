@@ -23,8 +23,6 @@ import ch.chuv.lren.woken.dao.JobResultRepository
 
 import scala.language.higherKinds
 
-// Ok, end of the world IO occurs early on
-
 /**
   * Service that provides access to the job results.
   *
@@ -34,13 +32,10 @@ import scala.language.higherKinds
   */
 class JobResultService(repository: JobResultRepository[IO])(implicit E: Effect[IO]) {
 
-  def putIO(result: JobResult): IO[JobResult] = repository.put(result)
+  def put(result: JobResult): IO[JobResult] = repository.put(result)
 
-  def put(result: JobResult): JobResult = putIO(result).unsafeRunSync()
+  def get(jobId: String): IO[Option[JobResult]] = repository.get(jobId)
 
-  def getIO(jobId: String): IO[Option[JobResult]] = repository.get(jobId)
-
-  def get(jobId: String): Option[JobResult] = getIO(jobId).unsafeRunSync()
 }
 
 object JobResultService {

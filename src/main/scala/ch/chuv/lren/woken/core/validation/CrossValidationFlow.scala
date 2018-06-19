@@ -38,10 +38,10 @@ import ch.chuv.lren.woken.core.model.{
 }
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
-import ch.chuv.lren.woken.dao.FeaturesDAL
 import ch.chuv.lren.woken.messages.query.{ MiningQuery, ValidationSpec }
 import ch.chuv.lren.woken.messages.validation._
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
+import ch.chuv.lren.woken.service.FeaturesService
 import com.typesafe.scalalogging.LazyLogging
 import spray.json.JsValue
 
@@ -89,7 +89,7 @@ object CrossValidationFlow {
 
 case class CrossValidationFlow(
     executeJobAsync: CoordinatorActor.ExecuteJobAsync,
-    featuresDatabase: FeaturesDAL,
+    featuresService: FeaturesService,
     context: ActorContext
 )(implicit materializer: Materializer, ec: ExecutionContext)
     extends LazyLogging {
@@ -108,13 +108,16 @@ case class CrossValidationFlow(
           job.query
             .filterNulls(job.algorithmDefinition.variablesCanBeNull,
                          job.algorithmDefinition.covariablesCanBeNull)
-            .features(job.inputTable, None)
+            .features(job.inputTable)
 
         logger.info(s"List of folds: $foldCount")
 
         // TODO For now only kfold cross-validation
         val crossValidation =
-          KFoldCrossValidation(featuresQuery, foldCount, featuresDatabase)
+          KFoldCrossValidation(featuresQuery, foldCount, featuresService)
+            .fold({ error =>
+              throw new IllegalArgumentException(error)
+            }, identity)
 
         assert(
           crossValidation.partition.size == foldCount,
@@ -192,7 +195,8 @@ case class CrossValidationFlow(
       job.query.filterDatasets
         .filterNulls(job.algorithmDefinition.variablesCanBeNull,
                      job.algorithmDefinition.covariablesCanBeNull)
-        .features(job.inputTable, Some(offset))
+        .features(job.inputTable)
+        .copy(sampling = Some(validation.sampleForFold(fold)))
 
     val subJob = DockerJob(
       jobId = jobId,

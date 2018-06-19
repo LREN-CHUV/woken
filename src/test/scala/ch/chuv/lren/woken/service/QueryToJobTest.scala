@@ -179,7 +179,9 @@ class QueryToJobTest extends WordSpec with Matchers with ValidatedMatchers with 
             List("lefthippocampus"),
             List(),
             "cde_features_a",
-            """SELECT "apoe4","lefthippocampus" FROM cde_features_a WHERE "apoe4" IS NOT NULL AND "lefthippocampus" IS NOT NULL AND "dataset" IN ('desd-synthdata')"""
+            None,
+            None
+            //"""SELECT "apoe4","lefthippocampus" FROM cde_features_a WHERE "apoe4" IS NOT NULL AND "lefthippocampus" IS NOT NULL AND "dataset" IN ('desd-synthdata')"""
           )
         ),
         'algorithmSpec (
@@ -222,7 +224,9 @@ class QueryToJobTest extends WordSpec with Matchers with ValidatedMatchers with 
             List("lefthippocampus"),
             List(),
             "cde_features_a",
-            """SELECT "apoe4","lefthippocampus" FROM cde_features_a WHERE "apoe4" IS NOT NULL AND "lefthippocampus" IS NOT NULL AND "dataset" IN ('desd-synthdata')"""
+            None,
+            None
+            // """SELECT "apoe4","lefthippocampus" FROM cde_features_a WHERE "apoe4" IS NOT NULL AND "lefthippocampus" IS NOT NULL AND "dataset" IN ('desd-synthdata')"""
           )
         ),
         'algorithmSpec (

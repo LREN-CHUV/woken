@@ -114,7 +114,7 @@ object QueryToJob extends LazyLogging {
     val featuresTable = query.targetTable.getOrElse(jobsConfiguration.featuresTable)
     val metadataKey   = query.targetTable.getOrElse(jobsConfiguration.metadataKeyForFeaturesTable)
     val variablesMeta: Validation[VariablesMeta] = Validated.fromOption(
-      variablesMetaService.get(metadataKey),
+      variablesMetaService.get(metadataKey).unsafeRunSync(),
       NonEmptyList(s"Cannot find metadata for table $metadataKey", Nil)
     )
 

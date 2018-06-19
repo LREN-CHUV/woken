@@ -30,10 +30,10 @@ import ch.chuv.lren.woken.core.CoordinatorActor
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.core.model.ValidationJob
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
-import ch.chuv.lren.woken.dao.FeaturesDAL
 import ch.chuv.lren.woken.messages.query.AlgorithmSpec
 import ch.chuv.lren.woken.messages.validation._
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
+import ch.chuv.lren.woken.service.FeaturesService
 import com.typesafe.scalalogging.LazyLogging
 import spray.json._
 
@@ -69,7 +69,7 @@ object ValidationFlow {
 
 case class ValidationFlow(
     executeJobAsync: CoordinatorActor.ExecuteJobAsync,
-    featuresDatabase: FeaturesDAL,
+    featuresService: FeaturesService,
     context: ActorContext
 )(implicit materializer: Materializer, ec: ExecutionContext)
     extends LazyLogging {
@@ -96,34 +96,41 @@ case class ValidationFlow(
         logger.info(s"Validation query: $featuresQuery")
 
         // JSON objects with fieldname corresponding to variables names
-        val (_, dataframe) = featuresDatabase.runQuery(featuresDatabase.ldsmConnection, sql)
+        featuresService
+          .featuresTable(featuresQuery.dbTable)
+          .right
+          .map { table =>
+            val (_, dataframe) = table.features(featuresQuery).unsafeRunSync()
+            logger.info(s"Query response: ${dataframe.mkString(",")}")
 
-        logger.info(s"Query response: ${dataframe.mkString(",")}")
+            // Separate features from labels
+            val variables = featuresQuery.dbVariables
+            val features  = featuresQuery.dbCovariables ++ featuresQuery.dbGrouping
 
-        // Separate features from labels
-        val variables = featuresQuery.dbVariables
-        val features  = featuresQuery.dbCovariables ++ featuresQuery.dbGrouping
+            val (testData, labels) = dataframe.toList
+              .map(
+                o =>
+                  (JsObject(o.fields.filterKeys(features.contains(_))),
+                   JsObject(o.fields.filterKeys(variables.contains(_))))
+              )
+              .unzip
+            val groundTruth: List[JsValue] = labels.map(_.fields.toList.head._2)
 
-        val (testData, labels) = dataframe.toList
-          .map(
-            o =>
-              (JsObject(o.fields.filterKeys(features.contains(_))),
-               JsObject(o.fields.filterKeys(variables.contains(_))))
-          )
-          .unzip
-        val groundTruth: List[JsValue] = labels.map(_.fields.toList.head._2)
+            logger.info(
+              s"Send validation work for all local data to validation worker"
+            )
+            val model = modelOf(validation).getOrElse(
+              throw new IllegalStateException(
+                "Should have a model in the validation algorithm parameters"
+              )
+            )
+            val validationQuery = ValidationQuery(-1, model, testData, targetMetadata(job))
 
-        logger.info(
-          s"Send validation work for all local data to validation worker"
-        )
-        val model = modelOf(validation).getOrElse(
-          throw new IllegalStateException(
-            "Should have a model in the validation algorithm parameters"
-          )
-        )
-        val validationQuery = ValidationQuery(-1, model, testData, targetMetadata(job))
-
-        Context(job, validationQuery, validationQuery.varInfo, groundTruth)
+            Context(job, validationQuery, validationQuery.varInfo, groundTruth)
+          }
+          .fold({ error =>
+            throw new IllegalArgumentException(error)
+          }, identity)
       }
       .mapAsync(1)(executeValidation)
       .mapAsync(1)(scoreValidationResponse)

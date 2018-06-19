@@ -32,9 +32,8 @@ import scala.util.{ Failure, Success }
 import ch.chuv.lren.woken.core.commands.JobCommands.StartExperimentJob
 import ch.chuv.lren.woken.config.JobsConfiguration
 import ch.chuv.lren.woken.core.model._
-import ch.chuv.lren.woken.dao.FeaturesDAL
 import ch.chuv.lren.woken.messages.query._
-import ch.chuv.lren.woken.service.DispatcherService
+import ch.chuv.lren.woken.service.{ DispatcherService, FeaturesService }
 import com.typesafe.scalalogging.LazyLogging
 
 /**
@@ -104,7 +103,7 @@ class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
   lazy val experimentFlow: Flow[Job, Map[AlgorithmSpec, JobResult], NotUsed] =
     ExperimentFlow(
       CoordinatorActor.executeJobAsync(coordinatorConfig, context),
-      coordinatorConfig.featuresDatabase,
+      coordinatorConfig.featuresService,
       coordinatorConfig.jobsConf,
       dispatcherService,
       context
@@ -191,7 +190,7 @@ object ExperimentFlow {
 
 case class ExperimentFlow(
     executeJobAsync: CoordinatorActor.ExecuteJobAsync,
-    featuresDatabase: FeaturesDAL,
+    featuresService: FeaturesService,
     jobsConf: JobsConfiguration,
     dispatcherService: DispatcherService,
     context: ActorContext
@@ -209,7 +208,7 @@ case class ExperimentFlow(
                                      result: JobResult)
 
   private val validatedAlgorithmFlow =
-    ValidatedAlgorithmFlow(executeJobAsync, featuresDatabase, jobsConf, context)
+    ValidatedAlgorithmFlow(executeJobAsync, featuresService, jobsConf, context)
 
   @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
   def flow: Flow[ExperimentActor.Job, Map[AlgorithmSpec, JobResult], NotUsed] =

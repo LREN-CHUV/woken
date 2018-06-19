@@ -115,7 +115,6 @@ class QueriesTest extends WordSpec with Matchers {
       val expected: String =
         """SELECT "target","a","b","c","grp1","grp2", abs(('x'||substr(md5(subjectcode),1,16))::bit(64)::BIGINT) as "_sort_" FROM inputTable WHERE "a" < 10 EXCEPT ALL (SELECT "target","a","b","c","grp1","grp2", abs(('x'||substr(md5(subjectcode),1,16))::bit(64)::BIGINT) as "_sort_" FROM inputTable WHERE "a" < 10 ORDER BY "_sort_" OFFSET 0 LIMIT 20) ORDER BY "_sort_" """.trim
 
-      println(featuresQuery.sql)
       featuresQuery.sql shouldBe expected
 
     }

@@ -152,7 +152,7 @@ class MasterRouterTest
   val coordinatorConfig: CoordinatorConfig = CoordinatorConfig(
     system.actorOf(FakeActors.echoActorProps),
     None,
-    fakeFeaturesDAL,
+    fakeFeaturesService,
     jobResultService,
     noJobsConf,
     jdbcConfigs.apply

@@ -142,7 +142,7 @@ class DispatcherService(allDatasets: Map[DatasetId, Dataset],
           .map { ds =>
             val varsForDs = ds.tables
               .map(_.toUpperCase)
-              .flatMap(variablesMetaService.get)
+              .flatMap(v => variablesMetaService.get(v).unsafeRunSync())
               .flatMap(_.filterVariables(_ => true))
               .map(_.copy(datasets = Set(ds.dataset)))
             varsForDs.toSet

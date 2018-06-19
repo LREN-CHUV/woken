@@ -20,7 +20,6 @@ package ch.chuv.lren.woken.core.features
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.messages.query.{ ExperimentQuery, MiningQuery, Query }
 import ch.chuv.lren.woken.messages.query.filters._
-import ch.chuv.lren.woken.messages.query.filters.FilterRule._
 import ch.chuv.lren.woken.messages.variables.{ FeatureIdentifier, VariableId }
 
 case class QueryOffset(start: Int, count: Int) {
@@ -69,10 +68,7 @@ object Queries {
           case List(f) => f
           case _       => CompoundFilterRule(Condition.and, mergingQueryFilters)
         }
-        query match {
-          case q: MiningQuery     => q.copy(filters = Some(filters)).asInstanceOf[Q]
-          case q: ExperimentQuery => q.copy(filters = Some(filters)).asInstanceOf[Q]
-        }
+        setFilters(filters)
       }
     }
 
@@ -101,54 +97,22 @@ object Queries {
               f => CompoundFilterRule(Condition.and, List(datasetsFilter, f))
             )
 
-        query match {
-          case q: MiningQuery     => q.copy(filters = Some(filters)).asInstanceOf[Q]
-          case q: ExperimentQuery => q.copy(filters = Some(filters)).asInstanceOf[Q]
-        }
+        setFilters(filters)
       }
     }
 
-    /**
-      * Returns the database query for the selection of data features for training algorithms or mining data
-      *
-      * @param defaultInputTable The input table to use by default if no value is defined in the query
-      * @param offset Offset for the selection of data
-      * @return the database query for the selection of data features
-      */
-    def features(defaultInputTable: String, offset: Option[QueryOffset]): FeaturesQuery = {
-
+    def features(defaultInputTable: String): FeaturesQuery = {
       val inputTable = query.targetTable.getOrElse(defaultInputTable)
-
-      val selectFields =
-        s"SELECT ${query.dbAllVars.map(_.identifier).mkString(",")}"
-
-      val selectOnly =
-        s"$selectFields FROM $inputTable"
-
-      val selectFiltered = query.filters.fold(selectOnly) { filters =>
-        s"$selectOnly WHERE ${filters.withAdaptedFieldName.toSqlWhere}"
-      }
-
-      // TODO: should read the subjectcode primary key from the table definition
-      val selectFieldsOrdered =
-        s"""$selectFields, abs(('x'||substr(md5(subjectcode),1,16))::bit(64)::BIGINT) as "_sort_""""
-
-      val selectOrderedReady =
-        s"""$selectFieldsOrdered FROM $inputTable"""
-
-      val selectOrderedFiltered = query.filters.fold(selectOrderedReady) { filters =>
-        s"""$selectFieldsOrdered FROM $inputTable WHERE ${filters.withAdaptedFieldName.toSqlWhere}"""
-      }
-
-      val selectOrdered =
-        s"""$selectOrderedFiltered ORDER BY "_sort_""""
-
-      val sqlQuery = offset.fold(selectFiltered) { o =>
-        s"""$selectOrderedFiltered EXCEPT ALL ($selectOrdered OFFSET ${o.start} LIMIT ${o.count}) ORDER BY "_sort_""""
-      }
-
-      FeaturesQuery(dbVariables, dbCovariables, dbGrouping, inputTable, sqlQuery)
+      FeaturesQuery(dbVariables, dbCovariables, dbGrouping, inputTable, query.filters, None)
     }
+
+    @SuppressWarnings(Array("org.wartremover.warts.AsInstanceOf"))
+    private def setFilters(filters: FilterRule): Q =
+      query match {
+        case q: MiningQuery     => q.copy(filters = Some(filters)).asInstanceOf[Q]
+        case q: ExperimentQuery => q.copy(filters = Some(filters)).asInstanceOf[Q]
+      }
+
   }
 
 }

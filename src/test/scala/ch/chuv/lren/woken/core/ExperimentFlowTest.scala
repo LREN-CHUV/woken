@@ -289,7 +289,7 @@ class ExperimentFlowTest
         FakeCoordinatorActor.executeJobAsync(FakeCoordinatorActor.props(expectedAlgorithm, None),
                                              context)
       ),
-      coordinatorConfig.featuresDatabase,
+      coordinatorConfig.featuresService,
       coordinatorConfig.jobsConf,
       dispatcherService,
       context

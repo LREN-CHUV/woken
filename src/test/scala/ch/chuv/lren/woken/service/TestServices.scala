@@ -19,7 +19,11 @@ package ch.chuv.lren.woken.service
 
 import cats.effect.IO
 import ch.chuv.lren.woken.core.model.VariablesMeta
-import ch.chuv.lren.woken.dao.{ MetadataInMemoryRepository, WokenInMemoryRepository }
+import ch.chuv.lren.woken.dao.{
+  FeaturesInMemoryRepository,
+  MetadataInMemoryRepository,
+  WokenInMemoryRepository
+}
 import ch.chuv.lren.woken.messages.variables.GroupMetaData
 import ch.chuv.lren.woken.messages.variables.variablesProtocol._
 import ch.chuv.lren.woken.util.JsonUtils
@@ -71,4 +75,7 @@ object TestServices extends JsonUtils {
 
   lazy val algorithmLibraryService: AlgorithmLibraryService = AlgorithmLibraryService()
 
+  lazy val emptyFeaturesService: FeaturesService = FeaturesService(
+    new FeaturesInMemoryRepository[IO](Set())
+  )
 }
