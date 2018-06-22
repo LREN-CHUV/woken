@@ -1,6 +1,7 @@
 import sbt.ExclusionRule
 import sbtassembly.MergeStrategy
 
+// TODO: rethink the Sbt build: https://kubuszok.com/2018/relearn-your-sbt/
 
 autoCompilerPlugins := true
 
@@ -14,7 +15,9 @@ lazy val `woken` =
   project
     .in(file("."))
     .enablePlugins(AutomateHeaderPlugin, GitVersioning, GitBranchPrompt)
+    .configs(IntegrationTest)
     .settings(settings)
+    .settings(Defaults.itSettings)
     .settings(
       Seq(
         mainClass in Runtime := Some("ch.chuv.lren.woken.web.Web"),
@@ -57,14 +60,14 @@ lazy val `woken` =
           //library.scalaCache,
           library.acyclic                % Provided,
           library.scalaCheck             % Test,
-          library.scalaTest              % Test,
+          library.scalaTest              % "it,test",
           library.scalaMock              % Test,
           library.akkaTestkit            % Test,
           library.akkaStreamTestkit      % Test,
           library.doobieScalaTest        % Test,
           library.catsScalaTest          % Test,
-          library.dockerTestKitScalaTest % Test,
-          library.dockerTestKitSpotify   % Test,
+          library.dockerTestKitScalaTest % IntegrationTest,
+          library.dockerTestKitSpotify   % IntegrationTest,
           library.diff                   % Test
         ),
         includeFilter in (Compile, unmanagedResources) := "*.json" || "*.conf" || "*.xml" || "*.html",
@@ -110,7 +113,7 @@ lazy val library =
       val doobie          = "0.5.3"
       val snakeyaml       = "1.21"
       val scalaCache      = "0.21.0"
-      val dockerTestKit   = "0.9.6"
+      val dockerTestKit   = "0.9.7"
       val diff            = "1.2.0"
       val acyclic         = "0.1.7"
       val wokenMessages   = "2.8.2"

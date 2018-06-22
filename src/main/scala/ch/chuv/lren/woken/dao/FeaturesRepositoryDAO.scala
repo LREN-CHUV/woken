@@ -26,7 +26,7 @@ import doobie._
 import doobie.implicits._
 import spray.json._
 import DefaultJsonProtocol._
-import ch.chuv.lren.woken.core.model.TableDescription
+import ch.chuv.lren.woken.core.model.{ TableColumn, TableDescription }
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 
 import scala.language.higherKinds
@@ -125,38 +125,48 @@ class FeaturesTableRepositoryDAO[F[_]: Monad](val xa: Transactor[F], val table: 
 
 }
 
-class GeneratedFeaturesTableRepositoryDAO[F[_]: Monad](val xa: Transactor[F],
-                                                       val table: TableDescription)
+class DynamicFeaturesTableRepositoryDAO[F[_]: Monad](val xa: Transactor[F],
+                                                     val table: TableDescription,
+                                                     val pk: TableColumn,
+                                                     val newFeatures: List[TableColumn])
     extends FeaturesTableRepositoryDAO[F](xa, table) {
 
   def create: F[Unit] = {
     val createSequence =
       sql"""
+        CREATE SEQUENCE IF NOT EXISTS gen_features_table_seq
+          START WITH 1
+          INCREMENT BY 1
+          MINVALUE 1
+          NO MAXVALUE
+          CACHE 1;
+    """.update.run
 
-      CREATE SEQUENCE IF NOT EXISTS gen_features_table_seq
-        START WITH 1
-        INCREMENT BY 1
-        MINVALUE 1
-        NO MAXVALUE
-        CACHE 1;
-    """
-
-    val nextVal = sql"""
+    val genTableNum = sql"""
       SELECT nextval('gen_features_table_seq');
-    """
+    """.query[Int].unique
 
-    val create =
-      sql"""
+    def createAdditionalFeaturesTable(tableNum: Int) = {
+      val stmt = fr"CREATE TABLE " ++ Fragment.const(s"${table.tableName}__$tableNum") ++ fr"""
 
-      CREATE OR REPLACE VIEW {{ view.name }} ({{{ view.columns }}})
-        AS SELECT {{{ table1.qualifiedColumns }}},{{{ table2.qualifiedColumnsNoId }}} FROM {{ table1.name }}
-             LEFT OUTER JOIN {{ table2.name }} ON ({{{ table1.qualifiedId }}} = {{{ table2.qualifiedId }}});
       """
+      stmt.update.run
+    }
+
+    def createFeaturesView(tableNum: Int) =
+      sql"""
+        CREATE OR REPLACE VIEW {{ view.name }} ({{{ view.columns }}})
+          AS SELECT {{{ table1.qualifiedColumns }}},{{{ table2.qualifiedColumnsNoId }}} FROM {{ table1.name }}
+              LEFT OUTER JOIN {{ table2.name }} ON ({{{ table1.qualifiedId }}} = {{{ table2.qualifiedId }}});
+      """.update.run
 
     for {
-      _ <- createSequence.update
+      _        <- createSequence.transact(xa)
+      tableNum <- genTableNum.transact(xa)
+      _        <- createAdditionalFeaturesTable(tableNum).transact(xa)
+      _        <- createFeaturesView(tableNum).transact(xa)
 
-    }
+    } yield tableNum
   }
 
   def update(): F[Unit] = {}
