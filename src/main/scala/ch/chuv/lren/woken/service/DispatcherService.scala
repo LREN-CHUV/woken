@@ -141,7 +141,7 @@ class DispatcherService(allDatasets: Map[DatasetId, Dataset],
         val mergedVariables = datasets
           .map { ds =>
             val varsForDs = ds.tables
-              .map(_.toUpperCase)
+              .map(_.toUpperCase) // TODO: table name should not always be uppercase
               .flatMap(v => variablesMetaService.get(v).unsafeRunSync())
               .flatMap(_.filterVariables(_ => true))
               .map(_.copy(datasets = Set(ds.dataset)))
