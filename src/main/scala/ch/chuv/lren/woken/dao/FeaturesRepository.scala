@@ -45,7 +45,7 @@ trait FeaturesRepository[F[_]] extends Repository {
     * @param table Name of the table
     * @return an option to the features table repository
     */
-  def featuresTable(table: String): Option[FeaturesTableRepository[F]]
+  def featuresTable(table: String): F[Option[FeaturesTableRepository[F]]]
 
 }
 
@@ -93,15 +93,15 @@ class FeaturesInMemoryRepository[F[_]: Applicative](
 
   private val cache = new TrieMap[String, FeaturesTableRepository[F]]()
 
-  override def featuresTable(table: String): Option[FeaturesTableRepository[F]] =
-    Some(
+  override def featuresTable(table: String): F[Option[FeaturesTableRepository[F]]] =
+    Option(
       cache
         .getOrElse(table, {
           val ftr = new FeaturesTableInMemoryRepository[F]()
           val _   = cache.put(table, ftr)
           ftr
         })
-    )
+    ).pure[F]
 
 }
 

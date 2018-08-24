@@ -17,8 +17,6 @@
 
 package ch.chuv.lren.woken.dao
 
-import java.sql.ResultSetMetaData
-
 import doobie._
 import doobie.implicits._
 import spray.json._
@@ -42,8 +40,8 @@ class FeaturesRepositoryDAO[F[_]: Monad] private (
     override val tables: Set[FeaturesTableDescription]
 ) extends FeaturesRepository[F] {
 
-  override def featuresTable(table: String): Option[FeaturesTableRepository[F]] =
-    tables.find(_.name == table).map(t => FeaturesTableRepositoryDAO[F](xa, t))
+  override def featuresTable(table: String): F[Option[FeaturesTableRepository[F]]] =
+    tables.find(_.name == table).map(t => FeaturesTableRepositoryDAO[F](xa, t)).sequence
 
 }
 
@@ -190,7 +188,7 @@ class FeaturesTableRepositoryDAO[F[_]: Monad] private (override val xa: Transact
 
 object FeaturesTableRepositoryDAO {
 
-  def apply[F[_]: Monad](xa: Transactor[F], table: FeaturesTableDescription): F[FeaturesTableRepositoryDAO[F]] = {
+  def apply[F[_]: Monad](xa: Transactor[F], table: FeaturesTableDescription): F[FeaturesTableRepository[F]] = {
     HC.prepareStatement(s"SELECT 1")(prepareHeaders)
       .transact(xa)
       .map { headers => new FeaturesTableRepositoryDAO(xa, table, headers) }
