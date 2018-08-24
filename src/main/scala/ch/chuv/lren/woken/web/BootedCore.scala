@@ -73,22 +73,29 @@ trait BootedCore
     .valueOr(configurationFailed)
 
   private lazy val fsIO: IO[FeaturesService] = for {
-    xa <- DatabaseConfiguration.dbTransactor(featuresDbConnection)
-    _  <- DatabaseConfiguration.testConnection[IO](xa)
-    featuresDb = new FeaturesRepositoryDAO[IO](xa, featuresDbConnection.tables)
+    validatedXa <- DatabaseConfiguration.dbTransactor(featuresDbConnection)
+    validatedDb = validatedXa.map { xa =>
+      FeaturesRepositoryDAO(xa, featuresDbConnection.tables)
+    }
   } yield {
-    FeaturesService(featuresDb)
-  }
+    for {
+      db <- validatedDb.andThen(_.unsafeRunSync())
+    } yield FeaturesService(db)
+  }.valueOr(configurationFailed)
 
   override lazy val featuresService: FeaturesService = fsIO.unsafeRunSync()
 
   private lazy val jrsIO: IO[JobResultService] = for {
-    xa <- DatabaseConfiguration.dbTransactor(resultsDbConfig)
-    _  <- DatabaseConfiguration.testConnection[IO](xa)
-    wokenDb = new WokenRepositoryDAO[IO](xa)
+    validatedXa <- DatabaseConfiguration.dbTransactor(resultsDbConfig)
+    validatedDb = validatedXa.map { xa =>
+      new WokenRepositoryDAO[IO](xa)
+    }
   } yield {
-    JobResultService(wokenDb.jobResults)
-  }
+    for {
+      db <- validatedDb
+    } yield JobResultService(db.jobResults)
+  }.valueOr(configurationFailed)
+
   override lazy val jobResultService: JobResultService = jrsIO.unsafeRunSync()
 
   override lazy val coordinatorConfig = CoordinatorConfig(
@@ -114,12 +121,15 @@ trait BootedCore
       .valueOr(configurationFailed)
 
     val vmsIO: IO[VariablesMetaService] = for {
-      xa <- DatabaseConfiguration.dbTransactor(metaDbConfig)
-      _  <- DatabaseConfiguration.testConnection[IO](xa)
-      metaDb = new MetadataRepositoryDAO[IO](xa)
+      validatedXa <- DatabaseConfiguration.dbTransactor(metaDbConfig)
+      validatedDb = validatedXa.map { xa =>
+        new MetadataRepositoryDAO[IO](xa)
+      }
     } yield {
-      VariablesMetaService(metaDb.variablesMeta)
-    }
+      for {
+        db <- validatedDb
+      } yield VariablesMetaService(db.variablesMeta)
+    }.valueOr(configurationFailed)
 
     val variablesMetaService: VariablesMetaService = vmsIO.unsafeRunSync()
 
@@ -215,7 +225,7 @@ trait BootedCore
               logger.error(error)
               System.exit(1)
             }, { table: FeaturesTableService =>
-              if (table.count(dataset.dataset) == 0) {
+              if (table.count(dataset.dataset).unsafeRunSync() == 0) {
                 logger.error(
                   s"Table $tableName contains no value for dataset ${dataset.dataset.code}"
                 )

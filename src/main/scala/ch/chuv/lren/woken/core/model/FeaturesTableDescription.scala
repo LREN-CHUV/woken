@@ -32,14 +32,25 @@ case class TableColumn(name: String, sqlType: SqlType)
   * Description of a table containing features.
   *
   * @param database Name of the database, must be defined in DatabaseConfiguration
-  * @param tableName Name of the table
+  * @param schema Schema containing the table
+  * @param name Name of the table
   * @param primaryKey List of fields belonging to the primary key
   * @param owner Owner of the table, or None for global tables
+  * @param datasetColumn Column if it exists used to discriminate rows on the dataset owning them
   */
-case class TableDescription(
+case class FeaturesTableDescription(
     database: String,
-    tableName: String,
+    schema: Option[String],
+    name: String,
     primaryKey: List[TableColumn],
+    datasetColumn: Option[TableColumn],
     owner: Option[UserId],
     seed: Double
-)
+) {
+
+  /**
+    * @return the quoted name of the table, for use in SELECT statements
+    */
+  def quotedName: String = schema.fold(s""""$name"""")(sch => s""""$sch"."$name"""")
+
+}

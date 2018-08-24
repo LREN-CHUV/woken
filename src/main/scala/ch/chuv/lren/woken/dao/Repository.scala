@@ -33,6 +33,9 @@ import scala.util.Try
   */
 trait Repository extends LazyLogging {
 
+  // TODO: add health checks
+  // def healthCheck: Validation[]
+
   protected implicit val JsObjectMeta: Meta[JsObject] =
     Meta
       .other[PGobject]("json")

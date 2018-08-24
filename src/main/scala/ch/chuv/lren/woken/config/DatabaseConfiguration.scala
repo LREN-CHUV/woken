@@ -17,14 +17,12 @@
 
 package ch.chuv.lren.woken.config
 
-import doobie._
 import doobie.implicits._
 import doobie.hikari.HikariTransactor
-import cats.Monad
 import cats.implicits._
 import cats.effect._
 import cats.data.Validated._
-import ch.chuv.lren.woken.core.model.{ TableColumn, TableDescription }
+import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
 import com.typesafe.config.Config
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
 import ch.chuv.lren.woken.fp.Traverse
@@ -55,7 +53,7 @@ final case class DatabaseConfiguration(dbiDriver: String,
                                        user: String,
                                        password: String,
                                        poolSize: Int,
-                                       tables: Set[TableDescription])
+                                       tables: Set[FeaturesTableDescription])
 
 object DatabaseConfiguration {
 
@@ -79,14 +77,17 @@ object DatabaseConfiguration {
       val poolSize: Validation[Int] =
         db.validateInt("pool_size").orElse(lift(10))
 
-      val tableNames: Validation[Set[String]] = db.validateConfig("tables").map(_.keys)
+      val tableNames: Validation[Set[String]] = db
+        .validateConfig("tables")
+        .map(_.keys)
+        .orElse(lift(Set()))
 
-      val tableFactory: String => Validation[TableDescription] =
+      val tableFactory: String => Validation[FeaturesTableDescription] =
         table => readTable(db, List("tables", table), path.last)
 
-      val tables: Validation[Set[TableDescription]] = {
+      val tables: Validation[Set[FeaturesTableDescription]] = {
         tableNames.andThen { names: Set[String] =>
-          val m: Set[Validation[TableDescription]] = names.map(tableFactory)
+          val m: Set[Validation[FeaturesTableDescription]] = names.map(tableFactory)
           Traverse.sequence(m)
         }
       }
@@ -107,7 +108,7 @@ object DatabaseConfiguration {
 
   private def readTable(config: Config,
                         path: List[String],
-                        database: String): Validation[TableDescription] = {
+                        database: String): Validation[FeaturesTableDescription] = {
     val tableConfig = config.validateConfig(path.mkString("."))
 
     tableConfig.andThen { table =>
@@ -124,16 +125,28 @@ object DatabaseConfiguration {
             }
             .traverse[Validation, TableColumn](identity)
         }
-      val seed: Validation[Double] = table.validateDouble("seed").orElse(lift(0.67))
+      val datasetColumn: Validation[Option[TableColumn]] = table
+        .validateConfig("datasetColumn")
+        .andThen { col =>
+          val name: Validation[String] = col.validateString("name")
+          val sqlType: Validation[SqlType.Value] =
+            col.validateString("sqlType").map(SqlType.withName)
+          val validatedCol: Validation[TableColumn] = (name, sqlType) mapN TableColumn
+          val s: Validation[Option[TableColumn]]    = validatedCol.map(Option.apply)
+          s
+        }
+        .orElse(lift(None))
+      val schema: Validation[Option[String]] = table.validateOptionalString("schema")
+      val seed: Validation[Double]           = table.validateDouble("seed").orElse(lift(0.67))
 
-      (lift(database), tableName, primaryKey, lift(None), seed) mapN TableDescription
+      (lift(database), schema, tableName, primaryKey, datasetColumn, lift(None), seed) mapN FeaturesTableDescription
     }
   }
 
   def factory(config: Config): String => Validation[DatabaseConfiguration] =
     dbAlias => read(config, List("db", dbAlias))
 
-  def dbTransactor(dbConfig: DatabaseConfiguration): IO[HikariTransactor[IO]] =
+  def dbTransactor(dbConfig: DatabaseConfiguration): IO[Validation[HikariTransactor[IO]]] =
     for {
       xa <- HikariTransactor.newHikariTransactor[IO](dbConfig.jdbcDriver,
                                                      dbConfig.jdbcUrl,
@@ -146,10 +159,11 @@ object DatabaseConfiguration {
             hx.setAutoCommit(false)
         }
       )
-    } yield xa
 
-  // TODO: it should become Validated[]
-  def testConnection[F[_]: Monad](xa: Transactor[F]): F[Int] =
-    sql"select 1".query[Int].unique.transact(xa)
+      test <- sql"select 1".query[Int].unique.transact(xa)
+
+      validatedXa = if (test != 1) "Cannot connect to $dbConfig.jdbcUrl".invalidNel else lift(xa)
+
+    } yield validatedXa
 
 }

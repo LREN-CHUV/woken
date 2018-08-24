@@ -22,7 +22,7 @@ import doobie.implicits._
 import cats._
 import cats.implicits._
 import ch.chuv.lren.woken.messages.variables.{ GroupMetaData, variablesProtocol }
-import ch.chuv.lren.woken.core.model.{ TableDescription, VariablesMeta }
+import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, VariablesMeta }
 import variablesProtocol._
 
 import scala.collection.mutable
@@ -84,8 +84,8 @@ class VariablesMetaRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
 class TablesCatalogRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
     extends TablesCatalogRepository[F] {
 
-  override def put(table: TableDescription): F[TableDescription] = ???
+  override def put(table: FeaturesTableDescription): F[FeaturesTableDescription] = ???
 
-  override def get(table: String): F[Option[TableDescription]] = ???
+  override def get(table: String): F[Option[FeaturesTableDescription]] = ???
 
 }
