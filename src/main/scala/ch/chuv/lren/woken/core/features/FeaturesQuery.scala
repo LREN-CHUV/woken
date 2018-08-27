@@ -26,8 +26,7 @@ sealed trait Sampling
 
 case class LeaveOutPartition(folds: Integer,
                              excludeFold: Integer,
-                             orderColumn: Option[TableColumn],
-                             seed: Double)
+                             orderColumn: Option[TableColumn])
     extends Sampling {
   assert(excludeFold < folds)
 }
@@ -63,16 +62,16 @@ case class FeaturesQuery(
     sampling match {
       case None => selectFiltered(selectOnly, filters)
 
-      case Some(LeaveOutPartition(folds, excludeFold, Some(orderColumn), _))
+      case Some(LeaveOutPartition(folds, excludeFold, Some(orderColumn)))
           if orderColumn.sqlType == SqlType.char || orderColumn.sqlType == SqlType.varchar =>
         selectExcludingFold(excludeFold, windowOrderByStrCol(folds, orderColumn))
 
-      case Some(LeaveOutPartition(folds, excludeFold, Some(orderColumn), _))
+      case Some(LeaveOutPartition(folds, excludeFold, Some(orderColumn)))
           if orderColumn.sqlType == SqlType.int =>
         selectExcludingFold(excludeFold, windowOrderByIntCol(folds, orderColumn))
 
-      case Some(LeaveOutPartition(folds, excludeFold, None, seed)) =>
-        s"SELECT setseed($seed); ${selectExcludingFold(excludeFold, windowOrderRandom(folds))}"
+      case Some(LeaveOutPartition(folds, excludeFold, None)) =>
+        s"SELECT ${selectExcludingFold(excludeFold, windowOrderRandom(folds))}"
 
       case _ => throw new NotImplementedError(s"Unhandled sampling $sampling")
     }

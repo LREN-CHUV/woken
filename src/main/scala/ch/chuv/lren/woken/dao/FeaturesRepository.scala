@@ -75,7 +75,7 @@ trait FeaturesTableRepository[F[_]] extends Repository {
   /**
     * @return all headers of the table
     */
-  def headers: Headers
+  def columns: Headers
 
   def features(query: FeaturesQuery): F[(Headers, Stream[JsObject])]
 
@@ -113,7 +113,7 @@ class FeaturesTableInMemoryRepository[F[_]: Applicative] extends FeaturesTableRe
 
   override def count(dataset: DatasetId): F[Int] = 0.pure[F]
 
-  override def headers: Headers = Nil
+  override def columns: Headers = Nil
 
   override def features(query: FeaturesQuery): F[(Headers, Stream[JsObject])] =
     (List[TableColumn](), List[JsObject]().toStream).pure[F]

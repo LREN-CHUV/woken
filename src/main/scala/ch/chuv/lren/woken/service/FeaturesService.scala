@@ -17,9 +17,10 @@
 
 package ch.chuv.lren.woken.service
 
-import cats.effect.{ Effect, IO }
+import cats.effect.{Effect, IO}
 import ch.chuv.lren.woken.core.features.FeaturesQuery
-import ch.chuv.lren.woken.dao.{ ColumnMeta, FeaturesRepository, FeaturesTableRepository }
+import ch.chuv.lren.woken.core.model.TableColumn
+import ch.chuv.lren.woken.dao.{ FeaturesRepository, FeaturesTableRepository }
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import spray.json.JsObject
 
@@ -42,7 +43,7 @@ trait FeaturesTableService {
 
   def count(dataset: DatasetId): IO[Int]
 
-  type Headers = List[ColumnMeta]
+  type Headers = List[TableColumn]
 
   def features(query: FeaturesQuery): IO[(Headers, Stream[JsObject])]
 
