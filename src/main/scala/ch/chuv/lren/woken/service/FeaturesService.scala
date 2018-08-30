@@ -17,7 +17,7 @@
 
 package ch.chuv.lren.woken.service
 
-import cats.effect.{Effect, IO}
+import cats.effect.{ Effect, IO }
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model.TableColumn
 import ch.chuv.lren.woken.dao.{ FeaturesRepository, FeaturesTableRepository }

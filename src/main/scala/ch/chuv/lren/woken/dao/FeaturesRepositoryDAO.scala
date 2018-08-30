@@ -21,9 +21,9 @@ import doobie._
 import doobie.implicits._
 import spray.json._
 import cats.Monad
-import cats.data.{NonEmptyList, Validated}
+import cats.data.{ NonEmptyList, Validated }
 import cats.implicits._
-import ch.chuv.lren.woken.core.model.{FeaturesTableDescription, TableColumn}
+import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model
 import ch.chuv.lren.woken.messages.datasets.DatasetId
@@ -125,14 +125,6 @@ abstract class BaseFeaturesTableRepositoryDAO[F[_]: Monad] extends FeaturesTable
         .transact(xa)
     }
 
-}
-
-class FeaturesTableRepositoryDAO[F[_]: Monad] private (override val xa: Transactor[F],
-                                               override val table: FeaturesTableDescription,
-                                              override val columns: FeaturesTableRepository.Headers
-                                             )
-    extends BaseFeaturesTableRepositoryDAO[F] {
-
   import FeaturesTableRepositoryDAO.{ prepareHeaders, toJsValue }
 
   @SuppressWarnings(Array("org.wartremover.warts.Null"))
@@ -141,7 +133,8 @@ class FeaturesTableRepositoryDAO[F[_]: Monad] private (override val xa: Transact
       case (h, d) =>
         implicit val cols: Headers = h
         (h, d.map { row =>
-          val fields = row.mapWithIndex { case (o, i) =>
+          val fields = row.mapWithIndex {
+            case (o, i) =>
               h(i).name -> toJsValue(o)
           }
           JsObject(fields: _*)
@@ -172,24 +165,33 @@ class FeaturesTableRepositoryDAO[F[_]: Monad] private (override val xa: Transact
 
 }
 
+class FeaturesTableRepositoryDAO[F[_]: Monad] private (
+    override val xa: Transactor[F],
+    override val table: FeaturesTableDescription,
+    override val columns: FeaturesTableRepository.Headers
+) extends BaseFeaturesTableRepositoryDAO[F] {}
+
 object FeaturesTableRepositoryDAO {
 
-  def apply[F[_]: Monad](xa: Transactor[F], table: FeaturesTableDescription): F[FeaturesTableRepository[F]] = {
+  def apply[F[_]: Monad](xa: Transactor[F],
+                         table: FeaturesTableDescription): F[FeaturesTableRepository[F]] =
     HC.prepareStatement(s"SELECT * FROM ${table.quotedName}")(prepareHeaders)
       .transact(xa)
-      .map { headers => new FeaturesTableRepositoryDAO(xa, table, headers) }
-  }
+      .map { headers =>
+        new FeaturesTableRepositoryDAO(xa, table, headers)
+      }
 
   private[dao] def prepareHeaders: PreparedStatementIO[Headers] =
-    HPS.getColumnJdbcMeta.map(_.map{ doobieMeta =>
+    HPS.getColumnJdbcMeta.map(_.map { doobieMeta =>
       model.TableColumn(doobieMeta.name, toSql(doobieMeta.jdbcType))
     })
 
   private[dao] def toSql(jdbcType: JdbcType): SqlType = jdbcType match {
-    case JdbcType.Char | JdbcType.NChar => SqlType.char
-    case JdbcType.VarChar | JdbcType.NVarChar | JdbcType.Clob => SqlType.varchar
+    case JdbcType.Char | JdbcType.NChar                                            => SqlType.char
+    case JdbcType.VarChar | JdbcType.NVarChar | JdbcType.Clob                      => SqlType.varchar
     case JdbcType.BigInt | JdbcType.Integer | JdbcType.SmallInt | JdbcType.TinyInt => SqlType.int
-    case JdbcType.Decimal | JdbcType.Double | JdbcType.Float | JdbcType.Real | JdbcType.Numeric => SqlType.numeric
+    case JdbcType.Decimal | JdbcType.Double | JdbcType.Float | JdbcType.Real | JdbcType.Numeric =>
+      SqlType.numeric
     case _ => throw new IllegalArgumentException(s"Unsupported type $jdbcType")
   }
 
@@ -207,49 +209,67 @@ object FeaturesTableRepositoryDAO {
       case b: BigInt            => b.toJson
       case b: BigDecimal        => b.toJson
       case b: java.lang.Boolean => JsBoolean(b)
-      case _ => throw new IllegalStateException(s"Unsupported data type ${o.getClass}")
+      case _                    => throw new IllegalStateException(s"Unsupported data type ${o.getClass}")
     }
   }
 }
 
-class DynamicFeaturesTableRepositoryDAO[F[_]: Monad] private (override val xa: Transactor[F],
-                                                     override val table: FeaturesTableDescription,
-                                                     val view: FeaturesTableDescription,
-                                                     val newFeatures: List[TableColumn],
-                                                     val rndColumn: TableColumn)
-    extends BaseFeaturesTableRepositoryDAO[F] {
-
+class DynamicFeaturesTableRepositoryDAO[F[_]: Monad] private (
+    override val xa: Transactor[F],
+    override val table: FeaturesTableDescription,
+    override val columns: List[TableColumn],
+    val dynTable: FeaturesTableDescription,
+    val newFeatures: List[TableColumn],
+    val rndColumn: TableColumn
+) extends BaseFeaturesTableRepositoryDAO[F] {
 
 //  def update(): F[Unit] = {}
+
+  // TODO: close() should delete the dyn table and view
 
 }
 
 object DynamicFeaturesTableRepositoryDAO {
 
-  def apply[F[_]: Monad](xa: Transactor[F],
-  table: FeaturesTableDescription, columns: List[TableColumn],
-   newFeatures: List[TableColumn]): Validation[F[DynamicFeaturesTableRepositoryDAO[F]]] = {
+  def apply[F[_]: Monad](
+      xa: Transactor[F],
+      table: FeaturesTableDescription,
+      columns: List[TableColumn],
+      newFeatures: List[TableColumn]
+  ): Validation[F[DynamicFeaturesTableRepositoryDAO[F]]] = {
 
     val extractPk: Validation[TableColumn] = table.primaryKey match {
       case pk :: Nil => lift(pk)
-      case _ => s"Dynamic features table expects a primary key of one column for table ${table.name}".invalidNel[TableColumn]
+      case _ =>
+        s"Dynamic features table expects a primary key of one column for table ${table.name}"
+          .invalidNel[TableColumn]
     }
 
     val rndColumn = TableColumn("_rnd", SqlType.int)
 
     for {
-      dynTable <- extractPk.andThen{ pk => lift(createDynamicTable(xa, table, pk, newFeatures)) }
-      dynView <- extractPk.andThen{ pk => lift(createDynamicView(xa, table, pk, columns, dynTable, newFeatures, rndColumn)) }
+      dynTable <- extractPk.andThen { pk =>
+        lift(createDynamicTable(xa, table, pk, newFeatures))
+      }
+      (dynView, dynColumns) <- extractPk.andThen { pk =>
+        lift(createDynamicView(xa, table, pk, columns, dynTable, newFeatures, rndColumn))
+      }
       validatedDao = for {
-        dt <- dynTable
-        dv <- dynView
-        dao = new DynamicFeaturesTableRepositoryDAO(xa, dt, dv, newFeatures, rndColumn)
+        dv     <- dynView
+        dvCols <- dynColumns
+        dt     <- dynTable
+        dao = new DynamicFeaturesTableRepositoryDAO(xa, dv, dvCols, dt, newFeatures, rndColumn)
       } yield dao
     } yield validatedDao
 
   }
 
-  private def createDynamicTable[F[_]: Monad](xa: Transactor[F],  table: FeaturesTableDescription, pk: TableColumn, newFeatures: List[TableColumn]): F[FeaturesTableDescription] = {
+  private def createDynamicTable[F[_]: Monad](
+      xa: Transactor[F],
+      table: FeaturesTableDescription,
+      pk: TableColumn,
+      newFeatures: List[TableColumn]
+  ): F[FeaturesTableDescription] = {
 
     val genTableNum = sql"""
       SELECT nextval('gen_features_table_seq');
@@ -257,19 +277,28 @@ object DynamicFeaturesTableRepositoryDAO {
 
     import ch.chuv.lren.woken.messages.variables.{ SqlType => SqlT }
     def toSql(sqlType: SqlType): String = sqlType match {
-      case SqlT.int => "int"
+      case SqlT.int     => "int"
       case SqlT.numeric => "number"
-      case SqlT.char => "char(256)"
+      case SqlT.char    => "char(256)"
       case SqlT.varchar => "varchar(256)"
     }
 
-    def createAdditionalFeaturesTable(dynTable: FeaturesTableDescription, pk: TableColumn): ConnectionIO[Int] = {
+    def createAdditionalFeaturesTable(dynTable: FeaturesTableDescription,
+                                      pk: TableColumn): ConnectionIO[Int] = {
       val stmt = fr"CREATE TABLE " ++ Fragment.const(dynTable.quotedName) ++ fr"(" ++
-        Fragment.const(pk.name) ++ Fragment.const(toSql(pk.sqlType)) ++fr"""NOT NULL,
+        Fragment.const(pk.name) ++ Fragment.const(toSql(pk.sqlType)) ++ fr"""NOT NULL,
       (
         _rnd_ int,
-      """ ++ Fragment.const(newFeatures.map{ f => s"${f.name} ${toSql(f.sqlType)}" }.mkString(",")) ++
-        fr"CONSTRAINT pk_" ++ Fragment.const(dynTable.name) ++ fr"PRIMARY KEY (" ++ Fragment.const(pk.name) ++ fr""")
+      """ ++ Fragment.const(
+        newFeatures
+          .map { f =>
+            s"${f.name} ${toSql(f.sqlType)}"
+          }
+          .mkString(",")
+      ) ++
+        fr"CONSTRAINT pk_" ++ Fragment.const(dynTable.name) ++ fr"PRIMARY KEY (" ++ Fragment.const(
+        pk.name
+      ) ++ fr""")
       )
       WITH (
         OIDS=FALSE
@@ -278,36 +307,72 @@ object DynamicFeaturesTableRepositoryDAO {
       stmt.update.run
     }
 
-    def fillAdditionalFeaturesTable(dynTable: FeaturesTableDescription, pk: TableColumn): ConnectionIO[Int] = {
+    def fillAdditionalFeaturesTable(dynTable: FeaturesTableDescription,
+                                    pk: TableColumn): ConnectionIO[Int] = {
       val stmt = fr"SELECT setseed(" ++ Fragment.const(table.seed.toString) ++ fr"); INSERT INTO " ++
         Fragment.const(dynTable.quotedName) ++ fr"(" ++ Fragment.const(pk.name) ++ fr", _rnd_) SELECT " ++
-        Fragment.const(pk.name) ++ fr", floor(random() * 2147483647)::int FROM " ++ Fragment.const(table.name)
+        Fragment.const(pk.name) ++ fr", floor(random() * 2147483647)::int FROM " ++ Fragment.const(
+        table.name
+      )
       stmt.update.run
     }
 
     for {
       tableNum <- genTableNum.transact(xa)
       dynTable = table.copy(name = s"${table.name}__$tableNum")
-      _        <- createAdditionalFeaturesTable(dynTable, pk).transact(xa)
-      _        <- fillAdditionalFeaturesTable(dynTable, pk).transact(xa)
+      _ <- createAdditionalFeaturesTable(dynTable, pk).transact(xa)
+      _ <- fillAdditionalFeaturesTable(dynTable, pk).transact(xa)
     } yield dynTable
 
   }
 
-  private def createDynamicView[F[_]: Monad](xa: Transactor[F], table: FeaturesTableDescription, pk: TableColumn, tableColumns: List[TableColumn], dynTable: FeaturesTableDescription, newFeatures: List[TableColumn], rndColumn: TableColumn): F[FeaturesTableDescription] = {
-    def createFeaturesView(table: FeaturesTableDescription, dynTable: FeaturesTableDescription, dynView: FeaturesTableDescription): ConnectionIO[Int] =
-      sql"""
-        CREATE OR REPLACE VIEW {{ dynView.name }} ({{{ dynViewColumns }}})
-          AS SELECT {{{ table1.qualifiedColumns }}},{{{ table2.qualifiedColumnsNoId }}} FROM {{ table1.name }}
-              LEFT OUTER JOIN {{ table2.name }} ON ({{{ table.quotedName }}}.${pk.name} = {{{ dynView.quotedName }}}.${pk.name});
-      """.update.run
+  private def createDynamicView[F[_]: Monad](
+      xa: Transactor[F],
+      table: FeaturesTableDescription,
+      pk: TableColumn,
+      tableColumns: List[TableColumn],
+      dynTable: FeaturesTableDescription,
+      newFeatures: List[TableColumn],
+      rndColumn: TableColumn
+  ): F[(FeaturesTableDescription, Headers)] = {
 
+    def qualify(table: FeaturesTableDescription, cols: Headers): String =
+      cols.map(col => s"""${table.quotedName}."${col.name}"""").mkString(",")
+    def createFeaturesView(table: FeaturesTableDescription,
+                           pk: TableColumn,
+                           tableColumns: Headers,
+                           dynTable: FeaturesTableDescription,
+                           dynTableColumns: Headers,
+                           dynView: FeaturesTableDescription,
+                           dynViewColumns: Headers): ConnectionIO[Int] = {
+
+      val stmt = fr"CREATE OR REPLACE VIEW " ++
+        Fragment.const(dynView.quotedName) ++
+        Fragment.const(s"(${dynViewColumns.map(_.name).mkString(",")}) AS SELECT") ++
+        Fragment.const(qualify(table, tableColumns)) ++ fr"," ++ Fragment.const(
+        qualify(dynTable, dynTableColumns)
+      ) ++ fr" FROM " ++ Fragment.const(table.quotedName) ++
+        fr" LEFT OUTER JOIN " ++ Fragment.const(dynTable.quotedName) ++ fr" ON " ++
+        Fragment.const(qualify(table, List(pk))) ++ fr" = " ++ Fragment.const(
+        qualify(dynTable, List(pk))
+      )
+
+      stmt.update.run
+    }
+
+    val dynTableColumns    = newFeatures ++ List(rndColumn: TableColumn)
     val dynViewDescription = dynTable.copy(name = s"${dynTable.name}v")
-    val dynViewColumns = columns ++ newFeatures ++ List(rndColumn: TableColumn)
+    val dynViewColumns     = tableColumns ++ newFeatures ++ List(rndColumn: TableColumn)
 
     for {
-      dynView        <- createFeaturesView(table, pk, tableColumns, dynViewDescription, pk, dynViewColumns).transact(xa)
-    } yield dynView
+      _ <- createFeaturesView(table,
+                              pk,
+                              tableColumns,
+                              dynTable,
+                              dynTableColumns,
+                              dynViewDescription,
+                              dynViewColumns).transact(xa)
+    } yield (dynViewDescription, dynViewColumns)
 
   }
 

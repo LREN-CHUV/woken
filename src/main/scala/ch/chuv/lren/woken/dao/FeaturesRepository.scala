@@ -18,7 +18,7 @@
 package ch.chuv.lren.woken.dao
 
 import ch.chuv.lren.woken.core.features.FeaturesQuery
-import ch.chuv.lren.woken.core.model.{FeaturesTableDescription, TableColumn}
+import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import spray.json.JsObject
 import cats._
