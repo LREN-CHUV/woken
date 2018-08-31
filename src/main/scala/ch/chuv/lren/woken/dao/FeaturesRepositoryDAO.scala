@@ -216,16 +216,25 @@ object FeaturesTableRepositoryDAO {
 
 class DynamicFeaturesTableRepositoryDAO[F[_]: Monad] private (
     override val xa: Transactor[F],
-    override val table: FeaturesTableDescription,
-    override val columns: List[TableColumn],
+    val view: FeaturesTableDescription,
+    val viewColumns: List[TableColumn],
     val dynTable: FeaturesTableDescription,
     val newFeatures: List[TableColumn],
     val rndColumn: TableColumn
 ) extends BaseFeaturesTableRepositoryDAO[F] {
 
-//  def update(): F[Unit] = {}
+  override val table: FeaturesTableDescription = view
+  override val columns: List[TableColumn]      = viewColumns
 
-  // TODO: close() should delete the dyn table and view
+  def close(): F[Unit] = {
+    val rmView     = fr"DELETE VIEW " ++ Fragment.const(view.quotedName)
+    val rmDynTable = fr"DELETE TABLE " ++ Fragment.const(dynTable.quotedName)
+
+    for {
+      _ <- rmView.update.run.transact(xa)
+      _ <- rmDynTable.update.run.transact(xa)
+    } yield ()
+  }
 
 }
 
