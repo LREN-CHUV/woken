@@ -70,7 +70,7 @@ lazy val library =
       val disruptor       = "3.4.2"
       val scalaLogging    = "3.9.0"
       val config          = "1.3.3"
-      val wokenMessages   = "2.8.1"
+      val wokenMessages   = "2.8.2"
     }
     object ExclusionRules {
       val excludeLogback = ExclusionRule(organization = "ch.qos.logback", name = "logback-classic")
