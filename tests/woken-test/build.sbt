@@ -53,11 +53,11 @@ lazy val `woken-test` =
 lazy val library =
   new {
     object Version {
-      val scalaCheck      = "1.13.5"
+      val scalaCheck      = "1.14.0"
       val scalaTest       = "3.0.5"
       val akka            = "2.5.12"
-      val akkaHttp        = "10.1.1"
-      val kamon           = "1.1.2"
+      val akkaHttp        = "10.1.5"
+      val kamon           = "1.1.3"
       val kamonAkka       = "1.0.1"
       val kamonAkkaRemote = "1.0.1"
       val kamonAkkaHttp   = "1.1.0"
