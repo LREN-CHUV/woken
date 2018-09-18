@@ -32,4 +32,4 @@ addSbtPlugin("de.heikoseeberger" % "sbt-header"      % "5.0.0")
 addSbtPlugin("com.typesafe.sbt"  % "sbt-git"         % "1.0.0")
 
 // Monitoring
-addSbtPlugin("io.kamon" % "sbt-aspectj-runner"       % "1.1.0")
+addSbtPlugin("io.kamon" % "sbt-aspectj-runner"       % "1.1.1")
