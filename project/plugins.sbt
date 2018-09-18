@@ -26,7 +26,7 @@ addSbtPlugin("org.wartremover"   % "sbt-wartremover" % "2.3.6") // Wartremover
 addSbtPlugin("com.lucidchart"    % "sbt-scalafmt"    % "1.15")
 
 // Copyright headers
-addSbtPlugin("de.heikoseeberger" % "sbt-header"      % "4.1.0")
+addSbtPlugin("de.heikoseeberger" % "sbt-header"      % "5.0.0")
 
 // Versioning
 addSbtPlugin("com.typesafe.sbt"  % "sbt-git"         % "1.0.0")
