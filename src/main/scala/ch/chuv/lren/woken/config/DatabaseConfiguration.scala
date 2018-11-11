@@ -17,10 +17,11 @@
 
 package ch.chuv.lren.woken.config
 
+import doobie._
 import doobie.implicits._
-import doobie.hikari.HikariTransactor
+import doobie.hikari._
 import cats.implicits._
-import cats.effect._
+import cats.effect.{ Async, ContextShift, IO, Resource }
 import cats.data.Validated._
 import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
 import com.typesafe.config.Config
@@ -28,6 +29,7 @@ import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
 import ch.chuv.lren.woken.fp.Traverse
 import ch.chuv.lren.woken.messages.variables.SqlType
 
+import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
 /**
@@ -146,24 +148,45 @@ object DatabaseConfiguration {
   def factory(config: Config): String => Validation[DatabaseConfiguration] =
     dbAlias => read(config, List("db", dbAlias))
 
-  def dbTransactor(dbConfig: DatabaseConfiguration): IO[Validation[HikariTransactor[IO]]] =
+  def dbTransactor(
+      dbConfig: DatabaseConfiguration
+  ): Resource[IO, Validation[HikariTransactor[IO]]] = {
+
+    // We need a ContextShift[IO] before we can construct a Transactor[IO]. The passed ExecutionContext
+    // is where nonblocking operations will be executed.
+    implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
     for {
-      xa <- HikariTransactor.newHikariTransactor[IO](dbConfig.jdbcDriver,
-                                                     dbConfig.jdbcUrl,
-                                                     dbConfig.user,
-                                                     dbConfig.password)
-      _ <- xa.configure(
-        hx =>
-          IO {
-            hx.getHikariConfigMXBean.setMaximumPoolSize(dbConfig.poolSize)
-            hx.setAutoCommit(false)
+      // our connect EC
+      ce <- ExecutionContexts.fixedThreadPool[IO](2)
+      // our transaction EC
+      te <- ExecutionContexts.cachedThreadPool[IO]
+
+      xa <- HikariTransactor.newHikariTransactor[IO](driverClassName = dbConfig.jdbcDriver,
+                                                     url = dbConfig.jdbcUrl,
+                                                     user = dbConfig.user,
+                                                     pass = dbConfig.password,
+                                                     connectEC = ce,
+                                                     transactEC = te)
+      _ <- Resource.liftF {
+        xa.configure(
+          hx =>
+            Async[IO].delay {
+              hx.getHikariConfigMXBean.setMaximumPoolSize(dbConfig.poolSize)
+              hx.setAutoCommit(false)
+          }
+        )
+      }
+
+      validatedXa <- Resource.liftF {
+        for {
+          test <- sql"select 1".query[Int].unique.transact(xa)
+        } yield {
+          if (test != 1) "Cannot connect to $dbConfig.jdbcUrl".invalidNel[HikariTransactor[IO]]
+          else lift(xa)
         }
-      )
-
-      test <- sql"select 1".query[Int].unique.transact(xa)
-
-      validatedXa = if (test != 1) "Cannot connect to $dbConfig.jdbcUrl".invalidNel else lift(xa)
+      }
 
     } yield validatedXa
+  }
 
 }

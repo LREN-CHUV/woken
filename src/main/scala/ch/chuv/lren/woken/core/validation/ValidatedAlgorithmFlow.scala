@@ -122,7 +122,7 @@ case class ValidatedAlgorithmFlow(
           job.query.filterDatasets
             .filterNulls(job.algorithmDefinition.variablesCanBeNull,
                          job.algorithmDefinition.covariablesCanBeNull)
-            .features(job.inputTable, None)
+            .features(job.inputTable)
         val subJob =
           DockerJob(jobId,
                     job.inputDb,

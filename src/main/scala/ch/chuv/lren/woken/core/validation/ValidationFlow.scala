@@ -89,7 +89,7 @@ case class ValidationFlow(
         val featuresQuery =
           job.query
             .filterNulls(variablesCanBeNull, covariablesCanBeNull)
-            .features(job.inputTable, None)
+            .features(job.inputTable)
 
         val sql = featuresQuery.sql
 

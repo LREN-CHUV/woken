@@ -5,7 +5,7 @@ import sbtassembly.MergeStrategy
 
 autoCompilerPlugins := true
 
-addCompilerPlugin("com.lihaoyi" %% "acyclic" % "0.1.7")
+addCompilerPlugin("com.lihaoyi" %% "acyclic" % "0.1.8")
 
 // *****************************************************************************
 // Projects
@@ -88,34 +88,35 @@ lazy val library =
       val scalaCheck      = "1.14.0"
       val scalaTest       = "3.0.5"
       val scalaMock       = "4.1.0"
-      val akka            = "2.5.12"
+      val akka            = "2.5.18"
       val akkaHttp        = "10.1.5"
-      val akkaHttpCors    = "0.3.0"
-      val akkaHttpSwagger = "0.14.0"
+      val akkaHttpCors    = "0.3.1"
+      val akkaHttpSwagger = "0.14.1"
       val kamon           = "1.1.3"
-      val kamonAkka       = "1.0.1"
-      val kamonAkkaRemote = "1.0.1"
-      val kamonAkkaHttp   = "1.1.0"
+      val kamonAkka       = "1.1.2"
+      val kamonAkkaRemote = "1.1.0"
+      val kamonAkkaHttp   = "1.1.1"
+      val kamonPrometheus = "1.1.1"
       val kamonReporter   = "1.0.0"
       val kamonSystemMetrics = "1.0.0"
       val kamonSigar      = "1.6.6-rev002"
       val swaggerJaxrs    = "1.5.21"
-      val swaggerUI       = "3.13.6"
-      val sprayJson       = "1.3.4"
+      val swaggerUI       = "3.19.5"
+      val sprayJson       = "1.3.5"
       val slf4j           = "1.7.25"
-      val log4j           = "2.11.0"
+      val log4j           = "2.11.1"
       val disruptor       = "3.4.2"
       val scalaLogging    = "3.9.0"
       val cats            = "1.4.0"
-      val kittens         = "1.0.0"
+      val kittens         = "1.2.0"
       val catsScalaTest   = "2.3.1"
       val config          = "1.3.3"
-      val doobie          = "0.5.3"
+      val doobie          = "0.6.0"
       val snakeyaml       = "1.23"
       val scalaCache      = "0.21.0"
-      val dockerTestKit   = "0.9.7"
-      val diff            = "1.2.0"
-      val acyclic         = "0.1.7"
+      val dockerTestKit   = "0.9.8"
+      val diff            = "1.2.1"
+      val acyclic         = "0.1.8"
       val wokenMessages   = "2.8.2"
     }
     object ExclusionRules {
@@ -145,7 +146,7 @@ lazy val library =
     val kamonAkkaRemote: ModuleID = "io.kamon" %% "kamon-akka-remote-2.5" % Version.kamonAkkaRemote excludeAll ExclusionRules.excludeLogback
     val kamonAkkaHttp: ModuleID = "io.kamon" %% "kamon-akka-http-2.5" % Version.kamonAkkaHttp excludeAll ExclusionRules.excludeLogback
     val kamonSystemMetrics: ModuleID = "io.kamon" %% "kamon-system-metrics" % Version.kamonSystemMetrics excludeAll ExclusionRules.excludeLogback
-    val kamonPrometheus: ModuleID = "io.kamon" %% "kamon-prometheus" % Version.kamonReporter excludeAll ExclusionRules.excludeLogback
+    val kamonPrometheus: ModuleID = "io.kamon" %% "kamon-prometheus" % Version.kamonPrometheus excludeAll ExclusionRules.excludeLogback
     val kamonZipkin: ModuleID  =  "io.kamon" %% "kamon-zipkin" % Version.kamonReporter excludeAll ExclusionRules.excludeLogback
     val kamonSigar: ModuleID   = "io.kamon"           % "sigar-loader" % Version.kamonSigar
 
@@ -234,7 +235,7 @@ lazy val scalafmtSettings =
   Seq(
     scalafmtOnCompile := true,
     scalafmtOnCompile.in(Sbt) := false,
-    scalafmtVersion := "1.4.0"
+    scalafmtVersion := "1.5.1"
   )
 
 // Create a new MergeStrategy for aop.xml files

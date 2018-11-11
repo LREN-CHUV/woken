@@ -17,7 +17,7 @@
 
 package ch.chuv.lren.woken.core.validation
 
-import ch.chuv.lren.woken.core.features.{ FeaturesQuery, QueryOffset }
+import ch.chuv.lren.woken.core.features.{ FeaturesQuery, QueryOffset, Sampling }
 import ch.chuv.lren.woken.service.FeaturesService
 import com.typesafe.scalalogging.LazyLogging
 import spray.json.{ JsValue, _ }
@@ -76,6 +76,8 @@ class KFoldCrossValidation(features: List[JsObject], labels: List[JsObject], fol
 
   def groundTruth(fold: Int): List[JsValue] =
     getTestSet(fold)._2.map(x => x.fields.toList.head._2)
+
+  def sampleForFold(fold: Int): Sampling = ???
 
 }
 
