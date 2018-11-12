@@ -64,7 +64,7 @@ class FeaturesQueryTest extends WordSpec with Matchers {
         dbGrouping = Nil,
         dbTable = "table",
         filters = None,
-        sampling = Some(LeaveOutPartition(10, 2, Some(TableColumn("id", SqlType.varchar)), 0.67))
+        sampling = Some(LeaveOutPartition(10, 2, Some(TableColumn("id", SqlType.varchar))))
       )
 
       query.sql shouldBe """SELECT "a","b","c",ntile(10) over (order by abs(('x'||substr(md5("id"),1,16))::bit(64)::BIGINT)) as "_window_" FROM "table" WHERE "_window_" != 3"""
@@ -80,7 +80,7 @@ class FeaturesQueryTest extends WordSpec with Matchers {
         filters = Some(
           SingleFilterRule("i", "i", "text", InputType.number, Operator.greaterOrEqual, List("5"))
         ),
-        sampling = Some(LeaveOutPartition(10, 2, Some(TableColumn("id", SqlType.varchar)), 0.67))
+        sampling = Some(LeaveOutPartition(10, 2, Some(TableColumn("id", SqlType.varchar))))
       )
 
       query.sql shouldBe """SELECT "a","b","c",ntile(10) over (order by abs(('x'||substr(md5("id"),1,16))::bit(64)::BIGINT)) as "_window_" FROM "table" WHERE "i" >= 5 AND "_window_" != 3"""
@@ -94,7 +94,7 @@ class FeaturesQueryTest extends WordSpec with Matchers {
         dbGrouping = Nil,
         dbTable = "table",
         filters = None,
-        sampling = Some(LeaveOutPartition(10, 2, Some(TableColumn("id", SqlType.int)), 0.67))
+        sampling = Some(LeaveOutPartition(10, 2, Some(TableColumn("id", SqlType.int))))
       )
 
       query.sql shouldBe """SELECT "a","b","c",ntile(10) over (order by pseudo_encrypt("id")) as "_window_" FROM "table" WHERE "_window_" != 3"""
@@ -108,7 +108,7 @@ class FeaturesQueryTest extends WordSpec with Matchers {
         dbGrouping = Nil,
         dbTable = "table",
         filters = None,
-        sampling = Some(LeaveOutPartition(10, 2, None, 0.67))
+        sampling = Some(LeaveOutPartition(10, 2, None))
       )
 
       query.sql shouldBe """SELECT setseed(0.67); SELECT "a","b","c",ntile(10) over (order by random()) as "_window_" FROM "table" WHERE "_window_" != 3"""
