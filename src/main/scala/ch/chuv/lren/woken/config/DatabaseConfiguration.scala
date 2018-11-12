@@ -21,7 +21,7 @@ import doobie._
 import doobie.implicits._
 import doobie.hikari._
 import cats.implicits._
-import cats.effect.{ Async, ContextShift, IO, Resource }
+import cats.effect._
 import cats.data.Validated._
 import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
 import com.typesafe.config.Config
@@ -148,9 +148,7 @@ object DatabaseConfiguration {
   def factory(config: Config): String => Validation[DatabaseConfiguration] =
     dbAlias => read(config, List("db", dbAlias))
 
-  def dbTransactor(
-      dbConfig: DatabaseConfiguration
-  ): Resource[IO, Validation[HikariTransactor[IO]]] = {
+  def dbTransactor(dbConfig: DatabaseConfiguration): Resource[IO, HikariTransactor[IO]] = {
 
     // We need a ContextShift[IO] before we can construct a Transactor[IO]. The passed ExecutionContext
     // is where nonblocking operations will be executed.
@@ -186,7 +184,16 @@ object DatabaseConfiguration {
         }
       }
 
-    } yield validatedXa
+    } yield xa
   }
+  // TODO: .memoize (using Monix?)
 
+  def validate(dbConfig: DatabaseConfiguration,
+               xa: HikariTransactor[IO]): IO[Validation[HikariTransactor[IO]]] =
+    for {
+      test <- sql"select 1".query[Int].unique.transact(xa)
+    } yield {
+      if (test != 1) "Cannot connect to $dbConfig.jdbcUrl".invalidNel[HikariTransactor[IO]]
+      else lift(xa)
+    }
 }

@@ -28,14 +28,6 @@ import variablesProtocol._
 import scala.collection.mutable
 import scala.language.higherKinds
 
-class MetadataRepositoryDAO[F[_]: Monad](val xa: Transactor[F]) extends MetadataRepository[F] {
-
-  override def variablesMeta: VariablesMetaRepository[F] = new VariablesMetaRepositoryDAO[F](xa)
-
-  override def tablesCatalog: TablesCatalogRepository[F] = new TablesCatalogRepositoryDAO[F](xa)
-
-}
-
 class VariablesMetaRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
     extends VariablesMetaRepository[F] {
 
@@ -72,7 +64,7 @@ class VariablesMetaRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
         .query[VariablesMeta]
         .option
         .transact(xa)
-        .map { (r: Option[VariablesMeta]) =>
+        .map { r: Option[VariablesMeta] =>
           r.foreach(variablesMetaCache.put(table, _))
           r
         }
@@ -87,5 +79,13 @@ class TablesCatalogRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
   override def put(table: FeaturesTableDescription): F[FeaturesTableDescription] = ???
 
   override def get(table: String): F[Option[FeaturesTableDescription]] = ???
+
+}
+
+case class MetadataRepositoryDAO[F[_]: Monad](xa: Transactor[F]) extends MetadataRepository[F] {
+
+  override def variablesMeta: VariablesMetaRepository[F] = new VariablesMetaRepositoryDAO[F](xa)
+
+  override def tablesCatalog: TablesCatalogRepository[F] = new TablesCatalogRepositoryDAO[F](xa)
 
 }

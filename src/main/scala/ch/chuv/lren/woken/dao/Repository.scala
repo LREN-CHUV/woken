@@ -37,25 +37,27 @@ trait Repository extends LazyLogging {
   // def healthCheck: Validation[]
 
   protected implicit val JsObjectMeta: Meta[JsObject] =
-    Meta.Advanced.other[PGobject]("json").timap[JsObject](
-      // failure raises an exception
-      a => a.getValue.parseJson.asJsObject)(
-      a => {
-        val o = new PGobject
-        o.setType("json")
-        o.setValue(a.compactPrint)
-        o
-      }
-    )
-
+    Meta.Advanced
+      .other[PGobject]("json")
+      .timap[JsObject](
+        // failure raises an exception
+        a => a.getValue.parseJson.asJsObject
+      )(
+        a => {
+          val o = new PGobject
+          o.setType("json")
+          o.setValue(a.compactPrint)
+          o
+        }
+      )
 
   protected implicit val DateTimeMeta: Meta[OffsetDateTime] =
     Meta[java.sql.Timestamp].timap(ts => OffsetDateTime.of(ts.toLocalDateTime, ZoneOffset.UTC))(
-                                  dt => java.sql.Timestamp.valueOf(dt.toLocalDateTime))
+      dt => java.sql.Timestamp.valueOf(dt.toLocalDateTime)
+    )
 
   protected implicit val ListStringMeta: Meta[List[String]] =
-    Meta[String].timap(
-      _.split(",").toList)(
+    Meta[String].timap(_.split(",").toList)(
       _.mkString(",")
     )
 
@@ -64,7 +66,8 @@ trait Repository extends LazyLogging {
       json =>
         Try(json.convertTo[A])
           .recover { case e: Exception => logger.warn(s"Cannot convert $json", e); throw e }
-          .getOrElse(throw new IllegalArgumentException(s"Invalid Json $json")))(
+          .getOrElse(throw new IllegalArgumentException(s"Invalid Json $json"))
+    )(
       _.toJson.asJsObject
     )
 

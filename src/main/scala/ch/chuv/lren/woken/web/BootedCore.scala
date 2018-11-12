@@ -64,37 +64,47 @@ trait BootedCore
   override def beforeBoot(): Unit =
     KamonSupport.startReporters(config)
 
+  private lazy val featuresDbConfig = DatabaseConfiguration
+    .factory(config)(jobsConfig.featuresDb)
+    .valueOr(configurationFailed)
+
+  private lazy val fsIO: IO[FeaturesService] = {
+    val featuresTransactor = DatabaseConfiguration.dbTransactor(featuresDbConfig)
+    featuresTransactor.use { xa =>
+      for {
+        validatedXa <- DatabaseConfiguration
+          .validate(featuresDbConfig, xa)
+          .map(_.valueOr(configurationFailed))
+        validatedDb <- FeaturesRepositoryDAO(validatedXa, featuresDbConfig.tables)
+          .map { daoV =>
+            daoV.map { FeaturesService.apply }
+          }
+      } yield {
+        validatedDb.valueOr(configurationFailed)
+      }
+    }
+  }
+
+  // TODO: keep the IO, unwarp at end of world
+  override lazy val featuresService: FeaturesService = fsIO.unsafeRunSync()
+
   private lazy val resultsDbConfig = DatabaseConfiguration
     .factory(config)("woken")
     .valueOr(configurationFailed)
 
-  private lazy val featuresDbConnection = DatabaseConfiguration
-    .factory(config)(jobsConfig.featuresDb)
-    .valueOr(configurationFailed)
-
-  private lazy val fsIO: IO[FeaturesService] = for {
-    validatedXa <- DatabaseConfiguration.dbTransactor(featuresDbConnection)
-    validatedDb = validatedXa.map { xa =>
-      FeaturesRepositoryDAO(xa, featuresDbConnection.tables)
+  private lazy val jrsIO: IO[JobResultService] = {
+    val resultsTransactor = DatabaseConfiguration.dbTransactor(resultsDbConfig)
+    resultsTransactor.use { xa =>
+      for {
+        validatedXa <- DatabaseConfiguration
+          .validate(resultsDbConfig, xa)
+          .map(_.valueOr(configurationFailed))
+        validatedDb <- IO.pure(JobResultService(WokenRepositoryDAO(validatedXa).jobResults))
+      } yield {
+        validatedDb
+      }
     }
-  } yield {
-    for {
-      db <- validatedDb.andThen(_.unsafeRunSync())
-    } yield FeaturesService(db)
-  }.valueOr(configurationFailed)
-
-  override lazy val featuresService: FeaturesService = fsIO.unsafeRunSync()
-
-  private lazy val jrsIO: IO[JobResultService] = for {
-    validatedXa <- DatabaseConfiguration.dbTransactor(resultsDbConfig)
-    validatedDb = validatedXa.map { xa =>
-      new WokenRepositoryDAO[IO](xa)
-    }
-  } yield {
-    for {
-      db <- validatedDb
-    } yield JobResultService(db.jobResults)
-  }.valueOr(configurationFailed)
+  }
 
   override lazy val jobResultService: JobResultService = jrsIO.unsafeRunSync()
 
@@ -120,16 +130,19 @@ trait BootedCore
       .factory(config)(jobsConfig.metaDb)
       .valueOr(configurationFailed)
 
-    val vmsIO: IO[VariablesMetaService] = for {
-      validatedXa <- DatabaseConfiguration.dbTransactor(metaDbConfig)
-      validatedDb = validatedXa.map { xa =>
-        new MetadataRepositoryDAO[IO](xa)
+    val vmsIO: IO[VariablesMetaService] = {
+      val metaTransactor = DatabaseConfiguration.dbTransactor(metaDbConfig)
+      metaTransactor.use { xa =>
+        for {
+          validatedXa <- DatabaseConfiguration
+            .validate(metaDbConfig, xa)
+            .map(_.valueOr(configurationFailed))
+          dao <- IO.pure(MetadataRepositoryDAO(validatedXa))
+        } yield {
+          VariablesMetaService(dao.variablesMeta)
+        }
       }
-    } yield {
-      for {
-        db <- validatedDb
-      } yield VariablesMetaService(db.variablesMeta)
-    }.valueOr(configurationFailed)
+    }
 
     val variablesMetaService: VariablesMetaService = vmsIO.unsafeRunSync()
 

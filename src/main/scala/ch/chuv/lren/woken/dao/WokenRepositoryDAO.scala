@@ -33,7 +33,7 @@ import spray.json._
 import scala.language.higherKinds
 import scala.util.Try
 
-class WokenRepositoryDAO[F[_]: Monad](val xa: Transactor[F]) extends WokenRepository[F] {
+case class WokenRepositoryDAO[F[_]: Monad](xa: Transactor[F]) extends WokenRepository[F] {
 
   override val jobResults: JobResultRepositoryDAO[F] = new JobResultRepositoryDAO[F](xa)
 
@@ -47,8 +47,9 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
     with LazyLogging {
 
   protected implicit val ShapeMeta: Meta[Shape] =
-    Meta[String].xmap(
-      s => fromString(s).getOrElse(throw new IllegalArgumentException(s"Invalid shape: $s")),
+    Meta[String].timap(
+      s => fromString(s).getOrElse(throw new IllegalArgumentException(s"Invalid shape: $s"))
+    )(
       shape => shape.mime
     )
 
@@ -158,8 +159,11 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
        None)
   }
 
-  private implicit val JobResultComposite: Composite[JobResult] =
-    Composite[JobResultColumns].imap(unsafeFromColumns)(jobResultToColumns)
+  private implicit val jobResultRead: Read[JobResult] =
+    Read[JobResultColumns].map(unsafeFromColumns)
+
+  private implicit val jobResultWrite: Write[JobResult] =
+    Write[JobResultColumns].contramap(jobResultToColumns)
 
   override def get(jobId: String): F[Option[JobResult]] =
     sql"SELECT job_id, node, timestamp, shape, function, data, error FROM job_result WHERE job_id = $jobId"
@@ -168,6 +172,8 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
       .transact(xa)
 
   override def put(jobResult: JobResult): F[JobResult] = {
+    val uniqueGeneratedKeys =
+      Array("job_id", "node", "timestamp", "shape", "function", "data", "error")
     val update: Update0 = {
       jobResultToColumns(jobResult) match {
         case (jobId, node, timestamp, shape, function, data, error) =>
@@ -178,14 +184,9 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
         case e => throw new IllegalArgumentException(s"Cannot handle $e")
       }
     }
+
     update
-      .withUniqueGeneratedKeys[JobResult]("job_id",
-                                          "node",
-                                          "timestamp",
-                                          "shape",
-                                          "function",
-                                          "data",
-                                          "error")
+      .withUniqueGeneratedKeys[JobResult](uniqueGeneratedKeys: _*)
       .transact(xa)
   }
 

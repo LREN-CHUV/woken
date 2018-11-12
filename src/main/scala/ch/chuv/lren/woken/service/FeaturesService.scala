@@ -59,11 +59,14 @@ class FeaturesServiceImpl(repository: FeaturesRepository[IO])(implicit E: Effect
     featuresTableCache
       .get(table.toUpperCase)
       .orElse {
-        repository.featuresTable(table.toUpperCase).map { featuresTable =>
-          val service = new FeaturesTableServiceImpl(featuresTable)
-          featuresTableCache.put(table.toUpperCase, service)
-          service
-        }
+        repository
+          .featuresTable(table.toUpperCase)
+          .unsafeRunSync()
+          .map { featuresTable =>
+            val service = new FeaturesTableServiceImpl(featuresTable)
+            featuresTableCache.put(table.toUpperCase, service)
+            service
+          }
       }
       .toRight(s"Table $table cannot be found or has not been configured")
 

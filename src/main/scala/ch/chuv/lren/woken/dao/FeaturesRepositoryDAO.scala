@@ -256,21 +256,24 @@ object DynamicFeaturesTableRepositoryDAO {
 
     val rndColumn = TableColumn("_rnd", SqlType.int)
 
-    for {
-      dynTable <- extractPk.andThen { pk =>
-        lift(createDynamicTable(xa, table, pk, newFeatures))
+    val validatedDao = extractPk.map { pk =>
+      // Work in context F
+      val dynTableF = createDynamicTable(xa, table, pk, newFeatures)
+      dynTableF.flatMap { dynTable =>
+        val dynViewD = createDynamicView(xa, table, pk, columns, dynTable, newFeatures, rndColumn)
+        dynViewD.map {
+          case (dynView, dynColumns) =>
+            new DynamicFeaturesTableRepositoryDAO(xa,
+                                                  dynView,
+                                                  dynColumns,
+                                                  dynTable,
+                                                  newFeatures,
+                                                  rndColumn)
+        }
       }
-      (dynView, dynColumns) <- extractPk.andThen { pk =>
-        lift(createDynamicView(xa, table, pk, columns, dynTable, newFeatures, rndColumn))
-      }
-      validatedDao = for {
-        dv     <- dynView
-        dvCols <- dynColumns
-        dt     <- dynTable
-        dao = new DynamicFeaturesTableRepositoryDAO(xa, dv, dvCols, dt, newFeatures, rndColumn)
-      } yield dao
-    } yield validatedDao
+    }
 
+    validatedDao
   }
 
   private def createDynamicTable[F[_]: Monad](
