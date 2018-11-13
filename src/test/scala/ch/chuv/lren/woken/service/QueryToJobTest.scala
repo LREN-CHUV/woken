@@ -253,7 +253,31 @@ class QueryToJobTest extends WordSpec with Matchers with ValidatedMatchers with 
             List("lefthippocampus"),
             List(),
             "cde_features_a",
-            None,
+            Some(
+              CompoundFilterRule(
+                Condition.and,
+                List(
+                  SingleFilterRule("apoe4",
+                                   "apoe4",
+                                   "string",
+                                   InputType.text,
+                                   Operator.isNotNull,
+                                   List()),
+                  SingleFilterRule("lefthippocampus",
+                                   "lefthippocampus",
+                                   "string",
+                                   InputType.text,
+                                   Operator.isNotNull,
+                                   List()),
+                  SingleFilterRule("dataset",
+                                   "dataset",
+                                   "string",
+                                   InputType.text,
+                                   Operator.in,
+                                   List("desd-synthdata"))
+                )
+              )
+            ),
             None
             // """SELECT "apoe4","lefthippocampus" FROM cde_features_a WHERE "apoe4" IS NOT NULL AND "lefthippocampus" IS NOT NULL AND "dataset" IN ('desd-synthdata')"""
           )
