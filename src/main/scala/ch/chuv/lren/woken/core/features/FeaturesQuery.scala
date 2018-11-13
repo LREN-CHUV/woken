@@ -69,7 +69,7 @@ case class FeaturesQuery(
         selectExcludingFold(excludeFold, windowOrderByIntCol(folds, orderColumn))
 
       case Some(LeaveOutPartition(folds, excludeFold, None)) =>
-        s"SELECT ${selectExcludingFold(excludeFold, windowOrderRandom(folds))}"
+        selectExcludingFold(excludeFold, windowOrderRandom(folds))
 
       case _ => throw new NotImplementedError(s"Unhandled sampling $sampling")
     }

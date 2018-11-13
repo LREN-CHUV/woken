@@ -20,4 +20,4 @@ package ch.chuv.lren.woken.dao
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{ Matchers, WordSpec }
 
-class FeaturesRepositoryDAOTest extends WordSpec with Matchers with MockFactory {}
+class MetadataRepositoryDAOSpec extends WordSpec with Matchers with MockFactory {}

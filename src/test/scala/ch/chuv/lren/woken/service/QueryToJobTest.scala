@@ -24,6 +24,7 @@ import ch.chuv.lren.woken.core.model.{ AlgorithmDefinition, CdeVariables, Docker
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.messages.query._
+import ch.chuv.lren.woken.messages.query.filters._
 import ch.chuv.lren.woken.messages.variables._
 import com.typesafe.config.{ Config, ConfigFactory }
 import org.scalatest.{ Matchers, WordSpec }
@@ -147,6 +148,9 @@ class QueryToJobTest extends WordSpec with Matchers with ValidatedMatchers with 
     }
 
     "create a DockerJob for a kNN algorithm" in {
+      // variablesCanBeNull = false
+      // covariablesCanBeNull = false
+
       val query = MiningQuery(
         user = user,
         variables = List(VariableId("apoe4")),
@@ -164,6 +168,7 @@ class QueryToJobTest extends WordSpec with Matchers with ValidatedMatchers with 
                                                 jobsConf,
                                                 algorithmLookup)(query)
 
+      println(maybeJob)
       maybeJob shouldBe valid
       maybeJob.value shouldBe a[DockerJob]
 
@@ -179,7 +184,31 @@ class QueryToJobTest extends WordSpec with Matchers with ValidatedMatchers with 
             List("lefthippocampus"),
             List(),
             "cde_features_a",
-            None,
+            Some(
+              CompoundFilterRule(
+                Condition.and,
+                List(
+                  SingleFilterRule("apoe4",
+                                   "apoe4",
+                                   "string",
+                                   InputType.text,
+                                   Operator.isNotNull,
+                                   List()),
+                  SingleFilterRule("lefthippocampus",
+                                   "lefthippocampus",
+                                   "string",
+                                   InputType.text,
+                                   Operator.isNotNull,
+                                   List()),
+                  SingleFilterRule("dataset",
+                                   "dataset",
+                                   "string",
+                                   InputType.text,
+                                   Operator.in,
+                                   List("desd-synthdata"))
+                )
+              )
+            ),
             None
             //"""SELECT "apoe4","lefthippocampus" FROM cde_features_a WHERE "apoe4" IS NOT NULL AND "lefthippocampus" IS NOT NULL AND "dataset" IN ('desd-synthdata')"""
           )

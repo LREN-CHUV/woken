@@ -111,7 +111,7 @@ class FeaturesQueryTest extends WordSpec with Matchers {
         sampling = Some(LeaveOutPartition(10, 2, None))
       )
 
-      query.sql shouldBe """SELECT setseed(0.67); SELECT "a","b","c",ntile(10) over (order by random()) as "_window_" FROM "table" WHERE "_window_" != 3"""
+      query.sql shouldBe """SELECT "a","b","c",ntile(10) over (order by random()) as "_window_" FROM "table" WHERE "_window_" != 3"""
     }
   }
 
