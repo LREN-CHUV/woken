@@ -17,8 +17,12 @@
 
 package ch.chuv.lren.woken.web
 
+import cats.effect.{ExitCode, IO, IOApp}
+import ch.chuv.lren.woken.config.WokenConfiguration
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
+
+// TODO: follow https://github.com/gemini-hlsw/ocs3/blob/10ec44d34b2dbf23d660c30cf6079290a9527880/modules/main/src/main/scala/Main.scala
 
 /**
   * Provides the web server (spray-can) for the REST api in ``Api``, using the actor system
@@ -33,12 +37,17 @@ import org.slf4j.LoggerFactory
   *
   * @author Ludovic Claude <ludovic.claude@chuv.ch>
   */
-object Web extends BootedCore with Rest {
+object Main extends IOApp {
 
-  override protected lazy val logger: Logger =
+  protected lazy val logger: Logger =
     Logger(LoggerFactory.getLogger("Woken"))
 
-  def main(args: Array[String]): Unit = {
+  def run(args: List[String]): IO[ExitCode] = {
+    val config = WokenConfiguration()
+    InternalServices.provide(config).use { databaseServices =>
+
+
+    }
     beforeBoot()
     startActors()
     startServices()

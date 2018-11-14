@@ -20,7 +20,7 @@ lazy val `woken` =
     .settings(Defaults.itSettings)
     .settings(
       Seq(
-        mainClass in Runtime := Some("ch.chuv.lren.woken.web.Web"),
+        mainClass in Runtime := Some("ch.chuv.lren.woken.web.Main"),
         libraryDependencies ++= Seq(
           library.akkaActor,
           //library.akkaActorTyped,

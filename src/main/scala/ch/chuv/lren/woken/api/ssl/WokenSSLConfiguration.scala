@@ -15,20 +15,23 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.ssl
+package ch.chuv.lren.woken.api.ssl
 
 import java.security.{ KeyStore, SecureRandom }
-import javax.net.ssl.{ KeyManagerFactory, SSLContext, TrustManagerFactory }
 
+import javax.net.ssl.{ KeyManagerFactory, SSLContext, TrustManagerFactory }
 import akka.actor.ActorSystem
 import akka.http.scaladsl.{ ConnectionContext, HttpsConnectionContext }
+import ch.chuv.lren.woken.core.Core
 import com.typesafe.sslconfig.akka.AkkaSSLConfig
 
 trait WokenSSLConfiguration {
 
-  implicit def system: ActorSystem
+  implicit def core: Core
 
   def https: HttpsConnectionContext = {
+    implicit val system: ActorSystem = core.system
+
     val keyStoreRes = "/woken.com.jks"
     val password    = "X9PYRiFaPV"
 

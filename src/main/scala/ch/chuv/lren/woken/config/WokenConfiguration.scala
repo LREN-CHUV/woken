@@ -16,7 +16,7 @@
  */
 
 package ch.chuv.lren.woken.config
-import ch.chuv.lren.woken.core.CoordinatorConfig
+
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import com.typesafe.config.{ Config, ConfigFactory }
 
@@ -39,14 +39,9 @@ case class WokenConfiguration(config: Config) {
   val resultsDb: DatabaseConfiguration = databaseConfig("woken")
     .valueOr(configurationFailed)
 
-  val coordinatorConfig = CoordinatorConfig(
-    chronosHttp,
-    app.dockerBridgeNetwork,
-    featuresService,
-    jobResultService,
-    jobs,
-    DatabaseConfiguration.factory(config)
-  )
+  val metaDb: DatabaseConfiguration = DatabaseConfiguration
+    .factory(config)(jobs.metaDb)
+    .valueOr(configurationFailed)
 
 }
 

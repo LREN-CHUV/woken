@@ -26,7 +26,7 @@ import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.core.monitoring.DeadLetterMonitorActor
 import com.typesafe.scalalogging.LazyLogging
 
-import scala.concurrent.ExecutionContextExecutor
+import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor }
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -38,6 +38,7 @@ trait Core {
 
   implicit def system: ActorSystem
   implicit def actorMaterializer: ActorMaterializer
+  implicit def executionContext: ExecutionContext
 
   def cluster: Cluster
 
@@ -73,7 +74,7 @@ trait CoreActors {
     ActorMaterializerSettings(system).withSupervisionStrategy(decider)
   )
 
-  protected lazy implicit val executionContext: ExecutionContextExecutor = system.dispatcher
+  override lazy implicit val executionContext: ExecutionContextExecutor = system.dispatcher
 
   lazy val chronosHttp: ActorRef = {
     val chronosSupervisorProps = BackoffSupervisor.props(
