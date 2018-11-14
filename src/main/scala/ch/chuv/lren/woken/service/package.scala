@@ -16,14 +16,9 @@
  */
 
 package ch.chuv.lren.woken
-import cats.data.NonEmptyList
 
-package object config {
+package object service {
 
-  import acyclic.pkg
-
-  @SuppressWarnings(Array("org.wartremover.warts.Throw"))
-  def configurationFailed[B](e: NonEmptyList[String]): B =
-    throw new IllegalStateException(s"Invalid configuration: ${e.toList.mkString(", ")}")
+  case class DatabaseServices(featuresService: FeaturesService, jobResultService: JobResultService)
 
 }

@@ -21,10 +21,8 @@ import akka.actor.{ ActorRef, ActorSystem, DeadLetter }
 import akka.cluster.Cluster
 import akka.pattern.{ Backoff, BackoffSupervisor }
 import akka.stream._
-import cats.data.NonEmptyList
-import com.typesafe.config.{ Config, ConfigFactory }
 import ch.chuv.lren.woken.backends.chronos.ChronosThrottler
-import ch.chuv.lren.woken.config.{ AppConfiguration, JobsConfiguration }
+import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.core.monitoring.DeadLetterMonitorActor
 import com.typesafe.scalalogging.LazyLogging
 
@@ -38,18 +36,12 @@ import scala.language.postfixOps
   */
 trait Core {
 
-  protected implicit def system: ActorSystem
-  protected implicit def actorMaterializer: ActorMaterializer
-  protected def cluster: Cluster
+  implicit def system: ActorSystem
+  implicit def actorMaterializer: ActorMaterializer
 
-  protected def config: Config
+  def cluster: Cluster
 
-  protected def mainRouter: ActorRef
-
-  def beforeBoot(): Unit
-  def startActors(): Unit
-  def startServices(): Unit
-  def selfChecks(): Unit
+  def mainRouter: ActorRef
 
 }
 
@@ -60,43 +52,7 @@ trait Core {
 trait CoreActors {
   this: Core with LazyLogging =>
 
-  @SuppressWarnings(Array("org.wartremover.warts.Throw"))
-  protected def configurationFailed[B](e: NonEmptyList[String]): B =
-    throw new IllegalStateException(s"Invalid configuration: ${e.toList.mkString(", ")}")
-
-  // Order of loading:
-  // 1. Akka configuration hard-coded for clustering (present here to avoid clashes with tests no using a cluster)
-  // 2. Configuration of Akka pre-defined in akka.conf, configurable by environment variables
-  // 3. Configuration of Kamon pre-defined in kamon.conf, configurable by environment variables
-  // 4. Custom configuration defined in application.conf and backed by reference.conf from the libraries
-  // 5. Default configuration for the algorithm library, it can be overriden in application.conf or individual versions
-  //    for algorithms can be overriden by environment variables
-  protected lazy val config: Config = {
-    val remotingConfig = ConfigFactory.parseResourcesAnySyntax("akka-remoting.conf").resolve()
-    val remotingImpl   = remotingConfig.getString("remoting.implementation")
-    ConfigFactory
-      .parseString("""
-          |akka {
-          |  actor.provider = cluster
-          |  extensions += "akka.cluster.pubsub.DistributedPubSub"
-          |  extensions += "akka.cluster.client.ClusterClientReceptionist"
-          |}
-        """.stripMargin)
-      .withFallback(ConfigFactory.parseResourcesAnySyntax("akka.conf"))
-      .withFallback(ConfigFactory.parseResourcesAnySyntax(s"akka-$remotingImpl-remoting.conf"))
-      .withFallback(ConfigFactory.parseResourcesAnySyntax("kamon.conf"))
-      .withFallback(ConfigFactory.load())
-      .withFallback(ConfigFactory.parseResourcesAnySyntax("algorithms.conf"))
-      .resolve()
-  }
-
-  protected lazy val appConfig: AppConfiguration = AppConfiguration
-    .read(config)
-    .valueOr(configurationFailed)
-
-  protected lazy val jobsConfig: JobsConfiguration = JobsConfiguration
-    .read(config)
-    .valueOr(configurationFailed)
+  protected def config: WokenConfiguration
 
   val decider: Supervision.Decider = {
     case err: RuntimeException =>
@@ -110,7 +66,8 @@ trait CoreActors {
   /**
     * Construct the ActorSystem we will use in our application
     */
-  override lazy implicit val system: ActorSystem = ActorSystem(appConfig.clusterSystemName, config)
+  override lazy implicit val system: ActorSystem =
+    ActorSystem(config.app.clusterSystemName, config.config)
 
   protected lazy implicit val actorMaterializer: ActorMaterializer = ActorMaterializer(
     ActorMaterializerSettings(system).withSupervisionStrategy(decider)
@@ -121,7 +78,7 @@ trait CoreActors {
   lazy val chronosHttp: ActorRef = {
     val chronosSupervisorProps = BackoffSupervisor.props(
       Backoff.onFailure(
-        ChronosThrottler.props(jobsConfig),
+        ChronosThrottler.props(config.jobs),
         childName = "chronosThrottler",
         minBackoff = 1 second,
         maxBackoff = 30 seconds,

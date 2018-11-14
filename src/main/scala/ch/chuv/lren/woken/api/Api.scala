@@ -17,12 +17,14 @@
 
 package ch.chuv.lren.woken.api
 
+import akka.actor.ActorSystem
 import akka.http.scaladsl.model.StatusCodes
 import ch.chuv.lren.woken.api.swagger.SwaggerService
-import ch.chuv.lren.woken.core.{ CoordinatorConfig, Core, CoreActors }
-import ch.chuv.lren.woken.service.{ FeaturesService, JobResultService }
+import ch.chuv.lren.woken.core.{ CoordinatorConfig, Core }
+import ch.chuv.lren.woken.service.{ DatabaseServices, FeaturesService, JobResultService }
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
+import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 import com.typesafe.scalalogging.LazyLogging
 
@@ -34,53 +36,33 @@ import com.typesafe.scalalogging.LazyLogging
   *
   * @author Ludovic Claude <ludovic.claude@chuv.ch>
   */
-trait Api extends CoreActors with Core with LazyLogging {
+trait Api extends LazyLogging {
 
-  def featuresService: FeaturesService
-  def jobResultService: JobResultService
-  def coordinatorConfig: CoordinatorConfig
+  def core: Core
+  def config: WokenConfiguration
 
   def routes: Route = {
+    implicit val system: ActorSystem = core.system
+
     val miningService =
       new MiningWebService(
-        mainRouter,
-        appConfig,
-        jobsConfig
+        core.mainRouter,
+        config.app,
+        config.jobs
       )
 
     val metadataService =
       new MetadataWebService(
-        mainRouter,
-        appConfig,
-        jobsConfig
+        core.mainRouter,
+        config.app,
+        config.jobs
       )
 
-    val healthRoute = pathPrefix("health") {
-      get {
-        // TODO: proper health check is required, check db connection, check cluster availability...
-        if (cluster.state.leader.isEmpty)
-          complete((StatusCodes.InternalServerError, "No leader elected for the cluster"))
-        else if (!appConfig.disableWorkers && cluster.state.members.size < 2)
-          complete("UP - Expected at least one worker (Woken validation server) in the cluster")
-        else
-          complete("UP")
-      }
-    }
-
-    val readinessRoute = pathPrefix("readiness") {
-      get {
-        if (cluster.state.leader.isEmpty)
-          complete((StatusCodes.InternalServerError, "No leader elected for the cluster"))
-        else
-          complete("READY")
-      }
-    }
+    val monitoringService = new MonitoringWebService(core.cluster, config.app)
 
     cors()(
-      SwaggerService.routes ~ miningService.routes ~ metadataService.routes ~ healthRoute ~ readinessRoute
+      SwaggerService.routes ~ miningService.routes ~ metadataService.routes ~ monitoringService.routes
     )
   }
 
 }
-
-trait RestMessage

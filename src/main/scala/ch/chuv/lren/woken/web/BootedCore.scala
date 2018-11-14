@@ -62,51 +62,7 @@ trait BootedCore
     with LazyLogging {
 
   override def beforeBoot(): Unit =
-    KamonSupport.startReporters(config)
-
-  private lazy val featuresDbConfig = DatabaseConfiguration
-    .factory(config)(jobsConfig.featuresDb)
-    .valueOr(configurationFailed)
-
-  private lazy val fsIO: IO[FeaturesService] = {
-    val featuresTransactor = DatabaseConfiguration.dbTransactor(featuresDbConfig)
-    featuresTransactor.use { xa =>
-      for {
-        validatedXa <- DatabaseConfiguration
-          .validate(featuresDbConfig, xa)
-          .map(_.valueOr(configurationFailed))
-        validatedDb <- FeaturesRepositoryDAO(validatedXa, featuresDbConfig.tables)
-          .map { daoV =>
-            daoV.map { FeaturesService.apply }
-          }
-      } yield {
-        validatedDb.valueOr(configurationFailed)
-      }
-    }
-  }
-
-  // TODO: keep the IO, unwarp at end of world
-  override lazy val featuresService: FeaturesService = fsIO.unsafeRunSync()
-
-  private lazy val resultsDbConfig = DatabaseConfiguration
-    .factory(config)("woken")
-    .valueOr(configurationFailed)
-
-  private lazy val jrsIO: IO[JobResultService] = {
-    val resultsTransactor = DatabaseConfiguration.dbTransactor(resultsDbConfig)
-    resultsTransactor.use { xa =>
-      for {
-        validatedXa <- DatabaseConfiguration
-          .validate(resultsDbConfig, xa)
-          .map(_.valueOr(configurationFailed))
-        validatedDb <- IO.pure(JobResultService(WokenRepositoryDAO(validatedXa).jobResults))
-      } yield {
-        validatedDb
-      }
-    }
-  }
-
-  override lazy val jobResultService: JobResultService = jrsIO.unsafeRunSync()
+    KamonSupport.startReporters(config.config)
 
   override lazy val coordinatorConfig = CoordinatorConfig(
     chronosHttp,

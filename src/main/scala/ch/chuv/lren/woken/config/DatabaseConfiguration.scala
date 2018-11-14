@@ -188,8 +188,8 @@ object DatabaseConfiguration {
   }
   // TODO: .memoize (using Monix?)
 
-  def validate(dbConfig: DatabaseConfiguration,
-               xa: HikariTransactor[IO]): IO[Validation[HikariTransactor[IO]]] =
+  def validate(xa: HikariTransactor[IO],
+               dbConfig: DatabaseConfiguration): IO[Validation[HikariTransactor[IO]]] =
     for {
       test <- sql"select 1".query[Int].unique.transact(xa)
     } yield {
