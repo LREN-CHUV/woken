@@ -17,8 +17,9 @@
 
 package ch.chuv.lren.woken.web
 
-import cats.effect.{ExitCode, IO, IOApp}
+import cats.effect.{ ExitCode, IO, IOApp }
 import ch.chuv.lren.woken.config.WokenConfiguration
+import ch.chuv.lren.woken.service.DatabaseServices
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
@@ -44,10 +45,8 @@ object Main extends IOApp {
 
   def run(args: List[String]): IO[ExitCode] = {
     val config = WokenConfiguration()
-    InternalServices.provide(config).use { databaseServices =>
-
-
-    }
+    DatabaseServices.provide(config).use { databaseServices =>
+      }
     beforeBoot()
     startActors()
     startServices()

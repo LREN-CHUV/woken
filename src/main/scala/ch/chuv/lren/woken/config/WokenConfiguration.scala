@@ -17,6 +17,7 @@
 
 package ch.chuv.lren.woken.config
 
+import cats.effect.{ IO, Sync }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import com.typesafe.config.{ Config, ConfigFactory }
 
@@ -60,7 +61,7 @@ object WokenConfiguration {
     *
     * @return
     */
-  def apply(): WokenConfiguration = {
+  def apply(): IO[WokenConfiguration] = Sync[IO].delay {
 
     val config: Config = {
       val remotingConfig = ConfigFactory.parseResourcesAnySyntax("akka-remoting.conf").resolve()

@@ -17,7 +17,7 @@
 
 package ch.chuv.lren.woken.service
 
-import cats.effect.{ Effect, IO }
+import cats.effect.Effect
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model.TableColumn
 import ch.chuv.lren.woken.dao.{ FeaturesRepository, FeaturesTableRepository }
@@ -27,35 +27,35 @@ import spray.json.JsObject
 import scala.collection.mutable
 
 object FeaturesService {
-  def apply(repo: FeaturesRepository[IO])(implicit E: Effect[IO]): FeaturesService =
-    new FeaturesServiceImpl(repo)
+  def apply[F[_]: Effect](repo: FeaturesRepository[F]): FeaturesService[F] =
+    new FeaturesServiceImpl[F](repo)
 }
 
-trait FeaturesService {
+trait FeaturesService[F[_]] {
 
-  def featuresTable(table: String): Either[String, FeaturesTableService]
+  def featuresTable(table: String): Either[String, FeaturesTableService[F]]
 
 }
 
-trait FeaturesTableService {
+trait FeaturesTableService[F[_]] {
 
-  def count: IO[Int]
+  def count: F[Int]
 
-  def count(dataset: DatasetId): IO[Int]
+  def count(dataset: DatasetId): F[Int]
 
   type Headers = List[TableColumn]
 
-  def features(query: FeaturesQuery): IO[(Headers, Stream[JsObject])]
+  def features(query: FeaturesQuery): F[(Headers, Stream[JsObject])]
 
 }
 
-class FeaturesServiceImpl(repository: FeaturesRepository[IO])(implicit E: Effect[IO])
-    extends FeaturesService {
+class FeaturesServiceImpl[F[_]: Effect](repository: FeaturesRepository[F])
+    extends FeaturesService[F] {
 
-  private val featuresTableCache: mutable.Map[String, FeaturesTableService] =
-    new mutable.WeakHashMap[String, FeaturesTableService]()
+  private val featuresTableCache: mutable.Map[String, FeaturesTableService[F]] =
+    new mutable.WeakHashMap[String, FeaturesTableService[F]]()
 
-  def featuresTable(table: String): Either[String, FeaturesTableService] =
+  def featuresTable(table: String): Either[String, FeaturesTableService[F]] =
     featuresTableCache
       .get(table.toUpperCase)
       .orElse {
@@ -72,13 +72,13 @@ class FeaturesServiceImpl(repository: FeaturesRepository[IO])(implicit E: Effect
 
 }
 
-class FeaturesTableServiceImpl(repository: FeaturesTableRepository[IO])(implicit E: Effect[IO])
-    extends FeaturesTableService {
+class FeaturesTableServiceImpl[F[_]: Effect](repository: FeaturesTableRepository[F])
+    extends FeaturesTableService[F] {
 
-  def count: IO[Int] = repository.count
+  def count: F[Int] = repository.count
 
-  def count(dataset: DatasetId): IO[Int] = repository.count(dataset)
+  def count(dataset: DatasetId): F[Int] = repository.count(dataset)
 
-  def features(query: FeaturesQuery): IO[(Headers, Stream[JsObject])] = repository.features(query)
+  def features(query: FeaturesQuery): F[(Headers, Stream[JsObject])] = repository.features(query)
 
 }

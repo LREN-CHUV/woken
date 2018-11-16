@@ -29,7 +29,6 @@ import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
 import ch.chuv.lren.woken.fp.Traverse
 import ch.chuv.lren.woken.messages.variables.SqlType
 
-import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
 /**
@@ -148,52 +147,53 @@ object DatabaseConfiguration {
   def factory(config: Config): String => Validation[DatabaseConfiguration] =
     dbAlias => read(config, List("db", dbAlias))
 
-  def dbTransactor(dbConfig: DatabaseConfiguration): Resource[IO, HikariTransactor[IO]] = {
-
+  def dbTransactor[F[_]: Effect: ContextShift](
+      dbConfig: DatabaseConfiguration
+  )(implicit cs: ContextShift[IO]): Resource[F, HikariTransactor[F]] =
     // We need a ContextShift[IO] before we can construct a Transactor[IO]. The passed ExecutionContext
     // is where nonblocking operations will be executed.
-    implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
     for {
       // our connect EC
-      ce <- ExecutionContexts.fixedThreadPool[IO](2)
+      ce <- ExecutionContexts.fixedThreadPool[F](2)
       // our transaction EC
-      te <- ExecutionContexts.cachedThreadPool[IO]
+      te <- ExecutionContexts.cachedThreadPool[F]
 
-      xa <- HikariTransactor.newHikariTransactor[IO](driverClassName = dbConfig.jdbcDriver,
-                                                     url = dbConfig.jdbcUrl,
-                                                     user = dbConfig.user,
-                                                     pass = dbConfig.password,
-                                                     connectEC = ce,
-                                                     transactEC = te)
+      xa <- HikariTransactor.newHikariTransactor[F](driverClassName = dbConfig.jdbcDriver,
+                                                    url = dbConfig.jdbcUrl,
+                                                    user = dbConfig.user,
+                                                    pass = dbConfig.password,
+                                                    connectEC = ce,
+                                                    transactEC = te)
       _ <- Resource.liftF {
         xa.configure(
           hx =>
-            Async[IO].delay {
+            Async[F].delay {
               hx.getHikariConfigMXBean.setMaximumPoolSize(dbConfig.poolSize)
               hx.setAutoCommit(false)
           }
         )
       }
 
-      validatedXa <- Resource.liftF {
+      _ <- Resource.liftF {
         for {
           test <- sql"select 1".query[Int].unique.transact(xa)
         } yield {
-          if (test != 1) "Cannot connect to $dbConfig.jdbcUrl".invalidNel[HikariTransactor[IO]]
+          if (test != 1) "Cannot connect to $dbConfig.jdbcUrl".invalidNel[HikariTransactor[F]]
           else lift(xa)
         }
       }
 
     } yield xa
-  }
   // TODO: .memoize (using Monix?)
 
-  def validate(xa: HikariTransactor[IO],
-               dbConfig: DatabaseConfiguration): IO[Validation[HikariTransactor[IO]]] =
+  def validate[F[_]: Effect: ContextShift](
+      xa: HikariTransactor[F],
+      dbConfig: DatabaseConfiguration
+  ): F[Validation[HikariTransactor[F]]] =
     for {
       test <- sql"select 1".query[Int].unique.transact(xa)
     } yield {
-      if (test != 1) "Cannot connect to $dbConfig.jdbcUrl".invalidNel[HikariTransactor[IO]]
+      if (test != 1) "Cannot connect to $dbConfig.jdbcUrl".invalidNel[HikariTransactor[F]]
       else lift(xa)
     }
 }

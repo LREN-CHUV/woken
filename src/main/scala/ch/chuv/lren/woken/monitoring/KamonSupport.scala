@@ -15,10 +15,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.kamon
+package ch.chuv.lren.woken.monitoring
 
 import java.io.File
 
+import cats.effect.{ ConcurrentEffect, ContextShift, Resource, Timer }
+import ch.chuv.lren.woken.akka.AkkaServer
+import ch.chuv.lren.woken.config.WokenConfiguration
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import kamon.Kamon
@@ -29,6 +32,7 @@ import kamon.zipkin.ZipkinReporter
 import org.hyperic.sigar.{ Sigar, SigarLoader }
 import org.slf4j.LoggerFactory
 
+import scala.language.higherKinds
 import scala.util.Try
 
 object KamonSupport {
@@ -79,6 +83,16 @@ object KamonSupport {
       if (kamonConfig.getBoolean("zipkin.enabled"))
         Kamon.addReporter(new ZipkinReporter)
     }
+  }
+
+  /** Resource that creates and yields an Akka server, guaranteeing cleanup. */
+  def resource[F[_]: ConcurrentEffect: ContextShift: Timer](
+      config: WokenConfiguration
+  ): Resource[F, AkkaServer[F]] = {
+
+    def beforeBoot(): Unit =
+      KamonSupport.startReporters(config.config)
+
   }
 
 }

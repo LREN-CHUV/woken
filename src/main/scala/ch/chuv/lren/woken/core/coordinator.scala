@@ -41,12 +41,12 @@ import scala.language.higherKinds
 // TODO: replace with Akka streams, similar example can be found at https://softwaremill.com/replacing-akka-actors-with-akka-streams/
 
 // TODO: featuresDatabase needed by CrossValidationActor, not by CoordinatorActor
-case class CoordinatorConfig(chronosService: ActorRef,
-                             dockerBridgeNetwork: Option[String],
-                             featuresService: FeaturesService,
-                             jobResultService: JobResultService,
-                             jobsConf: JobsConfiguration,
-                             jdbcConfF: String => Validation[DatabaseConfiguration])
+case class CoordinatorConfig[F[_]](chronosService: ActorRef,
+                                   dockerBridgeNetwork: Option[String],
+                                   featuresService: FeaturesService[F],
+                                   jobResultService: JobResultService[F],
+                                   jobsConf: JobsConfiguration,
+                                   jdbcConfF: String => Validation[DatabaseConfiguration])
 
 /**
   * We use the companion object to hold all the messages that the ``CoordinatorActor``
@@ -63,7 +63,7 @@ object CoordinatorActor {
   // TODO: we can return only one JobResult at the moment
   case class Response(job: DockerJob, results: List[JobResult], initiator: ActorRef)
 
-  def props(coordinatorConfig: CoordinatorConfig): Props =
+  def props[F[_]](coordinatorConfig: CoordinatorConfig[F]): Props =
     Props(
       new CoordinatorActor(coordinatorConfig)
     )
@@ -71,8 +71,8 @@ object CoordinatorActor {
   def actorName(job: DockerJob): String =
     s"LocalCoordinatorActor_job_${job.jobId}_${job.jobName}"
 
-  private[this] def future(coordinatorConfig: CoordinatorConfig,
-                           context: ActorContext)(job: DockerJob): Future[Response] = {
+  private[this] def future[F[_]](coordinatorConfig: CoordinatorConfig[F],
+                                 context: ActorContext)(job: DockerJob): Future[Response] = {
     val worker = context.actorOf(
       CoordinatorActor.props(coordinatorConfig)
     )
@@ -86,8 +86,9 @@ object CoordinatorActor {
 
   type ExecuteJobAsync = DockerJob => Future[Response]
 
-  def executeJobAsync(coordinatorConfig: CoordinatorConfig,
-                      context: ActorContext): ExecuteJobAsync = future(coordinatorConfig, context)
+  def executeJobAsync[F[_]](coordinatorConfig: CoordinatorConfig[F],
+                            context: ActorContext): ExecuteJobAsync =
+    future(coordinatorConfig, context)
 
 }
 
@@ -153,7 +154,7 @@ private[core] object CoordinatorStates {
   *  -----------------           -----------------------                    --------------------
   *
   */
-class CoordinatorActor(coordinatorConfig: CoordinatorConfig)
+class CoordinatorActor[F[_]](coordinatorConfig: CoordinatorConfig[F])
     extends Actor
     with LazyLogging
     with FSM[CoordinatorStates.State, CoordinatorStates.StateData] {

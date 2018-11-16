@@ -20,6 +20,7 @@ package ch.chuv.lren.woken.service
 import akka.NotUsed
 import akka.stream.{ FlowShape, OverflowStrategy }
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Merge, Source }
+import cats.effect.IO
 import ch.chuv.lren.woken.fp.Traverse
 import ch.chuv.lren.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
@@ -91,7 +92,7 @@ class DispatcherService(allDatasets: Map[DatasetId, Dataset],
 
   def dispatchVariablesQueryFlow(
       datasetService: DatasetService,
-      variablesMetaService: VariablesMetaService
+      variablesMetaService: VariablesMetaService[IO]
   ): Flow[VariablesForDatasetsQuery, VariablesForDatasetsQR, NotUsed] =
     Flow.fromGraph(GraphDSL.create() { implicit builder =>
       import GraphDSL.Implicits._
@@ -130,7 +131,7 @@ class DispatcherService(allDatasets: Map[DatasetId, Dataset],
     */
   def localVariablesQueryFlow(
       datasetService: DatasetService,
-      variablesMetaService: VariablesMetaService
+      variablesMetaService: VariablesMetaService[IO]
   ): Flow[VariablesForDatasetsQuery, VariablesForDatasetsQR, NotUsed] =
     Flow[VariablesForDatasetsQuery]
       .map[VariablesForDatasetsQR] { q =>

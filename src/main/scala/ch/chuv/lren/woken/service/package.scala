@@ -17,10 +17,4 @@
 
 package ch.chuv.lren.woken
 
-package object service {
-
-  case class DatabaseServices(featuresService: FeaturesService,
-                              jobResultService: JobResultService,
-                              variablesMetaService: VariablesMetaService)
-
-}
+package object service {}

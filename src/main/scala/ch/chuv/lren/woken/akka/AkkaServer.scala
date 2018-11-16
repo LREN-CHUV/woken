@@ -15,15 +15,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.web
+package ch.chuv.lren.woken.akka
 
-import scala.concurrent.duration._
 import akka.actor.ActorRef
 import akka.cluster.Cluster
 import akka.cluster.client.ClusterClientReceptionist
 import akka.cluster.pubsub.{ DistributedPubSub, DistributedPubSubMediator }
 import akka.pattern.{ Backoff, BackoffSupervisor }
-import ch.chuv.lren.woken.api.MasterRouter
+import cats.effect._
+import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.config.{
   AlgorithmsConfiguration,
   DatabaseConfiguration,
@@ -32,9 +32,11 @@ import ch.chuv.lren.woken.config.{
 }
 import ch.chuv.lren.woken.core.{ CoordinatorConfig, Core, CoreActors }
 import ch.chuv.lren.woken.service._
-import ch.chuv.lren.woken.backends.woken.WokenClientService
-import ch.chuv.lren.woken.kamon.KamonSupport
 import com.typesafe.scalalogging.LazyLogging
+
+import scala.concurrent.duration._
+import scala.language.higherKinds
+import scala.util.{ Failure, Success }
 
 /**
   * This trait implements ``Core`` by starting the required ``ActorSystem`` and registering the
@@ -43,10 +45,12 @@ import com.typesafe.scalalogging.LazyLogging
   * @author Ludovic Claude <ludovic.claude@chuv.ch>
   */
 @SuppressWarnings(Array("org.wartremover.warts.Throw", "org.wartremover.warts.NonUnitStatements"))
-class BootedCore(val databaseServices: DatabaseServices, override val config: WokenConfiguration) extends Core with CoreActors with LazyLogging {
-
-  def beforeBoot(): Unit =
-    KamonSupport.startReporters(config.config)
+class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
+    val databaseServices: DatabaseServices[F],
+    override val config: WokenConfiguration
+) extends Core
+    with CoreActors
+    with LazyLogging {
 
   private lazy val datasetsService: DatasetService = ConfBasedDatasetService(config.config)
 
@@ -120,11 +124,12 @@ class BootedCore(val databaseServices: DatabaseServices, override val config: Wo
             { error: String =>
               logger.error(error)
               System.exit(1)
-            }, { table: FeaturesTableService =>
+            }, { table: FeaturesTableService[F] =>
               if (table.count(dataset.dataset).unsafeRunSync() == 0) {
                 logger.error(
                   s"Table $tableName contains no value for dataset ${dataset.dataset.code}"
                 )
+                // TODO: no hard exit, rely on Resource to shutdown cleanly
                 System.exit(1)
               }
             }
@@ -135,4 +140,39 @@ class BootedCore(val databaseServices: DatabaseServices, override val config: Wo
     logger.info("[OK] Self checks passed")
   }
 
+  def unbind(): F[Unit] =
+    Sync[F].defer {
+      cluster.leave(cluster.selfAddress)
+      val ending = system.terminate()
+      Async[F].async { cb =>
+        ending.onComplete {
+          case Success(_)     => cb(Right(()))
+          case Failure(error) => cb(Left(error))
+        }
+      }
+    }
+
+}
+
+object AkkaServer extends LazyLogging {
+
+  /** Resource that creates and yields an Akka server, guaranteeing cleanup. */
+  def resource[F[_]: ConcurrentEffect: ContextShift: Timer](
+      databaseServicesResource: Resource[F, DatabaseServices[F]],
+      config: WokenConfiguration
+  ): Resource[F, AkkaServer[F]] = {
+
+    logger.info(s"Start Akka server")
+
+    databaseServicesResource.flatMap { databaseServices =>
+      Resource.make(Sync[F].delay {
+        val server = new AkkaServer[F](databaseServices, config)
+
+        server.startActors()
+        server.selfChecks()
+
+        server
+      })(_.unbind())
+    }
+  }
 }

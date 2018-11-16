@@ -21,6 +21,7 @@ import java.util.UUID
 
 import cats.data.Validated._
 import cats.data.{ Validated, _ }
+import cats.effect.IO
 import cats.implicits._
 import ch.chuv.lren.woken.config.JobsConfiguration
 import ch.chuv.lren.woken.core.ExperimentActor
@@ -41,7 +42,7 @@ import shapeless.{ ::, HNil }
 object QueryToJob extends LazyLogging {
 
   def miningQuery2Job(
-      variablesMetaService: VariablesMetaService,
+      variablesMetaService: VariablesMetaService[IO],
       jobsConfiguration: JobsConfiguration,
       algorithmLookup: String => Validation[AlgorithmDefinition]
   )(query: MiningQuery): Validation[Job] = {
@@ -74,7 +75,7 @@ object QueryToJob extends LazyLogging {
   }
 
   def experimentQuery2Job(
-      variablesMetaService: VariablesMetaService,
+      variablesMetaService: VariablesMetaService[IO],
       jobsConfiguration: JobsConfiguration,
       algorithmLookup: String => Validation[AlgorithmDefinition]
   )(query: ExperimentQuery): Validation[ExperimentActor.Job] = {
@@ -105,7 +106,7 @@ object QueryToJob extends LazyLogging {
   }
 
   private def prepareQuery[Q <: Query](
-      variablesMetaService: VariablesMetaService,
+      variablesMetaService: VariablesMetaService[IO],
       jobsConfiguration: JobsConfiguration,
       query: Q
   ): String :: String :: String :: Validation[List[VariableMetaData]] :: Validation[Q] :: HNil = {

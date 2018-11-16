@@ -25,7 +25,7 @@ import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
-import ch.chuv.lren.woken.kamon.KamonSupport
+import ch.chuv.lren.woken.monitoring.KamonSupport
 import com.typesafe.config.{Config, ConfigFactory}
 import ch.chuv.lren.woken.messages.datasets._
 import ch.chuv.lren.woken.messages.query._

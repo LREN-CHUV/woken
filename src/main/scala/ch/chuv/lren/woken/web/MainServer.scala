@@ -15,31 +15,30 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.service
+package ch.chuv.lren.woken.web
 
-import cats.effect.{ Effect, IO }
-import ch.chuv.lren.woken.core.model.VariablesMeta
-import ch.chuv.lren.woken.dao.VariablesMetaRepository
+import cats.effect._
+// Required, don't trust IntelliJ
+import cats.implicits._
+import ch.chuv.lren.woken.akka.AkkaServer
+import ch.chuv.lren.woken.config.WokenConfiguration
+import ch.chuv.lren.woken.service.DatabaseServices
 
 import scala.language.higherKinds
 
-/**
-  * Service that provides access to the metadata of the variables.
-  *
-  * @param repository where we get our data
-  *
-  * @author Ludovic Claude <ludovic.claude@chuv.ch>
-  */
-class VariablesMetaService[F[_]: Effect](repository: VariablesMetaRepository[F]) {
+object MainServer {
 
-  def put(meta: VariablesMeta): F[VariablesMeta] = repository.put(meta)
+  /** A single-element stream that starts the server up and shuts it down on exit. */
+  def resource[F[_]: ConcurrentEffect: ContextShift: Timer](
+      cfg: WokenConfiguration
+  ): Resource[F, Unit] = {
 
-  def get(targetFeaturesTable: String): F[Option[VariablesMeta]] =
-    repository.get(targetFeaturesTable)
+    val databaseService = DatabaseServices.resource[F](cfg)
+    val akkaServer      = AkkaServer.resource[F](databaseService, cfg)
+    // TODO: backendServer should ensure connection to Chronos
+    for {
+      _ <- WebServer.resource[F](akkaServer, cfg)
+    } yield ()
 
-}
-
-object VariablesMetaService {
-  def apply[F[_]: Effect](repo: VariablesMetaRepository[F]): VariablesMetaService[F] =
-    new VariablesMetaService(repo)
+  }
 }

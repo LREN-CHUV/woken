@@ -30,15 +30,17 @@ import scala.language.higherKinds
   *
   * @author Ludovic Claude <ludovic.claude@chuv.ch>
   */
-class JobResultService(repository: JobResultRepository[IO])(implicit E: Effect[IO]) {
+class JobResultService[F[_]: Effect](repository: JobResultRepository[F]) {
 
-  def put(result: JobResult): IO[JobResult] = repository.put(result)
+  def put(result: JobResult): F[JobResult] = repository.put(result)
 
-  def get(jobId: String): IO[Option[JobResult]] = repository.get(jobId)
+  def get(jobId: String): F[Option[JobResult]] = repository.get(jobId)
 
 }
 
 object JobResultService {
-  def apply(repo: JobResultRepository[IO])(implicit E: Effect[IO]): JobResultService =
+
+  def apply[F[_]: Effect](repo: JobResultRepository[F]): JobResultService[F] =
     new JobResultService(repo)
+
 }

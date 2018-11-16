@@ -27,7 +27,7 @@ import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials}
 import akka.http.scaladsl.model.ws.{Message, TextMessage, WebSocketRequest}
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
-import ch.chuv.lren.woken.kamon.KamonSupport
+import ch.chuv.lren.woken.monitoring.KamonSupport
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon

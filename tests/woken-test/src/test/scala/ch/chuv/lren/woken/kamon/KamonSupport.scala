@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.kamon
+package ch.chuv.lren.woken.monitoring
 
 import com.typesafe.config.{Config, ConfigValueFactory}
 import com.typesafe.scalalogging.Logger
