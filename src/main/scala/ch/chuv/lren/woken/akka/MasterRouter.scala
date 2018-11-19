@@ -44,6 +44,7 @@ import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 
 import scala.concurrent.ExecutionContext
+import scala.language.higherKinds
 
 object MasterRouter {
 

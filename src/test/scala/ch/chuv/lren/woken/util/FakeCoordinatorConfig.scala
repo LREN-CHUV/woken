@@ -19,6 +19,7 @@ package ch.chuv.lren.woken.util
 
 import akka.actor.ActorRef
 import cats.data.Validated.Valid
+import cats.effect.IO
 import ch.chuv.lren.woken.config.{ DatabaseConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.core.CoordinatorConfig
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil
@@ -51,10 +52,10 @@ object FakeCoordinatorConfig {
                       0.5,
                       512)
 
-  val fakeFeaturesService: FeaturesService                                = TestServices.emptyFeaturesService
+  val fakeFeaturesService: FeaturesService[IO]                            = TestServices.emptyFeaturesService
   val jdbcConfigs: String => ConfigUtil.Validation[DatabaseConfiguration] = _ => Valid(noDbConfig)
 
-  def coordinatorConfig(chronosService: ActorRef): CoordinatorConfig =
+  def coordinatorConfig(chronosService: ActorRef): CoordinatorConfig[IO] =
     CoordinatorConfig(
       chronosService,
       None,

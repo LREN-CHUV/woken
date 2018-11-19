@@ -30,17 +30,17 @@ import ch.chuv.lren.woken.util.JsonUtils
 
 object TestServices extends JsonUtils {
 
-  lazy val jobResultService: JobResultService = JobResultService(
+  lazy val jobResultService: JobResultService[IO] = JobResultService(
     new WokenInMemoryRepository[IO]().jobResults
   )
 
-  lazy val emptyVariablesMetaService: VariablesMetaService = {
+  lazy val emptyVariablesMetaService: VariablesMetaService[IO] = {
     VariablesMetaService(
       new MetadataInMemoryRepository[IO]().variablesMeta
     )
   }
 
-  lazy val localVariablesMetaService: VariablesMetaService = {
+  lazy val localVariablesMetaService: VariablesMetaService[IO] = {
     val churnHierarchy = loadJson("/metadata/churn_variables.json").convertTo[GroupMetaData]
     val churnVariablesMeta =
       VariablesMeta(1, "churn", churnHierarchy, "CHURN", List("state", "custserv_calls", "churn"))
@@ -75,7 +75,7 @@ object TestServices extends JsonUtils {
 
   lazy val algorithmLibraryService: AlgorithmLibraryService = AlgorithmLibraryService()
 
-  lazy val emptyFeaturesService: FeaturesService = FeaturesService(
+  lazy val emptyFeaturesService: FeaturesService[IO] = FeaturesService(
     new FeaturesInMemoryRepository[IO](Set())
   )
 }

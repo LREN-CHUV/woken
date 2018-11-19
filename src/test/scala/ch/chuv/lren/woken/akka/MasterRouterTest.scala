@@ -15,16 +15,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.api
+package ch.chuv.lren.woken.akka
 
 import java.util.UUID
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{ ActorRef, ActorSystem, Props }
 import akka.stream.ActorMaterializer
-import akka.testkit.{ImplicitSender, TestKit}
-import com.typesafe.config.{Config, ConfigFactory}
+import akka.testkit.{ ImplicitSender, TestKit }
+import com.typesafe.config.{ Config, ConfigFactory }
 import ch.chuv.lren.woken.config._
-import ch.chuv.lren.woken.core.{CoordinatorConfig, ExperimentActor, FakeCoordinatorActor}
+import ch.chuv.lren.woken.core.{ CoordinatorConfig, ExperimentActor, FakeCoordinatorActor }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.util.FakeCoordinatorConfig._
 import ch.chuv.lren.woken.messages.query._
@@ -33,13 +33,13 @@ import ch.chuv.lren.woken.cromwell.core.ConfigUtil
 import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.util.FakeActors
-import ch.chuv.lren.woken.messages.datasets.{Dataset, DatasetId, DatasetsQuery, DatasetsResponse}
+import ch.chuv.lren.woken.messages.datasets.{ Dataset, DatasetId, DatasetsQuery, DatasetsResponse }
 import ch.chuv.lren.woken.messages.datasets.AnonymisationLevel._
 import ch.chuv.lren.woken.messages.variables.VariableId
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import org.scalatest.tagobjects.Slow
 import cats.data.Validated._
-import ch.chuv.lren.woken.akka.MasterRouter
+import cats.effect.IO
 import ch.chuv.lren.woken.core.model.DockerJob
 import ch.chuv.lren.woken.messages.remoting.RemoteLocation
 
@@ -93,11 +93,11 @@ class MasterRouterTest
 
   class MasterRouterUnderTest(config: Config,
                               appConfiguration: AppConfiguration,
-                              coordinatorConfig: CoordinatorConfig,
+                              coordinatorConfig: CoordinatorConfig[IO],
                               dispatcherService: DispatcherService,
                               algorithmLibraryService: AlgorithmLibraryService,
                               datasetService: DatasetService,
-                              variablesMetaService: VariablesMetaService)
+                              variablesMetaService: VariablesMetaService[IO])
       extends MasterRouter(
         config,
         appConfiguration,
@@ -120,11 +120,11 @@ class MasterRouterTest
 
   class RouterWithProbeCoordinator(config: Config,
                                    appConfiguration: AppConfiguration,
-                                   coordinatorConfig: CoordinatorConfig,
+                                   coordinatorConfig: CoordinatorConfig[IO],
                                    dispatcherService: DispatcherService,
                                    algorithmLibraryService: AlgorithmLibraryService,
                                    datasetService: DatasetService,
-                                   variablesMetaService: VariablesMetaService,
+                                   variablesMetaService: VariablesMetaService[IO],
                                    coordinatorActor: ActorRef)
       extends MasterRouterUnderTest(config,
                                     appConfiguration,
@@ -150,7 +150,7 @@ class MasterRouterTest
 
   val jdbcConfigs: String => ConfigUtil.Validation[DatabaseConfiguration] = _ => Valid(noDbConfig)
 
-  val coordinatorConfig: CoordinatorConfig = CoordinatorConfig(
+  val coordinatorConfig: CoordinatorConfig[IO] = CoordinatorConfig(
     system.actorOf(FakeActors.echoActorProps),
     None,
     fakeFeaturesService,

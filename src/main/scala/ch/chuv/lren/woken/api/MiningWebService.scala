@@ -20,15 +20,16 @@ package ch.chuv.lren.woken.api
 import akka.actor.{ ActorRef, ActorSystem }
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.marshalling.PredefinedToResponseMarshallers
+import akka.http.scaladsl.model.StatusCode
 import akka.pattern.ask
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.model.StatusCodes._
 import akka.stream.ActorMaterializer
-import ch.chuv.lren.woken.api.swagger.MiningServiceApi
 import ch.chuv.lren.woken.config.{ AppConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.service.AlgorithmLibraryService
 import akka.util.Timeout
+import ch.chuv.lren.woken.api.swagger.MiningServiceApi
 import com.typesafe.scalalogging.LazyLogging
 import kamon.akka.http.TracingDirectives
 import spray.json.DefaultJsonProtocol
@@ -80,20 +81,21 @@ class MiningWebService(
       miningFlow,
       post {
         operationName("mining", Map("requestType" -> "http-post")) {
-          entity(as[MiningQuery]) { query: MiningQuery => ctx =>
-            ctx.complete {
-              (masterRouter ? query)
-                .mapTo[QueryResult]
-                .map {
-                  case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
-                  case qr if qr.data.nonEmpty  => OK         -> qr.toJson
-                }
-                .recoverWith {
-                  case e =>
-                    logger.warn(s"Query $query failed with error $e")
-                    Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
-                }
-            }
+          entity(as[MiningQuery]) {
+            query: MiningQuery => ctx =>
+              ctx.complete {
+                (masterRouter ? query)
+                  .mapTo[QueryResult]
+                  .map[(StatusCode, JsValue)] {
+                    case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
+                    case qr if qr.data.nonEmpty  => OK         -> qr.toJson
+                  }
+                  .recoverWith {
+                    case e =>
+                      logger.warn(s"Query $query failed with error $e")
+                      Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
+                  }
+              }
           }
         }
       }
@@ -105,20 +107,21 @@ class MiningWebService(
       experimentFlow,
       post {
         operationName("experiment", Map("requestType" -> "http-post")) {
-          entity(as[ExperimentQuery]) { query: ExperimentQuery =>
-            complete {
-              (masterRouter ? query)
-                .mapTo[QueryResult]
-                .map {
-                  case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
-                  case qr if qr.data.nonEmpty  => OK         -> qr.toJson
-                }
-                .recoverWith {
-                  case e =>
-                    logger.warn(s"Query $query failed with error $e")
-                    Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
-                }
-            }
+          entity(as[ExperimentQuery]) {
+            query: ExperimentQuery =>
+              complete {
+                (masterRouter ? query)
+                  .mapTo[QueryResult]
+                  .map[(StatusCode, JsValue)] {
+                    case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
+                    case qr if qr.data.nonEmpty  => OK         -> qr.toJson
+                  }
+                  .recoverWith {
+                    case e =>
+                      logger.warn(s"Query $query failed with error $e")
+                      Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
+                  }
+              }
           }
         }
       }
