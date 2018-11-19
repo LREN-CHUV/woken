@@ -27,6 +27,7 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.Flow
 import akka.util.Timeout
 import cats.data.{ NonEmptyList, Validated }
+import cats.effect.Effect
 import cats.implicits._
 import ch.chuv.lren.woken.core.features.QueryOffset
 import ch.chuv.lren.woken.core.CoordinatorActor
@@ -47,7 +48,7 @@ import spray.json.JsValue
 
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration._
-import scala.language.postfixOps
+import scala.language.{ higherKinds, postfixOps }
 
 object CrossValidationFlow {
 
@@ -87,9 +88,9 @@ object CrossValidationFlow {
 
 }
 
-case class CrossValidationFlow(
+case class CrossValidationFlow[F[_]: Effect](
     executeJobAsync: CoordinatorActor.ExecuteJobAsync,
-    featuresService: FeaturesService,
+    featuresService: FeaturesService[F],
     context: ActorContext
 )(implicit materializer: Materializer, ec: ExecutionContext)
     extends LazyLogging {

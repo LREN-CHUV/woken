@@ -17,10 +17,14 @@
 
 package ch.chuv.lren.woken.core.validation
 
+import cats.effect.Effect
 import ch.chuv.lren.woken.core.features.{ FeaturesQuery, QueryOffset, Sampling }
 import ch.chuv.lren.woken.service.FeaturesService
+import ch.chuv.lren.woken.fp.runNow
 import com.typesafe.scalalogging.LazyLogging
 import spray.json.{ JsValue, _ }
+
+import scala.language.higherKinds
 
 trait CrossValidation {
 
@@ -89,15 +93,17 @@ class KFoldCrossValidation(features: List[JsObject], labels: List[JsObject], fol
   */
 object KFoldCrossValidation extends LazyLogging {
 
-  def apply(query: FeaturesQuery,
-            foldCount: Int,
-            featuresService: FeaturesService): Either[String, KFoldCrossValidation] = {
+  def apply[F[_]: Effect](
+      query: FeaturesQuery,
+      foldCount: Int,
+      featuresService: FeaturesService[F]
+  ): Either[String, KFoldCrossValidation] = {
 
     logger.info(s"Cross validation query: $query")
 
     // JSON objects with fieldname corresponding to variables names
     featuresService.featuresTable(query.dbTable).right.map { table =>
-      val (_, d) = table.features(query).unsafeRunSync()
+      val (_, d) = runNow(table.features(query))
       logger.info(s"Query response: ${d.mkString(",")}")
 
       // Separate features from labels

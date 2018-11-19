@@ -25,11 +25,8 @@ import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.core.Core
 import ch.chuv.lren.woken.api.ssl.WokenSSLConfiguration
 import com.typesafe.scalalogging.LazyLogging
-import kamon.Kamon
-import kamon.system.SystemMetrics
 
 import scala.concurrent.{ Await, Future }
-import scala.sys.ShutdownHookThread
 import scala.concurrent.duration._
 import scala.language.higherKinds
 
@@ -45,18 +42,11 @@ class WebServer[F[_]: ConcurrentEffect: Timer](override val core: Core,
     if (config.app.webServicesHttps) http.setDefaultServerHttpContext(https)
 
     // Start a new HTTP server on port 8080 with our service actor as the handler
-    val binding = http.bindAndHandle(
+    http.bindAndHandle(
       routes,
       interface = config.app.networkInterface,
       port = config.app.webServicesPort
     )
-
-    // Ensure that the constructed ActorSystem is shut down when the JVM shuts down
-    val _: ShutdownHookThread = sys.addShutdownHook {
-      unbind()
-    }
-
-    binding
   }
 
   def unbind(): F[Unit] = {
@@ -72,48 +62,6 @@ class WebServer[F[_]: ConcurrentEffect: Timer](override val core: Core,
     Sync[F].delay(Await.result(serverShutdown, 5.seconds))
   }
 }
-
-/*{
-
-  def startServices(): Unit = {
-    logger.info(s"Start web server on port ${config.app.webServicesPort}")
-
-    implicit val timeout: Timeout = Timeout(5.seconds)
-    import core._
-
-    if (config.app.webServicesHttps) Http().setDefaultServerHttpContext(https)
-
-    // start a new HTTP server on port 8080 with our service actor as the handler
-    val binding: Future[Http.ServerBinding] = Http().bindAndHandle(
-      routes,
-      interface = config.app.networkInterface,
-      port = config.app.webServicesPort
-    )
-
-    system.registerOnTermination {
-      cluster.leave(cluster.selfAddress)
-      Kamon.stopAllReporters()
-      SystemMetrics.stopCollecting()
-    }
-
-    /**
- * Ensure that the constructed ActorSystem is shut down when the JVM shuts down
- */
-    val _: ShutdownHookThread = sys.addShutdownHook {
-      // Attempt to leave the cluster before shutting down
-      val serverShutdown = binding
-        .flatMap(_.unbind())
-        .flatMap(_ => system.terminate())
-
-      serverShutdown.onComplete(_ => ())
-
-      val _ = Await.result(serverShutdown, 5.seconds)
-
-    }
-
-  }
-}
- */
 
 object WebServer extends LazyLogging {
 

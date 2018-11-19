@@ -16,9 +16,14 @@
  */
 
 package ch.chuv.lren.woken
+import cats.effect.Effect
+
+import scala.language.higherKinds
 
 package object fp {
 
   import acyclic.pkg
+
+  def runNow[F[_]: Effect, M](m: F[M]): M = Effect[F].toIO(m).unsafeRunSync()
 
 }

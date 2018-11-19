@@ -24,6 +24,7 @@ import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{ Actor, ActorRef, OneForOneStrategy, Props }
 import akka.routing.{ OptimalSizeExploringResizer, RoundRobinPool }
 import akka.stream.scaladsl.{ Flow, Sink, Source }
+import cats.effect.Effect
 import ch.chuv.lren.woken.core._
 import ch.chuv.lren.woken.core.commands.JobCommands.StartCoordinatorJob
 import ch.chuv.lren.woken.core.model._
@@ -46,10 +47,10 @@ object MiningQueriesActor extends LazyLogging {
 
   case class Mine(query: MiningQuery, replyTo: ActorRef)
 
-  def props(coordinatorConfig: CoordinatorConfig,
-            dispatcherService: DispatcherService,
-            variablesMetaService: VariablesMetaService,
-            miningQuery2JobF: MiningQuery => Validation[Job]): Props =
+  def props[F[_]: Effect](coordinatorConfig: CoordinatorConfig[F],
+                          dispatcherService: DispatcherService,
+                          variablesMetaService: VariablesMetaService[F],
+                          miningQuery2JobF: MiningQuery => Validation[Job]): Props =
     Props(
       new MiningQueriesActor(coordinatorConfig,
                              dispatcherService,
@@ -57,11 +58,11 @@ object MiningQueriesActor extends LazyLogging {
                              miningQuery2JobF)
     )
 
-  def roundRobinPoolProps(config: Config,
-                          coordinatorConfig: CoordinatorConfig,
-                          dispatcherService: DispatcherService,
-                          variablesMetaService: VariablesMetaService,
-                          miningQuery2JobF: MiningQuery => Validation[Job]): Props = {
+  def roundRobinPoolProps[F[_]: Effect](config: Config,
+                                        coordinatorConfig: CoordinatorConfig[F],
+                                        dispatcherService: DispatcherService,
+                                        variablesMetaService: VariablesMetaService[F],
+                                        miningQuery2JobF: MiningQuery => Validation[Job]): Props = {
 
     val resizer = OptimalSizeExploringResizer(
       config
@@ -89,12 +90,12 @@ object MiningQueriesActor extends LazyLogging {
 
 }
 
-class MiningQueriesActor(
-    override val coordinatorConfig: CoordinatorConfig,
+class MiningQueriesActor[F[_]: Effect](
+    override val coordinatorConfig: CoordinatorConfig[F],
     dispatcherService: DispatcherService,
-    variablesMetaService: VariablesMetaService,
+    variablesMetaService: VariablesMetaService[F],
     miningQuery2JobF: MiningQuery => Validation[Job]
-) extends QueriesActor[MiningQuery] {
+) extends QueriesActor[MiningQuery, F] {
 
   import MiningQueriesActor.Mine
 

@@ -23,6 +23,7 @@ import akka.actor.FSM.{ Failure, Normal }
 import akka.actor._
 import akka.pattern.{ ask, pipe }
 import akka.util.Timeout
+import cats.effect.Effect
 
 import scala.concurrent.{ ExecutionContext, Future }
 import ch.chuv.lren.woken.backends.chronos.ChronosService
@@ -31,6 +32,7 @@ import ch.chuv.lren.woken.config.{ DatabaseConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.core.commands.JobCommands.StartCoordinatorJob
 import ch.chuv.lren.woken.core.model.{ DockerJob, ErrorJobResult, JobResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
+import ch.chuv.lren.woken.fp.runNow
 import ch.chuv.lren.woken.service.{ FeaturesService, JobResultService }
 import com.typesafe.scalalogging.LazyLogging
 
@@ -63,7 +65,7 @@ object CoordinatorActor {
   // TODO: we can return only one JobResult at the moment
   case class Response(job: DockerJob, results: List[JobResult], initiator: ActorRef)
 
-  def props[F[_]](coordinatorConfig: CoordinatorConfig[F]): Props =
+  def props[F[_]: Effect](coordinatorConfig: CoordinatorConfig[F]): Props =
     Props(
       new CoordinatorActor(coordinatorConfig)
     )
@@ -71,8 +73,10 @@ object CoordinatorActor {
   def actorName(job: DockerJob): String =
     s"LocalCoordinatorActor_job_${job.jobId}_${job.jobName}"
 
-  private[this] def future[F[_]](coordinatorConfig: CoordinatorConfig[F],
-                                 context: ActorContext)(job: DockerJob): Future[Response] = {
+  private[this] def future[F[_]: Effect](
+      coordinatorConfig: CoordinatorConfig[F],
+      context: ActorContext
+  )(job: DockerJob): Future[Response] = {
     val worker = context.actorOf(
       CoordinatorActor.props(coordinatorConfig)
     )
@@ -86,8 +90,8 @@ object CoordinatorActor {
 
   type ExecuteJobAsync = DockerJob => Future[Response]
 
-  def executeJobAsync[F[_]](coordinatorConfig: CoordinatorConfig[F],
-                            context: ActorContext): ExecuteJobAsync =
+  def executeJobAsync[F[_]: Effect](coordinatorConfig: CoordinatorConfig[F],
+                                    context: ActorContext): ExecuteJobAsync =
     future(coordinatorConfig, context)
 
 }
@@ -154,7 +158,7 @@ private[core] object CoordinatorStates {
   *  -----------------           -----------------------                    --------------------
   *
   */
-class CoordinatorActor[F[_]](coordinatorConfig: CoordinatorConfig[F])
+class CoordinatorActor[F[_]: Effect](coordinatorConfig: CoordinatorConfig[F])
     extends Actor
     with LazyLogging
     with FSM[CoordinatorStates.State, CoordinatorStates.StateData] {
@@ -247,7 +251,7 @@ class CoordinatorActor[F[_]](coordinatorConfig: CoordinatorConfig[F])
 
     // Check the database for the job result; prepare the next tick or send back the response if the job completed
     case Event(CheckDb, data: PartialLocalData) =>
-      val results = coordinatorConfig.jobResultService.get(data.job.jobId).unsafeRunSync()
+      val results = runNow(coordinatorConfig.jobResultService.get(data.job.jobId))
       if (results.nonEmpty) {
         logger.info(s"Received results for job ${data.job.jobId}")
         data.replyTo ! Response(data.job, results.toList, data.initiator)
@@ -272,7 +276,7 @@ class CoordinatorActor[F[_]](coordinatorConfig: CoordinatorConfig[F])
           s"Chronos returned job complete for job #$jobId, but was expecting job #{data.job.jobId}"
         )
       }
-      val results = coordinatorConfig.jobResultService.get(data.job.jobId).unsafeRunSync()
+      val results = runNow(coordinatorConfig.jobResultService.get(data.job.jobId))
       if (results.nonEmpty) {
         logger.info(s"Received results for job ${data.job.jobId}")
         data.replyTo ! Response(data.job, results.toList, data.initiator)
@@ -369,7 +373,7 @@ class CoordinatorActor[F[_]](coordinatorConfig: CoordinatorConfig[F])
 
     // Check the database for the job result; prepare the next tick or send back the response if the job completed
     case Event(CheckDb, data: ExpectedLocalData) =>
-      val results = coordinatorConfig.jobResultService.get(data.job.jobId).unsafeRunSync()
+      val results = runNow(coordinatorConfig.jobResultService.get(data.job.jobId))
       if (results.nonEmpty) {
         logger.info(s"Received results for job ${data.job.jobId}")
         data.replyTo ! Response(data.job, results.toList, data.initiator)

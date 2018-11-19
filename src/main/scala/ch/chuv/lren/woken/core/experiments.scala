@@ -24,6 +24,7 @@ import akka.NotUsed
 import akka.actor.{ Actor, ActorContext, ActorRef, Props }
 import akka.stream._
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Merge, Partition, Sink, Source, ZipWith }
+import cats.effect.Effect
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
 import ch.chuv.lren.woken.core.validation.ValidatedAlgorithmFlow
 
@@ -35,6 +36,8 @@ import ch.chuv.lren.woken.core.model._
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.service.{ DispatcherService, FeaturesService }
 import com.typesafe.scalalogging.LazyLogging
+
+import scala.language.higherKinds
 
 /**
   * We use the companion object to hold all the messages that the ``ExperimentActor`` receives.
@@ -67,7 +70,8 @@ object ExperimentActor {
                       result: Either[ErrorJobResult, ExperimentJobResult],
                       initiator: ActorRef)
 
-  def props(coordinatorConfig: CoordinatorConfig, dispatcherService: DispatcherService): Props =
+  def props[F[_]: Effect](coordinatorConfig: CoordinatorConfig[F],
+                          dispatcherService: DispatcherService): Props =
     Props(new ExperimentActor(coordinatorConfig, dispatcherService))
 
 }
@@ -79,8 +83,8 @@ object ExperimentActor {
   * the results before responding
   *
   */
-class ExperimentActor(val coordinatorConfig: CoordinatorConfig,
-                      dispatcherService: DispatcherService)
+class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
+                                    dispatcherService: DispatcherService)
     extends Actor
     with LazyLogging {
 
@@ -188,9 +192,9 @@ object ExperimentFlow {
 
 }
 
-case class ExperimentFlow(
+case class ExperimentFlow[F[_]: Effect](
     executeJobAsync: CoordinatorActor.ExecuteJobAsync,
-    featuresService: FeaturesService,
+    featuresService: FeaturesService[F],
     jobsConf: JobsConfiguration,
     dispatcherService: DispatcherService,
     context: ActorContext

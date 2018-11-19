@@ -21,7 +21,7 @@ import java.util.UUID
 
 import cats.data.Validated._
 import cats.data.{ Validated, _ }
-import cats.effect.IO
+import cats.effect.{ Effect, IO }
 import cats.implicits._
 import ch.chuv.lren.woken.config.JobsConfiguration
 import ch.chuv.lren.woken.core.ExperimentActor
@@ -31,6 +31,7 @@ import ch.chuv.lren.woken.core.model._
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.{ Validation, lift }
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
+import ch.chuv.lren.woken.fp.runNow
 import com.typesafe.scalalogging.LazyLogging
 import shapeless.{ ::, HNil }
 
@@ -41,8 +42,8 @@ import shapeless.{ ::, HNil }
   */
 object QueryToJob extends LazyLogging {
 
-  def miningQuery2Job(
-      variablesMetaService: VariablesMetaService[IO],
+  def miningQuery2Job[F[_]: Effect](
+      variablesMetaService: VariablesMetaService[F],
       jobsConfiguration: JobsConfiguration,
       algorithmLookup: String => Validation[AlgorithmDefinition]
   )(query: MiningQuery): Validation[Job] = {
@@ -74,8 +75,8 @@ object QueryToJob extends LazyLogging {
 
   }
 
-  def experimentQuery2Job(
-      variablesMetaService: VariablesMetaService[IO],
+  def experimentQuery2Job[F[_]: Effect](
+      variablesMetaService: VariablesMetaService[F],
       jobsConfiguration: JobsConfiguration,
       algorithmLookup: String => Validation[AlgorithmDefinition]
   )(query: ExperimentQuery): Validation[ExperimentActor.Job] = {
@@ -105,8 +106,8 @@ object QueryToJob extends LazyLogging {
 
   }
 
-  private def prepareQuery[Q <: Query](
-      variablesMetaService: VariablesMetaService[IO],
+  private def prepareQuery[Q <: Query, F[_]: Effect](
+      variablesMetaService: VariablesMetaService[F],
       jobsConfiguration: JobsConfiguration,
       query: Q
   ): String :: String :: String :: Validation[List[VariableMetaData]] :: Validation[Q] :: HNil = {
@@ -115,7 +116,7 @@ object QueryToJob extends LazyLogging {
     val featuresTable = query.targetTable.getOrElse(jobsConfiguration.featuresTable)
     val metadataKey   = query.targetTable.getOrElse(jobsConfiguration.metadataKeyForFeaturesTable)
     val variablesMeta: Validation[VariablesMeta] = Validated.fromOption(
-      variablesMetaService.get(metadataKey).unsafeRunSync(),
+      runNow(variablesMetaService.get(metadataKey)),
       NonEmptyList(s"Cannot find metadata for table $metadataKey", Nil)
     )
 

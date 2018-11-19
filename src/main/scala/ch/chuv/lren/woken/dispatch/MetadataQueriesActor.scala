@@ -22,6 +22,7 @@ import akka.actor.{ Actor, ActorRef, OneForOneStrategy, Props }
 import akka.routing.{ OptimalSizeExploringResizer, RoundRobinPool }
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{ Sink, Source }
+import cats.effect.Effect
 import ch.chuv.lren.woken.core.model.VariablesMeta
 import ch.chuv.lren.woken.messages.variables.{
   VariablesForDatasetsQuery,
@@ -39,17 +40,17 @@ object MetadataQueriesActor extends LazyLogging {
 
   case class VariablesForDatasets(query: VariablesForDatasetsQuery, replyTo: ActorRef)
 
-  def props(dispatcherService: DispatcherService,
-            datasetService: DatasetService,
-            variablesMetaService: VariablesMetaService): Props =
+  def props[F[_]: Effect](dispatcherService: DispatcherService,
+                          datasetService: DatasetService,
+                          variablesMetaService: VariablesMetaService[F]): Props =
     Props(
       new MetadataQueriesActor(dispatcherService, datasetService, variablesMetaService)
     )
 
-  def roundRobinPoolProps(config: Config,
-                          dispatcherService: DispatcherService,
-                          datasetService: DatasetService,
-                          variablesMetaService: VariablesMetaService): Props = {
+  def roundRobinPoolProps[F[_]: Effect](config: Config,
+                                        dispatcherService: DispatcherService,
+                                        datasetService: DatasetService,
+                                        variablesMetaService: VariablesMetaService[F]): Props = {
 
     val resizer = OptimalSizeExploringResizer(
       config
@@ -76,9 +77,9 @@ object MetadataQueriesActor extends LazyLogging {
 
 }
 
-class MetadataQueriesActor(dispatcherService: DispatcherService,
-                           datasetService: DatasetService,
-                           variablesMetaService: VariablesMetaService)
+class MetadataQueriesActor[F[_]: Effect](dispatcherService: DispatcherService,
+                                         datasetService: DatasetService,
+                                         variablesMetaService: VariablesMetaService[F])
     extends Actor
     with LazyLogging {
 

@@ -32,13 +32,13 @@ import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-trait QueriesActor[Q <: Query] extends Actor with LazyLogging {
+trait QueriesActor[Q <: Query, F[_]] extends Actor with LazyLogging {
 
   implicit val ec: ExecutionContext = context.dispatcher
 
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
-  def coordinatorConfig: CoordinatorConfig
+  def coordinatorConfig: CoordinatorConfig[F]
 
   private[dispatch] def gatherAndReduce(
       initialQuery: Q,

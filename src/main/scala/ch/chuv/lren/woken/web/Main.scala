@@ -44,14 +44,14 @@ object Main extends IOApp {
     Logger(LoggerFactory.getLogger("Woken"))
 
   def run(args: List[String]): IO[ExitCode] = {
-    val config = WokenConfiguration()
-    DatabaseServices.provide(config).use { databaseServices =>
-      }
-    beforeBoot()
-    startActors()
-    startServices()
-    selfChecks()
-    logger.info("Woken startup complete")
+    val config = WokenConfiguration().unsafeRunSync()
+    MainServer.resource[IO](config).use { _ =>
+      for {
+        _ <- IO(Console.println("Woken startup complete.")) // scalastyle:off
+        _ <- IO(Console.println("Press a key to exit.")) // scalastyle:off
+        _ <- IO(scala.io.StdIn.readLine())
+      } yield ExitCode.Success
+    }
   }
 
 }

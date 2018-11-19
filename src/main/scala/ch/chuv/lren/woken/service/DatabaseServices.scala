@@ -38,12 +38,11 @@ object DatabaseServices {
   case class Transactors[F[_]](featuresTransactor: HikariTransactor[F],
                                resultsTransactor: HikariTransactor[F],
                                metaTransactor: HikariTransactor[F])
-
   def resource[F[_]: ConcurrentEffect: ContextShift: Timer](
       config: WokenConfiguration
   )(implicit cs: ContextShift[IO]): Resource[F, DatabaseServices[F]] = {
 
-    val transactors: Resource[F, Transactors] = for {
+    val transactors: Resource[F, Transactors[F]] = for {
       featuresTransactor <- DatabaseConfiguration.dbTransactor(config.featuresDb)
       resultsTransactor  <- DatabaseConfiguration.dbTransactor(config.resultsDb)
       metaTransactor     <- DatabaseConfiguration.dbTransactor(config.metaDb)
@@ -51,7 +50,9 @@ object DatabaseServices {
 
     transactors.flatMap { t =>
       val fsIO: F[FeaturesService[F]] = mkService(t.featuresTransactor, config.featuresDb) { xa =>
-        FeaturesRepositoryDAO(xa, config.featuresDb.tables).map { _.map { FeaturesService.apply } }
+        FeaturesRepositoryDAO(xa, config.featuresDb.tables).map {
+          _.map { FeaturesService.apply[F] }
+        }
       }.map(_.valueOr(configurationFailed))
 
       val jrsIO: F[JobResultService[F]] = mkService(t.resultsTransactor, config.resultsDb) { xa =>

@@ -19,10 +19,10 @@ package ch.chuv.lren.woken.monitoring
 
 import java.io.File
 
-import cats.effect.{ ConcurrentEffect, ContextShift, Resource, Timer }
+import cats.effect._
 import ch.chuv.lren.woken.akka.AkkaServer
 import ch.chuv.lren.woken.config.WokenConfiguration
-import com.typesafe.config.Config
+import ch.chuv.lren.woken.core.Core
 import com.typesafe.scalalogging.Logger
 import kamon.Kamon
 import kamon.prometheus.PrometheusReporter
@@ -35,22 +35,22 @@ import org.slf4j.LoggerFactory
 import scala.language.higherKinds
 import scala.util.Try
 
-object KamonSupport {
+case class KamonMonitoring[F[_]: ConcurrentEffect: Timer](core: Core, config: WokenConfiguration) {
 
   private val logger: Logger =
-    Logger(LoggerFactory.getLogger("WokenKamonSupport"))
+    Logger(LoggerFactory.getLogger("KamonMonitoring"))
 
-  def startReporters(config: Config): Unit = {
-    val kamonConfig = config.getConfig("kamon")
+  def startReporters(): Unit = {
+    val kamonConfig = config.config.getConfig("kamon")
 
     if (kamonConfig.getBoolean("enabled") || kamonConfig.getBoolean("prometheus.enabled") || kamonConfig
           .getBoolean("zipkin.enabled")) {
 
       logger.info("Kamon configuration:")
-      logger.info(config.getConfig("kamon").toString)
+      logger.info(kamonConfig.toString)
       logger.info(s"Start monitoring...")
 
-      Kamon.reconfigure(config)
+      Kamon.reconfigure(config.config)
 
       val hostSystemMetrics = kamonConfig.getBoolean("system-metrics.host.enabled")
       if (hostSystemMetrics) {
@@ -85,14 +85,23 @@ object KamonSupport {
     }
   }
 
+  def unbind(): F[Unit] = Sync[F].delay {
+    Kamon.stopAllReporters()
+    SystemMetrics.stopCollecting()
+  }
+
+}
+
+object KamonMonitoring {
+
   /** Resource that creates and yields an Akka server, guaranteeing cleanup. */
   def resource[F[_]: ConcurrentEffect: ContextShift: Timer](
+      akkaServerResource: Resource[F, AkkaServer[F]],
       config: WokenConfiguration
-  ): Resource[F, AkkaServer[F]] = {
-
-    def beforeBoot(): Unit =
-      KamonSupport.startReporters(config.config)
-
-  }
+  ): Resource[F, KamonMonitoring[F]] =
+    akkaServerResource.flatMap { akkaServer =>
+      // start a new HTTP server with our service actor as the handler
+      Resource.make(Sync[F].delay(new KamonMonitoring(akkaServer, config)))(_.unbind())
+    }
 
 }

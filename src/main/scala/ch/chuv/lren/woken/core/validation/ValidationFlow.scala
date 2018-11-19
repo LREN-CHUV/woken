@@ -25,6 +25,7 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.Flow
 import akka.util.Timeout
 import cats.data.{ NonEmptyList, Validated }
+import cats.effect.Effect
 import cats.implicits._
 import ch.chuv.lren.woken.core.CoordinatorActor
 import ch.chuv.lren.woken.core.features.Queries._
@@ -34,6 +35,7 @@ import ch.chuv.lren.woken.messages.query.AlgorithmSpec
 import ch.chuv.lren.woken.messages.validation._
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
 import ch.chuv.lren.woken.service.FeaturesService
+import ch.chuv.lren.woken.fp.runNow
 import com.typesafe.scalalogging.LazyLogging
 import spray.json._
 
@@ -67,9 +69,9 @@ object ValidationFlow {
 
 }
 
-case class ValidationFlow(
+case class ValidationFlow[F[_]: Effect](
     executeJobAsync: CoordinatorActor.ExecuteJobAsync,
-    featuresService: FeaturesService,
+    featuresService: FeaturesService[F],
     context: ActorContext
 )(implicit materializer: Materializer, ec: ExecutionContext)
     extends LazyLogging {
@@ -100,7 +102,7 @@ case class ValidationFlow(
           .featuresTable(featuresQuery.dbTable)
           .right
           .map { table =>
-            val (_, dataframe) = table.features(featuresQuery).unsafeRunSync()
+            val (_, dataframe) = runNow(table.features(featuresQuery))
             logger.info(s"Query response: ${dataframe.mkString(",")}")
 
             // Separate features from labels

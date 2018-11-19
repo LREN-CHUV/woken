@@ -22,6 +22,7 @@ import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model.TableColumn
 import ch.chuv.lren.woken.dao.{ FeaturesRepository, FeaturesTableRepository }
 import ch.chuv.lren.woken.messages.datasets.DatasetId
+import ch.chuv.lren.woken.fp.runNow
 import spray.json.JsObject
 
 import scala.collection.mutable
@@ -59,9 +60,7 @@ class FeaturesServiceImpl[F[_]: Effect](repository: FeaturesRepository[F])
     featuresTableCache
       .get(table.toUpperCase)
       .orElse {
-        repository
-          .featuresTable(table.toUpperCase)
-          .unsafeRunSync()
+        runNow(repository.featuresTable(table.toUpperCase))
           .map { featuresTable =>
             val service = new FeaturesTableServiceImpl(featuresTable)
             featuresTableCache.put(table.toUpperCase, service)

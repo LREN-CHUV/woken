@@ -30,8 +30,9 @@ import ch.chuv.lren.woken.config.{
   DatasetsConfiguration,
   WokenConfiguration
 }
-import ch.chuv.lren.woken.core.{ CoordinatorConfig, Core, CoreActors }
+import ch.chuv.lren.woken.core.{ CoordinatorConfig, Core }
 import ch.chuv.lren.woken.service._
+import ch.chuv.lren.woken.fp.runNow
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.duration._
@@ -125,7 +126,7 @@ class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
               logger.error(error)
               System.exit(1)
             }, { table: FeaturesTableService[F] =>
-              if (table.count(dataset.dataset).unsafeRunSync() == 0) {
+              if (runNow(table.count(dataset.dataset)) == 0) {
                 logger.error(
                   s"Table $tableName contains no value for dataset ${dataset.dataset.code}"
                 )
@@ -151,7 +152,6 @@ class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
         }
       }
     }
-
 }
 
 object AkkaServer extends LazyLogging {

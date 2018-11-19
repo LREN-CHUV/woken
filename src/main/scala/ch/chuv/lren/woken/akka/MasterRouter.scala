@@ -19,6 +19,7 @@ package ch.chuv.lren.woken.akka
 
 import akka.actor.{ Actor, ActorRef, Props }
 import akka.stream.ActorMaterializer
+import cats.effect.Effect
 import ch.chuv.lren.woken.config.AppConfiguration
 import ch.chuv.lren.woken.core._
 import ch.chuv.lren.woken.core.model.{ AlgorithmDefinition, Job }
@@ -46,14 +47,14 @@ import scala.concurrent.ExecutionContext
 
 object MasterRouter {
 
-  def props[F[_]](config: Config,
-                  appConfiguration: AppConfiguration,
-                  coordinatorConfig: CoordinatorConfig[F],
-                  datasetService: DatasetService,
-                  variablesMetaService: VariablesMetaService[F],
-                  dispatcherService: DispatcherService,
-                  algorithmLibraryService: AlgorithmLibraryService,
-                  algorithmLookup: String => Validation[AlgorithmDefinition]): Props =
+  def props[F[_]: Effect](config: Config,
+                          appConfiguration: AppConfiguration,
+                          coordinatorConfig: CoordinatorConfig[F],
+                          datasetService: DatasetService,
+                          variablesMetaService: VariablesMetaService[F],
+                          dispatcherService: DispatcherService,
+                          algorithmLibraryService: AlgorithmLibraryService,
+                          algorithmLookup: String => Validation[AlgorithmDefinition]): Props =
     Props(
       new MasterRouter(
         config,
@@ -70,7 +71,7 @@ object MasterRouter {
 
 }
 
-case class MasterRouter[F[_]](
+case class MasterRouter[F[_]: Effect](
     config: Config,
     appConfiguration: AppConfiguration,
     coordinatorConfig: CoordinatorConfig[F],

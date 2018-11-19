@@ -24,6 +24,7 @@ import akka.NotUsed
 import akka.actor.ActorContext
 import akka.stream._
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Zip }
+import cats.effect.Effect
 import ch.chuv.lren.woken.config.JobsConfiguration
 import ch.chuv.lren.woken.core.CoordinatorActor
 import ch.chuv.lren.woken.core.model._
@@ -35,6 +36,7 @@ import ch.chuv.lren.woken.service.FeaturesService
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.ExecutionContext
+import scala.language.higherKinds
 
 object ValidatedAlgorithmFlow {
 
@@ -59,9 +61,9 @@ object ValidatedAlgorithmFlow {
 
 }
 
-case class ValidatedAlgorithmFlow(
+case class ValidatedAlgorithmFlow[F[_]: Effect](
     executeJobAsync: CoordinatorActor.ExecuteJobAsync,
-    featuresService: FeaturesService,
+    featuresService: FeaturesService[F],
     jobsConf: JobsConfiguration,
     context: ActorContext
 )(implicit materializer: Materializer, ec: ExecutionContext)

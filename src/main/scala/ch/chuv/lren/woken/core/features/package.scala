@@ -19,6 +19,6 @@ package ch.chuv.lren.woken.core
 
 package object features {
 
-  import acyclic.pkg
+  // import acyclic.pkg
 
 }

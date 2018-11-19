@@ -24,6 +24,7 @@ import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{ Actor, ActorRef, OneForOneStrategy, Props }
 import akka.routing.{ OptimalSizeExploringResizer, RoundRobinPool }
 import akka.stream.scaladsl.{ Flow, Sink, Source }
+import cats.effect.Effect
 import ch.chuv.lren.woken.core._
 import ch.chuv.lren.woken.core.commands.JobCommands.StartExperimentJob
 import ch.chuv.lren.woken.core.model.{
@@ -48,16 +49,18 @@ object ExperimentQueriesActor extends LazyLogging {
 
   case class Experiment(query: ExperimentQuery, replyTo: ActorRef)
 
-  def props(coordinatorConfig: CoordinatorConfig,
-            dispatcherService: DispatcherService,
-            experimentQuery2JobF: ExperimentQuery => Validation[ExperimentActor.Job]): Props =
+  def props[F[_]: Effect](
+      coordinatorConfig: CoordinatorConfig[F],
+      dispatcherService: DispatcherService,
+      experimentQuery2JobF: ExperimentQuery => Validation[ExperimentActor.Job]
+  ): Props =
     Props(
       new ExperimentQueriesActor(coordinatorConfig, dispatcherService, experimentQuery2JobF)
     )
 
-  def roundRobinPoolProps(
+  def roundRobinPoolProps[F[_]: Effect](
       config: Config,
-      coordinatorConfig: CoordinatorConfig,
+      coordinatorConfig: CoordinatorConfig[F],
       dispatcherService: DispatcherService,
       experimentQuery2JobF: ExperimentQuery => Validation[ExperimentActor.Job]
   ): Props = {
@@ -88,11 +91,11 @@ object ExperimentQueriesActor extends LazyLogging {
 
 }
 
-class ExperimentQueriesActor(
-    override val coordinatorConfig: CoordinatorConfig,
+class ExperimentQueriesActor[F[_]: Effect](
+    override val coordinatorConfig: CoordinatorConfig[F],
     dispatcherService: DispatcherService,
     experimentQuery2JobF: ExperimentQuery => Validation[ExperimentActor.Job]
-) extends QueriesActor[ExperimentQuery] {
+) extends QueriesActor[ExperimentQuery, F] {
 
   import ExperimentQueriesActor.Experiment
 

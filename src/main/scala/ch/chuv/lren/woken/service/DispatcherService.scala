@@ -20,8 +20,8 @@ package ch.chuv.lren.woken.service
 import akka.NotUsed
 import akka.stream.{ FlowShape, OverflowStrategy }
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Merge, Source }
-import cats.effect.IO
-import ch.chuv.lren.woken.fp.Traverse
+import cats.effect.Effect
+import ch.chuv.lren.woken.fp._
 import ch.chuv.lren.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import cats.implicits.catsStdInstancesForOption
@@ -90,9 +90,9 @@ class DispatcherService(allDatasets: Map[DatasetId, Dataset],
       .via(wokenClientService.queryFlow)
       .named("dispatch-remote-experiment")
 
-  def dispatchVariablesQueryFlow(
+  def dispatchVariablesQueryFlow[F[_]: Effect](
       datasetService: DatasetService,
-      variablesMetaService: VariablesMetaService[IO]
+      variablesMetaService: VariablesMetaService[F]
   ): Flow[VariablesForDatasetsQuery, VariablesForDatasetsQR, NotUsed] =
     Flow.fromGraph(GraphDSL.create() { implicit builder =>
       import GraphDSL.Implicits._
@@ -129,9 +129,9 @@ class DispatcherService(allDatasets: Map[DatasetId, Dataset],
     * @param datasetService Service that provides information about known datasets
     * @param variablesMetaService Service that provides the metadata for the variables
     */
-  def localVariablesQueryFlow(
+  def localVariablesQueryFlow[F[_]: Effect](
       datasetService: DatasetService,
-      variablesMetaService: VariablesMetaService[IO]
+      variablesMetaService: VariablesMetaService[F]
   ): Flow[VariablesForDatasetsQuery, VariablesForDatasetsQR, NotUsed] =
     Flow[VariablesForDatasetsQuery]
       .map[VariablesForDatasetsQR] { q =>
@@ -143,7 +143,7 @@ class DispatcherService(allDatasets: Map[DatasetId, Dataset],
           .map { ds =>
             val varsForDs = ds.tables
               .map(_.toUpperCase) // TODO: table name should not always be uppercase
-              .flatMap(v => variablesMetaService.get(v).unsafeRunSync())
+              .flatMap(v => runNow(variablesMetaService.get(v)))
               .flatMap(_.filterVariables(_ => true))
               .map(_.copy(datasets = Set(ds.dataset)))
             varsForDs.toSet
