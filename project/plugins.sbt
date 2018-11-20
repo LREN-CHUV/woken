@@ -33,3 +33,5 @@ addSbtPlugin("com.typesafe.sbt"  % "sbt-git"         % "1.0.0")
 
 // Monitoring
 addSbtPlugin("io.kamon" % "sbt-aspectj-runner"       % "1.1.1")
+
+addSbtPlugin("org.ensime" % "sbt-ensime" % "2.5.1")

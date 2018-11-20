@@ -1,5 +1,5 @@
 # Verified with http://hadolint.lukasmartinelli.ch/
-FROM hbpmip/scala-base-build:1.1.0-2 as scala-build-env
+FROM hbpmip/scala-base-build:1.2.6-3 as scala-build-env
 
 # First caching layer: build.sbt and sbt configuration
 COPY build.sbt /build/
@@ -23,7 +23,7 @@ RUN /check-sources.sh
 
 RUN sbt -mem 1500 test assembly
 
-FROM hbpmip/java-base:8u151-1
+FROM hbpmip/java-base:11.0.1-0
 
 MAINTAINER Ludovic Claude <ludovic.claude@chuv.ch>
 
