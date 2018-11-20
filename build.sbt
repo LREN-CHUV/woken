@@ -20,7 +20,7 @@ lazy val `woken` =
     .settings(Defaults.itSettings)
     .settings(
       Seq(
-        mainClass in Runtime := Some("ch.chuv.lren.woken.web.Main"),
+        mainClass in Runtime := Some("ch.chuv.lren.woken.main.Main"),
         libraryDependencies ++= Seq(
           library.akkaActor,
           //library.akkaActorTyped,
@@ -117,7 +117,7 @@ lazy val library =
       val dockerTestKit   = "0.9.8"
       val diff            = "1.2.1"
       val acyclic         = "0.1.8"
-      val wokenMessages   = "2.8.2"
+      val wokenMessages   = "2.8.3"
     }
     object ExclusionRules {
       val excludeLogback = ExclusionRule(organization = "ch.qos.logback", name = "logback-classic")
