@@ -59,20 +59,23 @@ class FeaturesServiceImpl[F[_]: Effect](repository: FeaturesRepository[F])
 
   def featuresTable(table: String): Either[String, FeaturesTableService[F]] =
     featuresTableCache
-      .get(table.toUpperCase)
+      .get(table)
       .orElse {
-        runNow(repository.featuresTable(table.toUpperCase))
+        runNow(repository.featuresTable(table))
           .map { featuresTable =>
-            val service = new FeaturesTableServiceImpl(featuresTable)
-            featuresTableCache.put(table.toUpperCase, service)
+            val service = new FeaturesTableServiceImpl(repository.database, featuresTable)
+            featuresTableCache.put(table, service)
             service
           }
       }
-      .toRight(s"Table $table cannot be found or has not been configured")
+      .toRight(
+        s"Table $table cannot be found or has not been configured in the configuration for database '" + repository.database + "'"
+      )
 
 }
 
-class FeaturesTableServiceImpl[F[_]: Effect](repository: FeaturesTableRepository[F])
+class FeaturesTableServiceImpl[F[_]: Effect](database: String,
+                                             repository: FeaturesTableRepository[F])
     extends FeaturesTableService[F] {
 
   def count: F[Int] = repository.count

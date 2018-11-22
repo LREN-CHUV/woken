@@ -160,19 +160,16 @@ object AkkaServer extends LazyLogging {
   def resource[F[_]: ConcurrentEffect: ContextShift: Timer](
       databaseServicesResource: Resource[F, DatabaseServices[F]],
       config: WokenConfiguration
-  ): Resource[F, AkkaServer[F]] = {
-
-    logger.info(s"Start Akka server")
-
+  ): Resource[F, AkkaServer[F]] =
     databaseServicesResource.flatMap { databaseServices =>
       Resource.make(Sync[F].delay {
         val server = new AkkaServer[F](databaseServices, config)
 
+        logger.info(s"Starting Akka server...")
         server.startActors()
         server.selfChecks()
 
         server
       })(_.unbind())
     }
-  }
 }

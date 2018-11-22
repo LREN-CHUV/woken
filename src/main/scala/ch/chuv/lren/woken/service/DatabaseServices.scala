@@ -19,10 +19,11 @@ package ch.chuv.lren.woken.service
 
 import cats.effect._
 import cats.implicits._
-
-import ch.chuv.lren.woken.config.{ DatabaseConfiguration, WokenConfiguration, configurationFailed }
-import ch.chuv.lren.woken.dao.{ FeaturesRepositoryDAO, MetadataRepositoryDAO, WokenRepositoryDAO }
+import ch.chuv.lren.woken.config.{DatabaseConfiguration, WokenConfiguration, configurationFailed}
+import ch.chuv.lren.woken.dao.{FeaturesRepositoryDAO, MetadataRepositoryDAO, WokenRepositoryDAO}
+import com.typesafe.scalalogging.LazyLogging
 import doobie.hikari.HikariTransactor
+
 import scala.language.higherKinds
 
 case class DatabaseServices[F[_]](featuresService: FeaturesService[F],
@@ -33,7 +34,7 @@ case class DatabaseServices[F[_]](featuresService: FeaturesService[F],
   * Provides a Resource containing the configured services.
   *
   */
-object DatabaseServices {
+object DatabaseServices extends LazyLogging {
 
   case class Transactors[F[_]](featuresTransactor: HikariTransactor[F],
                                resultsTransactor: HikariTransactor[F],
@@ -52,7 +53,7 @@ object DatabaseServices {
 
     transactors.flatMap { t =>
       val fsIO: F[FeaturesService[F]] = mkService(t.featuresTransactor, config.featuresDb) { xa =>
-        FeaturesRepositoryDAO(xa, config.featuresDb.tables).map {
+        FeaturesRepositoryDAO(xa, config.featuresDb.database, config.featuresDb.tables).map {
           _.map { FeaturesService.apply[F] }
         }
       }.map(_.valueOr(configurationFailed))
@@ -86,6 +87,7 @@ object DatabaseServices {
         .validate(transactor, dbConfig)
         .map(_.valueOr(configurationFailed))
       validatedDb <- serviceGen(validatedXa)
+      _ <- Async[F].delay(logger.info(s"Connected to database ${dbConfig.database}"))
     } yield {
       validatedDb
     }

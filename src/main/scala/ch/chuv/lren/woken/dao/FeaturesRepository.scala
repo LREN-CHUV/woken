@@ -35,6 +35,11 @@ import scala.language.higherKinds
 trait FeaturesRepository[F[_]] extends Repository {
 
   /**
+    * @return the name of the database as defined in the configuration
+    */
+  def database: String
+
+  /**
     * @return the list of features tables available in the database
     */
   def tables: Set[FeaturesTableDescription]
@@ -57,6 +62,13 @@ trait FeaturesRepository[F[_]] extends Repository {
 trait FeaturesTableRepository[F[_]] extends Repository {
 
   import FeaturesTableRepository.Headers
+
+  /**
+    * Description of the table
+    *
+    * @return the description
+    */
+  def table: FeaturesTableDescription
 
   /**
     * Total number of rows in the table
@@ -88,6 +100,7 @@ object FeaturesTableRepository {
 }
 
 class FeaturesInMemoryRepository[F[_]: Applicative](
+    override val database: String,
     override val tables: Set[FeaturesTableDescription]
 ) extends FeaturesRepository[F] {
 
@@ -108,6 +121,8 @@ class FeaturesInMemoryRepository[F[_]: Applicative](
 class FeaturesTableInMemoryRepository[F[_]: Applicative] extends FeaturesTableRepository[F] {
 
   import FeaturesTableRepository.Headers
+
+  override val table = FeaturesTableDescription("in_memory", None, "tmp", Nil, None, validateSchema = false, None, 0.0)
 
   override def count: F[Int] = 0.pure[F]
 

@@ -39,6 +39,7 @@ import scala.language.higherKinds
 
 class FeaturesRepositoryDAO[F[_]: Monad] private (
     val xa: Transactor[F],
+    override val database: String,
     override val tables: Set[FeaturesTableDescription]
 ) extends FeaturesRepository[F] {
 
@@ -51,25 +52,32 @@ object FeaturesRepositoryDAO {
 
   def apply[F[_]: Monad](
       xa: Transactor[F],
+      database: String,
       tables: Set[FeaturesTableDescription]
   ): F[Validation[FeaturesRepositoryDAO[F]]] = {
+    implicit val han: LogHandler = LogHandler.jdkLogHandler
 
-    def checkPrimaryKey(table: FeaturesTableDescription, pk: TableColumn): Fragment = sql"""
-      SELECT EXISTS (SELECT 1 FROM information_schema.columns
-        WHERE table_schema='${table.schema.getOrElse("public")}' and table_name='${table.name}' and column_name='${pk.name}' and is_identity=true)"""
+    case class Check(schema: String, table: String, column: String)
 
-    def checkDatasetColumn(table: FeaturesTableDescription, datasetColumn: TableColumn): Fragment =
+    def columnCheck(table: FeaturesTableDescription, column: TableColumn): Check = Check(table.schema.getOrElse("public"), table.name, column.name)
+
+    // TODO: add "and is_identity='YES'" to the check. Problem: our tables don't have their primary key properly defined
+    def checkPrimaryKey(check: Check): Fragment = sql"""
+      SELECT 1 FROM information_schema.columns
+        WHERE table_schema=${check.schema} and table_name=${check.table} and column_name=${check.column}"""
+
+    def checkDatasetColumn(check: Check): Fragment =
       sql"""
-      SELECT EXISTS (SELECT 1 FROM information_schema.columns
-        WHERE table_schema='${table.schema.getOrElse("public")}' and table_name='${table.name}' and column_name='${datasetColumn.name}')"""
+      SELECT 1 FROM information_schema.columns
+        WHERE table_schema=${check.schema} and table_name=${check.table} and column_name=${check.column}"""
 
     val empty: List[F[Option[String]]] = Nil
     val checks: List[F[Option[String]]] = tables
       .filter(_.validateSchema)
       .map { table =>
         val checkPk: List[F[Option[String]]] = table.primaryKey.map { pk =>
-          checkPrimaryKey(table, pk).query[Boolean].unique.transact(xa).map { test =>
-            if (test) None
+          checkPrimaryKey(columnCheck(table, pk)).query[Int].to[List].transact(xa).map { test =>
+            if (test.nonEmpty) None
             else
               Some(s"Primary key ${pk.name} not found in table ${table.quotedName}")
           }
@@ -78,9 +86,9 @@ object FeaturesRepositoryDAO {
         val checkDataset: List[F[Option[String]]] =
           table.datasetColumn.fold(empty) { datasetColumn =>
             val c =
-              checkDatasetColumn(table, datasetColumn).query[Boolean].unique.transact(xa).map {
+              checkDatasetColumn(columnCheck(table, datasetColumn)).query[Int].to[List].transact(xa).map {
                 test =>
-                  if (test) None
+                  if (test.nonEmpty) None
                   else
                     Some(
                       s"Dataset column ${datasetColumn.name} not found in table ${table.quotedName}"
@@ -97,7 +105,7 @@ object FeaturesRepositoryDAO {
       .map(_.flatten)
 
     errors.map {
-      case Nil                 => lift(new FeaturesRepositoryDAO(xa, tables))
+      case Nil                 => lift(new FeaturesRepositoryDAO(xa, database, tables))
       case error :: moreErrors => Validated.Invalid(NonEmptyList(error, moreErrors))
     }
 
@@ -107,8 +115,6 @@ object FeaturesRepositoryDAO {
 
 abstract class BaseFeaturesTableRepositoryDAO[F[_]: Monad] extends FeaturesTableRepository[F] {
   def xa: Transactor[F]
-
-  def table: FeaturesTableDescription
 
   override def count: F[Int] = {
     val q: Fragment = fr"SELECT count(*) FROM " ++ frc(table)
