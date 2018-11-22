@@ -19,7 +19,7 @@ package ch.chuv.lren.woken.main
 
 import cats.effect._
 // Required, don't trust IntelliJ
-// import cats.implicits._
+import cats.implicits._
 import ch.chuv.lren.woken.akka.AkkaServer
 import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.monitoring.KamonMonitoring

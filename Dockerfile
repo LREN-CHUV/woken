@@ -11,10 +11,10 @@ RUN sbt -mem 1500 compile
 
 # Second caching layer: project sources
 COPY src/ /build/src/
+COPY docker/ /build/docker/
 COPY .git/ /build/.git/
 COPY .circleci/ /build/.circleci/
 COPY tests/ /build/tests/
-COPY docker/ /build/docker/
 COPY docs/ /build/docs/
 COPY dev/ /build/dev/
 COPY .*.cfg .*ignore .*.yaml .*.conf .gitattributes *.md *.sh *.yml *.json *.txt Dockerfile LICENSE /build/
@@ -29,51 +29,29 @@ ARG BUILD_DATE
 ARG VCS_REF
 ARG VERSION
 
-RUN apk update \
-    && apk add --no-cache java-cacerts
+COPY docker/woken.sh /opt/woken/
+COPY docker/lets-encrypt-install.sh /opt/woken/
+COPY docker/weaver-agent.sh /opt/woken/
 
-RUN set -ex \
-	&& apk add -u --no-cache --virtual .build-deps \
-		git gcc libc-dev make cmake libtirpc-dev pax-utils \
-	&& mkdir -p /usr/src \
-	&& cd /usr/src \
-	&& git clone --branch sigar-musl https://github.com/ncopa/sigar.git \
-	&& mkdir sigar/build \
-	&& cd sigar/build \
-	&& CFLAGS="-std=gnu89" cmake .. \
-	&& make -j$(getconf _NPROCESSORS_ONLN) \
-	&& make install \
-	&& runDeps="$( \
-		scanelf --needed --nobanner --recursive /usr/local \
-			| awk '{ gsub(/,/, "\nso:", $2); print "so:" $2 }' \
-			| sort -u \
-			| xargs -r apk info --installed \
-			| sort -u \
-	)" \
-	&& apk add --virtual .libsigar-rundeps $runDeps \
-	&& apk del .build-deps \
-    && rm -rf /usr/src/sigar
+RUN apt-get update && apt-get install -y curl ca-cacert \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY docker/runner/woken.sh /opt/woken/
-ADD  docker/lets-encrypt-install.sh /opt/woken/
-ADD  docker/weaver-agent.sh /opt/woken/
-
-RUN  chmod +x /opt/woken/lets-encrypt-install.sh \
-     && /opt/woken/lets-encrypt-install.sh
-
-RUN  chmod +x /opt/woken/weaver-agent.sh \
-     && /opt/woken/weaver-agent.sh
-
-RUN adduser -D -u 1000 woken \
+RUN addgroup woken \
+    && adduser --system --disabled-password --uid 1000 --ingroup woken woken \
     && chmod +x /opt/woken/woken.sh \
     && ln -s /opt/woken/woken.sh /run.sh \
     && chown -R woken:woken /opt/woken \
-    && apk add --update --no-cache curl
+    && chmod +x /opt/woken/lets-encrypt-install.sh \
+    && /opt/woken/lets-encrypt-install.sh \
+    && chmod +x /opt/woken/weaver-agent.sh \
+    && /opt/woken/weaver-agent.sh
 
 COPY --from=scala-build-env /build/target/scala-2.11/woken-all.jar /opt/woken/woken.jar
 
 USER woken
-ENV HOME=/home/woken
+ENV HOME=/home/woken \
+    WOKEN_BUGSNAG_KEY=4cfb095348013b4424338126f23da70b
+WORKDIR /home/woken
 
 ENTRYPOINT ["/run.sh"]
 

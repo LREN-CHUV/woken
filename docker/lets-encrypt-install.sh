@@ -10,12 +10,12 @@ cd /opt/woken
 
 KEYSTORE=$JAVA_HOME/lib/security/cacerts
 
-wget https://letsencrypt.org/certs/letsencryptauthorityx1.der
-wget https://letsencrypt.org/certs/letsencryptauthorityx2.der
-wget https://letsencrypt.org/certs/lets-encrypt-x1-cross-signed.der
-wget https://letsencrypt.org/certs/lets-encrypt-x2-cross-signed.der
-wget https://letsencrypt.org/certs/lets-encrypt-x3-cross-signed.der
-wget https://letsencrypt.org/certs/lets-encrypt-x4-cross-signed.der
+curl -O https://letsencrypt.org/certs/letsencryptauthorityx1.der
+curl -O https://letsencrypt.org/certs/letsencryptauthorityx2.der
+curl -O https://letsencrypt.org/certs/lets-encrypt-x1-cross-signed.der
+curl -O https://letsencrypt.org/certs/lets-encrypt-x2-cross-signed.der
+curl -O https://letsencrypt.org/certs/lets-encrypt-x3-cross-signed.der
+curl -O https://letsencrypt.org/certs/lets-encrypt-x4-cross-signed.der
 
 # to be idempotent
 keytool -delete -alias isrgrootx1 -keystore $KEYSTORE -storepass changeit 2> /dev/null || true
