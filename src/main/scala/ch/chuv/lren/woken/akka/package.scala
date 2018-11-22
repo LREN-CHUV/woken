@@ -15,28 +15,24 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.authentication
+package ch.chuv.lren.woken
+import cats.effect.{ ConcurrentEffect, ContextShift, Resource, Timer }
+import ch.chuv.lren.woken.config.WokenConfiguration
+import ch.chuv.lren.woken.service.DatabaseServices
 
-import akka.http.scaladsl.server.directives.Credentials
-import ch.chuv.lren.woken.config.AppConfiguration
-
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.language.higherKinds
 
 /**
-  * Simple support for basic authentication.
+  * Akka is used for inter-process communication, internal actors and support for streaming
   */
-trait BasicAuthenticator {
+package object akka {
 
-  def appConfiguration: AppConfiguration
+  /**
+    * Resource that creates and yields an Akka server, guaranteeing cleanup.
+    */
+  def resource[F[_]: ConcurrentEffect: ContextShift: Timer](
+      databaseServicesResource: Resource[F, DatabaseServices[F]],
+      config: WokenConfiguration
+  ): Resource[F, AkkaServer[F]] = AkkaServer.resource(databaseServicesResource, config)
 
-  def basicAuthenticator(
-      credentials: Credentials
-  )(implicit executionContext: ExecutionContext): Future[Option[String]] =
-    credentials match {
-      case cred @ Credentials.Provided(id) =>
-        Future {
-          if (cred.verify(appConfiguration.basicAuth.password)) Some(id) else None
-        }
-      case _ => Future.successful(None)
-    }
 }

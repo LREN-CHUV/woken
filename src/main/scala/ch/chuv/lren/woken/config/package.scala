@@ -16,9 +16,13 @@
  */
 
 package ch.chuv.lren.woken
+
 import cats.data.NonEmptyList
 import cats.effect.IO
 
+/**
+  * Configuration of Woken and its algorithms
+  */
 package object config {
 
   import acyclic.pkg

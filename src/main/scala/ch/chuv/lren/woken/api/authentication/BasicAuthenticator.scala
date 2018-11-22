@@ -15,22 +15,28 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken
-import cats.effect._
-import ch.chuv.lren.woken.config.WokenConfiguration
+package ch.chuv.lren.woken.api.authentication
 
-import scala.language.higherKinds
+import akka.http.scaladsl.server.directives.Credentials
+import ch.chuv.lren.woken.config.AppConfiguration
+
+import scala.concurrent.{ ExecutionContext, Future }
 
 /**
-  * Collection of services
+  * Simple support for basic authentication.
   */
-package object service {
+trait BasicAuthenticator {
 
-  /**
-    * Return a resource encapsulating all services backed by a database
-    */
-  def databaseResource[F[_]: ConcurrentEffect: ContextShift: Timer](config: WokenConfiguration)(
-      implicit cs: ContextShift[IO]
-  ): Resource[F, DatabaseServices[F]] = DatabaseServices.resource(config)
+  def appConfiguration: AppConfiguration
 
+  def basicAuthenticator(
+      credentials: Credentials
+  )(implicit executionContext: ExecutionContext): Future[Option[String]] =
+    credentials match {
+      case cred @ Credentials.Provided(id) =>
+        Future {
+          if (cred.verify(appConfiguration.basicAuth.password)) Some(id) else None
+        }
+      case _ => Future.successful(None)
+    }
 }

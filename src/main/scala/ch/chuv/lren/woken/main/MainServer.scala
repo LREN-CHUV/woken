@@ -20,10 +20,10 @@ package ch.chuv.lren.woken.main
 import cats.effect._
 // Required, don't trust IntelliJ
 import cats.implicits._
-import ch.chuv.lren.woken.akka.AkkaServer
+import ch.chuv.lren.woken.akka
 import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.monitoring.KamonMonitoring
-import ch.chuv.lren.woken.service.DatabaseServices
+import ch.chuv.lren.woken.service
 import ch.chuv.lren.woken.web.WebServer
 
 import scala.language.higherKinds
@@ -35,8 +35,8 @@ object MainServer {
       cfg: WokenConfiguration
   )(implicit ev: ContextShift[IO]): Resource[F, Unit] = {
 
-    val databaseService = DatabaseServices.resource[F](cfg)
-    val akkaServer      = AkkaServer.resource[F](databaseService, cfg)
+    val databaseServices = service.databaseResource[F](cfg)
+    val akkaServer       = akka.resource[F](databaseServices, cfg)
 
     // TODO: backendServer should ensure connection to Chronos
     for {

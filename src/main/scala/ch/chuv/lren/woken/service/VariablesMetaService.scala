@@ -17,7 +17,7 @@
 
 package ch.chuv.lren.woken.service
 
-import cats.effect.{ Effect, IO }
+import cats.effect.Effect
 import ch.chuv.lren.woken.core.model.VariablesMeta
 import ch.chuv.lren.woken.dao.VariablesMetaRepository
 

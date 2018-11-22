@@ -21,7 +21,7 @@ import java.util.UUID
 
 import cats.data.Validated._
 import cats.data.{ Validated, _ }
-import cats.effect.{ Effect, IO }
+import cats.effect.Effect
 import cats.implicits._
 import ch.chuv.lren.woken.config.JobsConfiguration
 import ch.chuv.lren.woken.core.ExperimentActor
@@ -34,6 +34,8 @@ import ch.chuv.lren.woken.messages.variables.VariableMetaData
 import ch.chuv.lren.woken.fp.runNow
 import com.typesafe.scalalogging.LazyLogging
 import shapeless.{ ::, HNil }
+
+import scala.language.higherKinds
 
 /**
   * Transform incoming mining and experiment queries into jobs

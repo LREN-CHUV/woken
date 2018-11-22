@@ -18,7 +18,7 @@
 package ch.chuv.lren.woken.main
 
 import cats.effect.{ ExitCode, IO, IOApp }
-import ch.chuv.lren.woken.config.WokenConfiguration
+import ch.chuv.lren.woken.config.mainConfig
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
@@ -41,7 +41,7 @@ object Main extends IOApp {
     Logger(LoggerFactory.getLogger("Woken"))
 
   def run(args: List[String]): IO[ExitCode] = {
-    val config = WokenConfiguration().unsafeRunSync()
+    val config = mainConfig.unsafeRunSync()
     MainServer.resource[IO](config).use { _ =>
       for {
         _ <- IO(Console.println("Woken startup complete.")) // scalastyle:off

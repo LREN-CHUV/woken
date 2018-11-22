@@ -18,12 +18,12 @@
 package ch.chuv.lren.woken.service
 
 import cats.effect._
-// Required, don't trust IntelliJ
 import cats.implicits._
 
 import ch.chuv.lren.woken.config.{ DatabaseConfiguration, WokenConfiguration, configurationFailed }
 import ch.chuv.lren.woken.dao.{ FeaturesRepositoryDAO, MetadataRepositoryDAO, WokenRepositoryDAO }
 import doobie.hikari.HikariTransactor
+import scala.language.higherKinds
 
 case class DatabaseServices[F[_]](featuresService: FeaturesService[F],
                                   jobResultService: JobResultService[F],
@@ -43,9 +43,9 @@ object DatabaseServices {
   )(implicit cs: ContextShift[IO]): Resource[F, DatabaseServices[F]] = {
 
     val transactors: Resource[F, Transactors[F]] = for {
-      featuresTransactor <- DatabaseConfiguration.dbTransactor(config.featuresDb)
-      resultsTransactor  <- DatabaseConfiguration.dbTransactor(config.resultsDb)
-      metaTransactor     <- DatabaseConfiguration.dbTransactor(config.metaDb)
+      featuresTransactor <- DatabaseConfiguration.dbTransactor[F](config.featuresDb)
+      resultsTransactor  <- DatabaseConfiguration.dbTransactor[F](config.resultsDb)
+      metaTransactor     <- DatabaseConfiguration.dbTransactor[F](config.metaDb)
     } yield Transactors[F](featuresTransactor, resultsTransactor, metaTransactor)
 
     transactors.flatMap { t =>

@@ -36,6 +36,8 @@ import ch.chuv.lren.woken.messages.variables.{
   VariablesForDatasetsResponse
 }
 
+import scala.language.higherKinds
+
 /**
   * Creates flows that dispatch queries to local or remote Woken workers according to the datasets
   *
@@ -69,7 +71,7 @@ class DispatcherService(allDatasets: Map[DatasetId, Dataset],
     (maybeSet.getOrElse(Set.empty), local)
   }
 
-  lazy val dispatchRemoteMiningFlow: Flow[MiningQuery, (RemoteLocation, QueryResult), NotUsed] =
+  def dispatchRemoteMiningFlow: Flow[MiningQuery, (RemoteLocation, QueryResult), NotUsed] =
     Flow[MiningQuery]
       .map(q => dispatchTo(q.datasets)._1.map(ds => ds -> q))
       .mapConcat(identity)
@@ -78,8 +80,7 @@ class DispatcherService(allDatasets: Map[DatasetId, Dataset],
       .via(wokenClientService.queryFlow)
       .named("dispatch-remote-mining")
 
-  lazy val dispatchRemoteExperimentFlow
-    : Flow[ExperimentQuery, (RemoteLocation, QueryResult), NotUsed] =
+  def dispatchRemoteExperimentFlow: Flow[ExperimentQuery, (RemoteLocation, QueryResult), NotUsed] =
     Flow[ExperimentQuery]
       .map(q => dispatchTo(q.trainingDatasets)._1.map(ds => ds -> q))
       .mapConcat(identity)

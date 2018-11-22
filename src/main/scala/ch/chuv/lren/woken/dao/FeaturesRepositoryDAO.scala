@@ -22,6 +22,7 @@ import doobie.implicits._
 import spray.json._
 import cats.Monad
 import cats.data.{ NonEmptyList, Validated }
+import cats.effect.{ Effect, Resource }
 import cats.implicits._
 import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
 import ch.chuv.lren.woken.core.features.FeaturesQuery
@@ -61,6 +62,7 @@ object FeaturesRepositoryDAO {
       SELECT EXISTS (SELECT 1 FROM information_schema.columns
         WHERE table_schema='${table.schema.getOrElse("public")}' and table_name='${table.name}' and column_name='${datasetColumn.name}')"""
 
+    val empty: List[F[Option[String]]] = Nil
     val checks: List[F[Option[String]]] = tables
       .map { table =>
         val checkPk: List[F[Option[String]]] = table.primaryKey.map { pk =>
@@ -72,7 +74,7 @@ object FeaturesRepositoryDAO {
         }
 
         val checkDataset: List[F[Option[String]]] =
-          table.datasetColumn.fold(Nil.asInstanceOf[List[F[Option[String]]]]) { datasetColumn =>
+          table.datasetColumn.fold(empty) { datasetColumn =>
             val c =
               checkDatasetColumn(table, datasetColumn).query[Boolean].unique.transact(xa).map {
                 test =>
@@ -87,7 +89,7 @@ object FeaturesRepositoryDAO {
 
         checkPk ++ checkDataset
       }
-      .reduce(_ ++ _)
+      .fold(empty)(_ ++ _)
 
     val errors: F[List[String]] = checks.sequence
       .map(_.flatten)
@@ -186,6 +188,7 @@ object FeaturesTableRepositoryDAO {
       model.TableColumn(doobieMeta.name, toSql(doobieMeta.jdbcType))
     })
 
+  @SuppressWarnings(Array("org.wartremover.warts.Throw"))
   private[dao] def toSql(jdbcType: JdbcType): SqlType = jdbcType match {
     case JdbcType.Char | JdbcType.NChar                                            => SqlType.char
     case JdbcType.VarChar | JdbcType.NVarChar | JdbcType.Clob                      => SqlType.varchar
@@ -195,6 +198,7 @@ object FeaturesTableRepositoryDAO {
     case _ => throw new IllegalArgumentException(s"Unsupported type $jdbcType")
   }
 
+  @SuppressWarnings(Array("org.wartremover.warts.Null", "org.wartremover.warts.Throw"))
   private[dao] def toJsValue(o: Object): JsValue = {
     import DefaultJsonProtocol.{ lift => _, _ }
 
@@ -240,12 +244,12 @@ class DynamicFeaturesTableRepositoryDAO[F[_]: Monad] private (
 
 object DynamicFeaturesTableRepositoryDAO {
 
-  def apply[F[_]: Monad](
+  def apply[F[_]: Effect](
       xa: Transactor[F],
       table: FeaturesTableDescription,
       columns: List[TableColumn],
       newFeatures: List[TableColumn]
-  ): Validation[F[DynamicFeaturesTableRepositoryDAO[F]]] = {
+  ): Validation[Resource[F, DynamicFeaturesTableRepositoryDAO[F]]] = {
 
     val extractPk: Validation[TableColumn] = table.primaryKey match {
       case pk :: Nil => lift(pk)
@@ -273,7 +277,9 @@ object DynamicFeaturesTableRepositoryDAO {
       }
     }
 
-    validatedDao
+    validatedDao.map { dao =>
+      Resource.make(dao)(_.close())
+    }
   }
 
   private def createDynamicTable[F[_]: Monad](

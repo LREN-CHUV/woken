@@ -23,7 +23,7 @@ import StatusCodes._
 import akka.http.scaladsl.model.ws.{ Message, UpgradeToWebSocket }
 import akka.stream.scaladsl.Flow
 import akka.util.Timeout
-import ch.chuv.lren.woken.authentication.BasicAuthenticator
+import ch.chuv.lren.woken.api.authentication.BasicAuthenticator
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.ExecutionContext

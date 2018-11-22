@@ -26,6 +26,7 @@ import ch.chuv.lren.woken.fp.runNow
 import spray.json.JsObject
 
 import scala.collection.mutable
+import scala.language.higherKinds
 
 object FeaturesService {
   def apply[F[_]: Effect](repo: FeaturesRepository[F]): FeaturesService[F] =
