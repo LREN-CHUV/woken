@@ -38,6 +38,8 @@ object DatabaseServices {
   case class Transactors[F[_]](featuresTransactor: HikariTransactor[F],
                                resultsTransactor: HikariTransactor[F],
                                metaTransactor: HikariTransactor[F])
+
+  @SuppressWarnings(Array("org.wartremover.warts.Any"))
   def resource[F[_]: ConcurrentEffect: ContextShift: Timer](
       config: WokenConfiguration
   )(implicit cs: ContextShift[IO]): Resource[F, DatabaseServices[F]] = {

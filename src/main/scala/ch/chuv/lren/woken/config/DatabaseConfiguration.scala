@@ -84,7 +84,10 @@ object DatabaseConfiguration {
         .orElse(lift(Set()))
 
       val tableFactory: String => Validation[FeaturesTableDescription] =
-        table => readTable(db, List("tables", table), path.last)
+        table =>
+          liftOption(path.lastOption).andThen { tableName =>
+            readTable(db, List("tables", table), tableName)
+        }
 
       val tables: Validation[Set[FeaturesTableDescription]] = {
         tableNames.andThen { names: Set[String] =>
@@ -126,6 +129,7 @@ object DatabaseConfiguration {
             }
             .traverse[Validation, TableColumn](identity)
         }
+
       val datasetColumn: Validation[Option[TableColumn]] = table
         .validateConfig("datasetColumn")
         .andThen { col =>
@@ -137,16 +141,27 @@ object DatabaseConfiguration {
           s
         }
         .orElse(lift(None))
-      val schema: Validation[Option[String]] = table.validateOptionalString("schema")
-      val seed: Validation[Double]           = table.validateDouble("seed").orElse(lift(0.67))
 
-      (lift(database), schema, tableName, primaryKey, datasetColumn, lift(None), seed) mapN FeaturesTableDescription
+      val schema: Validation[Option[String]] = table.validateOptionalString("schema")
+      val validateSchema: Validation[Boolean] =
+        table.validateBoolean("validateSchema").orElse(lift(true))
+      val seed: Validation[Double] = table.validateDouble("seed").orElse(lift(0.67))
+
+      (lift(database),
+       schema,
+       tableName,
+       primaryKey,
+       datasetColumn,
+       validateSchema,
+       lift(None),
+       seed) mapN FeaturesTableDescription
     }
   }
 
   def factory(config: Config): String => Validation[DatabaseConfiguration] =
     dbAlias => read(config, List("db", dbAlias))
 
+  @SuppressWarnings(Array("org.wartremover.warts.Any"))
   def dbTransactor[F[_]: Effect: ContextShift](
       dbConfig: DatabaseConfiguration
   )(implicit cs: ContextShift[IO]): Resource[F, HikariTransactor[F]] =
@@ -172,15 +187,6 @@ object DatabaseConfiguration {
               hx.setAutoCommit(false)
           }
         )
-      }
-
-      _ <- Resource.liftF {
-        for {
-          test <- sql"select 1".query[Int].unique.transact(xa)
-        } yield {
-          if (test != 1) "Cannot connect to $dbConfig.jdbcUrl".invalidNel[HikariTransactor[F]]
-          else lift(xa)
-        }
       }
 
     } yield xa

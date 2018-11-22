@@ -31,6 +31,7 @@ import scala.language.higherKinds
 object MainServer {
 
   /** A single-element stream that starts the server up and shuts it down on exit. */
+  @SuppressWarnings(Array("org.wartremover.warts.Any"))
   def resource[F[_]: ConcurrentEffect: ContextShift: Timer](
       cfg: WokenConfiguration
   )(implicit ev: ContextShift[IO]): Resource[F, Unit] = {

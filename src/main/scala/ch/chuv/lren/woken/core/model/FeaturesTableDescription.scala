@@ -26,7 +26,14 @@ import ch.chuv.lren.woken.messages.variables.SqlType.SqlType
   * @param name Name of the column
   * @param sqlType Type of the column
   */
-case class TableColumn(name: String, sqlType: SqlType)
+case class TableColumn(name: String, sqlType: SqlType) {
+
+  /**
+    * @return the quoted name of the column, for use in SELECT statements
+    */
+  def quotedName: String = s""""$name""""
+
+}
 
 /**
   * Description of a table containing features.
@@ -34,9 +41,14 @@ case class TableColumn(name: String, sqlType: SqlType)
   * @param database Name of the database, must be defined in DatabaseConfiguration
   * @param schema Schema containing the table
   * @param name Name of the table
-  * @param primaryKey List of fields belonging to the primary key
-  * @param owner Owner of the table, or None for global tables
-  * @param datasetColumn Column if it exists used to discriminate rows on the dataset owning them
+  * @param primaryKey List of fields belonging to the primary key.
+  * @param datasetColumn Column if it exists used to discriminate rows on the dataset owning them.
+  * @param validateSchema Validate the schema, in particular the columns used for the primary key and the dataset.
+  *                       This may need to be disabled as it relies on using the Postgres table 'information_schema'
+  *                       which may not be available in some cases, in particular if the features table is a proxy table.
+  * @param owner Owner of the table, or None for global tables.
+  * @param seed Seed for random number generator. The same seed is used for all operations on the table in order to
+  *             ensure reproducibility of the results.
   */
 case class FeaturesTableDescription(
     database: String,
@@ -44,6 +56,7 @@ case class FeaturesTableDescription(
     name: String,
     primaryKey: List[TableColumn],
     datasetColumn: Option[TableColumn],
+    validateSchema: Boolean,
     owner: Option[UserId],
     seed: Double
 ) {
