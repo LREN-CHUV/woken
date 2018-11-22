@@ -16,9 +16,19 @@
  */
 
 package ch.chuv.lren.woken
+import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
+import doobie.Fragment
 
 package object dao {
 
   import acyclic.pkg
+
+  /**
+    * Internal utilities
+    */
+  private[dao] object utils {
+    def frc(table: FeaturesTableDescription): Fragment = Fragment.const(table.quotedName)
+    def frc(col: TableColumn): Fragment                = Fragment.const(col.quotedName)
+  }
 
 }

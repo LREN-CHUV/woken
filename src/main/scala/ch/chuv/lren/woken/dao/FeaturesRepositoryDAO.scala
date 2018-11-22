@@ -33,6 +33,7 @@ import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
 import ch.chuv.lren.woken.messages.variables.SqlType
 import ch.chuv.lren.woken.messages.variables.SqlType.SqlType
 import doobie.enum.JdbcType
+import utils._
 
 import scala.language.higherKinds
 
@@ -64,6 +65,7 @@ object FeaturesRepositoryDAO {
 
     val empty: List[F[Option[String]]] = Nil
     val checks: List[F[Option[String]]] = tables
+      .filter(_.validateSchema)
       .map { table =>
         val checkPk: List[F[Option[String]]] = table.primaryKey.map { pk =>
           checkPrimaryKey(table, pk).query[Boolean].unique.transact(xa).map { test =>
@@ -109,7 +111,7 @@ abstract class BaseFeaturesTableRepositoryDAO[F[_]: Monad] extends FeaturesTable
   def table: FeaturesTableDescription
 
   override def count: F[Int] = {
-    val q: Fragment = fr"SELECT count(*) FROM " ++ Fragment.const(table.name)
+    val q: Fragment = fr"SELECT count(*) FROM " ++ frc(table)
     q.query[Int]
       .unique
       .transact(xa)
@@ -120,8 +122,8 @@ abstract class BaseFeaturesTableRepositoryDAO[F[_]: Monad] extends FeaturesTable
       if (dataset.code == table.quotedName || dataset.code == table.name) count
       else 0.pure[F]
     } { datasetColumn =>
-      val q: Fragment = sql"SELECT count(*) FROM " ++ Fragment
-        .const(table.name) ++ fr"WHERE " ++ Fragment.const(datasetColumn.name) ++ fr" = ${dataset.code}"
+      val q
+        : Fragment = sql"SELECT count(*) FROM " ++ frc(table) ++ fr"WHERE " ++ frc(datasetColumn) ++ fr" = ${dataset.code}"
       q.query[Int]
         .unique
         .transact(xa)
@@ -231,8 +233,8 @@ class DynamicFeaturesTableRepositoryDAO[F[_]: Monad] private (
   override val columns: List[TableColumn]      = viewColumns
 
   def close(): F[Unit] = {
-    val rmView     = fr"DELETE VIEW " ++ Fragment.const(view.quotedName)
-    val rmDynTable = fr"DELETE TABLE " ++ Fragment.const(dynTable.quotedName)
+    val rmView     = fr"DELETE VIEW " ++ frc(view)
+    val rmDynTable = fr"DELETE TABLE " ++ frc(dynTable)
 
     for {
       _ <- rmView.update.run.transact(xa)
@@ -303,8 +305,8 @@ object DynamicFeaturesTableRepositoryDAO {
 
     def createAdditionalFeaturesTable(dynTable: FeaturesTableDescription,
                                       pk: TableColumn): ConnectionIO[Int] = {
-      val stmt = fr"CREATE TABLE " ++ Fragment.const(dynTable.quotedName) ++ fr"(" ++
-        Fragment.const(pk.name) ++ Fragment.const(toSql(pk.sqlType)) ++ fr"""NOT NULL,
+      val stmt = fr"CREATE TABLE " ++ frc(dynTable) ++ fr"(" ++
+        frc(pk) ++ Fragment.const(toSql(pk.sqlType)) ++ fr"""NOT NULL,
       (
         _rnd_ int,
       """ ++ Fragment.const(
@@ -314,9 +316,7 @@ object DynamicFeaturesTableRepositoryDAO {
           }
           .mkString(",")
       ) ++
-        fr"CONSTRAINT pk_" ++ Fragment.const(dynTable.name) ++ fr"PRIMARY KEY (" ++ Fragment.const(
-        pk.name
-      ) ++ fr""")
+        fr"CONSTRAINT pk_" ++ frc(dynTable) ++ fr"PRIMARY KEY (" ++ frc(pk) ++ fr""")
       )
       WITH (
         OIDS=FALSE
@@ -328,10 +328,8 @@ object DynamicFeaturesTableRepositoryDAO {
     def fillAdditionalFeaturesTable(dynTable: FeaturesTableDescription,
                                     pk: TableColumn): ConnectionIO[Int] = {
       val stmt = fr"SELECT setseed(" ++ Fragment.const(table.seed.toString) ++ fr"); INSERT INTO " ++
-        Fragment.const(dynTable.quotedName) ++ fr"(" ++ Fragment.const(pk.name) ++ fr", _rnd_) SELECT " ++
-        Fragment.const(pk.name) ++ fr", floor(random() * 2147483647)::int FROM " ++ Fragment.const(
-        table.name
-      )
+        frc(dynTable) ++ fr"(" ++ frc(pk) ++ fr", _rnd_) SELECT " ++
+        frc(pk) ++ fr", floor(random() * 2147483647)::int FROM " ++ frc(table)
       stmt.update.run
     }
 
@@ -354,8 +352,9 @@ object DynamicFeaturesTableRepositoryDAO {
       rndColumn: TableColumn
   ): F[(FeaturesTableDescription, Headers)] = {
 
-    def qualify(table: FeaturesTableDescription, cols: Headers): String =
-      cols.map(col => s"""${table.quotedName}."${col.name}"""").mkString(",")
+    def qualify(table: FeaturesTableDescription, cols: Headers): Fragment =
+      Fragment.const(cols.map(col => s"""${table.quotedName}.${col.quotedName}""").mkString(","))
+
     def createFeaturesView(table: FeaturesTableDescription,
                            pk: TableColumn,
                            tableColumns: Headers,
@@ -364,16 +363,12 @@ object DynamicFeaturesTableRepositoryDAO {
                            dynView: FeaturesTableDescription,
                            dynViewColumns: Headers): ConnectionIO[Int] = {
 
-      val stmt = fr"CREATE OR REPLACE VIEW " ++
-        Fragment.const(dynView.quotedName) ++
-        Fragment.const(s"(${dynViewColumns.map(_.name).mkString(",")}) AS SELECT") ++
-        Fragment.const(qualify(table, tableColumns)) ++ fr"," ++ Fragment.const(
-        qualify(dynTable, dynTableColumns)
-      ) ++ fr" FROM " ++ Fragment.const(table.quotedName) ++
-        fr" LEFT OUTER JOIN " ++ Fragment.const(dynTable.quotedName) ++ fr" ON " ++
-        Fragment.const(qualify(table, List(pk))) ++ fr" = " ++ Fragment.const(
-        qualify(dynTable, List(pk))
-      )
+      val stmt = fr"CREATE OR REPLACE VIEW " ++ frc(dynView) ++
+        Fragment.const(s"(${dynViewColumns.map(_.quotedName).mkString(",")}) AS SELECT") ++
+        qualify(table, tableColumns) ++ fr"," ++ qualify(dynTable, dynTableColumns) ++ fr" FROM " ++ frc(
+        table
+      ) ++ fr" LEFT OUTER JOIN " ++ frc(dynTable) ++ fr" ON " ++
+        qualify(table, List(pk)) ++ fr" = " ++ qualify(dynTable, List(pk))
 
       stmt.update.run
     }
