@@ -93,7 +93,12 @@ echo "and have environment variable CLUSTER_IP set to $HOST"
 echo "For IntelliJ IDEA, the Run configuration should include:"
 echo "  VM Options: -Dconfig.file=config/application.conf"
 echo "  Working directory: $(get_script_dir)"
-echo "  Environment variables: CLUSTER_IP=$HOST"
+echo "  Environment variables:"
+echo "      CLUSTER_PORT: 8088"
+echo "      CLUSTER_IP: $(hostname)"
+echo "      WOKEN_PORT_8088_TCP_ADDR: woken
+echo "      DOCKER_BRIDGE_NETWORK: "dev_default"
+echo
 read -p "Press enter to continue >"
 
 if [ $validation == 1 ]; then

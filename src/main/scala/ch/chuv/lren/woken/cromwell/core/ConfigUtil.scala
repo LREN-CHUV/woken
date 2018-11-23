@@ -149,7 +149,7 @@ object ConfigUtil {
 
     def validateConfigList(key: String): Validation[List[Config]] =
       try {
-        List[Config](config.getConfigList(key):_*).validNel
+        List[Config](config.getConfigList(key): _*).validNel
       } catch {
         case _: ConfigException.Missing => s"Could not find key: $key".invalidNel
         case _: ConfigException.WrongType =>

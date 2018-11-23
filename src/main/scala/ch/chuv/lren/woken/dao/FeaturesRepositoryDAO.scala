@@ -55,11 +55,11 @@ object FeaturesRepositoryDAO {
       database: String,
       tables: Set[FeaturesTableDescription]
   ): F[Validation[FeaturesRepositoryDAO[F]]] = {
-    implicit val han: LogHandler = LogHandler.jdkLogHandler
 
     case class Check(schema: String, table: String, column: String)
 
-    def columnCheck(table: FeaturesTableDescription, column: TableColumn): Check = Check(table.schema.getOrElse("public"), table.name, column.name)
+    def columnCheck(table: FeaturesTableDescription, column: TableColumn): Check =
+      Check(table.schema.getOrElse("public"), table.name, column.name)
 
     // TODO: add "and is_identity='YES'" to the check. Problem: our tables don't have their primary key properly defined
     def checkPrimaryKey(check: Check): Fragment = sql"""
@@ -86,14 +86,17 @@ object FeaturesRepositoryDAO {
         val checkDataset: List[F[Option[String]]] =
           table.datasetColumn.fold(empty) { datasetColumn =>
             val c =
-              checkDatasetColumn(columnCheck(table, datasetColumn)).query[Int].to[List].transact(xa).map {
-                test =>
+              checkDatasetColumn(columnCheck(table, datasetColumn))
+                .query[Int]
+                .to[List]
+                .transact(xa)
+                .map { test =>
                   if (test.nonEmpty) None
                   else
                     Some(
                       s"Dataset column ${datasetColumn.name} not found in table ${table.quotedName}"
                     )
-              }
+                }
             List(c)
           }
 
@@ -296,6 +299,8 @@ object DynamicFeaturesTableRepositoryDAO {
       pk: TableColumn,
       newFeatures: List[TableColumn]
   ): F[FeaturesTableDescription] = {
+
+    implicit val han: LogHandler = LogHandler.jdkLogHandler
 
     val genTableNum = sql"""
       SELECT nextval('gen_features_table_seq');

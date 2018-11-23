@@ -17,18 +17,60 @@
 
 package ch.chuv.lren.woken.service
 
+import cats.Monoid
 import cats.effect._
 import cats.implicits._
-import ch.chuv.lren.woken.config.{DatabaseConfiguration, WokenConfiguration, configurationFailed}
-import ch.chuv.lren.woken.dao.{FeaturesRepositoryDAO, MetadataRepositoryDAO, WokenRepositoryDAO}
+import ch.chuv.lren.woken.config.{ DatabaseConfiguration, WokenConfiguration, configurationFailed }
+import ch.chuv.lren.woken.dao.{ FeaturesRepositoryDAO, MetadataRepositoryDAO, WokenRepositoryDAO }
+import ch.chuv.lren.woken.fp.runNow
 import com.typesafe.scalalogging.LazyLogging
 import doobie.hikari.HikariTransactor
 
 import scala.language.higherKinds
 
-case class DatabaseServices[F[_]](featuresService: FeaturesService[F],
-                                  jobResultService: JobResultService[F],
-                                  variablesMetaService: VariablesMetaService[F])
+case class DatabaseServices[F[_]: ConcurrentEffect: ContextShift: Timer](
+    featuresService: FeaturesService[F],
+    jobResultService: JobResultService[F],
+    variablesMetaService: VariablesMetaService[F],
+    datasetService: DatasetService
+) extends LazyLogging {
+
+  def validate(): F[Unit] = {
+
+    logger.info("Check configuration of datasets...")
+
+    implicit val FPlus: Monoid[F[Unit]] = new Monoid[F[Unit]] {
+      def empty: F[Unit]                           = Effect[F].pure(())
+      def combine(x: F[Unit], y: F[Unit]): F[Unit] = x.handleErrorWith(_ => y)
+    }
+
+    Monoid.combineAll(datasetService.datasets().filter(_.location.isEmpty).map { dataset =>
+      Monoid.combineAll(dataset.tables.map {
+        tableName =>
+          featuresService
+            .featuresTable(tableName)
+            .fold[F[Unit]](
+              { error: String =>
+                logger.error(error)
+                Effect[F].raiseError(new IllegalStateException(error))
+              }, { table: FeaturesTableService[F] =>
+                table.count(dataset.dataset).map { count =>
+                  if (count == 0) {
+                    val error =
+                      s"Table $tableName contains no value for dataset ${dataset.dataset.code}"
+                    logger.error(error)
+                    throw new IllegalStateException(error)
+                  }
+                }
+              }
+            )
+      })
+    })
+  }
+
+  def close(): F[Unit] = Effect[F].pure(())
+
+}
 
 /**
   * Provides a Resource containing the configured services.
@@ -66,13 +108,16 @@ object DatabaseServices extends LazyLogging {
         Sync[F].delay(VariablesMetaService(MetadataRepositoryDAO(xa).variablesMeta))
       }
 
+      val datasetService = ConfBasedDatasetService(config.config)
+
       val servicesIO = for {
         featuresService      <- fsIO
         jobResultService     <- jrsIO
         variablesMetaService <- vmsIO
-      } yield DatabaseServices[F](featuresService, jobResultService, variablesMetaService)
+      } yield
+        DatabaseServices[F](featuresService, jobResultService, variablesMetaService, datasetService)
 
-      Resource.liftF(servicesIO)
+      Resource.make(servicesIO.flatMap(service => service.validate().map(_ => service)))(_.close())
     }
   }
 
@@ -87,7 +132,7 @@ object DatabaseServices extends LazyLogging {
         .validate(transactor, dbConfig)
         .map(_.valueOr(configurationFailed))
       validatedDb <- serviceGen(validatedXa)
-      _ <- Async[F].delay(logger.info(s"Connected to database ${dbConfig.database}"))
+      _           <- Async[F].delay(logger.info(s"Connected to database ${dbConfig.database}"))
     } yield {
       validatedDb
     }

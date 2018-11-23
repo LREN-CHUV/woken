@@ -32,7 +32,6 @@ import ch.chuv.lren.woken.config.{
 }
 import ch.chuv.lren.woken.core.{ CoordinatorConfig, Core }
 import ch.chuv.lren.woken.service._
-import ch.chuv.lren.woken.fp.runNow
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.duration._
@@ -52,8 +51,6 @@ class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
 ) extends Core
     with CoreActors
     with LazyLogging {
-
-  private lazy val datasetsService: DatasetService = ConfBasedDatasetService(config.config)
 
   private def mainRouterSupervisorProps = {
     val coordinatorConfig = CoordinatorConfig(
@@ -76,7 +73,7 @@ class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
           config.config,
           config.app,
           coordinatorConfig,
-          datasetsService,
+          databaseServices.datasetService,
           databaseServices.variablesMetaService,
           dispatcherService,
           algorithmLibraryService,
@@ -115,28 +112,7 @@ class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
   def selfChecks(): Unit = {
     logger.info("Self checks...")
 
-    logger.info("Check configuration of datasets...")
-
-    datasetsService.datasets().filter(_.location.isEmpty).foreach { dataset =>
-      dataset.tables.foreach { tableName =>
-        databaseServices.featuresService
-          .featuresTable(tableName)
-          .fold(
-            { error: String =>
-              logger.error(error)
-              System.exit(1)
-            }, { table: FeaturesTableService[F] =>
-              if (runNow(table.count(dataset.dataset)) == 0) {
-                logger.error(
-                  s"Table $tableName contains no value for dataset ${dataset.dataset.code}"
-                )
-                // TODO: no hard exit, rely on Resource to shutdown cleanly
-                System.exit(1)
-              }
-            }
-          )
-      }
-    }
+    // TODO
 
     logger.info("[OK] Self checks passed")
   }

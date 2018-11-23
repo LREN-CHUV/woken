@@ -122,7 +122,8 @@ class FeaturesTableInMemoryRepository[F[_]: Applicative] extends FeaturesTableRe
 
   import FeaturesTableRepository.Headers
 
-  override val table = FeaturesTableDescription("in_memory", None, "tmp", Nil, None, validateSchema = false, None, 0.0)
+  override val table =
+    FeaturesTableDescription("in_memory", None, "tmp", Nil, None, validateSchema = false, None, 0.0)
 
   override def count: F[Int] = 0.pure[F]
 
