@@ -23,7 +23,7 @@ RUN /check-sources.sh
 
 RUN sbt -mem 1500 test assembly
 
-FROM hbpmip/java-base:11.0.1-0
+FROM hbpmip/java-base:11.0.1-1
 
 ARG BUILD_DATE
 ARG VCS_REF
