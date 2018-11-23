@@ -90,7 +90,7 @@ class MiningWebService(
                     case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
                     case qr if qr.data.nonEmpty  => OK         -> qr.toJson
                   }
-                  .recoverWith {
+                  .recoverWith[(StatusCode, JsValue)] {
                     case e =>
                       logger.warn(s"Query $query failed with error $e")
                       Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
@@ -116,7 +116,7 @@ class MiningWebService(
                     case qr if qr.error.nonEmpty => BadRequest -> qr.toJson
                     case qr if qr.data.nonEmpty  => OK         -> qr.toJson
                   }
-                  .recoverWith {
+                  .recoverWith[(StatusCode, JsValue)] {
                     case e =>
                       logger.warn(s"Query $query failed with error $e")
                       Future(BadRequest -> JsObject("error" -> JsString(e.toString)))

@@ -22,9 +22,9 @@ import cats.effect._
 import cats.implicits._
 import ch.chuv.lren.woken.akka
 import ch.chuv.lren.woken.config.WokenConfiguration
-import ch.chuv.lren.woken.monitoring.KamonMonitoring
+import ch.chuv.lren.woken.monitoring
 import ch.chuv.lren.woken.service
-import ch.chuv.lren.woken.web.WebServer
+import ch.chuv.lren.woken.web
 
 import scala.language.higherKinds
 
@@ -34,16 +34,14 @@ object MainServer {
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
   def resource[F[_]: ConcurrentEffect: ContextShift: Timer](
       cfg: WokenConfiguration
-  )(implicit ev: ContextShift[IO]): Resource[F, Unit] = {
-
-    val databaseServices = service.databaseResource[F](cfg)
-    val akkaServer       = akka.resource[F](databaseServices, cfg)
-
-    // TODO: backendServer should ensure connection to Chronos
+  )(implicit ev: ContextShift[IO]): Resource[F, Unit] =
+    // TODO: backendServer should ensure connection to Chronos, worker Woken processes in distributed mode...
+    // TODO: collect also from each resource a health check
     for {
-      _ <- KamonMonitoring.resource[F](akkaServer, cfg)
-      _ <- WebServer.resource[F](akkaServer, cfg)
+      databaseServices <- service.databaseResource[F](cfg)
+      akkaServer       <- akka.resource[F](databaseServices, cfg)
+      _                <- web.resource[F](akkaServer, cfg)
+      _                <- monitoring.resource[F](akkaServer, cfg)
     } yield ()
 
-  }
 }

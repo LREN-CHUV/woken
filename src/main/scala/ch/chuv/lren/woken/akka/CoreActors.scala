@@ -17,14 +17,14 @@
 
 package ch.chuv.lren.woken.akka
 
-import akka.actor.{ ActorRef, ActorSystem, DeadLetter }
+import akka.actor.{ ActorRef, DeadLetter }
 import akka.pattern.{ Backoff, BackoffSupervisor }
 import akka.stream.{ ActorMaterializer, ActorMaterializerSettings, Supervision }
 import ch.chuv.lren.woken.backends.chronos.ChronosThrottler
 import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.core.Core
 import ch.chuv.lren.woken.core.monitoring.DeadLetterMonitorActor
-import com.typesafe.scalalogging.LazyLogging
+import com.typesafe.scalalogging.Logger
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
@@ -35,8 +35,9 @@ import scala.language.postfixOps
   * ``BootedCore`` for running code or ``TestKit`` for unit and integration tests.
   */
 trait CoreActors {
-  this: Core with LazyLogging =>
+  this: Core =>
 
+  protected def logger: Logger
   protected def config: WokenConfiguration
 
   val decider: Supervision.Decider = {
@@ -47,12 +48,6 @@ trait CoreActors {
       logger.error("Unknown error. Stopping the stream.", err)
       Supervision.Stop
   }
-
-  /**
-    * Construct the ActorSystem we will use in our application
-    */
-  override lazy implicit val system: ActorSystem =
-    ActorSystem(config.app.clusterSystemName, config.config)
 
   override lazy implicit val actorMaterializer: ActorMaterializer = ActorMaterializer(
     ActorMaterializerSettings(system).withSupervisionStrategy(decider)
@@ -79,7 +74,9 @@ trait CoreActors {
       system.actorOf(DeadLetterMonitorActor.props, name = "deadLetterMonitor")
 
     // Subscribe to system wide event bus 'DeadLetter'
-    system.eventStream.subscribe(deadLetterMonitorActor, classOf[DeadLetter])
+    if (!system.eventStream.subscribe(deadLetterMonitorActor, classOf[DeadLetter])) {
+      logger.warn("Cannot monitor Akka dead letter events")
+    }
   }
 
 }

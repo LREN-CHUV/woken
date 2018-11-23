@@ -22,9 +22,9 @@ import cats.effect._
 import cats.implicits._
 import ch.chuv.lren.woken.config.{ DatabaseConfiguration, WokenConfiguration, configurationFailed }
 import ch.chuv.lren.woken.dao.{ FeaturesRepositoryDAO, MetadataRepositoryDAO, WokenRepositoryDAO }
-import ch.chuv.lren.woken.fp.runNow
-import com.typesafe.scalalogging.LazyLogging
+import com.typesafe.scalalogging.Logger
 import doobie.hikari.HikariTransactor
+import org.slf4j.LoggerFactory
 
 import scala.language.higherKinds
 
@@ -33,7 +33,9 @@ case class DatabaseServices[F[_]: ConcurrentEffect: ContextShift: Timer](
     jobResultService: JobResultService[F],
     variablesMetaService: VariablesMetaService[F],
     datasetService: DatasetService
-) extends LazyLogging {
+) {
+
+  import DatabaseServices.logger
 
   def validate(): F[Unit] = {
 
@@ -76,7 +78,9 @@ case class DatabaseServices[F[_]: ConcurrentEffect: ContextShift: Timer](
   * Provides a Resource containing the configured services.
   *
   */
-object DatabaseServices extends LazyLogging {
+object DatabaseServices {
+
+  private val logger: Logger = Logger(LoggerFactory.getLogger("woken.DatabaseServices"))
 
   case class Transactors[F[_]](featuresTransactor: HikariTransactor[F],
                                resultsTransactor: HikariTransactor[F],

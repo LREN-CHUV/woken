@@ -96,11 +96,11 @@ case class MasterRouter[F[_]: Effect](
   def receive: Receive = {
 
     case MethodsQuery =>
-      Kamon.currentSpan().mark("MethodsQueryRequestReceived")
+      mark("MethodsQueryRequestReceived")
       sender ! MethodsResponse(algorithmLibraryService.algorithms)
 
     case ds: DatasetsQuery =>
-      Kamon.currentSpan().mark("DatasetsQueryRequestReceived")
+      mark("DatasetsQueryRequestReceived")
       val allDatasets = datasetService.datasets()
       val table       = ds.table.getOrElse(coordinatorConfig.jobsConf.featuresTable)
       val datasets =
@@ -119,11 +119,11 @@ case class MasterRouter[F[_]: Effect](
     // TODO To be implemented
 
     case query: MiningQuery =>
-      Kamon.currentSpan().mark("MiningQueryRequestReceived")
+      mark("MiningQueryRequestReceived")
       miningQueriesWorker forward MiningQueriesActor.Mine(query, sender())
 
     case query: ExperimentQuery =>
-      Kamon.currentSpan().mark("ExperimentQueryRequestReceived")
+      mark("ExperimentQueryRequestReceived")
       experimentQueriesWorker forward ExperimentQueriesActor.Experiment(query, sender())
 
     case e =>
@@ -159,4 +159,7 @@ case class MasterRouter[F[_]: Effect](
       name = "experimentQueries"
     )
 
+  private[akka] def mark(spanKey: String): Unit = {
+    val _ = Kamon.currentSpan().mark(spanKey)
+  }
 }

@@ -17,7 +17,7 @@
 
 package ch.chuv.lren.woken.akka
 
-import akka.actor.ActorRef
+import akka.actor.{ ActorRef, ActorSystem }
 import akka.cluster.Cluster
 import akka.cluster.client.ClusterClientReceptionist
 import akka.cluster.pubsub.{ DistributedPubSub, DistributedPubSubMediator }
@@ -32,7 +32,8 @@ import ch.chuv.lren.woken.config.{
 }
 import ch.chuv.lren.woken.core.{ CoordinatorConfig, Core }
 import ch.chuv.lren.woken.service._
-import com.typesafe.scalalogging.LazyLogging
+import com.typesafe.scalalogging.Logger
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration._
 import scala.language.higherKinds
@@ -47,10 +48,13 @@ import scala.util.{ Failure, Success }
 @SuppressWarnings(Array("org.wartremover.warts.Throw", "org.wartremover.warts.NonUnitStatements"))
 class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
     val databaseServices: DatabaseServices[F],
-    override val config: WokenConfiguration
+    override val config: WokenConfiguration,
+    override implicit val system: ActorSystem,
+    override implicit val cluster: Cluster
 ) extends Core
-    with CoreActors
-    with LazyLogging {
+    with CoreActors {
+
+  override protected def logger: Logger = AkkaServer.logger
 
   private def mainRouterSupervisorProps = {
     val coordinatorConfig = CoordinatorConfig(
@@ -90,14 +94,10 @@ class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
   /**
     * Create and start actor that acts as akka entry-point
     */
-  lazy val mainRouter: ActorRef =
+  val mainRouter: ActorRef =
     system.actorOf(mainRouterSupervisorProps, name = "entrypoint")
 
-  lazy val cluster: Cluster = Cluster(system)
-
   def startActors(): Unit = {
-    logger.info(s"Start actor system ${config.app.clusterSystemName}...")
-    logger.info(s"Cluster has roles ${cluster.selfRoles.mkString(",")}")
 
     val mediator = DistributedPubSub(system).mediator
 
@@ -130,22 +130,31 @@ class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
     }
 }
 
-object AkkaServer extends LazyLogging {
+object AkkaServer {
+  private val logger: Logger = Logger(LoggerFactory.getLogger("woken.AkkaServer"))
 
   /** Resource that creates and yields an Akka server, guaranteeing cleanup. */
   def resource[F[_]: ConcurrentEffect: ContextShift: Timer](
-      databaseServicesResource: Resource[F, DatabaseServices[F]],
+      databaseServices: DatabaseServices[F],
       config: WokenConfiguration
   ): Resource[F, AkkaServer[F]] =
-    databaseServicesResource.flatMap { databaseServices =>
-      Resource.make(Sync[F].delay {
-        val server = new AkkaServer[F](databaseServices, config)
+    Resource.make(Sync[F].delay {
 
-        logger.info(s"Starting Akka server...")
-        server.startActors()
-        server.selfChecks()
+      logger.info(s"Start actor system ${config.app.clusterSystemName}...")
 
-        server
-      })(_.unbind())
-    }
+      val system: ActorSystem = ActorSystem(config.app.clusterSystemName, config.config)
+
+      logger.info(s"Start cluster ${config.app.clusterSystemName}...")
+
+      val cluster: Cluster = Cluster(system)
+
+      logger.info(s"Cluster has roles ${cluster.selfRoles.mkString(",")}")
+
+      val server = new AkkaServer[F](databaseServices, config, system, cluster)
+
+      server.startActors()
+      server.selfChecks()
+
+      server
+    })(_.unbind())
 }

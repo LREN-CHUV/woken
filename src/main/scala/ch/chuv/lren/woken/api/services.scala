@@ -26,7 +26,7 @@ import akka.util.Timeout
 import ch.chuv.lren.woken.api.authentication.BasicAuthenticator
 import com.typesafe.scalalogging.LazyLogging
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.Failure
 
 /**
@@ -67,12 +67,13 @@ trait FailureHandling {
         loggedFailureResponse(ctx, t)
   }
 
+  @SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
   private def loggedFailureResponse(
       ctx: RequestContext,
       thrown: Throwable,
       message: String = "The server is having problems.",
       error: StatusCode = StatusCodes.InternalServerError
-  ) = {
+  ): Future[RouteResult] = {
     logger.error(ctx.request.toString, thrown)
     ctx.complete((error, message))
   }
@@ -85,6 +86,7 @@ trait SecuredRouteHelper extends BasicAuthenticator with Directives {
   implicit val executionContext: ExecutionContext
   implicit val timeout: Timeout
 
+  @SuppressWarnings(Array("org.wartremover.warts.Any"))
   def securePathWithWebSocket(pm: PathMatcher[Unit],
                               wsFlow: Flow[Message, Message, Any],
                               restRoute: Route): Route =
@@ -100,7 +102,7 @@ trait SecuredRouteHelper extends BasicAuthenticator with Directives {
                   logger.error(s"Web socket for $pm completed with failure : $ex")
               }
             }))
-          //}
+
           case None => restRoute
         }
       }

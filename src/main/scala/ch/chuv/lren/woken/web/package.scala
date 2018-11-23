@@ -17,22 +17,20 @@
 
 package ch.chuv.lren.woken
 import cats.effect.{ ConcurrentEffect, ContextShift, Resource, Timer }
+import ch.chuv.lren.woken.akka.AkkaServer
 import ch.chuv.lren.woken.config.WokenConfiguration
-import ch.chuv.lren.woken.service.DatabaseServices
 
 import scala.language.higherKinds
 
 /**
-  * Akka is used for inter-process communication, internal actors and support for streaming
+  * Web interface for Woken, includes the REST API, websocket connections to other Woken workers and some
+  * simple administration tools (Swagger interface to the API)
   */
-package object akka {
+package object web {
 
-  /**
-    * Resource that creates and yields an Akka server, guaranteeing cleanup.
-    */
   def resource[F[_]: ConcurrentEffect: ContextShift: Timer](
-      databaseServices: DatabaseServices[F],
+      akkaServer: AkkaServer[F],
       config: WokenConfiguration
-  ): Resource[F, AkkaServer[F]] = AkkaServer.resource(databaseServices, config)
+  ): Resource[F, WebServer[F]] = WebServer.resource(akkaServer, config)
 
 }

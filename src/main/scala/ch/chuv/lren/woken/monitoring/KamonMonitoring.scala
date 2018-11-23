@@ -38,7 +38,7 @@ import scala.util.Try
 case class KamonMonitoring[F[_]: ConcurrentEffect: Timer](core: Core, config: WokenConfiguration) {
 
   private val logger: Logger =
-    Logger(LoggerFactory.getLogger("KamonMonitoring"))
+    Logger(LoggerFactory.getLogger("woken.KamonMonitoring"))
 
   def startReporters(): Unit = {
     val kamonConfig = config.config.getConfig("kamon")
@@ -86,22 +86,20 @@ case class KamonMonitoring[F[_]: ConcurrentEffect: Timer](core: Core, config: Wo
   }
 
   def unbind(): F[Unit] = Sync[F].delay {
-    Kamon.stopAllReporters()
     SystemMetrics.stopCollecting()
+    Kamon.stopAllReporters()
   }
 
 }
 
 object KamonMonitoring {
 
-  /** Resource that creates and yields an Akka server, guaranteeing cleanup. */
+  /** Resource that creates and yields monitoring services with Kamon, guaranteeing cleanup. */
   def resource[F[_]: ConcurrentEffect: ContextShift: Timer](
-      akkaServerResource: Resource[F, AkkaServer[F]],
+      akkaServer: AkkaServer[F],
       config: WokenConfiguration
   ): Resource[F, KamonMonitoring[F]] =
-    akkaServerResource.flatMap { akkaServer =>
-      // start a new HTTP server with our service actor as the handler
-      Resource.make(Sync[F].delay(new KamonMonitoring(akkaServer, config)))(_.unbind())
-    }
+    // start a new HTTP server with our service actor as the handler
+    Resource.make(Sync[F].delay(new KamonMonitoring(akkaServer, config)))(_.unbind())
 
 }

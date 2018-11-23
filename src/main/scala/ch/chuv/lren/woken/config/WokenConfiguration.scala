@@ -48,7 +48,7 @@ case class WokenConfiguration(config: Config) {
 
 object WokenConfiguration {
 
-  /** Load the standard configuration for Woken, using hard-coded defaults and configuration files.
+  /** Loads the standard configuration for Woken, using hard-coded defaults and configuration files.
     *
     * Order of loading:
     *
@@ -59,7 +59,7 @@ object WokenConfiguration {
     * 5. Default configuration for the algorithm library, it can be overriden in application.conf or individual versions
     *    for algorithms can be overriden by environment variables
     *
-    * @return
+    * @return an IO of WokenConfiguration as access to filesystem is required
     */
   def apply(): IO[WokenConfiguration] = Sync[IO].delay {
 

@@ -67,16 +67,14 @@ object WebServer extends LazyLogging {
 
   /** Resource that creates and yields a web server, guaranteeing cleanup. */
   def resource[F[_]: ConcurrentEffect: ContextShift: Timer](
-      akkaServerResource: Resource[F, AkkaServer[F]],
+      akkaServer: AkkaServer[F],
       config: WokenConfiguration
   ): Resource[F, WebServer[F]] = {
 
     logger.info(s"Start web server on port ${config.app.webServicesPort}")
 
-    akkaServerResource.flatMap { akkaServer =>
-      // start a new HTTP server with our service actor as the handler
-      Resource.make(Sync[F].delay(new WebServer(akkaServer, config)))(_.unbind())
-    }
+    // start a new HTTP server with our service actor as the handler
+    Resource.make(Sync[F].delay(new WebServer(akkaServer, config)))(_.unbind())
 
   }
 }

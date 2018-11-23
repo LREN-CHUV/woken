@@ -19,6 +19,7 @@ package ch.chuv.lren.woken.api
 
 import akka.actor._
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
+import akka.http.scaladsl.model.StatusCode
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.unmarshalling.PredefinedFromStringUnmarshallers._
 import akka.http.scaladsl.model.StatusCodes._
@@ -76,19 +77,20 @@ class MetadataWebService(
       listDatasetsFlow,
       get {
         operationName("listDatasets", Map("requestType" -> "http-get")) {
-          parameters('table.?) { table =>
-            complete {
-              (masterRouter ? DatasetsQuery(table))
-                .mapTo[DatasetsResponse]
-                .map { datasetResponse =>
-                  OK -> datasetResponse.datasets.toJson
-                }
-                .recoverWith {
-                  case e =>
-                    logger.error(s"Cannot list datasets for table $table", e)
-                    Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
-                }
-            }
+          parameters('table.?) {
+            table =>
+              complete {
+                (masterRouter ? DatasetsQuery(table))
+                  .mapTo[DatasetsResponse]
+                  .map[(StatusCode, JsValue)] { datasetResponse =>
+                    OK -> datasetResponse.datasets.toJson
+                  }
+                  .recoverWith[(StatusCode, JsValue)] {
+                    case e =>
+                      logger.error(s"Cannot list datasets for table $table", e)
+                      Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
+                  }
+              }
           }
         }
       }
@@ -106,12 +108,12 @@ class MetadataWebService(
             complete {
               (masterRouter ? VariablesForDatasetsQuery(datasets = datasetIds, exhaustive = true))
                 .mapTo[VariablesForDatasetsResponse]
-                .map {
+                .map[(StatusCode, JsValue)] {
                   case variablesResponse if variablesResponse.error.nonEmpty =>
                     BadRequest -> variablesResponse.toJson
                   case variablesResponse => OK -> variablesResponse.toJson
                 }
-                .recoverWith {
+                .recoverWith[(StatusCode, JsValue)] {
                   case e =>
                     logger.error(s"Cannot list variables for datasets ${datasets.mkString(",")}", e)
                     Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
