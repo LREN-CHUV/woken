@@ -34,7 +34,7 @@ import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.language.postfixOps
+import scala.language.{ higherKinds, postfixOps }
 
 object MetadataQueriesActor extends LazyLogging {
 

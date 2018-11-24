@@ -35,13 +35,13 @@ import ch.chuv.lren.woken.messages.query.AlgorithmSpec
 import ch.chuv.lren.woken.messages.validation._
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
 import ch.chuv.lren.woken.service.FeaturesService
-import ch.chuv.lren.woken.fp.runNow
+import ch.chuv.lren.woken.core.fp.runNow
 import com.typesafe.scalalogging.LazyLogging
 import spray.json._
 
 import scala.concurrent.duration._
 import scala.concurrent.{ ExecutionContext, Future }
-import scala.language.postfixOps
+import scala.language.{ higherKinds, postfixOps }
 
 object ValidationFlow {
 

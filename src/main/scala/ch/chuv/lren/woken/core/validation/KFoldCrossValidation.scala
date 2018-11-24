@@ -20,7 +20,7 @@ package ch.chuv.lren.woken.core.validation
 import cats.effect.Effect
 import ch.chuv.lren.woken.core.features.{ FeaturesQuery, QueryOffset, Sampling }
 import ch.chuv.lren.woken.service.FeaturesService
-import ch.chuv.lren.woken.fp.runNow
+import ch.chuv.lren.woken.core.fp.runNow
 import com.typesafe.scalalogging.LazyLogging
 import spray.json.{ JsValue, _ }
 

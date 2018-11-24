@@ -22,7 +22,7 @@ import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model.TableColumn
 import ch.chuv.lren.woken.dao.{ FeaturesRepository, FeaturesTableRepository }
 import ch.chuv.lren.woken.messages.datasets.DatasetId
-import ch.chuv.lren.woken.fp.runNow
+import ch.chuv.lren.woken.core.fp.runNow
 import spray.json.JsObject
 
 import scala.collection.mutable

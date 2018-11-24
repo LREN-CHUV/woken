@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.json
+package ch.chuv.lren.woken.core.json
 
 import spray.json.{ JsArray, JsBoolean, JsNull, JsNumber, JsObject, JsString, JsValue }
 import org.yaml.snakeyaml.{ Yaml => YamlParser }
@@ -27,7 +27,7 @@ object yaml {
   /**
     * Takes a YAML string and maps it to a Spray JSON AST
     */
-  val yaml2Json: (Yaml) => JsValue = load _ andThen asSprayJSON
+  val yaml2Json: Yaml => JsValue = load _ andThen asSprayJSON
 
   private def load(input: Yaml): AnyRef = new YamlParser().load(input.yaml)
 

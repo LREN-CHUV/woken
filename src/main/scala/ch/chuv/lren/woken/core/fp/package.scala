@@ -15,29 +15,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.fp
+package ch.chuv.lren.woken.core
 
-import cats.Applicative
-import cats.implicits._
+import cats.effect.Effect
 
 import scala.language.higherKinds
 
-object Traverse {
+package object fp {
 
-  def traverse[F[_]: Applicative, A, B](values: List[A])(func: A => F[B]): F[List[B]] =
-    values.foldLeft(List.empty[B].pure[F]) { (accum, host) =>
-      (accum, func(host)).mapN(_ :+ _)
-    }
+  import acyclic.pkg
 
-  def sequence[F[_]: Applicative, B](fs: List[F[B]]): F[List[B]] =
-    traverse(fs)(identity)
-
-  def traverse[F[_]: Applicative, A, B](values: Set[A])(func: A => F[B]): F[Set[B]] =
-    values.foldLeft(Set.empty[B].pure[F]) { (accum, host) =>
-      (accum, func(host)).mapN(_ + _)
-    }
-
-  def sequence[F[_]: Applicative, B](fs: Set[F[B]]): F[Set[B]] =
-    traverse(fs)(identity)
+  def runNow[F[_]: Effect, M](m: F[M]): M = Effect[F].toIO(m).unsafeRunSync()
 
 }

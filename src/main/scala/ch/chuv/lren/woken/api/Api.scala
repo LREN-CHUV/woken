@@ -21,6 +21,7 @@ import akka.actor.ActorSystem
 import ch.chuv.lren.woken.core.Core
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
+import akka.stream.ActorMaterializer
 import ch.chuv.lren.woken.api.swagger.SwaggerService
 import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
@@ -40,7 +41,8 @@ trait Api extends LazyLogging {
   def config: WokenConfiguration
 
   def routes: Route = {
-    implicit val system: ActorSystem = core.system
+    implicit val system: ActorSystem             = core.system
+    implicit val materializer: ActorMaterializer = core.actorMaterializer
 
     val miningService =
       new MiningWebService(

@@ -39,7 +39,7 @@ import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.language.postfixOps
+import scala.language.{ higherKinds, postfixOps }
 import scala.util.{ Failure, Success }
 import spray.json._
 

@@ -26,7 +26,7 @@ import cats.data.Validated._
 import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
 import com.typesafe.config.Config
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
-import ch.chuv.lren.woken.fp.Traverse
+import ch.chuv.lren.woken.core.fp.Traverse
 import ch.chuv.lren.woken.messages.variables.SqlType
 
 import scala.language.higherKinds

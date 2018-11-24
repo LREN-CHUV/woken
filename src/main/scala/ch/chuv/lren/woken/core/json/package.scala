@@ -15,25 +15,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.json
+package ch.chuv.lren.woken.core
 
-import java.time.{ LocalDateTime, OffsetDateTime, ZoneOffset }
+package object json {
 
-import spray.json.{ JsNumber, JsValue, RootJsonFormat, deserializationError }
-
-object formats {
-
-  implicit object OffsetDateTimeJsonFormat extends RootJsonFormat[OffsetDateTime] {
-    override def write(x: OffsetDateTime): JsNumber = {
-      require(x ne null)
-      JsNumber(x.toEpochSecond)
-    }
-    override def read(value: JsValue): OffsetDateTime = value match {
-      case JsNumber(x) =>
-        OffsetDateTime.of(LocalDateTime.ofEpochSecond(x.toLong, 0, ZoneOffset.UTC), ZoneOffset.UTC)
-      case unknown =>
-        deserializationError(s"Expected OffsetDateTime as JsNumber, but got $unknown")
-    }
-  }
+  import acyclic.pkg
 
 }

@@ -20,7 +20,7 @@ package ch.chuv.lren.woken.config
 import akka.http.scaladsl.model.Uri
 import com.typesafe.config.Config
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
-import ch.chuv.lren.woken.fp.Traverse
+import ch.chuv.lren.woken.core.fp.Traverse
 import ch.chuv.lren.woken.messages.datasets.{ AnonymisationLevel, Dataset, DatasetId }
 import cats.data.Validated._
 import cats.implicits._

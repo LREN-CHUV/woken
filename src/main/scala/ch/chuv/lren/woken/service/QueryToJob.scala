@@ -32,7 +32,7 @@ import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.{ Validation, lift }
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
-import ch.chuv.lren.woken.fp.runNow
+import ch.chuv.lren.woken.core.fp.runNow
 import com.typesafe.scalalogging.LazyLogging
 import shapeless.{ ::, HNil }
 

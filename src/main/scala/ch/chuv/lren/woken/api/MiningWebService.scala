@@ -44,7 +44,7 @@ class MiningWebService(
     val masterRouter: ActorRef,
     override val appConfiguration: AppConfiguration,
     val jobsConf: JobsConfiguration
-)(implicit system: ActorSystem)
+)(implicit val system: ActorSystem, implicit val materializer: ActorMaterializer)
     extends MiningServiceApi
     with FailureHandling
     with DefaultJsonProtocol
@@ -55,7 +55,6 @@ class MiningWebService(
     with TracingDirectives
     with LazyLogging {
 
-  implicit val materializer: ActorMaterializer    = ActorMaterializer()
   implicit val executionContext: ExecutionContext = system.dispatcher
   implicit val timeout: Timeout                   = Timeout(180.seconds)
 

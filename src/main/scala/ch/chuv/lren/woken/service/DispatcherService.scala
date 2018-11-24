@@ -21,7 +21,7 @@ import akka.NotUsed
 import akka.stream.{ FlowShape, OverflowStrategy }
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Merge, Source }
 import cats.effect.Effect
-import ch.chuv.lren.woken.fp._
+import ch.chuv.lren.woken.core.fp._
 import ch.chuv.lren.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import cats.implicits.catsStdInstancesForOption
