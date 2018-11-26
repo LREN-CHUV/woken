@@ -39,6 +39,7 @@ trait CrossValidation {
   * @param labels The labels used as the source of ground truth
   * @param foldCount Number of folds
   * @see https://en.wikipedia.org/wiki/Cross-validation_(statistics)#k-fold_cross-validation
+  * @see https://machinelearningmastery.com/k-fold-cross-validation/
   */
 // TODO: list of features or even labels may be loaded from Woken-validation, here we should just
 // generate the SQL queries to access those parts of the dataset

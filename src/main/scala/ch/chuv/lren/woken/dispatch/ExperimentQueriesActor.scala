@@ -160,7 +160,7 @@ class ExperimentQueriesActor[F[_]: Effect](
         logger.info(s"Local experiment for query $query")
         startExperimentJob(job, initiator)
 
-      // Execution of the experiment from the central server using one remote node
+      // Offload execution of the experiment from the central server to a remote worker node
       case (remoteLocations, false) if remoteLocations.size == 1 =>
         logger.info(s"Remote experiment on a single node $remoteLocations for query $query")
         mapFlow(job.query, job.algorithms)
@@ -175,7 +175,8 @@ class ExperimentQueriesActor[F[_]: Effect](
           .failed
           .foreach(reportError(query, initiator))
 
-      // Execution of the experiment from the central server in a distributed mode
+      // Dispatch the experiment from the central server to all remote worker nodes
+      // TODO: support also mixing local execution with remote executions
       case (remoteLocations, _) =>
         logger.info(s"Remote experiment on nodes $remoteLocations for query $query")
         val queriesByStepExecution: Map[ExecutionStyle.Value, ExperimentQuery] =
