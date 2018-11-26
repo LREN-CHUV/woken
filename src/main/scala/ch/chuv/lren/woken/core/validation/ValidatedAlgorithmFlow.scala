@@ -27,7 +27,8 @@ import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Zip }
 import cats.effect.Effect
 import ch.chuv.lren.woken.config.JobsConfiguration
 import ch.chuv.lren.woken.core.CoordinatorActor
-import ch.chuv.lren.woken.core.model._
+import ch.chuv.lren.woken.core.model.AlgorithmDefinition
+import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.validation.Score

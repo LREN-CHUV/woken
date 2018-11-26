@@ -21,12 +21,8 @@ import akka.NotUsed
 import akka.actor.ActorContext
 import akka.stream._
 import akka.stream.scaladsl.{ Flow, Sink, Source }
-import ch.chuv.lren.woken.core.model.{
-  AlgorithmDefinition,
-  ExperimentJobResult,
-  PfaJobResult,
-  ValidationJob
-}
+import ch.chuv.lren.woken.core.model.AlgorithmDefinition
+import ch.chuv.lren.woken.core.model.jobs.{ ExperimentJobResult, PfaJobResult, ValidationJob }
 import ch.chuv.lren.woken.messages.APIJsonProtocol
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.validation.Score

@@ -29,7 +29,7 @@ import cats.effect.Effect
 import cats.implicits._
 import ch.chuv.lren.woken.core.CoordinatorActor
 import ch.chuv.lren.woken.core.features.Queries._
-import ch.chuv.lren.woken.core.model.ValidationJob
+import ch.chuv.lren.woken.core.model.jobs.ValidationJob
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query.AlgorithmSpec
 import ch.chuv.lren.woken.messages.validation._

@@ -17,8 +17,8 @@
 
 package ch.chuv.lren.woken.service
 
-import cats.effect.{ Effect, IO }
-import ch.chuv.lren.woken.core.model.JobResult
+import cats.effect.Effect
+import ch.chuv.lren.woken.core.model.jobs.JobResult
 import ch.chuv.lren.woken.dao.JobResultRepository
 
 import scala.language.higherKinds

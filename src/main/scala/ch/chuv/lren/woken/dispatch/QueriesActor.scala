@@ -24,7 +24,7 @@ import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import ch.chuv.lren.woken.core.CoordinatorConfig
-import ch.chuv.lren.woken.core.model.{ ErrorJobResult, ExperimentJobResult, JobResult }
+import ch.chuv.lren.woken.core.model.jobs.{ ErrorJobResult, ExperimentJobResult, JobResult }
 import ch.chuv.lren.woken.messages.query._
 import com.typesafe.scalalogging.LazyLogging
 

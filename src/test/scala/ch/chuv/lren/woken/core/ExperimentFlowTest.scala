@@ -26,7 +26,7 @@ import akka.stream.testkit.scaladsl.TestSink
 import akka.testkit.{ TestKit, TestProbe }
 import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.config.AlgorithmsConfiguration
-import ch.chuv.lren.woken.core.model.{ ErrorJobResult, JobResult, PfaJobResult }
+import ch.chuv.lren.woken.core.model.jobs.{ ErrorJobResult, JobResult, PfaJobResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.{ Validation, lift }
 import ch.chuv.lren.woken.messages.datasets.{ Dataset, DatasetId }

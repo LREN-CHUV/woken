@@ -15,11 +15,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.core.model
+package ch.chuv.lren.woken.core.model.jobs
+
+import ch.chuv.lren.woken.messages.query.MiningQuery
+import ch.chuv.lren.woken.messages.variables.VariableMetaData
 
 /**
-  * Some job to complete in Woken.
-  *
-  * Jobs are issued by an external command, either a user action or another Woken process calling this server.
+  * A validation job will trigger validation of a PFA model
   */
-trait Job
+case class ValidationJob(
+    jobId: String,
+    inputDb: String,
+    inputTable: String,
+    query: MiningQuery,
+    metadata: List[VariableMetaData]
+) extends Job
+
+object ValidationJob {
+  val algorithmCode = "_validation_"
+}

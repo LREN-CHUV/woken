@@ -27,7 +27,7 @@ import akka.stream.scaladsl.{ Flow, Sink, Source }
 import cats.effect.Effect
 import ch.chuv.lren.woken.core._
 import ch.chuv.lren.woken.core.commands.JobCommands.StartCoordinatorJob
-import ch.chuv.lren.woken.core.model._
+import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.core.validation.ValidationFlow
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query._

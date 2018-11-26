@@ -19,7 +19,7 @@ package ch.chuv.lren.woken.core.commands
 
 import akka.actor.ActorRef
 import ch.chuv.lren.woken.core.ExperimentActor.Job
-import ch.chuv.lren.woken.core.model.DockerJob
+import ch.chuv.lren.woken.core.model.jobs.DockerJob
 
 object JobCommands {
 

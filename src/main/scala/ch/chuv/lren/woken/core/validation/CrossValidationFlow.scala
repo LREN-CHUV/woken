@@ -31,12 +31,8 @@ import cats.effect.Effect
 import cats.implicits._
 import ch.chuv.lren.woken.core.features.QueryOffset
 import ch.chuv.lren.woken.core.CoordinatorActor
-import ch.chuv.lren.woken.core.model.{
-  AlgorithmDefinition,
-  DockerJob,
-  ErrorJobResult,
-  PfaJobResult
-}
+import ch.chuv.lren.woken.core.model.AlgorithmDefinition
+import ch.chuv.lren.woken.core.model.jobs.{ DockerJob, ErrorJobResult, PfaJobResult }
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query.{ MiningQuery, ValidationSpec }

@@ -20,7 +20,7 @@ package ch.chuv.lren.woken.core
 import java.time.OffsetDateTime
 
 import akka.actor.{ Actor, PoisonPill }
-import ch.chuv.lren.woken.core.model.ExperimentJobResult
+import ch.chuv.lren.woken.core.model.jobs.ExperimentJobResult
 import ExperimentActor._
 import ch.chuv.lren.woken.core.commands.JobCommands
 

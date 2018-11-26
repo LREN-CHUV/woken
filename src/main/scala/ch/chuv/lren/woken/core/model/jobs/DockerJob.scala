@@ -15,14 +15,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.core.model
-
+package ch.chuv.lren.woken.core.model.jobs
 import ch.chuv.lren.woken.core.features.FeaturesQuery
-import ch.chuv.lren.woken.messages.query._
-import ch.chuv.lren.woken.messages.variables.{ VariableMetaData, variablesProtocol }
+import ch.chuv.lren.woken.core.model.AlgorithmDefinition
+import ch.chuv.lren.woken.messages.query.{ AlgorithmSpec, Compute, ExecutionStep }
+import ch.chuv.lren.woken.messages.variables.VariableMetaData
+import ch.chuv.lren.woken.messages.variables.variablesProtocol._
 import com.typesafe.scalalogging.LazyLogging
+
 import spray.json._
-import variablesProtocol._
 
 /**
   * Definition of a computation using an algorithm packaged as a Docker container.

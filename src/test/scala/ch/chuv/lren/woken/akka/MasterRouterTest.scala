@@ -40,7 +40,7 @@ import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import org.scalatest.tagobjects.Slow
 import cats.data.Validated._
 import cats.effect.IO
-import ch.chuv.lren.woken.core.model.DockerJob
+import ch.chuv.lren.woken.core.model.jobs.DockerJob
 import ch.chuv.lren.woken.messages.remoting.RemoteLocation
 
 import scala.concurrent.duration._

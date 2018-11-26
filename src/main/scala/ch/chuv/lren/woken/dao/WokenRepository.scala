@@ -19,7 +19,7 @@ package ch.chuv.lren.woken.dao
 
 import cats._
 import cats.implicits._
-import ch.chuv.lren.woken.core.model.JobResult
+import ch.chuv.lren.woken.core.model.jobs.JobResult
 
 import scala.collection.concurrent.TrieMap
 import scala.language.higherKinds

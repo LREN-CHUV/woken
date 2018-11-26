@@ -23,7 +23,7 @@ import ch.chuv.lren.woken.messages.query.filters.{ InputType, Operator, SingleFi
 import ch.chuv.lren.woken.messages.variables.{ VariableId, VariableMetaData, VariableType }
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.features.Queries._
-import ch.chuv.lren.woken.core.model.DockerJob
+import ch.chuv.lren.woken.core.model.jobs.DockerJob
 import org.scalatest.{ FlatSpec, Matchers }
 import cats.data.ValidatedNel
 import cats.syntax.validated._

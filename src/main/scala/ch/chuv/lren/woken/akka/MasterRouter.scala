@@ -22,7 +22,8 @@ import akka.stream.ActorMaterializer
 import cats.effect.Effect
 import ch.chuv.lren.woken.config.AppConfiguration
 import ch.chuv.lren.woken.core._
-import ch.chuv.lren.woken.core.model.{ AlgorithmDefinition, Job }
+import ch.chuv.lren.woken.core.model.AlgorithmDefinition
+import ch.chuv.lren.woken.core.model.jobs.Job
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.dispatch.{
   ExperimentQueriesActor,

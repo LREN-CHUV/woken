@@ -15,14 +15,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.core.model
+package ch.chuv.lren.woken.core.model.jobs
 
 import java.time.OffsetDateTime
 import java.util.Base64
 
 import ch.chuv.lren.woken.messages.query._
 import Shapes.{ pfa => pfaShape, _ }
-import ch.chuv.lren.woken.core.model.PfaJobResult.ValidationResults
+import ch.chuv.lren.woken.core.model.jobs.PfaJobResult.ValidationResults
 import ch.chuv.lren.woken.messages.validation.Score
 import ch.chuv.lren.woken.messages.APIJsonProtocol
 import spray.json._

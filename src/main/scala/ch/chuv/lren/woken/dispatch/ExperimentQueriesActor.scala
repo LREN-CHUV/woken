@@ -27,12 +27,8 @@ import akka.stream.scaladsl.{ Flow, Sink, Source }
 import cats.effect.Effect
 import ch.chuv.lren.woken.core._
 import ch.chuv.lren.woken.core.commands.JobCommands.StartExperimentJob
-import ch.chuv.lren.woken.core.model.{
-  AlgorithmDefinition,
-  ErrorJobResult,
-  ExperimentJobResult,
-  JobResult
-}
+import ch.chuv.lren.woken.core.model.AlgorithmDefinition
+import ch.chuv.lren.woken.core.model.jobs.{ ErrorJobResult, ExperimentJobResult, JobResult }
 import ch.chuv.lren.woken.core.validation.RemoteValidationFlow
 import ch.chuv.lren.woken.core.validation.RemoteValidationFlow.ValidationContext
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation

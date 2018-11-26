@@ -30,7 +30,7 @@ import ch.chuv.lren.woken.backends.chronos.ChronosService
 import ch.chuv.lren.woken.backends.chronos.{ ChronosJob, JobToChronos }
 import ch.chuv.lren.woken.config.{ DatabaseConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.core.commands.JobCommands.StartCoordinatorJob
-import ch.chuv.lren.woken.core.model.{ DockerJob, ErrorJobResult, JobResult }
+import ch.chuv.lren.woken.core.model.jobs.{ DockerJob, ErrorJobResult, JobResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.fp.runNow
 import ch.chuv.lren.woken.service.{ FeaturesService, JobResultService }

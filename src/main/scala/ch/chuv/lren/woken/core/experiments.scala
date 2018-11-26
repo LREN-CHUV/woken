@@ -32,7 +32,8 @@ import scala.concurrent.ExecutionContext
 import scala.util.{ Failure, Success }
 import ch.chuv.lren.woken.core.commands.JobCommands.StartExperimentJob
 import ch.chuv.lren.woken.config.JobsConfiguration
-import ch.chuv.lren.woken.core.model._
+import ch.chuv.lren.woken.core.model.AlgorithmDefinition
+import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.service.{ DispatcherService, FeaturesService }
 import com.typesafe.scalalogging.LazyLogging
@@ -52,7 +53,7 @@ object ExperimentActor {
       query: ExperimentQuery,
       algorithms: Map[AlgorithmSpec, AlgorithmDefinition],
       metadata: List[VariableMetaData]
-  ) extends model.Job {
+  ) extends model.jobs.Job {
 
     def definitionOf(algorithm: AlgorithmSpec): AlgorithmDefinition =
       algorithms.getOrElse(algorithm,
