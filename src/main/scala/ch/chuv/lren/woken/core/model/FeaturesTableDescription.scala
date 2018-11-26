@@ -35,6 +35,8 @@ case class TableColumn(name: String, sqlType: SqlType) {
 
 }
 
+// TODO: shouldn't the seed be moved into the query?
+
 /**
   * Description of a table containing features.
   *

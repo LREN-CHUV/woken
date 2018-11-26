@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.core.monitoring
+package ch.chuv.lren.woken.akka.monitoring
 
 import akka.actor.{ Actor, DeadLetter, Props }
 import com.typesafe.scalalogging.LazyLogging

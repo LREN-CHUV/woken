@@ -23,8 +23,27 @@ import cats.data.Validated._
 import cats.implicits._
 import ch.chuv.lren.woken.messages.remoting.BasicAuthentication
 
+/** Configuration for the router handling incoming web service requests
+  *
+  * @param miningActorsLimit Parallelism for mining queries
+  * @param experimentActorsLimit Parallelism for experiments
+  */
 case class MasterRouterConfig(miningActorsLimit: Int, experimentActorsLimit: Int)
 
+// TODO: review use of the following configuration elements: disableWorkers, jobServiceName
+
+/** Configuration for the application
+  *
+  * @param clusterSystemName Name of the Akka cluster
+  * @param dockerBridgeNetwork If Docker bridge networking is used, name of the bridge - to be used when spanning Docker containers
+  * @param networkInterface Network interface to listen to for the web API.
+  * @param webServicesPort Port used to expose services of the web API.
+  * @param webServicesHttps If true, setup https for the web API.
+  * @param disableWorkers If true, disable or ignore worker processes in the cluster (companion Woken validation processes)
+  * @param jobServiceName
+  * @param basicAuth Authentication credentials for external access to Woken Web API
+  * @param masterRouterConfig Configuration for the router handling incoming queries
+  */
 case class AppConfiguration(
     clusterSystemName: String,
     dockerBridgeNetwork: Option[String],
@@ -39,6 +58,7 @@ case class AppConfiguration(
 
 object AppConfiguration {
 
+  @SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
   def read(config: Config, path: List[String] = List("app")): Validation[AppConfiguration] = {
     val appConfig = config.validateConfig(path.mkString("."))
 

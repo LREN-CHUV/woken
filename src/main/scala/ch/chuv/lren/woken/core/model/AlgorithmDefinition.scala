@@ -19,6 +19,12 @@ package ch.chuv.lren.woken.core.model
 
 import ch.chuv.lren.woken.messages.query.ExecutionPlan
 
+/** Engine to use when executing the algorithm.
+  *
+  * Values are:
+  * - Docker
+  * - Validation
+  */
 object AlgorithmEngine extends Enumeration {
   type AlgorithmEngine = Value
 
@@ -28,6 +34,16 @@ object AlgorithmEngine extends Enumeration {
 
 import AlgorithmEngine.AlgorithmEngine
 
+/** Definition of an algorithm, including its capabilities and runtime behaviour.
+  *
+  * @param code Code identifying the algorithm
+  * @param dockerImage Name of the Docker image, including its version number
+  * @param predictive Is the algorithm predictive?
+  * @param variablesCanBeNull Can the target variables be null? Useful for supervised learning type of algorithms.
+  * @param covariablesCanBeNull Can the independant variables be null?
+  * @param engine Engine for the execution of the algorithm. Values are Docker, Validation
+  * @param distributedExecutionPlan Execution plan to use when running the algorithm in a distributed mode.
+  */
 case class AlgorithmDefinition(code: String,
                                dockerImage: String,
                                predictive: Boolean,

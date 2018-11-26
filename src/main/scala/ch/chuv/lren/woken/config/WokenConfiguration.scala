@@ -21,6 +21,10 @@ import cats.effect.{ IO, Sync }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import com.typesafe.config.{ Config, ConfigFactory }
 
+/** Global configuration of Woken
+  *
+  * @param config The user configuration at the source of this object
+  */
 case class WokenConfiguration(config: Config) {
 
   val app: AppConfiguration = AppConfiguration

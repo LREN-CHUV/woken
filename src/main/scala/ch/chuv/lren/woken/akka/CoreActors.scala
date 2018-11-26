@@ -20,10 +20,10 @@ package ch.chuv.lren.woken.akka
 import akka.actor.{ ActorRef, DeadLetter }
 import akka.pattern.{ Backoff, BackoffSupervisor }
 import akka.stream.{ ActorMaterializer, ActorMaterializerSettings, Supervision }
+import ch.chuv.lren.woken.akka.monitoring.DeadLetterMonitorActor
 import ch.chuv.lren.woken.backends.chronos.ChronosThrottler
 import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.core.Core
-import ch.chuv.lren.woken.core.monitoring.DeadLetterMonitorActor
 import com.typesafe.scalalogging.Logger
 
 import scala.concurrent.ExecutionContextExecutor
