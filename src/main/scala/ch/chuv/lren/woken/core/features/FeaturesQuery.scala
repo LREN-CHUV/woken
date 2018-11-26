@@ -24,6 +24,7 @@ import ch.chuv.lren.woken.messages.variables.SqlType
 
 sealed trait Sampling
 
+// TODO: is that used?
 case class LeaveOutPartition(folds: Integer, excludeFold: Integer, orderColumn: Option[TableColumn])
     extends Sampling {
   assert(excludeFold < folds)

@@ -17,6 +17,7 @@
 
 package ch.chuv.lren.woken
 import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
+import ch.chuv.lren.woken.messages.variables.SqlType.SqlType
 import doobie.Fragment
 
 package object dao {
@@ -27,8 +28,38 @@ package object dao {
     * Internal utilities
     */
   private[dao] object utils {
-    def frc(table: FeaturesTableDescription): Fragment = Fragment.const(table.quotedName)
-    def frc(col: TableColumn): Fragment                = Fragment.const(col.quotedName)
+    def frName(table: FeaturesTableDescription): Fragment = Fragment.const(table.quotedName)
+    def frName(col: TableColumn): Fragment                = Fragment.const(col.quotedName)
+    def frType(col: TableColumn): Fragment                = Fragment.const(toSql(col.sqlType))
+    def frConst(d: Double): Fragment                      = Fragment.const(d.toString)
+
+    def frNames(cols: List[TableColumn]): Fragment =
+      Fragment.const(cols.map(_.quotedName).mkString(","))
+
+    def frQualifiedName(table: FeaturesTableDescription, col: TableColumn): Fragment =
+      Fragment.const(s"""${table.quotedName}.${col.quotedName}""")
+    def frQualifiedNames(table: FeaturesTableDescription, cols: List[TableColumn]): Fragment =
+      Fragment.const(cols.map(col => s"""${table.quotedName}.${col.quotedName}""").mkString(","))
+
+    def frNameType(col: TableColumn): Fragment =
+      Fragment.const(s"${col.quotedName} ${toSql(col.sqlType)}")
+    def frNameType(cols: List[TableColumn]): Fragment =
+      Fragment.const(
+        cols
+          .map { f =>
+            s"${f.quotedName} ${toSql(f.sqlType)}"
+          }
+          .mkString(",")
+      )
+
+    import ch.chuv.lren.woken.messages.variables.{ SqlType => SqlT }
+    def toSql(sqlType: SqlType): String = sqlType match {
+      case SqlT.int     => "int"
+      case SqlT.numeric => "number"
+      case SqlT.char    => "char(256)"
+      case SqlT.varchar => "varchar(256)"
+    }
+
   }
 
 }

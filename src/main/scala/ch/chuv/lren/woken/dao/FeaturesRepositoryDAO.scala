@@ -120,7 +120,7 @@ abstract class BaseFeaturesTableRepositoryDAO[F[_]: Monad] extends FeaturesTable
   def xa: Transactor[F]
 
   override def count: F[Int] = {
-    val q: Fragment = fr"SELECT count(*) FROM " ++ frc(table)
+    val q: Fragment = fr"SELECT count(*) FROM " ++ frName(table)
     q.query[Int]
       .unique
       .transact(xa)
@@ -131,8 +131,9 @@ abstract class BaseFeaturesTableRepositoryDAO[F[_]: Monad] extends FeaturesTable
       if (dataset.code == table.quotedName || dataset.code == table.name) count
       else 0.pure[F]
     } { datasetColumn =>
-      val q
-        : Fragment = sql"SELECT count(*) FROM " ++ frc(table) ++ fr"WHERE " ++ frc(datasetColumn) ++ fr" = ${dataset.code}"
+      val q: Fragment = sql"SELECT count(*) FROM " ++ frName(table) ++ fr"WHERE " ++ frName(
+        datasetColumn
+      ) ++ fr" = ${dataset.code}"
       q.query[Int]
         .unique
         .transact(xa)
@@ -242,8 +243,8 @@ class DynamicFeaturesTableRepositoryDAO[F[_]: Monad] private (
   override val columns: List[TableColumn]      = viewColumns
 
   def close(): F[Unit] = {
-    val rmView     = fr"DELETE VIEW " ++ frc(view)
-    val rmDynTable = fr"DELETE TABLE " ++ frc(dynTable)
+    val rmView     = fr"DELETE VIEW " ++ frName(view)
+    val rmDynTable = fr"DELETE TABLE " ++ frName(dynTable)
 
     for {
       _ <- rmView.update.run.transact(xa)
@@ -273,9 +274,9 @@ object DynamicFeaturesTableRepositoryDAO {
 
     val validatedDao = extractPk.map { pk =>
       // Work in context F
-      val dynTableF = createDynamicTable(xa, table, pk, newFeatures)
+      val dynTableF = createDynamicTable(xa, table, pk, rndColumn, newFeatures)
       dynTableF.flatMap { dynTable =>
-        val dynViewD = createDynamicView(xa, table, pk, columns, dynTable, newFeatures, rndColumn)
+        val dynViewD = createDynamicView(xa, table, pk, columns, dynTable, rndColumn, newFeatures)
         dynViewD.map {
           case (dynView, dynColumns) =>
             new DynamicFeaturesTableRepositoryDAO(xa,
@@ -297,6 +298,7 @@ object DynamicFeaturesTableRepositoryDAO {
       xa: Transactor[F],
       table: FeaturesTableDescription,
       pk: TableColumn,
+      rndColumn: TableColumn,
       newFeatures: List[TableColumn]
   ): F[FeaturesTableDescription] = {
 
@@ -306,41 +308,25 @@ object DynamicFeaturesTableRepositoryDAO {
       SELECT nextval('gen_features_table_seq');
     """.query[Int].unique
 
-    import ch.chuv.lren.woken.messages.variables.{ SqlType => SqlT }
-    def toSql(sqlType: SqlType): String = sqlType match {
-      case SqlT.int     => "int"
-      case SqlT.numeric => "number"
-      case SqlT.char    => "char(256)"
-      case SqlT.varchar => "varchar(256)"
-    }
-
     def createAdditionalFeaturesTable(dynTable: FeaturesTableDescription,
                                       pk: TableColumn): ConnectionIO[Int] = {
-      val stmt = fr"CREATE TABLE " ++ frc(dynTable) ++ fr"(" ++
-        frc(pk) ++ Fragment.const(toSql(pk.sqlType)) ++ fr"""NOT NULL,
-      (
-        _rnd_ int,
-      """ ++ Fragment.const(
-        newFeatures
-          .map { f =>
-            s"${f.name} ${toSql(f.sqlType)}"
-          }
-          .mkString(",")
-      ) ++
-        fr"CONSTRAINT pk_" ++ frc(dynTable) ++ fr"PRIMARY KEY (" ++ frc(pk) ++ fr""")
-      )
-      WITH (
-        OIDS=FALSE
-      );
+      val stmt = fr"CREATE TABLE " ++ frName(dynTable) ++ fr"(" ++ frName(pk) ++ frType(pk) ++ fr"""NOT NULL,
+       (""" ++
+        frNameType(newFeatures :+ rndColumn) ++
+        fr" CONSTRAINT pk_" ++ frName(dynTable) ++ fr" PRIMARY KEY (" ++ frName(pk) ++ fr""")
+       )
+       WITH (
+         OIDS=FALSE
+       );
       """
       stmt.update.run
     }
 
     def fillAdditionalFeaturesTable(dynTable: FeaturesTableDescription,
                                     pk: TableColumn): ConnectionIO[Int] = {
-      val stmt = fr"SELECT setseed(" ++ Fragment.const(table.seed.toString) ++ fr"); INSERT INTO " ++
-        frc(dynTable) ++ fr"(" ++ frc(pk) ++ fr", _rnd_) SELECT " ++
-        frc(pk) ++ fr", floor(random() * 2147483647)::int FROM " ++ frc(table)
+      val stmt = fr"SELECT setseed(" ++ frConst(table.seed) ++ fr"); INSERT INTO " ++
+        frName(dynTable) ++ fr"(" ++ frNames(List(pk, rndColumn)) ++ fr") SELECT " ++ frName(pk) ++
+        fr", floor(random() * 2147483647)::int FROM " ++ frName(table)
       stmt.update.run
     }
 
@@ -359,12 +345,9 @@ object DynamicFeaturesTableRepositoryDAO {
       pk: TableColumn,
       tableColumns: List[TableColumn],
       dynTable: FeaturesTableDescription,
-      newFeatures: List[TableColumn],
-      rndColumn: TableColumn
+      rndColumn: TableColumn,
+      newFeatures: List[TableColumn]
   ): F[(FeaturesTableDescription, Headers)] = {
-
-    def qualify(table: FeaturesTableDescription, cols: Headers): Fragment =
-      Fragment.const(cols.map(col => s"""${table.quotedName}.${col.quotedName}""").mkString(","))
 
     def createFeaturesView(table: FeaturesTableDescription,
                            pk: TableColumn,
@@ -374,12 +357,12 @@ object DynamicFeaturesTableRepositoryDAO {
                            dynView: FeaturesTableDescription,
                            dynViewColumns: Headers): ConnectionIO[Int] = {
 
-      val stmt = fr"CREATE OR REPLACE VIEW " ++ frc(dynView) ++
-        Fragment.const(s"(${dynViewColumns.map(_.quotedName).mkString(",")}) AS SELECT") ++
-        qualify(table, tableColumns) ++ fr"," ++ qualify(dynTable, dynTableColumns) ++ fr" FROM " ++ frc(
-        table
-      ) ++ fr" LEFT OUTER JOIN " ++ frc(dynTable) ++ fr" ON " ++
-        qualify(table, List(pk)) ++ fr" = " ++ qualify(dynTable, List(pk))
+      val stmt = fr"CREATE OR REPLACE VIEW " ++ frName(dynView) ++
+        fr"(" ++ frNames(dynViewColumns) ++ fr") AS SELECT" ++
+        frQualifiedNames(table, tableColumns) ++ fr"," ++
+        frQualifiedNames(dynTable, dynTableColumns) ++ fr" FROM " ++
+        frName(table) ++ fr" LEFT OUTER JOIN " ++ frName(dynTable) ++ fr" ON " ++
+        frQualifiedName(table, pk) ++ fr" = " ++ frQualifiedName(dynTable, pk)
 
       stmt.update.run
     }
