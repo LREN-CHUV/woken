@@ -95,12 +95,12 @@ case class FeaturesQuery(
 
   private def filtersExcludingWindow(excludeWindow: Integer): FilterRule = filters match {
     case None =>
-      excludWindowRule(excludeWindow)
+      excludeWindowRule(excludeWindow)
     case Some(rule) =>
-      CompoundFilterRule(Condition.and, List(rule, excludWindowRule(excludeWindow)))
+      CompoundFilterRule(Condition.and, List(rule, excludeWindowRule(excludeWindow)))
   }
 
-  private def excludWindowRule(excludeWindow: Integer) =
+  private def excludeWindowRule(excludeWindow: Integer) =
     SingleFilterRule("_window_",
                      "_window_",
                      "int",

@@ -16,6 +16,7 @@
  */
 
 package ch.chuv.lren.woken.core.model.jobs
+
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model.AlgorithmDefinition
 import ch.chuv.lren.woken.messages.query.{ AlgorithmSpec, Compute, ExecutionStep }
