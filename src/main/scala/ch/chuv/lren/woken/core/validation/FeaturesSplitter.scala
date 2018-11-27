@@ -19,9 +19,12 @@ package ch.chuv.lren.woken.core.validation
 
 import cats.effect.Effect
 import ch.chuv.lren.woken.core.features.FeaturesQuery
-import ch.chuv.lren.woken.core.model.TableColumn
+import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
+import ch.chuv.lren.woken.dao.utils._
 import ch.chuv.lren.woken.messages.query.ValidationSpec
 import ch.chuv.lren.woken.messages.variables.SqlType
+import doobie._
+import doobie.implicits._
 
 // TODO: support Training-test split for longitudinal datasets
 // https://www.quora.com/Is-it-better-using-training-test-split-or-k-fold-CV-when-we-are-working-with-large-datasets
@@ -32,20 +35,43 @@ trait FeaturesSplitter {
 
 }
 
+trait FeaturesSplitterDefinition {
+
+  def splitColumn: TableColumn
+
+  @SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
+  def fillSplitColumnSql(rndColumn: TableColumn, targetTable: FeaturesTableDescription)(
+      implicit h: LogHandler = LogHandler.nop
+  ): Update0
+
+}
+
 object FeaturesSplitter {
 
-  def defineSplitters(splitters: List[ValidationSpec]): Map[TableColumn, TableColumn => String] =
+  def defineSplitters(splitters: List[ValidationSpec]): List[FeaturesSplitterDefinition] =
     splitters.map { spec =>
       spec.code match {
         case "kfold" => {
           val numFolds = spec.parametersAsMap("k").toInt
-          TableColumn(s"_win_kfold_$numFolds", SqlType.int) -> { rndColumn: TableColumn =>
-            s"ntile($numFolds) over (order by ${rndColumn.quotedName})"
+          new FeaturesSplitterDefinition {
+            override val splitColumn: TableColumn =
+              TableColumn(s"_win_kfold_$numFolds", SqlType.int)
+            @SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
+            override def fillSplitColumnSql(
+                rndColumn: TableColumn,
+                targetTable: FeaturesTableDescription
+            )(implicit h: LogHandler = LogHandler.nop): Update0 = {
+              val winTable = targetTable.copy(name = "win", datasetColumn = None)
+              val stmt = fr"WITH win as (SELECT " ++ frNames(targetTable.primaryKey) ++ fr", ntile(" ++
+                frConst(numFolds) ++ fr") over (order by rnd) as win FROM " ++ frName(targetTable) ++
+                fr") UPDATE cde_features_a_1 SET " ++ frName(splitColumn) ++ fr"= win.win FROM win WHERE " ++
+                frEqual(targetTable, targetTable.primaryKey, winTable, targetTable.primaryKey) ++ fr";"
+              stmt.update
+            }
           }
         }
         case _ => throw new IllegalArgumentException("Not handled")
       }
-
     }
 
   def prepareSplits[F[_]: Effect](splitters: List[ValidationSpec],

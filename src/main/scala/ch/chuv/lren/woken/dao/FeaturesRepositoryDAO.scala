@@ -30,6 +30,7 @@ import ch.chuv.lren.woken.core.model
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
 import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
+import ch.chuv.lren.woken.messages.query.filters.FilterRule
 import ch.chuv.lren.woken.messages.variables.SqlType
 import ch.chuv.lren.woken.messages.variables.SqlType.SqlType
 import doobie.enum.JdbcType
@@ -138,6 +139,19 @@ abstract class BaseFeaturesTableRepositoryDAO[F[_]: Monad] extends FeaturesTable
         .unique
         .transact(xa)
     }
+
+  /**
+    * Number of rows matching the filters.
+    *
+    * @param filters The filters used to filter rows
+    * @return the number of rows in the dataset matching the filters, or the total number of rows if there are no filters
+    */
+  override def count(filters: Option[FilterRule]): F[Int] = {
+    val q: Fragment = fr"SELECT count(*) FROM " ++ frName(table) ++ frWhereFilter(filters)
+    q.query[Int]
+      .unique
+      .transact(xa)
+  }
 
   import FeaturesTableRepositoryDAO.{ prepareHeaders, toJsValue }
 
@@ -259,7 +273,8 @@ object DynamicFeaturesTableRepositoryDAO {
   def apply[F[_]: Effect](
       xa: Transactor[F],
       table: FeaturesTableDescription,
-      columns: List[TableColumn],
+      tableColumns: List[TableColumn],
+      filters: Option[FilterRule],
       newFeatures: List[TableColumn]
   ): Validation[Resource[F, DynamicFeaturesTableRepositoryDAO[F]]] = {
 
@@ -274,9 +289,10 @@ object DynamicFeaturesTableRepositoryDAO {
 
     val validatedDao = extractPk.map { pk =>
       // Work in context F
-      val dynTableF = createDynamicTable(xa, table, pk, rndColumn, newFeatures)
+      val dynTableF = createDynamicTable(xa, table, pk, filters, rndColumn, newFeatures)
       dynTableF.flatMap { dynTable =>
-        val dynViewD = createDynamicView(xa, table, pk, columns, dynTable, rndColumn, newFeatures)
+        val dynViewD =
+          createDynamicView(xa, table, pk, tableColumns, filters, dynTable, rndColumn, newFeatures)
         dynViewD.map {
           case (dynView, dynColumns) =>
             new DynamicFeaturesTableRepositoryDAO(xa,
@@ -298,6 +314,7 @@ object DynamicFeaturesTableRepositoryDAO {
       xa: Transactor[F],
       table: FeaturesTableDescription,
       pk: TableColumn,
+      filters: Option[FilterRule],
       rndColumn: TableColumn,
       newFeatures: List[TableColumn]
   ): F[FeaturesTableDescription] = {
@@ -310,10 +327,9 @@ object DynamicFeaturesTableRepositoryDAO {
 
     def createAdditionalFeaturesTable(dynTable: FeaturesTableDescription,
                                       pk: TableColumn): ConnectionIO[Int] = {
-      val stmt = fr"CREATE TABLE " ++ frName(dynTable) ++ fr"(" ++ frName(pk) ++ frType(pk) ++ fr"""NOT NULL,
-       (""" ++
-        frNameType(newFeatures :+ rndColumn) ++
-        fr" CONSTRAINT pk_" ++ frName(dynTable) ++ fr" PRIMARY KEY (" ++ frName(pk) ++ fr""")
+      val stmt = fr"CREATE TABLE " ++ frName(dynTable) ++ fr"(" ++ frName(pk) ++ frType(pk) ++ fr" PRIMARY KEY," ++
+        frName(rndColumn) ++ fr" SERIAL," ++
+        frNameType(newFeatures :+ rndColumn) ++ fr""")
        )
        WITH (
          OIDS=FALSE
@@ -324,10 +340,19 @@ object DynamicFeaturesTableRepositoryDAO {
 
     def fillAdditionalFeaturesTable(dynTable: FeaturesTableDescription,
                                     pk: TableColumn): ConnectionIO[Int] = {
-      val stmt = fr"SELECT setseed(" ++ frConst(table.seed) ++ fr"); INSERT INTO " ++
-        frName(dynTable) ++ fr"(" ++ frNames(List(pk, rndColumn)) ++ fr") SELECT " ++ frName(pk) ++
-        fr", floor(random() * 2147483647)::int FROM " ++ frName(table)
-      stmt.update.run
+
+      // Sample SQL statements used to build this:
+      // create table cde_features_a_1 (subjectcode text primary key, rnd serial, win_1 int);
+      // insert into cde_features_a_1 (subjectcode) (select subjectcode from cde_features_a where subjectage > 82 order by random());
+      // with win as (select subjectcode, ntile(10) over (order by rnd) as win_1 from cde_features_a_1) update cde_features_a_1 set win_1=win.win_1 from win where cde_features_a_1.subjectcode=win.subjectcode;
+
+      val insertRndStmt = fr"""SELECT setseed(" ++ frConst(table.seed) ++ fr");
+        INSERT INTO """ ++ frName(dynTable) ++ fr"(" ++ frName(rndColumn) ++ fr") (SELECT " ++ frName(
+        pk
+      ) ++ fr" FROM " ++
+        frName(table) ++ frWhereFilter(filters) ++ fr" ORDER BY random());"
+
+      insertRndStmt.update.run
     }
 
     for {
@@ -344,6 +369,7 @@ object DynamicFeaturesTableRepositoryDAO {
       table: FeaturesTableDescription,
       pk: TableColumn,
       tableColumns: List[TableColumn],
+      filters: Option[FilterRule],
       dynTable: FeaturesTableDescription,
       rndColumn: TableColumn,
       newFeatures: List[TableColumn]
@@ -362,7 +388,7 @@ object DynamicFeaturesTableRepositoryDAO {
         frQualifiedNames(table, tableColumns) ++ fr"," ++
         frQualifiedNames(dynTable, dynTableColumns) ++ fr" FROM " ++
         frName(table) ++ fr" LEFT OUTER JOIN " ++ frName(dynTable) ++ fr" ON " ++
-        frQualifiedName(table, pk) ++ fr" = " ++ frQualifiedName(dynTable, pk)
+        frEqual(table, List(pk), dynTable, List(pk))
 
       stmt.update.run
     }

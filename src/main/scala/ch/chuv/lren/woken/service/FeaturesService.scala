@@ -23,6 +23,7 @@ import ch.chuv.lren.woken.core.model.TableColumn
 import ch.chuv.lren.woken.dao.{ FeaturesRepository, FeaturesTableRepository }
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.core.fp.runNow
+import ch.chuv.lren.woken.messages.query.filters.FilterRule
 import spray.json.JsObject
 
 import scala.collection.mutable
@@ -44,6 +45,8 @@ trait FeaturesTableService[F[_]] {
   def count: F[Int]
 
   def count(dataset: DatasetId): F[Int]
+
+  def count(filters: Option[FilterRule]): F[Int]
 
   type Headers = List[TableColumn]
 
@@ -81,6 +84,8 @@ class FeaturesTableServiceImpl[F[_]: Effect](database: String,
   def count: F[Int] = repository.count
 
   def count(dataset: DatasetId): F[Int] = repository.count(dataset)
+
+  def count(filters: Option[FilterRule]): F[Int] = repository.count(filters)
 
   def features(query: FeaturesQuery): F[(Headers, Stream[JsObject])] = repository.features(query)
 

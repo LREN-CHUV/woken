@@ -137,7 +137,7 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
       logger.info(s"List of algorithms: ${algorithms.mkString(",")}")
 
       // XXX
-      job.algorithms.exists { case (_, defn) => defn.predictive}
+      job.algorithms.exists { case (_, defn) => defn.predictive }
 
       val future = Source
         .single(job)

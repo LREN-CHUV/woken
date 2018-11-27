@@ -23,6 +23,7 @@ import ch.chuv.lren.woken.messages.datasets.DatasetId
 import spray.json.JsObject
 import cats._
 import cats.implicits._
+import ch.chuv.lren.woken.messages.query.filters.FilterRule
 
 import scala.collection.concurrent.TrieMap
 import scala.language.higherKinds
@@ -85,6 +86,13 @@ trait FeaturesTableRepository[F[_]] extends Repository {
   def count(dataset: DatasetId): F[Int]
 
   /**
+    * Number of rows matching the filters.
+    * @param filters The filters used to filter rows
+    * @return the number of rows in the dataset matching the filters, or the total number of rows if there are no filters
+    */
+  def count(filters: Option[FilterRule]): F[Int]
+
+  /**
     * @return all headers of the table
     */
   def columns: Headers
@@ -128,6 +136,8 @@ class FeaturesTableInMemoryRepository[F[_]: Applicative] extends FeaturesTableRe
   override def count: F[Int] = 0.pure[F]
 
   override def count(dataset: DatasetId): F[Int] = 0.pure[F]
+
+  override def count(filters: Option[FilterRule]): F[Int] = 0.pure[F]
 
   override def columns: Headers = Nil
 
