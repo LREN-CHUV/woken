@@ -18,20 +18,22 @@
 package ch.chuv.lren.woken.core.validation
 
 import cats.effect.Effect
+import cats.effect.concurrent.Deferred
+import cats.implicits._
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
-import ch.chuv.lren.woken.dao.utils._
+import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query.ValidationSpec
-import ch.chuv.lren.woken.messages.variables.SqlType
-import doobie._
-import doobie.implicits._
+import doobie.{ LogHandler, Update0 }
+
+import scala.language.higherKinds
 
 // TODO: support Training-test split for longitudinal datasets
 // https://www.quora.com/Is-it-better-using-training-test-split-or-k-fold-CV-when-we-are-working-with-large-datasets
 
-trait FeaturesSplitter {
+trait FeaturesSplitter[F[_]] {
 
-  def splitFeatures(query: FeaturesQuery): List[FeaturesQuery]
+  def splitFeatures(query: FeaturesQuery): F[List[FeaturesQuery]]
 
 }
 
@@ -40,50 +42,38 @@ trait FeaturesSplitterDefinition {
   def splitColumn: TableColumn
 
   @SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
-  def fillSplitColumnSql(rndColumn: TableColumn, targetTable: FeaturesTableDescription)(
+  def fillSplitColumnSql(targetTable: FeaturesTableDescription, rndColumn: TableColumn)(
       implicit h: LogHandler = LogHandler.nop
   ): Update0
 
+  def makeSplitter[F[_]: Effect, A](
+      dynTable: Deferred[F, FeaturesTableDescription],
+      dynView: Deferred[F, FeaturesTableDescription]
+  ): FeaturesSplitter[F]
 }
 
 object FeaturesSplitter {
 
-  def defineSplitters(splitters: List[ValidationSpec]): List[FeaturesSplitterDefinition] =
-    splitters.map { spec =>
-      spec.code match {
-        case "kfold" => {
-          val numFolds = spec.parametersAsMap("k").toInt
-          new FeaturesSplitterDefinition {
-            override val splitColumn: TableColumn =
-              TableColumn(s"_win_kfold_$numFolds", SqlType.int)
-            @SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
-            override def fillSplitColumnSql(
-                rndColumn: TableColumn,
-                targetTable: FeaturesTableDescription
-            )(implicit h: LogHandler = LogHandler.nop): Update0 = {
-              val winTable = targetTable.copy(name = "win", datasetColumn = None)
-              val stmt = fr"WITH win as (SELECT " ++ frNames(targetTable.primaryKey) ++ fr", ntile(" ++
-                frConst(numFolds) ++ fr") over (order by rnd) as win FROM " ++ frName(targetTable) ++
-                fr") UPDATE cde_features_a_1 SET " ++ frName(splitColumn) ++ fr"= win.win FROM win WHERE " ++
-                frEqual(targetTable, targetTable.primaryKey, winTable, targetTable.primaryKey) ++ fr";"
-              stmt.update
-            }
-          }
-        }
-        case _ => throw new IllegalArgumentException("Not handled")
-      }
-    }
+  def defineSplitters(
+      splitters: List[ValidationSpec]
+  ): Validation[List[FeaturesSplitterDefinition]] =
+    splitters
+      .map { spec =>
+        spec.code match {
+          case "kfold" =>
+            val numFolds = spec.parametersAsMap("k").toInt
+            KFoldFeaturesSplitter.kFoldSplitterDefinition(numFolds).validNel[String]
 
-  def prepareSplits[F[_]: Effect](splitters: List[ValidationSpec],
-                                  featuresQuery: FeaturesQuery): F[List[FeaturesSplitter]] =
-    splitters.map { spec =>
-      spec.code match {
-        case "kfold" => {
-          new KFoldFeaturesSplitter(spec.parametersAsMap("k").toInt)
+          case other => s"Validation $other is not handled".invalidNel[FeaturesSplitterDefinition]
         }
-        case _ => throw new IllegalArgumentException("Not handled")
       }
+      .sequence[Validation, FeaturesSplitterDefinition]
 
-    }
+  def prepareSplitters[F[_]: Effect](
+      splitterDefs: List[FeaturesSplitterDefinition],
+      dynTable: Deferred[F, FeaturesTableDescription],
+      dynView: Deferred[F, FeaturesTableDescription]
+  ): List[FeaturesSplitter[F]] =
+    splitterDefs.map { _.makeSplitter(dynTable, dynView) }
 
 }

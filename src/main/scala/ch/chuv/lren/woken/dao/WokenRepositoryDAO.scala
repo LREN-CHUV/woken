@@ -26,8 +26,8 @@ import cats._
 import com.typesafe.scalalogging.LazyLogging
 import ch.chuv.lren.woken.messages.query.Shapes.{ error => errorShape, _ }
 import ch.chuv.lren.woken.core.model.jobs._
-import ch.chuv.lren.woken.json.yaml
-import ch.chuv.lren.woken.json.yaml.Yaml
+import ch.chuv.lren.woken.core.json.yaml
+import ch.chuv.lren.woken.core.json.yaml.Yaml
 import spray.json._
 
 import scala.language.higherKinds

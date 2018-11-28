@@ -17,35 +17,70 @@
 
 package ch.chuv.lren.woken.core.validation
 
+import cats.implicits._
+import cats.effect.Effect
 import cats.effect.concurrent.Deferred
 import ch.chuv.lren.woken.core.features.FeaturesQuery
+import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
+import ch.chuv.lren.woken.dao.utils.{ frConst, frEqual, frName, frNames }
+import ch.chuv.lren.woken.messages.query.filters.{ InputType, Operator, SingleFilterRule }
+import ch.chuv.lren.woken.messages.variables.SqlType
+import doobie._
+import doobie.implicits._
 
-class KFoldFeaturesSplitter[F[_]](val numFolds: Int, val dynTable: Deferred[F, String])
-    extends FeaturesSplitter {
+import scala.language.higherKinds
 
-  override def splitFeatures(query: FeaturesQuery): List[FeaturesQuery] =
-    ???
+class KFoldFeaturesSplitter[F[_]: Effect, A](val numFolds: Int,
+                                             val splitColumn: TableColumn,
+                                             val dynTable: Deferred[F, FeaturesTableDescription],
+                                             val dynView: Deferred[F, FeaturesTableDescription])
+    extends FeaturesSplitter[F] {
 
-  private def calculateSplitIndices(numExamples: Int): List[Int] = {
-    val atLeastNumExamplesPerFold = List.fill(numFolds)(numExamples / numFolds)
-    val numFoldsWithOneMore       = numExamples % numFolds
+  override def splitFeatures(query: FeaturesQuery): F[List[FeaturesQuery]] =
+    Range(0, numFolds).toList
+      .map { fold =>
+        dynView.get.map { view =>
+          query.copy(dbTable = view.name,
+                     filters = query.filters.and(
+                       SingleFilterRule("split",
+                                        splitColumn.name,
+                                        "int",
+                                        InputType.number,
+                                        Operator.equal,
+                                        List(fold.toString))
+                     ))
+        }
+      }
+      .sequence[F, FeaturesQuery]
 
-    val numExamplesPerFold = atLeastNumExamplesPerFold.zipWithIndex map {
-      case (num, i) if i < numFoldsWithOneMore => num + 1
-      case (num, _)                            => num
-    }
-
-    // calculate indices by subtracting number of examples per fold from total number of examples
-    numExamplesPerFold.foldRight(List(numExamples)) {
-      case (num, head :: tail) => head - num :: head :: tail
-      case _                   => throw new IllegalStateException()
-    }
-  }
 }
+
 object KFoldFeaturesSplitter {
 
-  def main(args: Array[String]): Unit = {
-    val k = new KFoldFeaturesSplitter(10)
-    print(k.calculateSplitIndices(32))
-  }
+  def kFoldSplitterDefinition(numFolds: Int): FeaturesSplitterDefinition =
+    new FeaturesSplitterDefinition {
+
+      override val splitColumn: TableColumn =
+        TableColumn(s"_win_kfold_$numFolds", SqlType.int)
+
+      @SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
+      override def fillSplitColumnSql(
+          targetTable: FeaturesTableDescription,
+          rndColumn: TableColumn
+      )(implicit h: LogHandler = LogHandler.nop): Update0 = {
+
+        val winTable = targetTable.copy(name = "win", datasetColumn = None)
+        val stmt = fr"WITH win as (SELECT " ++ frNames(targetTable.primaryKey) ++ fr", ntile(" ++
+          frConst(numFolds) ++ fr") over (order by rnd) as win FROM " ++ frName(targetTable) ++
+          fr") UPDATE cde_features_a_1 SET " ++ frName(splitColumn) ++ fr"= win.win FROM win WHERE " ++
+          frEqual(targetTable, targetTable.primaryKey, winTable, targetTable.primaryKey) ++ fr";"
+        stmt.update
+      }
+
+      override def makeSplitter[F[_]: Effect, A](
+          dynTable: Deferred[F, FeaturesTableDescription],
+          dynView: Deferred[F, FeaturesTableDescription]
+      ): FeaturesSplitter[F] =
+        new KFoldFeaturesSplitter[F, A](numFolds, splitColumn, dynTable, dynView)
+    }
 }
