@@ -16,9 +16,14 @@
  */
 
 package ch.chuv.lren.woken.core
+import ch.chuv.lren.woken.messages.variables.FeatureIdentifier
 
 package object model {
 
   // import acyclic.pkg
+
+  type UserFeedbacks = List[UserFeedback]
+
+  type FeatureIdentifiers = List[FeatureIdentifier]
 
 }

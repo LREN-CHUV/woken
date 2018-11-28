@@ -26,7 +26,6 @@ import cats.data.Validated._
 import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
 import com.typesafe.config.Config
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
-import ch.chuv.lren.woken.core.fp.Traverse
 import ch.chuv.lren.woken.messages.variables.SqlType
 
 import scala.language.higherKinds
@@ -92,7 +91,7 @@ object DatabaseConfiguration {
       val tables: Validation[Set[FeaturesTableDescription]] = {
         tableNames.andThen { names: Set[String] =>
           val m: Set[Validation[FeaturesTableDescription]] = names.map(tableFactory)
-          Traverse.sequence(m)
+          m.toList.sequence[Validation, FeaturesTableDescription].map(_.toSet)
         }
       }
 

@@ -19,10 +19,11 @@ package ch.chuv.lren.woken.config
 
 import com.typesafe.config.Config
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
-import cats.data.Validated._
-import cats.implicits._
 import ch.chuv.lren.woken.core.model.{ AlgorithmDefinition, AlgorithmEngine }
 import ch.chuv.lren.woken.messages.query.ExecutionPlan
+
+import cats.data.Validated._
+import cats.implicits._
 
 // TODO: this should feed AlgorithmLibraryService with metadata
 

@@ -51,6 +51,7 @@ lazy val `woken` =
           library.scalaLogging,
           library.catsCore,
           library.kittens,
+          library.treelog,
           library.config,
           library.doobieCore,
           library.doobiePostgres,
@@ -110,6 +111,7 @@ lazy val library =
       val cats            = "1.4.0"
       val kittens         = "1.2.0"
       val catsScalaTest   = "2.3.1"
+      val treelog         = "1.4.6"
       val config          = "1.3.3"
       val doobie          = "0.6.0"
       val snakeyaml       = "1.23"
@@ -160,6 +162,7 @@ lazy val library =
     val catsCore: ModuleID     = "org.typelevel"     %% "cats-core"    % Version.cats
     val kittens: ModuleID      = "org.typelevel"     %% "kittens"      % Version.kittens
     val catsScalaTest: ModuleID = "com.ironcorelabs" %% "cats-scalatest" % Version.catsScalaTest
+    val treelog: ModuleID      = "com.casualmiracles" %% "treelog-cats" % Version.treelog
     val config: ModuleID       = "com.typesafe"       % "config"       % Version.config
     val doobieCore: ModuleID   = "org.tpolecat"      %% "doobie-core"  % Version.doobie
     val doobiePostgres: ModuleID = "org.tpolecat"    %% "doobie-postgres" % Version.doobie

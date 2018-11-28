@@ -19,9 +19,10 @@ package ch.chuv.lren.woken.config
 
 import com.typesafe.config.Config
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
+import ch.chuv.lren.woken.messages.remoting.BasicAuthentication
+
 import cats.data.Validated._
 import cats.implicits._
-import ch.chuv.lren.woken.messages.remoting.BasicAuthentication
 
 /** Configuration for the router handling incoming web service requests
   *

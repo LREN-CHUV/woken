@@ -23,7 +23,7 @@ import cats.effect.concurrent.Deferred
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
 import ch.chuv.lren.woken.dao.utils.{ frConst, frEqual, frName, frNames }
-import ch.chuv.lren.woken.messages.query.filters.{ InputType, Operator, SingleFilterRule }
+import ch.chuv.lren.woken.messages.query.filters._
 import ch.chuv.lren.woken.messages.variables.SqlType
 import doobie._
 import doobie.implicits._
@@ -37,18 +37,24 @@ class KFoldFeaturesSplitter[F[_]: Effect, A](val numFolds: Int,
     extends FeaturesSplitter[F] {
 
   override def splitFeatures(query: FeaturesQuery): F[List[FeaturesQuery]] =
-    Range(0, numFolds).toList
+    // ntile also starts from 1
+    Range(1, numFolds).toList
       .map { fold =>
         dynView.get.map { view =>
-          query.copy(dbTable = view.name,
-                     filters = query.filters.and(
-                       SingleFilterRule("split",
-                                        splitColumn.name,
-                                        "int",
-                                        InputType.number,
-                                        Operator.equal,
-                                        List(fold.toString))
-                     ))
+          query.copy(
+            dbTable = view.name,
+            filters = query.filters.map(
+              f => {
+                val splitRule = SingleFilterRule("split",
+                                                 splitColumn.name,
+                                                 "int",
+                                                 InputType.number,
+                                                 Operator.equal,
+                                                 List(fold.toString))
+                CompoundFilterRule(Condition.and, List(f, splitRule))
+              }
+            )
+          )
         }
       }
       .sequence[F, FeaturesQuery]

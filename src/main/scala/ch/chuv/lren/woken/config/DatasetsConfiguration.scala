@@ -20,11 +20,11 @@ package ch.chuv.lren.woken.config
 import akka.http.scaladsl.model.Uri
 import com.typesafe.config.Config
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
-import ch.chuv.lren.woken.core.fp.Traverse
 import ch.chuv.lren.woken.messages.datasets.{ AnonymisationLevel, Dataset, DatasetId }
+import ch.chuv.lren.woken.messages.remoting.{ BasicAuthentication, RemoteLocation }
+
 import cats.data.Validated._
 import cats.implicits._
-import ch.chuv.lren.woken.messages.remoting.{ BasicAuthentication, RemoteLocation }
 
 object DatasetsConfiguration {
 
@@ -97,7 +97,7 @@ object DatasetsConfiguration {
     datasetNames(config).andThen { names: Set[String] =>
       val m: List[Validation[(DatasetId, Dataset)]] =
         names.toList.map(n => lift(DatasetId(n)) -> datasetFactory(n)).map(_.tupled)
-      val t: Validation[List[(DatasetId, Dataset)]] = Traverse.sequence(m)
+      val t: Validation[List[(DatasetId, Dataset)]] = m.sequence[Validation, (DatasetId, Dataset)]
       t.map(_.toMap)
     }
   }

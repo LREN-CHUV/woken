@@ -19,10 +19,12 @@ package ch.chuv.lren.woken.service
 
 import java.util.UUID
 
+import cats.data._
+import cats.data.NonEmptyList._
 import cats.data.Validated._
-import cats.data.{ Validated, _ }
 import cats.effect.Effect
 import cats.implicits._
+import cats.syntax.traverse._
 import ch.chuv.lren.woken.config.JobsConfiguration
 import ch.chuv.lren.woken.core.ExperimentActor
 import ch.chuv.lren.woken.core.features.Queries
@@ -32,7 +34,6 @@ import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.{ Validation, lift }
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
-import ch.chuv.lren.woken.core.fp.runNow
 import com.typesafe.scalalogging.LazyLogging
 import shapeless.{ ::, HNil }
 
@@ -45,47 +46,78 @@ import scala.language.higherKinds
   */
 object QueryToJob extends LazyLogging {
 
+  // LATER Scala 3 - use opaque types
+  type JobId         = String
+  type FeaturesDb    = String
+  type FeaturesTable = String
+  type PreparedQuery[Q <: Query] = JobId :: FeaturesDb :: FeaturesTable :: Validation[
+    List[VariableMetaData]
+  ] :: Validation[Q] :: UserFeedbacks :: HNil
+
   def miningQuery2Job[F[_]: Effect](
+      featuresService: FeaturesService[F],
       variablesMetaService: VariablesMetaService[F],
       jobsConfiguration: JobsConfiguration,
       algorithmLookup: String => Validation[AlgorithmDefinition]
-  )(query: MiningQuery): Validation[Job] = {
+  )(query: MiningQuery): F[Validation[Job]] = {
 
-    val jobId :: featuresDb :: featuresTable :: metadata :: validatedQuery :: HNil =
-      prepareQuery(variablesMetaService, jobsConfiguration, query)
+    def createValidationOrMiningJob(
+        preparedQuery: PreparedQuery[MiningQuery],
+        algorithmLookup: String => Validation[AlgorithmDefinition]
+    ): Validation[Job] = {
+      val jobId :: featuresDb :: featuresTable :: metadata :: validatedQuery :: feedback :: HNil =
+        preparedQuery
 
-    def createJob(mt: List[VariableMetaData], q: MiningQuery, ad: AlgorithmDefinition) = {
-      val featuresQuery = q.filterDatasets
-        .filterNulls(ad.variablesCanBeNull, ad.covariablesCanBeNull)
-        .features(featuresTable)
+      def createMiningJob(mt: List[VariableMetaData],
+                          q: MiningQuery,
+                          ad: AlgorithmDefinition): DockerJob = {
+        val featuresQuery = q.filterDatasets
+          .filterNulls(ad.variablesCanBeNull, ad.covariablesCanBeNull)
+          .features(featuresTable)
 
-      DockerJob(jobId, featuresDb, featuresQuery, query.algorithm, ad, metadata = mt)
-    }
+        DockerJob(jobId, featuresDb, featuresQuery, q.algorithm, ad, metadata = mt)
+      }
 
-    query.algorithm.code match {
-      case ValidationJob.algorithmCode =>
-        metadata.map { m =>
-          ValidationJob(jobId = jobId,
-                        inputDb = featuresDb,
-                        inputTable = featuresTable,
-                        query = query,
-                        metadata = m)
+      validatedQuery.andThen { query =>
+        query.algorithm.code match {
+          case ValidationJob.algorithmCode =>
+            metadata.map { m =>
+              ValidationJob(jobId = jobId,
+                            inputDb = featuresDb,
+                            inputTable = featuresTable,
+                            query = query,
+                            metadata = m)
+            }
+          case code =>
+            val algorithm = algorithmLookup(code)
+            (metadata, validatedQuery, algorithm) mapN createMiningJob
         }
-      case code =>
-        val algorithm = algorithmLookup(code)
-        (metadata, validatedQuery, algorithm) mapN createJob
+      }
     }
 
+    for {
+      preparedQuery <- prepareQuery(variablesMetaService, jobsConfiguration, query)
+      job = createValidationOrMiningJob(preparedQuery, algorithmLookup)
+    } yield job
   }
 
   def experimentQuery2Job[F[_]: Effect](
       variablesMetaService: VariablesMetaService[F],
       jobsConfiguration: JobsConfiguration,
       algorithmLookup: String => Validation[AlgorithmDefinition]
-  )(query: ExperimentQuery): Validation[ExperimentActor.Job] = {
+  )(query: ExperimentQuery): F[Validation[Job]] =
+    for {
+      preparedQuery <- prepareQuery(variablesMetaService, jobsConfiguration, query)
+      job = createExperimentJob(preparedQuery, algorithmLookup)
+    } yield job
 
-    val jobId :: featuresDb :: featuresTable :: metadata :: validatedQuery :: HNil =
-      prepareQuery(variablesMetaService, jobsConfiguration, query)
+  private[this] def createExperimentJob(
+      preparedQuery: PreparedQuery[ExperimentQuery],
+      algorithmLookup: String => Validation[AlgorithmDefinition]
+  ): Validation[ExperimentActor.Job] = {
+
+    val jobId :: featuresDb :: featuresTable :: metadata :: validatedQuery :: feedback :: HNil =
+      preparedQuery
 
     def createJob(mt: List[VariableMetaData],
                   q: ExperimentQuery,
@@ -97,71 +129,147 @@ object QueryToJob extends LazyLogging {
                           metadata = mt,
                           algorithms = algorithms)
 
-    val validatedAlgorithms: Validation[Map[AlgorithmSpec, AlgorithmDefinition]] =
-      query.algorithms
-        .map { algorithm =>
-          (lift(algorithm), algorithmLookup(algorithm.code)) mapN Tuple2.apply
-        }
-        .traverse[Validation, (AlgorithmSpec, AlgorithmDefinition)](identity)
-        .map(_.toMap)
+    validatedQuery.andThen { query =>
+      val validatedAlgorithms: Validation[Map[AlgorithmSpec, AlgorithmDefinition]] =
+        query.algorithms
+          .map { algorithm =>
+            (lift(algorithm), algorithmLookup(algorithm.code)) mapN Tuple2.apply
+          }
+          .traverse[Validation, (AlgorithmSpec, AlgorithmDefinition)](identity)
+          .map(_.toMap)
 
-    (metadata, validatedQuery, validatedAlgorithms) mapN createJob
-
+      (metadata, validatedQuery, validatedAlgorithms) mapN createJob
+    }
   }
 
   private def prepareQuery[Q <: Query, F[_]: Effect](
       variablesMetaService: VariablesMetaService[F],
       jobsConfiguration: JobsConfiguration,
       query: Q
-  ): String :: String :: String :: Validation[List[VariableMetaData]] :: Validation[Q] :: HNil = {
+  ): F[PreparedQuery[Q]] = {
+
     val jobId         = UUID.randomUUID().toString
     val featuresDb    = jobsConfiguration.featuresDb
     val featuresTable = query.targetTable.getOrElse(jobsConfiguration.featuresTable)
     val metadataKey   = query.targetTable.getOrElse(jobsConfiguration.metadataKeyForFeaturesTable)
-    val variablesMeta: Validation[VariablesMeta] = Validated.fromOption(
-      runNow(variablesMetaService.get(metadataKey)),
-      NonEmptyList(s"Cannot find metadata for table $metadataKey", Nil)
-    )
 
-    val validatedQuery: Validation[Q] = variablesMeta.map { v =>
-      if (query.covariablesMustExist)
-        query
-      else {
+    def prepareFeedback(oldVars: FeatureIdentifiers,
+                        existingVars: FeatureIdentifiers): UserFeedbacks =
+      oldVars
+        .intersect(existingVars)
+        .toNel
+        .fold[UserFeedbacks](Nil)(
+          missing => {
+            val missingFields = missing.map(Queries.toField).mkString_("", ",", "")
+            List(UserInfo(s"Missing variables $missingFields"))
+          }
+        )
 
-        // Take only the covariables (and groupings) known to exist on the target table
-        val existingDbCovariables = v.filterVariables(query.dbCovariables.contains).map(_.code)
-        val existingCovariables = query.covariables.filter { covar =>
-          existingDbCovariables.contains(Queries.toField(covar))
-        }
-        val existingDbGroupings = v.filterVariables(query.dbGrouping.contains).map(_.code)
-        val existingGroupings = query.grouping.filter { grouping =>
-          existingDbGroupings.contains(Queries.toField(grouping))
-        }
+    variablesMetaService.get(metadataKey).map { variablesMetaO =>
+      val variablesMeta: Validation[VariablesMeta] = Validated.fromOption(
+        variablesMetaO,
+        NonEmptyList(s"Cannot find metadata for table $metadataKey", Nil)
+      )
 
-        query match {
-          case q: MiningQuery =>
-            q.copy(covariables = existingCovariables,
-                    grouping = existingGroupings,
-                    targetTable = Some(featuresTable))
-              .asInstanceOf[Q]
-          case q: ExperimentQuery =>
-            q.copy(covariables = existingCovariables,
-                    grouping = existingGroupings,
-                    targetTable = Some(featuresTable))
-              .asInstanceOf[Q]
+      val validatedQueryWithFeedback: Validation[(Q, UserFeedbacks)] = variablesMeta.map { v =>
+        if (query.covariablesMustExist)
+          // TODO: check that the covariables do exist, fail early otherwise
+          (query, Nil)
+        else {
+
+          // Take only the covariables (and groupings) known to exist on the target table
+          val existingDbCovariables = v.filterVariables(query.dbCovariables.contains).map(_.code)
+          val existingCovariables = query.covariables.filter { covar =>
+            existingDbCovariables.contains(Queries.toField(covar))
+          }
+          val covariablesFeedback = prepareFeedback(query.covariables, existingCovariables)
+
+          val existingDbGroupings = v.filterVariables(query.dbGrouping.contains).map(_.code)
+          val existingGroupings = query.grouping.filter { grouping =>
+            existingDbGroupings.contains(Queries.toField(grouping))
+          }
+          val groupingsFeedback = prepareFeedback(query.grouping, existingGroupings)
+
+          val feedback: UserFeedbacks = covariablesFeedback ++ groupingsFeedback
+
+          // TODO: looks like a good use case for lenses
+          val updatedQuery: Q = query match {
+            case q: MiningQuery =>
+              q.copy(covariables = existingCovariables,
+                      grouping = existingGroupings,
+                      targetTable = Some(featuresTable))
+                .asInstanceOf[Q]
+            case q: ExperimentQuery =>
+              q.copy(covariables = existingCovariables,
+                      grouping = existingGroupings,
+                      targetTable = Some(featuresTable))
+                .asInstanceOf[Q]
+          }
+
+          (updatedQuery, feedback)
         }
       }
+
+      val validatedQuery: Validation[Q] = validatedQueryWithFeedback.map(_._1)
+
+      val m: Validation[(VariablesMeta, Q)] =
+        (variablesMeta, validatedQuery) mapN Tuple2.apply
+
+      val metadata: Validation[List[VariableMetaData]] = m.andThen {
+        case (v, q) =>
+          v.selectVariables(q.dbAllVars)
+      }
+
+      val feedback: UserFeedbacks = validatedQueryWithFeedback.map(_._2).getOrElse(Nil)
+
+      jobId :: featuresDb :: featuresTable :: metadata :: validatedQuery :: feedback :: HNil
+    }
+  }
+
+  private def validateQuery[Q <: Query, F[_]: Effect](
+      preparedQuery: PreparedQuery[Q],
+      featuresService: FeaturesService[F]
+  ): F[PreparedQuery[Q]] = {
+
+    val jobId :: featuresDb :: featuresTable :: metadata :: validatedQuery :: feedback :: HNil =
+      preparedQuery
+
+    val validTableService: Validation[FeaturesTableService[F]] = validatedQuery.andThen(
+      query =>
+        featuresService
+          .featuresTable(query.targetTable.getOrElse(featuresTable))
+          .toValidatedNel[String]
+    )
+
+    // TODO: use instead validTableService.liftTo[F]
+
+    val ts: F[FeaturesTableService[F]] = validTableService.fold(
+      err => Effect[F].raiseError(new IllegalArgumentException(err.mkString_("", ",", ""))),
+      Effect[F].delay _
+    )
+
+    for {
+      tableService <- ts
+       _ <- tableService.count
+
     }
 
-    val m: Validation[(VariablesMeta, Q)] =
-      (variablesMeta, validatedQuery) mapN Tuple2.apply
+    val v = (validTableService, validatedQuery) mapN Tuple2.apply
 
-    val metadata: Validation[List[VariableMetaData]] = m.andThen {
-      case (v, q) =>
-        v.selectVariables(q.dbAllVars)
-    }
 
-    jobId :: featuresDb :: featuresTable :: metadata :: validatedQuery :: HNil
+
+    validTableService.andThen(
+      tableService =>
+        validatedQuery.fold(Effect[F].delay(_))(q => {
+
+          val v: F[Validation[Q]] = for {
+            numRows <- tableService.count(q.filters)
+            hasData = if (numRows > 0) validatedQuery else "".invalidNel[Q]
+          } yield hasData
+
+        })
+    )
+
   }
 
 }

@@ -28,7 +28,7 @@ import cats.effect.Effect
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
 import ch.chuv.lren.woken.core.validation.ValidatedAlgorithmFlow
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.{ Failure, Success }
 import ch.chuv.lren.woken.core.commands.JobCommands.StartExperimentJob
 import ch.chuv.lren.woken.config.JobsConfiguration
@@ -133,13 +133,36 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
       val thisActor  = self
       val algorithms = job.query.algorithms
 
+      def completeExperiment(responseF: Future[Response]) =
+        responseF
+          .andThen {
+            case Success(response) =>
+              val result = response.result.fold(identity, identity)
+              coordinatorConfig.jobResultService.put(result)
+              replyTo ! response
+            case Failure(e) =>
+              logger.error(s"Cannot complete experiment ${job.jobId}: ${e.getMessage}", e)
+              val result = ErrorJobResult(Some(job.jobId),
+                                          coordinatorConfig.jobsConf.node,
+                                          OffsetDateTime.now(),
+                                          None,
+                                          e.toString)
+              val response = Response(job, Left(result), initiator)
+              coordinatorConfig.jobResultService.put(result)
+              replyTo ! response
+          }
+          .onComplete { _ =>
+            logger.info("Stopping...")
+            context stop thisActor
+          }
+
       logger.info(s"Start new experiment job $job")
       logger.info(s"List of algorithms: ${algorithms.mkString(",")}")
 
       // XXX
       job.algorithms.exists { case (_, defn) => defn.predictive }
 
-      val future = Source
+      val future: Future[Response] = Source
         .single(job)
         .via(experimentFlow)
         .runWith(Sink.head)
@@ -159,27 +182,7 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
           Response(job, Right(pfa), initiator)
         }
 
-      future
-        .andThen {
-          case Success(response) =>
-            val result = response.result.fold(identity, identity)
-            coordinatorConfig.jobResultService.put(result)
-            replyTo ! response
-          case Failure(e) =>
-            logger.error(s"Cannot complete experiment ${job.jobId}: ${e.getMessage}", e)
-            val result = ErrorJobResult(Some(job.jobId),
-                                        coordinatorConfig.jobsConf.node,
-                                        OffsetDateTime.now(),
-                                        None,
-                                        e.toString)
-            val response = Response(job, Left(result), initiator)
-            coordinatorConfig.jobResultService.put(result)
-            replyTo ! response
-        }
-        .onComplete { _ =>
-          logger.info("Stopping...")
-          context stop thisActor
-        }
+      completeExperiment(future)
 
     case e =>
       logger.error(s"Unhandled message: $e")

@@ -21,10 +21,10 @@ import akka.NotUsed
 import akka.stream.{ FlowShape, OverflowStrategy }
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Merge, Source }
 import cats.effect.Effect
+import cats.implicits._
 import ch.chuv.lren.woken.core.fp._
 import ch.chuv.lren.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
-import cats.implicits.catsStdInstancesForOption
 import com.typesafe.scalalogging.{ LazyLogging, Logger }
 import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.core.model.VariablesMeta
@@ -66,7 +66,7 @@ class DispatcherService(allDatasets: Map[DatasetId, Dataset],
     logger.info(s"Dispatch to datasets $datasets knowing $allDatasets")
     val maybeLocations = datasets.map(dispatchTo)
     val local          = maybeLocations.isEmpty || maybeLocations.contains(None)
-    val maybeSet       = Traverse.sequence(maybeLocations.filter(_.nonEmpty))
+    val maybeSet       = maybeLocations.filter(_.nonEmpty).toList.sequence[Option, RemoteLocation].map(_.toSet)
 
     (maybeSet.getOrElse(Set.empty), local)
   }

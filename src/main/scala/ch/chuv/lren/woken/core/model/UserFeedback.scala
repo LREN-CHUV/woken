@@ -15,29 +15,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.core.fp
+package ch.chuv.lren.woken.core.model
 
-import cats.Applicative
-import cats.implicits._
+sealed trait UserFeedback
 
-import scala.language.higherKinds
+case class UserInfo(msg: String) extends UserFeedback
 
-object Traverse {
-
-  def traverse[F[_]: Applicative, A, B](values: List[A])(func: A => F[B]): F[List[B]] =
-    values.foldLeft(List.empty[B].pure[F]) { (accum, host) =>
-      (accum, func(host)).mapN(_ :+ _)
-    }
-
-  def sequence[F[_]: Applicative, B](fs: List[F[B]]): F[List[B]] =
-    traverse(fs)(identity)
-
-  def traverse[F[_]: Applicative, A, B](values: Set[A])(func: A => F[B]): F[Set[B]] =
-    values.foldLeft(Set.empty[B].pure[F]) { (accum, host) =>
-      (accum, func(host)).mapN(_ + _)
-    }
-
-  def sequence[F[_]: Applicative, B](fs: Set[F[B]]): F[Set[B]] =
-    traverse(fs)(identity)
-
-}
+case class UserWarning(warn: String) extends UserFeedback
