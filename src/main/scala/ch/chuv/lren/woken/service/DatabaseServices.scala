@@ -32,7 +32,9 @@ case class DatabaseServices[F[_]: ConcurrentEffect: ContextShift: Timer](
     featuresService: FeaturesService[F],
     jobResultService: JobResultService[F],
     variablesMetaService: VariablesMetaService[F],
-    datasetService: DatasetService
+    queryToJobService: QueryToJobService[F],
+    datasetService: DatasetService,
+    algorithmLibraryService: AlgorithmLibraryService
 ) {
 
   import DatabaseServices.logger
@@ -112,14 +114,24 @@ object DatabaseServices {
         Sync[F].delay(VariablesMetaService(MetadataRepositoryDAO(xa).variablesMeta))
       }
 
-      val datasetService = ConfBasedDatasetService(config.config)
+      val datasetService          = ConfBasedDatasetService(config.config)
+      val algorithmLibraryService = AlgorithmLibraryService()
 
       val servicesIO = for {
         featuresService      <- fsIO
         jobResultService     <- jrsIO
         variablesMetaService <- vmsIO
+        queryToJobService = QueryToJobService(featuresService,
+                                              variablesMetaService,
+                                              config.jobs,
+                                              config.algorithmLookup)
       } yield
-        DatabaseServices[F](featuresService, jobResultService, variablesMetaService, datasetService)
+        DatabaseServices[F](featuresService,
+                            jobResultService,
+                            variablesMetaService,
+                            queryToJobService,
+                            datasetService,
+                            algorithmLibraryService)
 
       Resource.make(servicesIO.flatMap(service => service.validate().map(_ => service)))(_.close())
     }

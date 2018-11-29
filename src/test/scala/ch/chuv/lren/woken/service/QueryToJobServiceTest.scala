@@ -30,7 +30,7 @@ import ch.chuv.lren.woken.messages.variables._
 import com.typesafe.config.{ Config, ConfigFactory }
 import org.scalatest.{ Matchers, WordSpec }
 
-class QueryToJobTest extends WordSpec with Matchers with ValidatedMatchers with ValidatedValues {
+class QueryToJobServiceTest extends WordSpec with Matchers with ValidatedMatchers with ValidatedValues {
 
   val config: Config = ConfigFactory
     .parseResourcesAnySyntax("localDatasets.conf")
@@ -71,7 +71,7 @@ class QueryToJobTest extends WordSpec with Matchers with ValidatedMatchers with 
         executionPlan = None
       )
 
-      val maybeJob = QueryToJob.miningQuery2Job(TestServices.localVariablesMetaService,
+      val maybeJob = QueryToJobService.miningQuery2Job(TestServices.localVariablesMetaService,
                                                 jobsConf,
                                                 algorithmLookup)(query)
 
@@ -93,7 +93,7 @@ class QueryToJobTest extends WordSpec with Matchers with ValidatedMatchers with 
         executionPlan = None
       )
 
-      val maybeJob = QueryToJob.miningQuery2Job(TestServices.localVariablesMetaService,
+      val maybeJob = QueryToJobService.miningQuery2Job(TestServices.localVariablesMetaService,
                                                 jobsConf,
                                                 algorithmLookup)(query)
 
@@ -116,7 +116,7 @@ class QueryToJobTest extends WordSpec with Matchers with ValidatedMatchers with 
         executionPlan = None
       )
 
-      val maybeJob = QueryToJob.miningQuery2Job(TestServices.localVariablesMetaService,
+      val maybeJob = QueryToJobService.miningQuery2Job(TestServices.localVariablesMetaService,
                                                 jobsConf,
                                                 algorithmLookup)(query)
 
@@ -139,7 +139,7 @@ class QueryToJobTest extends WordSpec with Matchers with ValidatedMatchers with 
         executionPlan = None
       )
 
-      val maybeJob = QueryToJob.miningQuery2Job(TestServices.localVariablesMetaService,
+      val maybeJob = QueryToJobService.miningQuery2Job(TestServices.localVariablesMetaService,
                                                 jobsConf,
                                                 algorithmLookup)(query)
 
@@ -165,7 +165,7 @@ class QueryToJobTest extends WordSpec with Matchers with ValidatedMatchers with 
         executionPlan = None
       )
 
-      val maybeJob = QueryToJob.miningQuery2Job(TestServices.localVariablesMetaService,
+      val maybeJob = QueryToJobService.miningQuery2Job(TestServices.localVariablesMetaService,
                                                 jobsConf,
                                                 algorithmLookup)(query)
 
@@ -235,7 +235,7 @@ class QueryToJobTest extends WordSpec with Matchers with ValidatedMatchers with 
         executionPlan = None
       )
 
-      val maybeJob = QueryToJob.miningQuery2Job(TestServices.localVariablesMetaService,
+      val maybeJob = QueryToJobService.miningQuery2Job(TestServices.localVariablesMetaService,
                                                 jobsConf,
                                                 algorithmLookup)(query)
 
@@ -304,7 +304,7 @@ class QueryToJobTest extends WordSpec with Matchers with ValidatedMatchers with 
         executionPlan = None
       )
 
-      val maybeJob = QueryToJob.miningQuery2Job(TestServices.localVariablesMetaService,
+      val maybeJob = QueryToJobService.miningQuery2Job(TestServices.localVariablesMetaService,
                                                 jobsConf,
                                                 algorithmLookup)(query)
 
@@ -344,7 +344,7 @@ class QueryToJobTest extends WordSpec with Matchers with ValidatedMatchers with 
       )
 
       val maybeJob =
-        QueryToJob.experimentQuery2Job(TestServices.localVariablesMetaService,
+        QueryToJobService.experimentQuery2Job(TestServices.localVariablesMetaService,
                                        jobsConf,
                                        algorithmLookup)(query)
 
@@ -370,7 +370,7 @@ class QueryToJobTest extends WordSpec with Matchers with ValidatedMatchers with 
       )
 
       val maybeJob =
-        QueryToJob.experimentQuery2Job(TestServices.localVariablesMetaService,
+        QueryToJobService.experimentQuery2Job(TestServices.localVariablesMetaService,
                                        jobsConf,
                                        algorithmLookup)(query)
 
@@ -397,7 +397,7 @@ class QueryToJobTest extends WordSpec with Matchers with ValidatedMatchers with 
       )
 
       val maybeJob =
-        QueryToJob.experimentQuery2Job(TestServices.localVariablesMetaService,
+        QueryToJobService.experimentQuery2Job(TestServices.localVariablesMetaService,
                                        jobsConf,
                                        algorithmLookup)(query)
 
@@ -424,7 +424,7 @@ class QueryToJobTest extends WordSpec with Matchers with ValidatedMatchers with 
       )
 
       val maybeJob =
-        QueryToJob.experimentQuery2Job(TestServices.localVariablesMetaService,
+        QueryToJobService.experimentQuery2Job(TestServices.localVariablesMetaService,
                                        jobsConf,
                                        algorithmLookup)(query)
 
@@ -451,7 +451,7 @@ class QueryToJobTest extends WordSpec with Matchers with ValidatedMatchers with 
       )
 
       val maybeJob =
-        QueryToJob.experimentQuery2Job(TestServices.localVariablesMetaService,
+        QueryToJobService.experimentQuery2Job(TestServices.localVariablesMetaService,
                                        jobsConf,
                                        algorithmLookup)(query)
 
@@ -486,7 +486,7 @@ class QueryToJobTest extends WordSpec with Matchers with ValidatedMatchers with 
       )
 
       val maybeJob =
-        QueryToJob.experimentQuery2Job(TestServices.localVariablesMetaService,
+        QueryToJobService.experimentQuery2Job(TestServices.localVariablesMetaService,
                                        jobsConf,
                                        algorithmLookup)(query)
 
@@ -521,7 +521,7 @@ class QueryToJobTest extends WordSpec with Matchers with ValidatedMatchers with 
       )
 
       val maybeJob =
-        QueryToJob.experimentQuery2Job(TestServices.localVariablesMetaService,
+        QueryToJobService.experimentQuery2Job(TestServices.localVariablesMetaService,
                                        jobsConf,
                                        algorithmLookup)(query)
 

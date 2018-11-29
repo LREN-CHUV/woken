@@ -24,12 +24,7 @@ import akka.cluster.pubsub.{ DistributedPubSub, DistributedPubSubMediator }
 import akka.pattern.{ Backoff, BackoffSupervisor }
 import cats.effect._
 import ch.chuv.lren.woken.backends.woken.WokenClientService
-import ch.chuv.lren.woken.config.{
-  AlgorithmsConfiguration,
-  DatabaseConfiguration,
-  DatasetsConfiguration,
-  WokenConfiguration
-}
+import ch.chuv.lren.woken.config.{ DatasetsConfiguration, WokenConfiguration }
 import ch.chuv.lren.woken.core.{ CoordinatorConfig, Core }
 import ch.chuv.lren.woken.service._
 import com.typesafe.scalalogging.Logger
@@ -57,31 +52,18 @@ class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
   override protected def logger: Logger = AkkaServer.logger
 
   private def mainRouterSupervisorProps = {
-    val coordinatorConfig = CoordinatorConfig(
-      chronosHttp,
-      config.app.dockerBridgeNetwork,
-      databaseServices.featuresService,
-      databaseServices.jobResultService,
-      config.jobs,
-      DatabaseConfiguration.factory(config.config)
-    )
 
-    val wokenService: WokenClientService = WokenClientService(coordinatorConfig.jobsConf.node)
+    val wokenService: WokenClientService = WokenClientService(config.jobs.node)
     val dispatcherService: DispatcherService =
       DispatcherService(DatasetsConfiguration.datasets(config.config), wokenService)
-    val algorithmLibraryService: AlgorithmLibraryService = AlgorithmLibraryService()
+    val backendServices = BackendServices(dispatcherService, chronosHttp)
 
     BackoffSupervisor.props(
       Backoff.onFailure(
         MasterRouter.props(
-          config.config,
-          config.app,
-          coordinatorConfig,
-          databaseServices.datasetService,
-          databaseServices.variablesMetaService,
-          dispatcherService,
-          algorithmLibraryService,
-          AlgorithmsConfiguration.factory(config.config)
+          config,
+          databaseServices,
+          backendServices
         ),
         childName = "mainRouter",
         minBackoff = 100.milliseconds,

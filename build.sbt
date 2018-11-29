@@ -51,7 +51,7 @@ lazy val `woken` =
           library.scalaLogging,
           library.catsCore,
           library.kittens,
-          library.treelog,
+          //library.treelog,
           library.config,
           library.doobieCore,
           library.doobiePostgres,

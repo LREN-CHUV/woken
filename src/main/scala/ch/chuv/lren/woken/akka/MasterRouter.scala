@@ -20,11 +20,7 @@ package ch.chuv.lren.woken.akka
 import akka.actor.{ Actor, ActorRef, Props }
 import akka.stream.ActorMaterializer
 import cats.effect.Effect
-import ch.chuv.lren.woken.config.AppConfiguration
-import ch.chuv.lren.woken.core._
-import ch.chuv.lren.woken.core.model.AlgorithmDefinition
-import ch.chuv.lren.woken.core.model.jobs.Job
-import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
+import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.dispatch.{
   ExperimentQueriesActor,
   MetadataQueriesActor,
@@ -33,14 +29,7 @@ import ch.chuv.lren.woken.dispatch.{
 import ch.chuv.lren.woken.messages.datasets.{ DatasetsQuery, DatasetsResponse }
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables._
-import ch.chuv.lren.woken.service.QueryToJob._
-import ch.chuv.lren.woken.service.{
-  AlgorithmLibraryService,
-  DatasetService,
-  DispatcherService,
-  VariablesMetaService
-}
-import com.typesafe.config.Config
+import ch.chuv.lren.woken.service._
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 
@@ -49,40 +38,19 @@ import scala.language.higherKinds
 
 object MasterRouter {
 
-  def props[F[_]: Effect](config: Config,
-                          appConfiguration: AppConfiguration,
-                          coordinatorConfig: CoordinatorConfig[F],
-                          datasetService: DatasetService,
-                          variablesMetaService: VariablesMetaService[F],
-                          dispatcherService: DispatcherService,
-                          algorithmLibraryService: AlgorithmLibraryService,
-                          algorithmLookup: String => Validation[AlgorithmDefinition]): Props =
+  def props[F[_]: Effect](config: WokenConfiguration,
+                          databaseServices: DatabaseServices[F],
+                          backendServices: BackendServices): Props =
     Props(
-      new MasterRouter(
-        config,
-        appConfiguration,
-        coordinatorConfig,
-        dispatcherService,
-        algorithmLibraryService,
-        datasetService,
-        variablesMetaService,
-        experimentQuery2Job(variablesMetaService, coordinatorConfig.jobsConf, algorithmLookup),
-        miningQuery2Job(variablesMetaService, coordinatorConfig.jobsConf, algorithmLookup)
-      )
+      new MasterRouter(config, databaseServices, backendServices)
     )
 
 }
 
 case class MasterRouter[F[_]: Effect](
-    config: Config,
-    appConfiguration: AppConfiguration,
-    coordinatorConfig: CoordinatorConfig[F],
-    dispatcherService: DispatcherService,
-    algorithmLibraryService: AlgorithmLibraryService,
-    datasetService: DatasetService,
-    variablesMetaService: VariablesMetaService[F],
-    experimentQuery2JobF: ExperimentQuery => Validation[ExperimentActor.Job],
-    miningQuery2JobF: MiningQuery => Validation[Job]
+    config: WokenConfiguration,
+    databaseServices: DatabaseServices[F],
+    backendServices: BackendServices
 ) extends Actor
     with LazyLogging {
 
@@ -98,12 +66,12 @@ case class MasterRouter[F[_]: Effect](
 
     case MethodsQuery =>
       mark("MethodsQueryRequestReceived")
-      sender ! MethodsResponse(algorithmLibraryService.algorithms)
+      sender ! MethodsResponse(databaseServices.algorithmLibraryService.algorithms)
 
     case ds: DatasetsQuery =>
       mark("DatasetsQueryRequestReceived")
-      val allDatasets = datasetService.datasets()
-      val table       = ds.table.getOrElse(coordinatorConfig.jobsConf.featuresTable)
+      val allDatasets = databaseServices.datasetService.datasets()
+      val table       = ds.table.getOrElse(config.jobs.featuresTable)
       val datasets =
         if (table == "*") allDatasets
         else allDatasets.filter(_.tables.contains(table))
@@ -134,29 +102,33 @@ case class MasterRouter[F[_]: Effect](
 
   private[akka] def initMetadataQueriesWorker: ActorRef =
     context.actorOf(
-      MetadataQueriesActor.roundRobinPoolProps(config,
-                                               dispatcherService,
-                                               datasetService,
-                                               variablesMetaService),
+      MetadataQueriesActor.roundRobinPoolProps(config.config,
+                                               backendServices.dispatcherService,
+                                               databaseServices.datasetService,
+                                               databaseServices.variablesMetaService),
       name = "metadataQueries"
     )
 
   private[akka] def initMiningQueriesWorker: ActorRef =
     context.actorOf(
-      MiningQueriesActor.roundRobinPoolProps(config,
-                                             coordinatorConfig,
-                                             dispatcherService,
-                                             variablesMetaService,
-                                             miningQuery2JobF),
+      MiningQueriesActor.roundRobinPoolProps(
+        config.config,
+        backendServices.coordinatorConfig(config, databaseServices),
+        backendServices.dispatcherService,
+        databaseServices.variablesMetaService,
+        miningQuery2JobF
+      ),
       name = "miningQueries"
     )
 
   private[akka] def initExperimentQueriesWorker: ActorRef =
     context.actorOf(
-      ExperimentQueriesActor.roundRobinPoolProps(config,
-                                                 coordinatorConfig,
-                                                 dispatcherService,
-                                                 experimentQuery2JobF),
+      ExperimentQueriesActor.roundRobinPoolProps(
+        config.config,
+        backendServices.coordinatorConfig(config, databaseServices),
+        backendServices.dispatcherService,
+        experimentQuery2JobF
+      ),
       name = "experimentQueries"
     )
 

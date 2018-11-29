@@ -18,6 +18,7 @@
 package ch.chuv.lren.woken.config
 
 import cats.effect.{ IO, Sync }
+import ch.chuv.lren.woken.core.model.AlgorithmDefinition
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import com.typesafe.config.{ Config, ConfigFactory }
 
@@ -48,6 +49,8 @@ case class WokenConfiguration(config: Config) {
     .factory(config)(jobs.metaDb)
     .valueOr(configurationFailed)
 
+  val algorithmLookup: String => Validation[AlgorithmDefinition] =
+    AlgorithmsConfiguration.factory(config)
 }
 
 object WokenConfiguration {

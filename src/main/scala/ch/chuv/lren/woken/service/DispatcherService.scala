@@ -66,7 +66,8 @@ class DispatcherService(allDatasets: Map[DatasetId, Dataset],
     logger.info(s"Dispatch to datasets $datasets knowing $allDatasets")
     val maybeLocations = datasets.map(dispatchTo)
     val local          = maybeLocations.isEmpty || maybeLocations.contains(None)
-    val maybeSet       = maybeLocations.filter(_.nonEmpty).toList.sequence[Option, RemoteLocation].map(_.toSet)
+    val maybeSet =
+      maybeLocations.filter(_.nonEmpty).toList.sequence[Option, RemoteLocation].map(_.toSet)
 
     (maybeSet.getOrElse(Set.empty), local)
   }
