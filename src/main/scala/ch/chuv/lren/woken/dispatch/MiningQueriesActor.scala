@@ -25,16 +25,17 @@ import akka.actor.{ Actor, ActorRef, OneForOneStrategy, Props }
 import akka.routing.{ OptimalSizeExploringResizer, RoundRobinPool }
 import akka.stream.scaladsl.{ Flow, Sink, Source }
 import cats.effect.Effect
+import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.core._
 import ch.chuv.lren.woken.core.commands.JobCommands.StartCoordinatorJob
+import ch.chuv.lren.woken.core.model.UserFeedbacks
 import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.core.validation.ValidationFlow
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.validation.Score
 import ch.chuv.lren.woken.messages.validation.validationProtocol._
-import ch.chuv.lren.woken.service.{ DispatcherService, VariablesMetaService }
-import com.typesafe.config.Config
+import ch.chuv.lren.woken.service.{ BackendServices, DatabaseServices }
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.Future
@@ -47,28 +48,22 @@ object MiningQueriesActor extends LazyLogging {
 
   case class Mine(query: MiningQuery, replyTo: ActorRef)
 
-  def props[F[_]: Effect](coordinatorConfig: CoordinatorConfig[F],
-                          dispatcherService: DispatcherService,
-                          variablesMetaService: VariablesMetaService[F],
-                          miningQuery2JobF: MiningQuery => Validation[Job]): Props =
+  def props[F[_]: Effect](config: WokenConfiguration,
+                          databaseServices: DatabaseServices[F],
+                          backendServices: BackendServices): Props =
     Props(
-      new MiningQueriesActor(coordinatorConfig,
-                             dispatcherService,
-                             variablesMetaService,
-                             miningQuery2JobF)
+      new MiningQueriesActor(config, databaseServices, backendServices)
     )
 
-  def roundRobinPoolProps[F[_]: Effect](config: Config,
-                                        coordinatorConfig: CoordinatorConfig[F],
-                                        dispatcherService: DispatcherService,
-                                        variablesMetaService: VariablesMetaService[F],
-                                        miningQuery2JobF: MiningQuery => Validation[Job]): Props = {
+  def roundRobinPoolProps[F[_]: Effect](config: WokenConfiguration,
+                                        databaseServices: DatabaseServices[F],
+                                        backendServices: BackendServices): Props = {
 
     val resizer = OptimalSizeExploringResizer(
-      config
+      config.config
         .getConfig("poolResizer.miningQueries")
         .withFallback(
-          config.getConfig("akka.actor.deployment.default.optimal-size-exploring-resizer")
+          config.config.getConfig("akka.actor.deployment.default.optimal-size-exploring-resizer")
         )
     )
     val miningSupervisorStrategy =
@@ -83,18 +78,16 @@ object MiningQueriesActor extends LazyLogging {
       resizer = Some(resizer),
       supervisorStrategy = miningSupervisorStrategy
     ).props(
-      MiningQueriesActor
-        .props(coordinatorConfig, dispatcherService, variablesMetaService, miningQuery2JobF)
+      MiningQueriesActor.props(config, databaseServices, backendServices)
     )
   }
 
 }
 
 class MiningQueriesActor[F[_]: Effect](
-    override val coordinatorConfig: CoordinatorConfig[F],
-    dispatcherService: DispatcherService,
-    variablesMetaService: VariablesMetaService[F],
-    miningQuery2JobF: MiningQuery => Validation[Job]
+    override val config: WokenConfiguration,
+    override val databaseServices: DatabaseServices[F],
+    override val backendServices: BackendServices
 ) extends QueriesActor[MiningQuery, F] {
 
   import MiningQueriesActor.Mine
@@ -114,24 +107,11 @@ class MiningQueriesActor[F[_]: Effect](
   override def receive: Receive = {
 
     case mine: Mine =>
-      val initiator    = if (mine.replyTo == Actor.noSender) sender() else mine.replyTo
-      val query        = mine.query
-      val jobValidated = miningQuery2JobF(query)
+      val initiator     = if (mine.replyTo == Actor.noSender) sender() else mine.replyTo
+      val query         = mine.query
+      val jobValidatedF = queryToJobService.miningQuery2Job(query)
 
-      jobValidated.fold(
-        errorMsg => {
-          reportErrorMessage(query, initiator)(
-            s"Mining for $query failed with message: " + errorMsg.reduceLeft(_ + ", " + _)
-          )
-        }, {
-          case job: DockerJob     => runMiningJob(query, initiator, job)
-          case job: ValidationJob => runValidationJob(initiator, job)
-          case job =>
-            reportErrorMessage(query, initiator)(
-              s"Unsupported job $job. Was expecting a job of type DockerJob or ValidationJob"
-            )
-        }
-      )
+      runNow(jobValidatedF)(processJob(initiator, query))
 
     case CoordinatorActor.Response(job, List(errorJob: ErrorJobResult), initiator) =>
       logger.warn(s"Received error while mining ${job.query}: ${errorJob.toString}")
@@ -151,6 +131,31 @@ class MiningQueriesActor[F[_]: Effect](
     case e =>
       logger.warn(s"Received unhandled request $e of type ${e.getClass}")
 
+  }
+
+  private def processJob(initiator: ActorRef, query: MiningQuery)(
+      cb: Either[Throwable, Validation[(Job, UserFeedbacks)]]
+  ): Unit = cb match {
+    case Left(e) =>
+      logger.error("", e)
+      reportErrorMessage(query, initiator)(
+        s"Mining for $query failed with error: ${e.toString}"
+      )
+    case Right(jobValidated) =>
+      jobValidated.fold(
+        errorMsg => {
+          reportErrorMessage(query, initiator)(
+            s"Mining for $query failed with message: " + errorMsg.reduceLeft(_ + ", " + _)
+          )
+        }, {
+          case (job: DockerJob, feedback)     => runMiningJob(query, initiator, job)
+          case (job: ValidationJob, feedback) => runValidationJob(initiator, job)
+          case (job, _) =>
+            reportErrorMessage(query, initiator)(
+              s"Unsupported job $job. Was expecting a job of type DockerJob or ValidationJob"
+            )
+        }
+      )
   }
 
   private def runMiningJob(query: MiningQuery, initiator: ActorRef, job: DockerJob): Unit = {

@@ -23,14 +23,22 @@ import akka.actor.{ Actor, ActorRef }
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
+import cats.effect.{ Effect, IO }
+import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.core.CoordinatorConfig
 import ch.chuv.lren.woken.core.model.jobs.{ ErrorJobResult, ExperimentJobResult, JobResult }
 import ch.chuv.lren.woken.messages.query._
+import ch.chuv.lren.woken.service.{
+  BackendServices,
+  DatabaseServices,
+  DispatcherService,
+  QueryToJobService
+}
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration._
-import scala.language.postfixOps
+import scala.language.{ higherKinds, postfixOps }
 
 trait QueriesActor[Q <: Query, F[_]] extends Actor with LazyLogging {
 
@@ -38,7 +46,27 @@ trait QueriesActor[Q <: Query, F[_]] extends Actor with LazyLogging {
 
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
-  def coordinatorConfig: CoordinatorConfig[F]
+  def config: WokenConfiguration
+  def databaseServices: DatabaseServices[F]
+  def backendServices: BackendServices
+
+  protected def queryToJobService: QueryToJobService[F] = databaseServices.queryToJobService
+  protected def dispatcherService: DispatcherService    = backendServices.dispatcherService
+  protected def coordinatorConfig: CoordinatorConfig[F] = CoordinatorConfig[F](
+    backendServices.chronosHttp,
+    config.app.dockerBridgeNetwork,
+    databaseServices.featuresService,
+    databaseServices.jobResultService,
+    config.jobs,
+    config.databaseConfig
+  )
+
+  protected def runNow[A](
+      valueF: F[A]
+  )(processCb: Either[Throwable, A] => Unit)(implicit eff: Effect[F]): Unit =
+    Effect[F]
+      .runAsync(valueF)(processCb andThen IO.apply)
+      .unsafeRunSync()
 
   private[dispatch] def gatherAndReduce(
       initialQuery: Q,

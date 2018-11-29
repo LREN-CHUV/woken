@@ -112,11 +112,9 @@ case class MasterRouter[F[_]: Effect](
   private[akka] def initMiningQueriesWorker: ActorRef =
     context.actorOf(
       MiningQueriesActor.roundRobinPoolProps(
-        config.config,
-        backendServices.coordinatorConfig(config, databaseServices),
-        backendServices.dispatcherService,
-        databaseServices.variablesMetaService,
-        miningQuery2JobF
+        config,
+        databaseServices,
+        backendServices
       ),
       name = "miningQueries"
     )
@@ -124,10 +122,9 @@ case class MasterRouter[F[_]: Effect](
   private[akka] def initExperimentQueriesWorker: ActorRef =
     context.actorOf(
       ExperimentQueriesActor.roundRobinPoolProps(
-        config.config,
-        backendServices.coordinatorConfig(config, databaseServices),
-        backendServices.dispatcherService,
-        experimentQuery2JobF
+        config,
+        databaseServices,
+        backendServices
       ),
       name = "experimentQueries"
     )

@@ -69,11 +69,11 @@ object FeaturesSplitter {
       }
       .sequence[Validation, FeaturesSplitterDefinition]
 
-  def prepareSplitters[F[_]: Effect](
-      splitterDefs: List[FeaturesSplitterDefinition],
+  def apply[F[_]: Effect](
+      splitterDef: FeaturesSplitterDefinition,
       dynTable: Deferred[F, FeaturesTableDescription],
       dynView: Deferred[F, FeaturesTableDescription]
-  ): List[FeaturesSplitter[F]] =
-    splitterDefs.map { _.makeSplitter(dynTable, dynView) }
+  ): FeaturesSplitter[F] =
+    splitterDef.makeSplitter(dynTable, dynView)
 
 }

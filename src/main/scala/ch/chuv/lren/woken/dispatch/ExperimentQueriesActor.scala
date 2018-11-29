@@ -17,24 +17,22 @@
 
 package ch.chuv.lren.woken.dispatch
 
-import java.time.OffsetDateTime
-
 import akka.NotUsed
 import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{ Actor, ActorRef, OneForOneStrategy, Props }
 import akka.routing.{ OptimalSizeExploringResizer, RoundRobinPool }
 import akka.stream.scaladsl.{ Flow, Sink, Source }
 import cats.effect.Effect
+import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.core._
 import ch.chuv.lren.woken.core.commands.JobCommands.StartExperimentJob
-import ch.chuv.lren.woken.core.model.AlgorithmDefinition
-import ch.chuv.lren.woken.core.model.jobs.{ ErrorJobResult, ExperimentJobResult, JobResult }
+import ch.chuv.lren.woken.core.model.{ AlgorithmDefinition, UserFeedbacks }
+import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.core.validation.RemoteValidationFlow
 import ch.chuv.lren.woken.core.validation.RemoteValidationFlow.ValidationContext
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query.{ ExecutionStyle, _ }
-import ch.chuv.lren.woken.service.DispatcherService
-import com.typesafe.config.Config
+import ch.chuv.lren.woken.service.{ BackendServices, DatabaseServices }
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.Future
@@ -46,26 +44,23 @@ object ExperimentQueriesActor extends LazyLogging {
   case class Experiment(query: ExperimentQuery, replyTo: ActorRef)
 
   def props[F[_]: Effect](
-      coordinatorConfig: CoordinatorConfig[F],
-      dispatcherService: DispatcherService,
-      experimentQuery2JobF: ExperimentQuery => Validation[ExperimentActor.Job]
+      config: WokenConfiguration,
+      databaseServices: DatabaseServices[F],
+      backendServices: BackendServices
   ): Props =
-    Props(
-      new ExperimentQueriesActor(coordinatorConfig, dispatcherService, experimentQuery2JobF)
-    )
+    Props(new ExperimentQueriesActor(config, databaseServices, backendServices))
 
   def roundRobinPoolProps[F[_]: Effect](
-      config: Config,
-      coordinatorConfig: CoordinatorConfig[F],
-      dispatcherService: DispatcherService,
-      experimentQuery2JobF: ExperimentQuery => Validation[ExperimentActor.Job]
+      config: WokenConfiguration,
+      databaseServices: DatabaseServices[F],
+      backendServices: BackendServices
   ): Props = {
 
     val resizer = OptimalSizeExploringResizer(
-      config
+      config.config
         .getConfig("poolResizer.experimentQueries")
         .withFallback(
-          config.getConfig("akka.actor.deployment.default.optimal-size-exploring-resizer")
+          config.config.getConfig("akka.actor.deployment.default.optimal-size-exploring-resizer")
         )
     )
     val experimentSupervisorStrategy =
@@ -80,17 +75,16 @@ object ExperimentQueriesActor extends LazyLogging {
       resizer = Some(resizer),
       supervisorStrategy = experimentSupervisorStrategy
     ).props(
-      ExperimentQueriesActor
-        .props(coordinatorConfig, dispatcherService, experimentQuery2JobF)
+      ExperimentQueriesActor.props(config, databaseServices, backendServices)
     )
   }
 
 }
 
 class ExperimentQueriesActor[F[_]: Effect](
-    override val coordinatorConfig: CoordinatorConfig[F],
-    dispatcherService: DispatcherService,
-    experimentQuery2JobF: ExperimentQuery => Validation[ExperimentActor.Job]
+    override val config: WokenConfiguration,
+    override val databaseServices: DatabaseServices[F],
+    override val backendServices: BackendServices
 ) extends QueriesActor[ExperimentQuery, F] {
 
   import ExperimentQueriesActor.Experiment
@@ -101,24 +95,11 @@ class ExperimentQueriesActor[F[_]: Effect](
   override def receive: Receive = {
 
     case experiment: Experiment =>
-      val initiator    = if (experiment.replyTo == Actor.noSender) sender() else experiment.replyTo
-      val query        = experiment.query
-      val jobValidated = experimentQuery2JobF(query)
+      val initiator     = if (experiment.replyTo == Actor.noSender) sender() else experiment.replyTo
+      val query         = experiment.query
+      val jobValidatedF = queryToJobService.experimentQuery2Job(query)
 
-      jobValidated.fold(
-        errorMsg => {
-          val error =
-            ErrorJobResult(
-              None,
-              coordinatorConfig.jobsConf.node,
-              OffsetDateTime.now(),
-              None,
-              s"Experiment $query failed with message: " + errorMsg.reduceLeft(_ + ", " + _)
-            )
-          initiator ! error.asQueryResult(Some(query))
-        },
-        job => runExperiment(query, initiator, job)
-      )
+      runNow(jobValidatedF)(processJob(initiator, query))
 
     case ExperimentActor.Response(job, Left(results), initiator) =>
       logger.info(s"Received error response for experiment on ${job.query}: $results")
@@ -147,6 +128,31 @@ class ExperimentQueriesActor[F[_]: Effect](
 
     case e =>
       logger.warn(s"Received unhandled request $e of type ${e.getClass}")
+
+  }
+
+  private def processJob(initiator: ActorRef, query: ExperimentQuery)(
+      cb: Either[Throwable, Validation[(Job, UserFeedbacks)]]
+  ): Unit = cb match {
+    case Left(e) =>
+      logger.error("", e)
+      reportErrorMessage(query, initiator)(
+        s"Experiment for $query failed with error: ${e.toString}"
+      )
+    case Right(jobValidated) =>
+      jobValidated.fold(
+        errorMsg => {
+          reportErrorMessage(query, initiator)(
+            s"Experiment for $query failed with message: " + errorMsg.reduceLeft(_ + ", " + _)
+          )
+        }, {
+          case (job: ExperimentActor.Job, feedback) => runExperiment(query, initiator, job)
+          case (job, _) =>
+            reportErrorMessage(query, initiator)(
+              s"Unsupported job $job. Was expecting a job of type ExperimentActor.Job"
+            )
+        }
+      )
 
   }
 

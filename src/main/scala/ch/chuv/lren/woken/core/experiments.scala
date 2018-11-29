@@ -133,7 +133,7 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
       val thisActor  = self
       val algorithms = job.query.algorithms
 
-      def completeExperiment(responseF: Future[Response]) =
+      def completeExperiment(responseF: Future[Response]): Unit =
         responseF
           .andThen {
             case Success(response) =>

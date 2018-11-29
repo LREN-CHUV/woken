@@ -16,21 +16,7 @@
  */
 
 package ch.chuv.lren.woken.service
+
 import akka.actor.ActorRef
-import cats.effect.Effect
-import ch.chuv.lren.woken.config.WokenConfiguration
-import ch.chuv.lren.woken.core.CoordinatorConfig
 
-import scala.language.higherKinds
-
-case class BackendServices(dispatcherService: DispatcherService, chronosHttp: ActorRef) {
-  def coordinatorConfig[F[_]: Effect](config: WokenConfiguration,
-                                      databaseServices: DatabaseServices[F]) = CoordinatorConfig(
-    chronosHttp,
-    config.app.dockerBridgeNetwork,
-    databaseServices.featuresService,
-    databaseServices.jobResultService,
-    config.jobs,
-    config.databaseConfig
-  )
-}
+case class BackendServices(dispatcherService: DispatcherService, chronosHttp: ActorRef)

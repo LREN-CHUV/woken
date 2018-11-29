@@ -58,12 +58,12 @@ object CrossValidationFlow {
       algorithmDefinition: AlgorithmDefinition
   )
 
-  private[CrossValidationFlow] case class FoldContext[R](
+  private[CrossValidationFlow] case class FoldContext[R, F[_]: Effect](
       job: Job,
       response: R,
       fold: Int,
       targetMetaData: VariableMetaData,
-      validation: KFoldCrossValidation
+      splitter: FeaturesSplitter[F]
   )
 
   private[CrossValidationFlow] case class FoldResult(
@@ -87,6 +87,7 @@ object CrossValidationFlow {
 case class CrossValidationFlow[F[_]: Effect](
     executeJobAsync: CoordinatorActor.ExecuteJobAsync,
     featuresService: FeaturesService[F],
+    splitterDef: FeaturesSplitterDefinition,
     context: ActorContext
 )(implicit materializer: Materializer, ec: ExecutionContext)
     extends LazyLogging {

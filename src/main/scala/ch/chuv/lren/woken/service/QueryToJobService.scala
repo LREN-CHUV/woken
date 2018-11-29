@@ -22,7 +22,7 @@ import java.util.UUID
 import cats.data._
 import cats.data.NonEmptyList._
 import cats.data.Validated._
-import cats.effect.Effect
+import cats.effect.{ Async, Effect }
 import cats.implicits._
 import ch.chuv.lren.woken.config.JobsConfiguration
 import ch.chuv.lren.woken.core.ExperimentActor
@@ -83,51 +83,56 @@ class QueryToJobServiceImpl[F[_]: Effect](
 
   import QueryToJobService._
 
-  override def miningQuery2Job(query: MiningQuery): F[Validation[(Job, UserFeedbacks)]] = {
-
-    def createValidationOrMiningJob(
-        preparedQuery: PreparedQuery[MiningQuery],
-        algorithmLookup: String => Validation[AlgorithmDefinition]
-    ): Validation[(Job, UserFeedbacks)] = {
-      val jobId :: featuresDb :: featuresTable :: metadata :: query :: feedback :: HNil =
-        preparedQuery
-
-      def createMiningJob(mt: List[VariableMetaData],
-                          q: MiningQuery,
-                          ad: AlgorithmDefinition): DockerJob = {
-        val featuresQuery = q.filterDatasets
-          .filterNulls(ad.variablesCanBeNull, ad.covariablesCanBeNull)
-          .features(featuresTable)
-
-        DockerJob(jobId, featuresDb, featuresQuery, q.algorithm, ad, metadata = mt)
-      }
-
-      val job = query.algorithm.code match {
-        case ValidationJob.algorithmCode =>
-          ValidationJob(jobId = jobId,
-                        inputDb = featuresDb,
-                        inputTable = featuresTable,
-                        query = query,
-                        metadata = metadata).validNel[String]
-
-        case code =>
-          algorithmLookup(code).map(algorithm => createMiningJob(metadata, query, algorithm))
-      }
-
-      job.map(_ -> feedback)
-    }
-
+  override def miningQuery2Job(query: MiningQuery): F[Validation[(Job, UserFeedbacks)]] =
     for {
       preparedQuery <- prepareQuery(variablesMetaService, jobsConfiguration, query)
-      jobFb = preparedQuery.andThen(createValidationOrMiningJob(_, algorithmLookup))
-    } yield jobFb
+      validatedQuery <- preparedQuery.fold(
+        toInvalidF[PreparedQuery[MiningQuery]],
+        pq => validateQuery(pq, featuresService)
+      )
+    } yield validatedQuery.andThen(q => createValidationOrMiningJob(q, algorithmLookup))
+
+  private[this] def createValidationOrMiningJob(
+      preparedQuery: PreparedQuery[MiningQuery],
+      algorithmLookup: String => Validation[AlgorithmDefinition]
+  ): Validation[(Job, UserFeedbacks)] = {
+    val jobId :: featuresDb :: featuresTable :: metadata :: query :: feedback :: HNil =
+      preparedQuery
+
+    def createMiningJob(mt: List[VariableMetaData],
+                        q: MiningQuery,
+                        ad: AlgorithmDefinition): DockerJob = {
+      val featuresQuery = q.filterDatasets
+        .filterNulls(ad.variablesCanBeNull, ad.covariablesCanBeNull)
+        .features(featuresTable)
+
+      DockerJob(jobId, featuresDb, featuresQuery, q.algorithm, ad, metadata = mt)
+    }
+
+    val job = query.algorithm.code match {
+      case ValidationJob.algorithmCode =>
+        ValidationJob(jobId = jobId,
+                      inputDb = featuresDb,
+                      inputTable = featuresTable,
+                      query = query,
+                      metadata = metadata).validNel[String]
+
+      case code =>
+        algorithmLookup(code).map(algorithm => createMiningJob(metadata, query, algorithm))
+    }
+
+    job.map(_ -> feedback)
   }
 
   override def experimentQuery2Job(query: ExperimentQuery): F[Validation[(Job, UserFeedbacks)]] =
     for {
       preparedQuery <- prepareQuery(variablesMetaService, jobsConfiguration, query)
-      job = preparedQuery.andThen(createExperimentJob(_, algorithmLookup))
-    } yield job
+      validatedQuery <- preparedQuery.fold(
+        toInvalidF[PreparedQuery[ExperimentQuery]],
+        pq => validateQuery(pq, featuresService)
+      )
+      // TODO: query for experiment should filter for nulls if one of the algorithms require it
+    } yield validatedQuery.andThen(q => createExperimentJob(q, algorithmLookup))
 
   private[this] def createExperimentJob(
       preparedQuery: PreparedQuery[ExperimentQuery],
@@ -246,7 +251,7 @@ class QueryToJobServiceImpl[F[_]: Effect](
   private def validateQuery[Q <: Query](
       preparedQuery: PreparedQuery[Q],
       featuresService: FeaturesService[F]
-  ): Validation[F[Validation[PreparedQuery[Q]]]] = {
+  ): F[Validation[PreparedQuery[Q]]] = {
 
     val _ :: _ :: featuresTable :: _ :: query :: _ :: HNil = preparedQuery
 
@@ -256,15 +261,20 @@ class QueryToJobServiceImpl[F[_]: Effect](
         .featuresTable(table)
         .toValidatedNel[String]
 
-    validTableService.map { tableService =>
-      for {
-        numRows <- tableService.count(query.filters)
-        hasData = if (numRows > 0) preparedQuery.validNel[String]
-        else s"No data in table $table matching filters".invalidNel[PreparedQuery[Q]]
-      } yield hasData
+    validTableService
+      .map { tableService =>
+        for {
+          numRows <- tableService.count(query.filters)
+          hasData = if (numRows > 0) preparedQuery.validNel[String]
+          else s"No data in table $table matching filters".invalidNel[PreparedQuery[Q]]
+        } yield hasData
 
-    }
+      }
+      .fold(toInvalidF[PreparedQuery[Q]], f => f)
 
   }
+
+  private def toInvalidF[A](err: NonEmptyList[String]): F[Validation[A]] =
+    Async[F].delay(err.invalid[A])
 
 }
