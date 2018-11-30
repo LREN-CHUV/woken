@@ -25,15 +25,22 @@ import akka.actor.{ Actor, ActorContext, ActorRef, Props }
 import akka.stream._
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Merge, Partition, Sink, Source, ZipWith }
 import cats.effect.Effect
+import cats.data.Validated._
+import cats.implicits._
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
-import ch.chuv.lren.woken.core.validation.ValidatedAlgorithmFlow
+import ch.chuv.lren.woken.core.validation.{
+  FeaturesSplitter,
+  FeaturesSplitterDefinition,
+  ValidatedAlgorithmFlow
+}
 
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.{ Failure, Success }
-import ch.chuv.lren.woken.core.commands.JobCommands.StartExperimentJob
+import ch.chuv.lren.woken.akka.commands.JobCommands.StartExperimentJob
 import ch.chuv.lren.woken.config.JobsConfiguration
-import ch.chuv.lren.woken.core.model.AlgorithmDefinition
+import ch.chuv.lren.woken.core.model.{ AlgorithmDefinition, UserWarning }
 import ch.chuv.lren.woken.core.model.jobs._
+import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.service.{ DispatcherService, FeaturesService }
 import com.typesafe.scalalogging.LazyLogging
@@ -105,62 +112,49 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
   )
   implicit val ec: ExecutionContext = context.dispatcher
 
-  lazy val experimentFlow: Flow[Job, Map[AlgorithmSpec, JobResult], NotUsed] =
-    ExperimentFlow(
-      CoordinatorActor.executeJobAsync(coordinatorConfig, context),
-      coordinatorConfig.featuresService,
-      coordinatorConfig.jobsConf,
-      dispatcherService,
-      context
-    ).flow
-
   @SuppressWarnings(Array("org.wartremover.warts.Any", "org.wartremover.warts.NonUnitStatements"))
   override def receive: Receive = {
+
     case StartExperimentJob(job, requestedReplyTo, initiator) if job.query.algorithms.isEmpty =>
       val replyTo = if (requestedReplyTo == Actor.noSender) sender() else requestedReplyTo
       val msg     = "Experiment contains no algorithms"
-      val result = ErrorJobResult(Some(job.jobId),
-                                  coordinatorConfig.jobsConf.node,
-                                  OffsetDateTime.now(),
-                                  None,
-                                  msg)
-      coordinatorConfig.jobResultService.put(result)
-      replyTo ! Response(job, Left(result), initiator)
-      context stop self
+      completeWithError(job, msg, initiator, replyTo)
 
     case StartExperimentJob(job, requestedReplyTo, initiator) if job.query.algorithms.nonEmpty =>
       val replyTo    = if (requestedReplyTo == Actor.noSender) sender() else requestedReplyTo
       val thisActor  = self
       val algorithms = job.query.algorithms
 
-      def completeExperiment(responseF: Future[Response]): Unit =
-        responseF
-          .andThen {
-            case Success(response) =>
-              val result = response.result.fold(identity, identity)
-              coordinatorConfig.jobResultService.put(result)
-              replyTo ! response
-            case Failure(e) =>
-              logger.error(s"Cannot complete experiment ${job.jobId}: ${e.getMessage}", e)
-              val result = ErrorJobResult(Some(job.jobId),
-                                          coordinatorConfig.jobsConf.node,
-                                          OffsetDateTime.now(),
-                                          None,
-                                          e.toString)
-              val response = Response(job, Left(result), initiator)
-              coordinatorConfig.jobResultService.put(result)
-              replyTo ! response
-          }
-          .onComplete { _ =>
-            logger.info("Stopping...")
-            context stop thisActor
-          }
-
       logger.info(s"Start new experiment job $job")
       logger.info(s"List of algorithms: ${algorithms.mkString(",")}")
 
-      // XXX
-      job.algorithms.exists { case (_, defn) => defn.predictive }
+      val containsPredictiveAlgorithms = job.algorithms.exists { case (_, defn) => defn.predictive }
+
+      val splitterDefsV: Validation[List[FeaturesSplitterDefinition]] =
+        if (containsPredictiveAlgorithms) {
+          FeaturesSplitter.defineSplitters(job.query.validations)
+        } else Nil.validNel[String]
+
+      XXX
+
+      splitterDefsV.fold(
+        err => {
+          val msg = s"""Invalid definition of validations: ${err.mkString_("", ",", "")}"""
+          completeWithError(job, msg, initiator, replyTo)
+        },
+        splitterDefs => {
+          coordinatorConfig.featuresService
+        }
+      )
+
+      val experimentFlow: Flow[Job, Map[AlgorithmSpec, JobResult], NotUsed] =
+        ExperimentFlow(
+          CoordinatorActor.executeJobAsync(coordinatorConfig, context),
+          coordinatorConfig.featuresService,
+          coordinatorConfig.jobsConf,
+          dispatcherService,
+          context
+        ).flow
 
       val future: Future[Response] = Source
         .single(job)
@@ -182,13 +176,53 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
           Response(job, Right(pfa), initiator)
         }
 
-      completeExperiment(future)
+      completeExperiment(job, future, thisActor, initiator, replyTo)
 
     case e =>
       logger.error(s"Unhandled message: $e")
       context stop self
   }
 
+  private def completeWithError(job: Job,
+                                msg: String,
+                                initiator: ActorRef,
+                                replyTo: ActorRef): Unit = {
+    val result = ErrorJobResult(Some(job.jobId),
+                                coordinatorConfig.jobsConf.node,
+                                OffsetDateTime.now(),
+                                None,
+                                msg)
+    coordinatorConfig.jobResultService.put(result)
+    replyTo ! Response(job, Left(result), initiator)
+    context stop self
+  }
+
+  private def completeExperiment(job: ExperimentActor.Job,
+                                 responseF: Future[Response],
+                                 thisActor: ActorRef,
+                                 initiator: ActorRef,
+                                 replyTo: ActorRef): Unit =
+    responseF
+      .andThen {
+        case Success(response) =>
+          val result = response.result.fold(identity, identity)
+          coordinatorConfig.jobResultService.put(result)
+          replyTo ! response
+        case Failure(e) =>
+          logger.error(s"Cannot complete experiment ${job.jobId}: ${e.getMessage}", e)
+          val result = ErrorJobResult(Some(job.jobId),
+                                      coordinatorConfig.jobsConf.node,
+                                      OffsetDateTime.now(),
+                                      None,
+                                      e.toString)
+          val response = Response(job, Left(result), initiator)
+          coordinatorConfig.jobResultService.put(result)
+          replyTo ! response
+      }
+      .onComplete { _ =>
+        logger.info("Stopping...")
+        context stop thisActor
+      }
 }
 
 object ExperimentFlow {

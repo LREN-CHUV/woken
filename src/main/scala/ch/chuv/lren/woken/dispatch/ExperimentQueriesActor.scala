@@ -25,7 +25,7 @@ import akka.stream.scaladsl.{ Flow, Sink, Source }
 import cats.effect.Effect
 import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.core._
-import ch.chuv.lren.woken.core.commands.JobCommands.StartExperimentJob
+import ch.chuv.lren.woken.akka.commands.JobCommands.StartExperimentJob
 import ch.chuv.lren.woken.core.model.{ AlgorithmDefinition, UserFeedbacks }
 import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.core.validation.RemoteValidationFlow
@@ -146,6 +146,7 @@ class ExperimentQueriesActor[F[_]: Effect](
             s"Experiment for $query failed with message: " + errorMsg.reduceLeft(_ + ", " + _)
           )
         }, {
+          // TODO: report feedback
           case (job: ExperimentActor.Job, feedback) => runExperiment(query, initiator, job)
           case (job, _) =>
             reportErrorMessage(query, initiator)(

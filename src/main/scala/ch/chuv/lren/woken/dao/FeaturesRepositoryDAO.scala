@@ -27,6 +27,7 @@ import cats.implicits._
 import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model
+import ch.chuv.lren.woken.core.validation.FeaturesSplitterDefinition
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
 import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
@@ -275,7 +276,8 @@ object DynamicFeaturesTableRepositoryDAO {
       table: FeaturesTableDescription,
       tableColumns: List[TableColumn],
       filters: Option[FilterRule],
-      newFeatures: List[TableColumn]
+      newFeatures: List[TableColumn],
+      splitters: List[FeaturesSplitterDefinition]
   ): Validation[Resource[F, DynamicFeaturesTableRepositoryDAO[F]]] = {
 
     val extractPk: Validation[TableColumn] = table.primaryKey match {
@@ -285,23 +287,32 @@ object DynamicFeaturesTableRepositoryDAO {
           .invalidNel[TableColumn]
     }
 
-    val rndColumn = TableColumn("_rnd", SqlType.int)
+    val rndColumn  = TableColumn("_rnd", SqlType.int)
+    val newColumns = newFeatures ++ splitters.map(_.splitColumn)
 
     val validatedDao = extractPk.map { pk =>
       // Work in context F
-      val dynTableF = createDynamicTable(xa, table, pk, filters, rndColumn, newFeatures)
+      val dynTableF = createDynamicTable(xa, table, pk, filters, rndColumn, newColumns)
       dynTableF.flatMap { dynTable =>
-        val dynViewD =
-          createDynamicView(xa, table, pk, tableColumns, filters, dynTable, rndColumn, newFeatures)
-        dynViewD.map {
-          case (dynView, dynColumns) =>
-            new DynamicFeaturesTableRepositoryDAO(xa,
-                                                  dynView,
-                                                  dynColumns,
-                                                  dynTable,
-                                                  newFeatures,
-                                                  rndColumn)
-        }
+        val dynTableUpdates = splitters.map(_.fillSplitColumnSql(dynTable, rndColumn))
+        for {
+          _ <- dynTableUpdates.map(_.run.transact(xa)).sequence[F, Int]
+          (dynView, dynColumns) <- createDynamicView(xa,
+                                                     table,
+                                                     pk,
+                                                     tableColumns,
+                                                     filters,
+                                                     dynTable,
+                                                     rndColumn,
+                                                     newColumns)
+        } yield
+          new DynamicFeaturesTableRepositoryDAO(xa,
+                                                dynView,
+                                                dynColumns,
+                                                dynTable,
+                                                newColumns,
+                                                rndColumn)
+
       }
     }
 

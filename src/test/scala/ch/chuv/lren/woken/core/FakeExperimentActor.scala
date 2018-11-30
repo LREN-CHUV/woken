@@ -22,7 +22,7 @@ import java.time.OffsetDateTime
 import akka.actor.{ Actor, PoisonPill }
 import ch.chuv.lren.woken.core.model.jobs.ExperimentJobResult
 import ExperimentActor._
-import ch.chuv.lren.woken.core.commands.JobCommands
+import ch.chuv.lren.woken.akka.commands.JobCommands
 
 class FakeExperimentActor() extends Actor {
 

@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.core.commands
+package ch.chuv.lren.woken.akka.commands
 
 import akka.actor.ActorRef
 import ch.chuv.lren.woken.core.ExperimentActor.Job

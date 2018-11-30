@@ -19,10 +19,12 @@ package ch.chuv.lren.woken.service
 
 import cats.effect.Effect
 import ch.chuv.lren.woken.core.features.FeaturesQuery
-import ch.chuv.lren.woken.core.model.TableColumn
+import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
 import ch.chuv.lren.woken.dao.{ FeaturesRepository, FeaturesTableRepository }
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.core.fp.runNow
+import ch.chuv.lren.woken.core.validation.FeaturesSplitterDefinition
+import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query.filters.FilterRule
 import spray.json.JsObject
 
@@ -37,6 +39,14 @@ object FeaturesService {
 trait FeaturesService[F[_]] {
 
   def featuresTable(table: String): Either[String, FeaturesTableService[F]]
+
+  def withDynFeaturesTable[O](
+      table: String,
+      tableColumns: List[TableColumn],
+      filters: Option[FilterRule],
+      newFeatures: List[TableColumn],
+      splitters: List[FeaturesSplitterDefinition]
+  )(dynFeaturesTable: FeaturesTableDescription): F[Validation[O]]
 
 }
 
@@ -75,9 +85,20 @@ class FeaturesServiceImpl[F[_]: Effect](repository: FeaturesRepository[F])
         s"Table $table cannot be found or has not been configured in the configuration for database '" + repository.database + "'"
       )
 
+  override def withDynFeaturesTable[O](
+      table: String,
+      tableColumns: List[TableColumn],
+      filters: Option[FilterRule],
+      newFeatures: List[TableColumn],
+      splitters: List[FeaturesSplitterDefinition]
+  )(
+      dynFeaturesTable: FeaturesTableDescription
+  ): F[Validation[O]] = ???
+
 }
 
-class FeaturesTableServiceImpl[F[_]: Effect](database: String,
+class FeaturesTableServiceImpl[F[_]: Effect](
+                                              database: String,
                                              repository: FeaturesTableRepository[F])
     extends FeaturesTableService[F] {
 

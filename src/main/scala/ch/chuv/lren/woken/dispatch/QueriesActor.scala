@@ -65,7 +65,7 @@ trait QueriesActor[Q <: Query, F[_]] extends Actor with LazyLogging {
       valueF: F[A]
   )(processCb: Either[Throwable, A] => Unit)(implicit eff: Effect[F]): Unit =
     Effect[F]
-      .runAsync(valueF)(processCb andThen IO.apply)
+      .runAsync(valueF)(cb => IO(processCb(cb)))
       .unsafeRunSync()
 
   private[dispatch] def gatherAndReduce(

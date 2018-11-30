@@ -27,7 +27,7 @@ import akka.stream.scaladsl.{ Flow, Sink, Source }
 import cats.effect.Effect
 import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.core._
-import ch.chuv.lren.woken.core.commands.JobCommands.StartCoordinatorJob
+import ch.chuv.lren.woken.akka.commands.JobCommands.StartCoordinatorJob
 import ch.chuv.lren.woken.core.model.UserFeedbacks
 import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.core.validation.ValidationFlow
@@ -148,6 +148,7 @@ class MiningQueriesActor[F[_]: Effect](
             s"Mining for $query failed with message: " + errorMsg.reduceLeft(_ + ", " + _)
           )
         }, {
+          // TODO: report feedback
           case (job: DockerJob, feedback)     => runMiningJob(query, initiator, job)
           case (job: ValidationJob, feedback) => runValidationJob(initiator, job)
           case (job, _) =>

@@ -25,8 +25,8 @@ import ch.chuv.lren.woken.core.model.jobs.{ DockerJob, ErrorJobResult, PfaJobRes
 import spray.json._
 import CoordinatorActor._
 import akka.util.Timeout
-import ch.chuv.lren.woken.core.commands.JobCommands
-import ch.chuv.lren.woken.core.commands.JobCommands.StartCoordinatorJob
+import ch.chuv.lren.woken.akka.commands.JobCommands
+import ch.chuv.lren.woken.akka.commands.JobCommands.StartCoordinatorJob
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
