@@ -22,7 +22,7 @@ import cats.effect.Resource
 import cats.implicits._
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
-import ch.chuv.lren.woken.core.validation.FeaturesSplitterDefinition
+import ch.chuv.lren.woken.validation.FeaturesSplitterDefinition
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import spray.json.JsObject

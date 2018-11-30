@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.core.validation
+package ch.chuv.lren.woken.validation
 
 import cats.effect.Effect
 import cats.effect.concurrent.Deferred

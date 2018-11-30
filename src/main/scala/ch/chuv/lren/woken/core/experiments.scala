@@ -28,10 +28,9 @@ import cats.effect.Effect
 import cats.data.Validated._
 import cats.implicits._
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
-import ch.chuv.lren.woken.core.validation.{
+import ch.chuv.lren.woken.validation.{
   FeaturesSplitter,
-  FeaturesSplitterDefinition,
-  ValidatedAlgorithmFlow
+  FeaturesSplitterDefinition
 }
 
 import scala.concurrent.{ ExecutionContext, Future }

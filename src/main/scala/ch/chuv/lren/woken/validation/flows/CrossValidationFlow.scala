@@ -15,36 +15,37 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.core.validation
+package ch.chuv.lren.woken.validation.flows
 
 import java.util.UUID
 
 import akka.NotUsed
-import akka.actor.{ ActorContext, ActorRef }
-import akka.cluster.pubsub.{ DistributedPubSub, DistributedPubSubMediator }
+import akka.actor.{ActorContext, ActorRef}
+import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.pattern.ask
 import akka.stream.Materializer
 import akka.stream.scaladsl.Flow
 import akka.util.Timeout
-import cats.data.{ NonEmptyList, Validated }
+import cats.data.{NonEmptyList, Validated}
 import cats.effect.Effect
 import cats.implicits._
-import ch.chuv.lren.woken.core.features.QueryOffset
 import ch.chuv.lren.woken.core.CoordinatorActor
-import ch.chuv.lren.woken.core.model.AlgorithmDefinition
-import ch.chuv.lren.woken.core.model.jobs.{ DockerJob, ErrorJobResult, PfaJobResult }
 import ch.chuv.lren.woken.core.features.Queries._
+import ch.chuv.lren.woken.core.features.QueryOffset
+import ch.chuv.lren.woken.core.model.AlgorithmDefinition
+import ch.chuv.lren.woken.core.model.jobs.{DockerJob, ErrorJobResult, PfaJobResult}
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
-import ch.chuv.lren.woken.messages.query.{ MiningQuery, ValidationSpec }
+import ch.chuv.lren.woken.messages.query.{MiningQuery, ValidationSpec}
 import ch.chuv.lren.woken.messages.validation._
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
 import ch.chuv.lren.woken.service.FeaturesService
+import ch.chuv.lren.woken.validation.{FeaturesSplitter, FeaturesSplitterDefinition}
 import com.typesafe.scalalogging.LazyLogging
 import spray.json.JsValue
 
-import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration._
-import scala.language.{ higherKinds, postfixOps }
+import scala.concurrent.{ExecutionContext, Future}
+import scala.language.{higherKinds, postfixOps}
 
 object CrossValidationFlow {
 
@@ -94,7 +95,7 @@ case class CrossValidationFlow[F[_]: Effect](
 
   private lazy val mediator: ActorRef = DistributedPubSub(context.system).mediator
 
-  import CrossValidationFlow.{ CrossValidationScore, FoldContext, FoldResult, Job }
+  import CrossValidationFlow.{CrossValidationScore, FoldContext, FoldResult, Job}
 
   def crossValidate(parallelism: Int): Flow[Job, Option[(Job, Either[String, Score])], NotUsed] =
     Flow[Job]

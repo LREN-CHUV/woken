@@ -24,7 +24,7 @@ import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
 import ch.chuv.lren.woken.dao.{ FeaturesRepository, FeaturesTableRepository }
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.core.fp.runNow
-import ch.chuv.lren.woken.core.validation.FeaturesSplitterDefinition
+import ch.chuv.lren.woken.validation.FeaturesSplitterDefinition
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query.filters.FilterRule
 import spray.json.JsObject

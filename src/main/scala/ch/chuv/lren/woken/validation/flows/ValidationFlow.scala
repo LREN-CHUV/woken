@@ -15,33 +15,33 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.core.validation
+package ch.chuv.lren.woken.validation.flows
 
 import akka.NotUsed
-import akka.actor.{ ActorContext, ActorRef }
-import akka.cluster.pubsub.{ DistributedPubSub, DistributedPubSubMediator }
+import akka.actor.{ActorContext, ActorRef}
+import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
 import akka.pattern.ask
 import akka.stream.Materializer
 import akka.stream.scaladsl.Flow
 import akka.util.Timeout
-import cats.data.{ NonEmptyList, Validated }
+import cats.data.{NonEmptyList, Validated}
 import cats.effect.Effect
 import cats.implicits._
 import ch.chuv.lren.woken.core.CoordinatorActor
 import ch.chuv.lren.woken.core.features.Queries._
+import ch.chuv.lren.woken.core.fp.runNow
 import ch.chuv.lren.woken.core.model.jobs.ValidationJob
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query.AlgorithmSpec
 import ch.chuv.lren.woken.messages.validation._
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
 import ch.chuv.lren.woken.service.FeaturesService
-import ch.chuv.lren.woken.core.fp.runNow
 import com.typesafe.scalalogging.LazyLogging
 import spray.json._
 
 import scala.concurrent.duration._
-import scala.concurrent.{ ExecutionContext, Future }
-import scala.language.{ higherKinds, postfixOps }
+import scala.concurrent.{ExecutionContext, Future}
+import scala.language.{higherKinds, postfixOps}
 
 object ValidationFlow {
 
@@ -78,7 +78,7 @@ case class ValidationFlow[F[_]: Effect](
 
   private lazy val mediator: ActorRef = DistributedPubSub(context.system).mediator
 
-  import ValidationFlow.{ Context, Result }
+  import ValidationFlow.{Context, Result}
 
   def validate(): Flow[ValidationJob, (ValidationJob, Either[String, Score]), NotUsed] =
     Flow[ValidationJob]

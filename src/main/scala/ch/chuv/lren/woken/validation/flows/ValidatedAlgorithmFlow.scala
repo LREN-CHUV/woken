@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.core.validation
+package ch.chuv.lren.woken.validation.flows
 
 import java.time.OffsetDateTime
 import java.util.UUID
@@ -23,17 +23,18 @@ import java.util.UUID
 import akka.NotUsed
 import akka.actor.ActorContext
 import akka.stream._
-import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Zip }
+import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Zip}
 import cats.effect.Effect
 import ch.chuv.lren.woken.config.JobsConfiguration
 import ch.chuv.lren.woken.core.CoordinatorActor
+import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.core.model.AlgorithmDefinition
 import ch.chuv.lren.woken.core.model.jobs._
-import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.validation.Score
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
 import ch.chuv.lren.woken.service.FeaturesService
+import ch.chuv.lren.woken.validation.FeaturesSplitterDefinition
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.ExecutionContext
