@@ -93,14 +93,11 @@ case class ValidationFlow[F[_]: Effect](
             .filterNulls(variablesCanBeNull, covariablesCanBeNull)
             .features(job.inputTable)
 
-        val sql = featuresQuery.sql
-
         logger.info(s"Validation query: $featuresQuery")
 
         // JSON objects with fieldname corresponding to variables names
         featuresService
-          .featuresTable(featuresQuery.dbTable)
-          .right
+          .featuresTable(None, featuresQuery.dbTable)
           .map { table =>
             val (_, dataframe) = runNow(table.features(featuresQuery))
             logger.info(s"Query response: ${dataframe.mkString(",")}")
@@ -131,7 +128,8 @@ case class ValidationFlow[F[_]: Effect](
             Context(job, validationQuery, validationQuery.varInfo, groundTruth)
           }
           .fold({ error =>
-            throw new IllegalArgumentException(error)
+            val errMsg = error.mkString_("", ",", "")
+            throw new IllegalArgumentException(errMsg)
           }, identity)
       }
       .mapAsync(1)(executeValidation)

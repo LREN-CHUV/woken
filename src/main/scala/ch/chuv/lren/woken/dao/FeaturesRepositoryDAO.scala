@@ -209,22 +209,19 @@ class FeaturesTableRepositoryDAO[F[_]: Effect] private (
     override val columns: FeaturesTableRepository.Headers
 ) extends BaseFeaturesTableRepositoryDAO[F] {
 
-override def createExtendedFeaturesTable(
-                                          table: FeaturesTableDescription,
-                                          tableColumns: List[TableColumn],
-                                          filters: Option[FilterRule],
-                                          newFeatures: List[TableColumn],
-                                          splitters: List[FeaturesSplitterDefinition]
-                                        ): Validation[Resource[F, FeaturesTableRepository[F]]] = {
-  DynamicFeaturesTableRepositoryDAO(xa, table, tableColumns, filters, newFeatures, splitters)
-}
+  override def createExtendedFeaturesTable(
+      filters: Option[FilterRule],
+      newFeatures: List[TableColumn],
+      splitters: List[FeaturesSplitterDefinition]
+  ): Validation[Resource[F, FeaturesTableRepository[F]]] =
+    ExtendedFeaturesTableRepositoryDAO(this, filters, newFeatures, splitters)
 
 }
 
 object FeaturesTableRepositoryDAO {
 
   def apply[F[_]: Effect](xa: Transactor[F],
-                         table: FeaturesTableDescription): F[FeaturesTableRepository[F]] =
+                          table: FeaturesTableDescription): F[FeaturesTableRepository[F]] =
     HC.prepareStatement(s"SELECT * FROM ${table.quotedName}")(prepareHeaders)
       .transact(xa)
       .map { headers =>
@@ -266,21 +263,22 @@ object FeaturesTableRepositoryDAO {
   }
 }
 
-class DynamicFeaturesTableRepositoryDAO[F[_]: Effect] private (
-    override val xa: Transactor[F],
+class ExtendedFeaturesTableRepositoryDAO[F[_]: Effect] private (
+    val sourceTable: FeaturesTableRepositoryDAO[F],
     val view: FeaturesTableDescription,
     val viewColumns: List[TableColumn],
-    val dynTable: FeaturesTableDescription,
+    val extTable: FeaturesTableDescription,
     val newFeatures: List[TableColumn],
     val rndColumn: TableColumn
 ) extends BaseFeaturesTableRepositoryDAO[F] {
 
+  override val xa: Transactor[F]               = sourceTable.xa
   override val table: FeaturesTableDescription = view
   override val columns: List[TableColumn]      = viewColumns
 
   def close(): F[Unit] = {
     val rmView     = fr"DELETE VIEW " ++ frName(view)
-    val rmDynTable = fr"DELETE TABLE " ++ frName(dynTable)
+    val rmDynTable = fr"DELETE TABLE " ++ frName(extTable)
 
     for {
       _ <- rmView.update.run.transact(xa)
@@ -289,30 +287,28 @@ class DynamicFeaturesTableRepositoryDAO[F[_]: Effect] private (
   }
 
   override def createExtendedFeaturesTable(
-                                            table: FeaturesTableDescription,
-                                            tableColumns: List[TableColumn],
-                                            filters: Option[FilterRule],
-                                            newFeatures: List[TableColumn],
-                                            splitters: List[FeaturesSplitterDefinition]
-                                          ): Validation[Resource[F, FeaturesTableRepository[F]]] = "Impossible to extend an extended table".invalidNel
+      filters: Option[FilterRule],
+      newFeatures: List[TableColumn],
+      splitters: List[FeaturesSplitterDefinition]
+  ): Validation[Resource[F, FeaturesTableRepository[F]]] =
+    "Impossible to extend an extended table".invalidNel
 
 }
 
-object DynamicFeaturesTableRepositoryDAO {
+object ExtendedFeaturesTableRepositoryDAO {
 
   def apply[F[_]: Effect](
-      xa: Transactor[F],
-      table: FeaturesTableDescription,
-      tableColumns: List[TableColumn],
+      sourceTable: FeaturesTableRepositoryDAO[F],
       filters: Option[FilterRule],
       newFeatures: List[TableColumn],
       splitters: List[FeaturesSplitterDefinition]
   ): Validation[Resource[F, FeaturesTableRepository[F]]] = {
 
-    val extractPk: Validation[TableColumn] = table.primaryKey match {
+    val xa = sourceTable.xa
+    val extractPk: Validation[TableColumn] = sourceTable.table.primaryKey match {
       case pk :: Nil => lift(pk)
       case _ =>
-        s"Dynamic features table expects a primary key of one column for table ${table.name}"
+        s"Dynamic features table expects a primary key of one column for table ${sourceTable.table.name}"
           .invalidNel[TableColumn]
     }
 
@@ -321,39 +317,46 @@ object DynamicFeaturesTableRepositoryDAO {
 
     val validatedDao = extractPk.map { pk =>
       // Work in context F
-      val dynTableF = createDynamicTable(xa, table, pk, filters, rndColumn, newColumns)
-      dynTableF.flatMap { dynTable =>
-        val dynTableUpdates = splitters.map(_.fillSplitColumnSql(dynTable, rndColumn))
-        for {
-          _ <- dynTableUpdates.map(_.run.transact(xa)).sequence[F, Int]
-          (dynView, dynColumns) <- createDynamicView(xa,
-                                                     table,
-                                                     pk,
-                                                     tableColumns,
-                                                     filters,
-                                                     dynTable,
-                                                     rndColumn,
-                                                     newColumns)
-        } yield
-          new DynamicFeaturesTableRepositoryDAO(xa,
-                                                dynView,
-                                                dynColumns,
-                                                dynTable,
-                                                newColumns,
-                                                rndColumn)
+      val extTableF = createExtendedTable(xa, sourceTable.table, pk, filters, rndColumn, newColumns)
+      extTableF.flatMap { extTable =>
+        val extTableUpdates = splitters.map(_.fillSplitColumnSql(extTable, rndColumn))
 
+        extTableUpdates
+          .map(_.run.transact(xa))
+          .sequence[F, Int]
+          .flatMap { _ =>
+            createExtendedView(xa,
+                               sourceTable.table,
+                               pk,
+                               sourceTable.columns,
+                               filters,
+                               extTable,
+                               rndColumn,
+                               newColumns)
+              .map {
+                case (extView, extColumns) =>
+                  new ExtendedFeaturesTableRepositoryDAO(sourceTable,
+                                                         extView,
+                                                         extColumns,
+                                                         extTable,
+                                                         newColumns,
+                                                         rndColumn)
+              }
+          }
       }
     }
 
     validatedDao.map { dao =>
-      Resource.make(dao)(_.close()).flatMap{ f: DynamicFeaturesTableRepositoryDAO[F] => {
-        val repo: FeaturesTableRepository[F] = f
-        Resource.make(Effect[F].delay(repo))(_ => Effect[F].delay(()))
-      }}
+      Resource.make(dao)(_.close()).flatMap { f: ExtendedFeaturesTableRepositoryDAO[F] =>
+        {
+          val repo: FeaturesTableRepository[F] = f
+          Resource.make(Effect[F].delay(repo))(_ => Effect[F].delay(()))
+        }
+      }
     }
   }
 
-  private def createDynamicTable[F[_]: Effect](
+  private def createExtendedTable[F[_]: Effect](
       xa: Transactor[F],
       table: FeaturesTableDescription,
       pk: TableColumn,
@@ -368,9 +371,9 @@ object DynamicFeaturesTableRepositoryDAO {
       SELECT nextval('gen_features_table_seq');
     """.query[Int].unique
 
-    def createAdditionalFeaturesTable(dynTable: FeaturesTableDescription,
+    def createAdditionalFeaturesTable(extTable: FeaturesTableDescription,
                                       pk: TableColumn): ConnectionIO[Int] = {
-      val stmt = fr"CREATE TABLE " ++ frName(dynTable) ++ fr"(" ++ frName(pk) ++ frType(pk) ++ fr" PRIMARY KEY," ++
+      val stmt = fr"CREATE TABLE " ++ frName(extTable) ++ fr"(" ++ frName(pk) ++ frType(pk) ++ fr" PRIMARY KEY," ++
         frName(rndColumn) ++ fr" SERIAL," ++
         frNameType(newFeatures :+ rndColumn) ++ fr""")
        )
@@ -381,7 +384,7 @@ object DynamicFeaturesTableRepositoryDAO {
       stmt.update.run
     }
 
-    def fillAdditionalFeaturesTable(dynTable: FeaturesTableDescription,
+    def fillAdditionalFeaturesTable(extTable: FeaturesTableDescription,
                                     pk: TableColumn): ConnectionIO[Int] = {
 
       // Sample SQL statements used to build this:
@@ -390,7 +393,7 @@ object DynamicFeaturesTableRepositoryDAO {
       // with win as (select subjectcode, ntile(10) over (order by rnd) as win_1 from cde_features_a_1) update cde_features_a_1 set win_1=win.win_1 from win where cde_features_a_1.subjectcode=win.subjectcode;
 
       val insertRndStmt = fr"""SELECT setseed(" ++ frConst(table.seed) ++ fr");
-        INSERT INTO """ ++ frName(dynTable) ++ fr"(" ++ frName(rndColumn) ++ fr") (SELECT " ++ frName(
+        INSERT INTO """ ++ frName(extTable) ++ fr"(" ++ frName(rndColumn) ++ fr") (SELECT " ++ frName(
         pk
       ) ++ fr" FROM " ++
         frName(table) ++ frWhereFilter(filters) ++ fr" ORDER BY random());"
@@ -400,20 +403,20 @@ object DynamicFeaturesTableRepositoryDAO {
 
     for {
       tableNum <- genTableNum.transact(xa)
-      dynTable = table.copy(name = s"${table.name}__$tableNum")
-      _ <- createAdditionalFeaturesTable(dynTable, pk).transact(xa)
-      _ <- fillAdditionalFeaturesTable(dynTable, pk).transact(xa)
-    } yield dynTable
+      extTable = table.copy(name = s"${table.name}__$tableNum", validateSchema = false)
+      _ <- createAdditionalFeaturesTable(extTable, pk).transact(xa)
+      _ <- fillAdditionalFeaturesTable(extTable, pk).transact(xa)
+    } yield extTable
 
   }
 
-  private def createDynamicView[F[_]: Effect](
+  private def createExtendedView[F[_]: Effect](
       xa: Transactor[F],
       table: FeaturesTableDescription,
       pk: TableColumn,
       tableColumns: List[TableColumn],
       filters: Option[FilterRule],
-      dynTable: FeaturesTableDescription,
+      extTable: FeaturesTableDescription,
       rndColumn: TableColumn,
       newFeatures: List[TableColumn]
   ): F[(FeaturesTableDescription, Headers)] = {
@@ -421,34 +424,34 @@ object DynamicFeaturesTableRepositoryDAO {
     def createFeaturesView(table: FeaturesTableDescription,
                            pk: TableColumn,
                            tableColumns: Headers,
-                           dynTable: FeaturesTableDescription,
-                           dynTableColumns: Headers,
-                           dynView: FeaturesTableDescription,
-                           dynViewColumns: Headers): ConnectionIO[Int] = {
+                           extTable: FeaturesTableDescription,
+                           extTableColumns: Headers,
+                           extView: FeaturesTableDescription,
+                           extViewColumns: Headers): ConnectionIO[Int] = {
 
-      val stmt = fr"CREATE OR REPLACE VIEW " ++ frName(dynView) ++
-        fr"(" ++ frNames(dynViewColumns) ++ fr") AS SELECT" ++
+      val stmt = fr"CREATE OR REPLACE VIEW " ++ frName(extView) ++
+        fr"(" ++ frNames(extViewColumns) ++ fr") AS SELECT" ++
         frQualifiedNames(table, tableColumns) ++ fr"," ++
-        frQualifiedNames(dynTable, dynTableColumns) ++ fr" FROM " ++
-        frName(table) ++ fr" LEFT OUTER JOIN " ++ frName(dynTable) ++ fr" ON " ++
-        frEqual(table, List(pk), dynTable, List(pk))
+        frQualifiedNames(extTable, extTableColumns.filter(_ != pk)) ++ fr" FROM " ++
+        frName(table) ++ fr" LEFT OUTER JOIN " ++ frName(extTable) ++ fr" ON " ++
+        frEqual(table, List(pk), extTable, List(pk))
 
       stmt.update.run
     }
 
-    val dynTableColumns    = newFeatures ++ List(rndColumn: TableColumn)
-    val dynViewDescription = dynTable.copy(name = s"${dynTable.name}v")
-    val dynViewColumns     = tableColumns ++ newFeatures ++ List(rndColumn: TableColumn)
+    val extTableColumns    = newFeatures ++ List(rndColumn: TableColumn)
+    val extViewDescription = extTable.copy(name = s"${extTable.name}v")
+    val extViewColumns     = tableColumns ++ extTableColumns.filter(_ != pk)
 
     for {
       _ <- createFeaturesView(table,
                               pk,
                               tableColumns,
-                              dynTable,
-                              dynTableColumns,
-                              dynViewDescription,
-                              dynViewColumns).transact(xa)
-    } yield (dynViewDescription, dynViewColumns)
+                              extTable,
+                              extTableColumns,
+                              extViewDescription,
+                              extViewColumns).transact(xa)
+    } yield (extViewDescription, extViewColumns)
 
   }
 

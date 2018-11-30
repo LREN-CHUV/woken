@@ -256,10 +256,10 @@ class QueryToJobServiceImpl[F[_]: Effect](
     val _ :: _ :: featuresTable :: _ :: query :: _ :: HNil = preparedQuery
 
     val table = query.targetTable.getOrElse(featuresTable)
+    // TODO: Add targetSchema to query or schema to configuration or both, use it here instead of None
     val validTableService: Validation[FeaturesTableService[F]] =
       featuresService
-        .featuresTable(table)
-        .toValidatedNel[String]
+        .featuresTable(None, table)
 
     validTableService
       .map { tableService =>

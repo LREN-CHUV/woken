@@ -66,13 +66,15 @@ case class ValidatedAlgorithmFlow[F[_]: Effect](
     executeJobAsync: CoordinatorActor.ExecuteJobAsync,
     featuresService: FeaturesService[F],
     jobsConf: JobsConfiguration,
+    splitterDef: FeaturesSplitterDefinition,
     context: ActorContext
 )(implicit materializer: Materializer, ec: ExecutionContext)
     extends LazyLogging {
 
   import ValidatedAlgorithmFlow._
 
-  private val crossValidationFlow = CrossValidationFlow(executeJobAsync, featuresService, context)
+  private val crossValidationFlow =
+    CrossValidationFlow(executeJobAsync, featuresService, splitterDef, context)
 
   /**
     * Run a predictive and local algorithm and perform its validation procedure.
@@ -166,6 +168,7 @@ case class ValidatedAlgorithmFlow[F[_]: Effect](
       .log("Cross validation results")
       .named("cross-validate")
 
+  // TODO: keep?
   private def nodeOf(spec: ValidationSpec): Option[String] =
     spec.parameters.find(_.code == "node").map(_.value)
 

@@ -18,6 +18,7 @@
 package ch.chuv.lren.woken.service
 
 import cats.Monoid
+import cats.data.NonEmptyList
 import cats.effect._
 import cats.implicits._
 import ch.chuv.lren.woken.config.{ DatabaseConfiguration, WokenConfiguration, configurationFailed }
@@ -50,24 +51,32 @@ case class DatabaseServices[F[_]: ConcurrentEffect: ContextShift: Timer](
 
     Monoid.combineAll(datasetService.datasets().filter(_.location.isEmpty).map { dataset =>
       Monoid.combineAll(dataset.tables.map {
-        tableName =>
-          featuresService
-            .featuresTable(tableName)
-            .fold[F[Unit]](
-              { error: String =>
-                logger.error(error)
-                Effect[F].raiseError(new IllegalStateException(error))
-              }, { table: FeaturesTableService[F] =>
-                table.count(dataset.dataset).map { count =>
-                  if (count == 0) {
-                    val error =
-                      s"Table $tableName contains no value for dataset ${dataset.dataset.code}"
-                    logger.error(error)
-                    throw new IllegalStateException(error)
+        qualifiedTableName =>
+          {
+            val dbSchema =
+              if (qualifiedTableName.contains(".")) Some(qualifiedTableName.split(".")(0)) else None
+            val tableName =
+              if (qualifiedTableName.contains(".")) qualifiedTableName.split(".")(1)
+              else qualifiedTableName
+            featuresService
+              .featuresTable(dbSchema, tableName)
+              .fold[F[Unit]](
+                { error: NonEmptyList[String] =>
+                  val errMsg = error.mkString_("", ",", "")
+                  logger.error(errMsg)
+                  Effect[F].raiseError(new IllegalStateException(errMsg))
+                }, { table: FeaturesTableService[F] =>
+                  table.count(dataset.dataset).map { count =>
+                    if (count == 0) {
+                      val error =
+                        s"Table $tableName contains no value for dataset ${dataset.dataset.code}"
+                      logger.error(error)
+                      throw new IllegalStateException(error)
+                    }
                   }
                 }
-              }
-            )
+              )
+          }
       })
     })
   }

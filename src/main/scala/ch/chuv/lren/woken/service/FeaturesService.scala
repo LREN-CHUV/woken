@@ -17,11 +17,11 @@
 
 package ch.chuv.lren.woken.service
 
-import cats.effect.{Effect, Resource}
+import cats.effect.{ Effect, Resource }
 import cats.syntax.validated._
 import ch.chuv.lren.woken.core.features.FeaturesQuery
-import ch.chuv.lren.woken.core.model.{FeaturesTableDescription, TableColumn}
-import ch.chuv.lren.woken.dao.{DynamicFeaturesTableRepositoryDAO, FeaturesRepository, FeaturesTableRepository}
+import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
+import ch.chuv.lren.woken.dao.{ FeaturesRepository, FeaturesTableRepository }
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.core.fp.runNow
 import ch.chuv.lren.woken.core.validation.FeaturesSplitterDefinition
@@ -41,14 +41,6 @@ trait FeaturesService[F[_]] {
 
   def featuresTable(dbSchema: Option[String], table: String): Validation[FeaturesTableService[F]]
 
-  def createExtendedFeaturesTable[O](
-    table: FeaturesTableDescription,
-    tableColumns: List[TableColumn],
-    filters: Option[FilterRule],
-    newFeatures: List[TableColumn],
-    splitters: List[FeaturesSplitterDefinition]
-  ): Validation[Resource[F, FeaturesTableService[F]]]
-
 }
 
 trait FeaturesTableService[F[_]] {
@@ -65,6 +57,12 @@ trait FeaturesTableService[F[_]] {
 
   def features(query: FeaturesQuery): F[(Headers, Stream[JsObject])]
 
+  def createExtendedFeaturesTable(
+      filters: Option[FilterRule],
+      newFeatures: List[TableColumn],
+      splitters: List[FeaturesSplitterDefinition]
+  ): Validation[Resource[F, FeaturesTableService[F]]]
+
 }
 
 class FeaturesServiceImpl[F[_]: Effect](repository: FeaturesRepository[F])
@@ -79,7 +77,7 @@ class FeaturesServiceImpl[F[_]: Effect](repository: FeaturesRepository[F])
       .orElse {
         runNow(repository.featuresTable(dbSchema, table))
           .map { featuresTable =>
-            val service = new FeaturesTableServiceImpl(repository.database, featuresTable)
+            val service = new FeaturesTableServiceImpl(featuresTable)
             featuresTableCache.put(table, service)
             service
           }
@@ -91,22 +89,9 @@ class FeaturesServiceImpl[F[_]: Effect](repository: FeaturesRepository[F])
         s.validNel[String]
       }
 
-  override def createExtendedFeaturesTable[O](
-      table: FeaturesTableDescription,
-      tableColumns: List[TableColumn],
-      filters: Option[FilterRule],
-      newFeatures: List[TableColumn],
-      splitters: List[FeaturesSplitterDefinition]
-  ): Validation[Resource[F, FeaturesTableService[F]]] = {
-
-    DynamicFeaturesTableRepositoryDAO.apply(xa, table, tableColumns, filters, newFeatures, splitters)
-
-  }
-
 }
 
-class FeaturesTableServiceImpl[F[_]: Effect](database: String,
-                                             repository: FeaturesTableRepository[F])
+class FeaturesTableServiceImpl[F[_]: Effect](repository: FeaturesTableRepository[F])
     extends FeaturesTableService[F] {
 
   override def table: FeaturesTableDescription = repository.table
@@ -118,5 +103,21 @@ class FeaturesTableServiceImpl[F[_]: Effect](database: String,
   def count(filters: Option[FilterRule]): F[Int] = repository.count(filters)
 
   def features(query: FeaturesQuery): F[(Headers, Stream[JsObject])] = repository.features(query)
+
+  override def createExtendedFeaturesTable(
+      filters: Option[FilterRule],
+      newFeatures: List[TableColumn],
+      splitters: List[FeaturesSplitterDefinition]
+  ): Validation[Resource[F, FeaturesTableService[F]]] =
+    repository
+      .createExtendedFeaturesTable(filters, newFeatures, splitters)
+      .map(
+        _.flatMap(
+          extendedTable =>
+            Resource.make(
+              Effect[F].delay(new FeaturesTableServiceImpl(extendedTable): FeaturesTableService[F])
+            )(_ => Effect[F].delay(()))
+        )
+      )
 
 }
