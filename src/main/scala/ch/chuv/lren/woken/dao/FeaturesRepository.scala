@@ -17,12 +17,15 @@
 
 package ch.chuv.lren.woken.dao
 
+import cats.Applicative
+import cats.effect.Resource
+import cats.implicits._
 import ch.chuv.lren.woken.core.features.FeaturesQuery
-import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
+import ch.chuv.lren.woken.core.model.{FeaturesTableDescription, TableColumn}
+import ch.chuv.lren.woken.core.validation.FeaturesSplitterDefinition
+import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import spray.json.JsObject
-import cats._
-import cats.implicits._
 import ch.chuv.lren.woken.messages.query.filters.FilterRule
 
 import scala.collection.concurrent.TrieMap
@@ -48,10 +51,11 @@ trait FeaturesRepository[F[_]] extends Repository {
   /**
     * Provides the interface to a features table
     *
+    * @param dbSchema Database schema containing the table. Defaults to 'public'
     * @param table Name of the table
     * @return an option to the features table repository
     */
-  def featuresTable(table: String): F[Option[FeaturesTableRepository[F]]]
+  def featuresTable(dbSchema: Option[String], table: String): F[Option[FeaturesTableRepository[F]]]
 
 }
 
@@ -99,6 +103,13 @@ trait FeaturesTableRepository[F[_]] extends Repository {
 
   def features(query: FeaturesQuery): F[(Headers, Stream[JsObject])]
 
+  def createExtendedFeaturesTable(
+    table: FeaturesTableDescription,
+    tableColumns: List[TableColumn],
+    filters: Option[FilterRule],
+    newFeatures: List[TableColumn],
+    splitters: List[FeaturesSplitterDefinition]
+  ): Validation[Resource[F, FeaturesTableRepository[F]]]
 }
 
 object FeaturesTableRepository {
@@ -114,7 +125,7 @@ class FeaturesInMemoryRepository[F[_]: Applicative](
 
   private val cache = new TrieMap[String, FeaturesTableRepository[F]]()
 
-  override def featuresTable(table: String): F[Option[FeaturesTableRepository[F]]] =
+  override def featuresTable(dbSchema: Option[String], table: String): F[Option[FeaturesTableRepository[F]]] =
     Option(
       cache
         .getOrElse(table, {
@@ -143,4 +154,12 @@ class FeaturesTableInMemoryRepository[F[_]: Applicative] extends FeaturesTableRe
 
   override def features(query: FeaturesQuery): F[(Headers, Stream[JsObject])] =
     (List[TableColumn](), List[JsObject]().toStream).pure[F]
+
+  override def createExtendedFeaturesTable(
+      table: FeaturesTableDescription,
+      tableColumns: List[TableColumn],
+      filters: Option[FilterRule],
+      newFeatures: List[TableColumn],
+      splitters: List[FeaturesSplitterDefinition]
+  ): Validation[Resource[F, FeaturesTableRepository[F]]] = "not implemented".invalidNel
 }

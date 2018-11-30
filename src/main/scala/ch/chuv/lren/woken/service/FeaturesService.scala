@@ -17,10 +17,11 @@
 
 package ch.chuv.lren.woken.service
 
-import cats.effect.Effect
+import cats.effect.{Effect, Resource}
+import cats.syntax.validated._
 import ch.chuv.lren.woken.core.features.FeaturesQuery
-import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
-import ch.chuv.lren.woken.dao.{ FeaturesRepository, FeaturesTableRepository }
+import ch.chuv.lren.woken.core.model.{FeaturesTableDescription, TableColumn}
+import ch.chuv.lren.woken.dao.{DynamicFeaturesTableRepositoryDAO, FeaturesRepository, FeaturesTableRepository}
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.core.fp.runNow
 import ch.chuv.lren.woken.core.validation.FeaturesSplitterDefinition
@@ -38,19 +39,21 @@ object FeaturesService {
 
 trait FeaturesService[F[_]] {
 
-  def featuresTable(table: String): Either[String, FeaturesTableService[F]]
+  def featuresTable(dbSchema: Option[String], table: String): Validation[FeaturesTableService[F]]
 
-  def withDynFeaturesTable[O](
-      table: String,
-      tableColumns: List[TableColumn],
-      filters: Option[FilterRule],
-      newFeatures: List[TableColumn],
-      splitters: List[FeaturesSplitterDefinition]
-  )(dynFeaturesTable: FeaturesTableDescription): F[Validation[O]]
+  def createExtendedFeaturesTable[O](
+    table: FeaturesTableDescription,
+    tableColumns: List[TableColumn],
+    filters: Option[FilterRule],
+    newFeatures: List[TableColumn],
+    splitters: List[FeaturesSplitterDefinition]
+  ): Validation[Resource[F, FeaturesTableService[F]]]
 
 }
 
 trait FeaturesTableService[F[_]] {
+
+  def table: FeaturesTableDescription
 
   def count: F[Int]
 
@@ -70,37 +73,43 @@ class FeaturesServiceImpl[F[_]: Effect](repository: FeaturesRepository[F])
   private val featuresTableCache: mutable.Map[String, FeaturesTableService[F]] =
     new mutable.WeakHashMap[String, FeaturesTableService[F]]()
 
-  def featuresTable(table: String): Either[String, FeaturesTableService[F]] =
+  def featuresTable(dbSchema: Option[String], table: String): Validation[FeaturesTableService[F]] =
     featuresTableCache
       .get(table)
       .orElse {
-        runNow(repository.featuresTable(table))
+        runNow(repository.featuresTable(dbSchema, table))
           .map { featuresTable =>
             val service = new FeaturesTableServiceImpl(repository.database, featuresTable)
             featuresTableCache.put(table, service)
             service
           }
       }
-      .toRight(
-        s"Table $table cannot be found or has not been configured in the configuration for database '" + repository.database + "'"
-      )
+      .fold(
+        (s"Table $table cannot be found or has not been configured in the configuration for database '" + repository.database + "'")
+          .invalidNel[FeaturesTableService[F]]
+      ) { s: FeaturesTableService[F] =>
+        s.validNel[String]
+      }
 
-  override def withDynFeaturesTable[O](
-      table: String,
+  override def createExtendedFeaturesTable[O](
+      table: FeaturesTableDescription,
       tableColumns: List[TableColumn],
       filters: Option[FilterRule],
       newFeatures: List[TableColumn],
       splitters: List[FeaturesSplitterDefinition]
-  )(
-      dynFeaturesTable: FeaturesTableDescription
-  ): F[Validation[O]] = ???
+  ): Validation[Resource[F, FeaturesTableService[F]]] = {
+
+    DynamicFeaturesTableRepositoryDAO.apply(xa, table, tableColumns, filters, newFeatures, splitters)
+
+  }
 
 }
 
-class FeaturesTableServiceImpl[F[_]: Effect](
-                                              database: String,
+class FeaturesTableServiceImpl[F[_]: Effect](database: String,
                                              repository: FeaturesTableRepository[F])
     extends FeaturesTableService[F] {
+
+  override def table: FeaturesTableDescription = repository.table
 
   def count: F[Int] = repository.count
 

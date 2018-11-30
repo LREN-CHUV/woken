@@ -20,7 +20,6 @@ package ch.chuv.lren.woken.dao
 import doobie._
 import doobie.implicits._
 import spray.json._
-import cats.Monad
 import cats.data.{ NonEmptyList, Validated }
 import cats.effect.{ Effect, Resource }
 import cats.implicits._
@@ -39,20 +38,30 @@ import utils._
 
 import scala.language.higherKinds
 
-class FeaturesRepositoryDAO[F[_]: Monad] private (
+class FeaturesRepositoryDAO[F[_]: Effect] private (
     val xa: Transactor[F],
     override val database: String,
     override val tables: Set[FeaturesTableDescription]
 ) extends FeaturesRepository[F] {
 
-  override def featuresTable(table: String): F[Option[FeaturesTableRepository[F]]] =
-    tables.find(_.name == table).map(t => FeaturesTableRepositoryDAO[F](xa, t)).sequence
+  override def featuresTable(dbSchema: Option[String],
+                             table: String): F[Option[FeaturesTableRepository[F]]] = {
 
+    val matchTable = { t: FeaturesTableDescription =>
+      (t.schema == dbSchema || dbSchema.isEmpty && t.schema
+        .contains("public")) && (t.name == table)
+    }
+
+    tables
+      .find(matchTable)
+      .map(t => FeaturesTableRepositoryDAO[F](xa, t))
+      .sequence
+  }
 }
 
 object FeaturesRepositoryDAO {
 
-  def apply[F[_]: Monad](
+  def apply[F[_]: Effect](
       xa: Transactor[F],
       database: String,
       tables: Set[FeaturesTableDescription]
@@ -118,7 +127,7 @@ object FeaturesRepositoryDAO {
 
 }
 
-abstract class BaseFeaturesTableRepositoryDAO[F[_]: Monad] extends FeaturesTableRepository[F] {
+abstract class BaseFeaturesTableRepositoryDAO[F[_]: Effect] extends FeaturesTableRepository[F] {
   def xa: Transactor[F]
 
   override def count: F[Int] = {
@@ -194,15 +203,27 @@ abstract class BaseFeaturesTableRepositoryDAO[F[_]: Monad] extends FeaturesTable
 
 }
 
-class FeaturesTableRepositoryDAO[F[_]: Monad] private (
+class FeaturesTableRepositoryDAO[F[_]: Effect] private (
     override val xa: Transactor[F],
     override val table: FeaturesTableDescription,
     override val columns: FeaturesTableRepository.Headers
-) extends BaseFeaturesTableRepositoryDAO[F] {}
+) extends BaseFeaturesTableRepositoryDAO[F] {
+
+override def createExtendedFeaturesTable(
+                                          table: FeaturesTableDescription,
+                                          tableColumns: List[TableColumn],
+                                          filters: Option[FilterRule],
+                                          newFeatures: List[TableColumn],
+                                          splitters: List[FeaturesSplitterDefinition]
+                                        ): Validation[Resource[F, FeaturesTableRepository[F]]] = {
+  DynamicFeaturesTableRepositoryDAO(xa, table, tableColumns, filters, newFeatures, splitters)
+}
+
+}
 
 object FeaturesTableRepositoryDAO {
 
-  def apply[F[_]: Monad](xa: Transactor[F],
+  def apply[F[_]: Effect](xa: Transactor[F],
                          table: FeaturesTableDescription): F[FeaturesTableRepository[F]] =
     HC.prepareStatement(s"SELECT * FROM ${table.quotedName}")(prepareHeaders)
       .transact(xa)
@@ -245,7 +266,7 @@ object FeaturesTableRepositoryDAO {
   }
 }
 
-class DynamicFeaturesTableRepositoryDAO[F[_]: Monad] private (
+class DynamicFeaturesTableRepositoryDAO[F[_]: Effect] private (
     override val xa: Transactor[F],
     val view: FeaturesTableDescription,
     val viewColumns: List[TableColumn],
@@ -267,6 +288,14 @@ class DynamicFeaturesTableRepositoryDAO[F[_]: Monad] private (
     } yield ()
   }
 
+  override def createExtendedFeaturesTable(
+                                            table: FeaturesTableDescription,
+                                            tableColumns: List[TableColumn],
+                                            filters: Option[FilterRule],
+                                            newFeatures: List[TableColumn],
+                                            splitters: List[FeaturesSplitterDefinition]
+                                          ): Validation[Resource[F, FeaturesTableRepository[F]]] = "Impossible to extend an extended table".invalidNel
+
 }
 
 object DynamicFeaturesTableRepositoryDAO {
@@ -278,7 +307,7 @@ object DynamicFeaturesTableRepositoryDAO {
       filters: Option[FilterRule],
       newFeatures: List[TableColumn],
       splitters: List[FeaturesSplitterDefinition]
-  ): Validation[Resource[F, DynamicFeaturesTableRepositoryDAO[F]]] = {
+  ): Validation[Resource[F, FeaturesTableRepository[F]]] = {
 
     val extractPk: Validation[TableColumn] = table.primaryKey match {
       case pk :: Nil => lift(pk)
@@ -317,11 +346,14 @@ object DynamicFeaturesTableRepositoryDAO {
     }
 
     validatedDao.map { dao =>
-      Resource.make(dao)(_.close())
+      Resource.make(dao)(_.close()).flatMap{ f: DynamicFeaturesTableRepositoryDAO[F] => {
+        val repo: FeaturesTableRepository[F] = f
+        Resource.make(Effect[F].delay(repo))(_ => Effect[F].delay(()))
+      }}
     }
   }
 
-  private def createDynamicTable[F[_]: Monad](
+  private def createDynamicTable[F[_]: Effect](
       xa: Transactor[F],
       table: FeaturesTableDescription,
       pk: TableColumn,
@@ -375,7 +407,7 @@ object DynamicFeaturesTableRepositoryDAO {
 
   }
 
-  private def createDynamicView[F[_]: Monad](
+  private def createDynamicView[F[_]: Effect](
       xa: Transactor[F],
       table: FeaturesTableDescription,
       pk: TableColumn,
