@@ -15,21 +15,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.core
+package ch.chuv.lren.woken.mining
 
 import java.time.OffsetDateTime
 
-import akka.actor.{Actor, ActorContext, ActorRef, PoisonPill, Props}
+import akka.actor.{ Actor, ActorContext, ActorRef, PoisonPill, Props }
 import akka.pattern.ask
-import ch.chuv.lren.woken.core.model.jobs.{DockerJob, ErrorJobResult, PfaJobResult}
-import spray.json._
 import akka.util.Timeout
-import ch.chuv.lren.woken.mining.JobCommands
-import ch.chuv.lren.woken.mining.commands.JobCommands.StartCoordinatorJob
+import ch.chuv.lren.woken.core.model.jobs.{ DockerJob, ErrorJobResult, PfaJobResult }
+import ch.chuv.lren.woken.mining.CoordinatorActor.{ ExecuteJobAsync, Response }
+import spray.json._
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.language.postfixOps
 
 object FakeCoordinatorActor {
@@ -68,7 +67,7 @@ object FakeCoordinatorActor {
 class FakeCoordinatorActor(expectedAlgorithm: String, errorMessage: Option[String]) extends Actor {
 
   override def receive: PartialFunction[Any, Unit] = {
-    case JobCommands.StartCoordinatorJob(job, replyTo, initiator) =>
+    case StartCoordinatorJob(job, replyTo, initiator) =>
       startCoordinatorJob(if (replyTo == Actor.noSender) sender() else replyTo, job, initiator)
   }
 

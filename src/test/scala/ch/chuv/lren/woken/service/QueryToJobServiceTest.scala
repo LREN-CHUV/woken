@@ -30,7 +30,11 @@ import ch.chuv.lren.woken.messages.variables._
 import com.typesafe.config.{ Config, ConfigFactory }
 import org.scalatest.{ Matchers, WordSpec }
 
-class QueryToJobServiceTest extends WordSpec with Matchers with ValidatedMatchers with ValidatedValues {
+class QueryToJobServiceTest
+    extends WordSpec
+    with Matchers
+    with ValidatedMatchers
+    with ValidatedValues {
 
   val config: Config = ConfigFactory
     .parseResourcesAnySyntax("localDatasets.conf")
@@ -72,8 +76,8 @@ class QueryToJobServiceTest extends WordSpec with Matchers with ValidatedMatcher
       )
 
       val maybeJob = QueryToJobService.miningQuery2Job(TestServices.localVariablesMetaService,
-                                                jobsConf,
-                                                algorithmLookup)(query)
+                                                       jobsConf,
+                                                       algorithmLookup)(query)
 
       maybeJob shouldBe invalid
       maybeJob.invalidValue.head shouldBe "Cannot find metadata for table unknown"
@@ -94,8 +98,8 @@ class QueryToJobServiceTest extends WordSpec with Matchers with ValidatedMatcher
       )
 
       val maybeJob = QueryToJobService.miningQuery2Job(TestServices.localVariablesMetaService,
-                                                jobsConf,
-                                                algorithmLookup)(query)
+                                                       jobsConf,
+                                                       algorithmLookup)(query)
 
       maybeJob shouldBe invalid
       maybeJob.invalidValue.head shouldBe "Could not find key: algorithms.unknown"
@@ -117,8 +121,8 @@ class QueryToJobServiceTest extends WordSpec with Matchers with ValidatedMatcher
       )
 
       val maybeJob = QueryToJobService.miningQuery2Job(TestServices.localVariablesMetaService,
-                                                jobsConf,
-                                                algorithmLookup)(query)
+                                                       jobsConf,
+                                                       algorithmLookup)(query)
 
       maybeJob shouldBe invalid
       maybeJob.invalidValue.head shouldBe "Found 1 out of 2 variables. Missing unknown"
@@ -140,8 +144,8 @@ class QueryToJobServiceTest extends WordSpec with Matchers with ValidatedMatcher
       )
 
       val maybeJob = QueryToJobService.miningQuery2Job(TestServices.localVariablesMetaService,
-                                                jobsConf,
-                                                algorithmLookup)(query)
+                                                       jobsConf,
+                                                       algorithmLookup)(query)
 
       maybeJob shouldBe invalid
       maybeJob.invalidValue.head shouldBe "Found 1 out of 2 variables. Missing unknown"
@@ -166,8 +170,8 @@ class QueryToJobServiceTest extends WordSpec with Matchers with ValidatedMatcher
       )
 
       val maybeJob = QueryToJobService.miningQuery2Job(TestServices.localVariablesMetaService,
-                                                jobsConf,
-                                                algorithmLookup)(query)
+                                                       jobsConf,
+                                                       algorithmLookup)(query)
 
       println(maybeJob)
       maybeJob shouldBe valid
@@ -236,8 +240,8 @@ class QueryToJobServiceTest extends WordSpec with Matchers with ValidatedMatcher
       )
 
       val maybeJob = QueryToJobService.miningQuery2Job(TestServices.localVariablesMetaService,
-                                                jobsConf,
-                                                algorithmLookup)(query)
+                                                       jobsConf,
+                                                       algorithmLookup)(query)
 
       maybeJob shouldBe valid
       maybeJob.value shouldBe a[DockerJob]
@@ -305,8 +309,8 @@ class QueryToJobServiceTest extends WordSpec with Matchers with ValidatedMatcher
       )
 
       val maybeJob = QueryToJobService.miningQuery2Job(TestServices.localVariablesMetaService,
-                                                jobsConf,
-                                                algorithmLookup)(query)
+                                                       jobsConf,
+                                                       algorithmLookup)(query)
 
       maybeJob shouldBe valid
       maybeJob.value shouldBe a[ValidationJob]
@@ -345,8 +349,8 @@ class QueryToJobServiceTest extends WordSpec with Matchers with ValidatedMatcher
 
       val maybeJob =
         QueryToJobService.experimentQuery2Job(TestServices.localVariablesMetaService,
-                                       jobsConf,
-                                       algorithmLookup)(query)
+                                              jobsConf,
+                                              algorithmLookup)(query)
 
       maybeJob shouldBe invalid
       maybeJob.invalidValue.head shouldBe "Cannot find metadata for table unknown"
@@ -371,8 +375,8 @@ class QueryToJobServiceTest extends WordSpec with Matchers with ValidatedMatcher
 
       val maybeJob =
         QueryToJobService.experimentQuery2Job(TestServices.localVariablesMetaService,
-                                       jobsConf,
-                                       algorithmLookup)(query)
+                                              jobsConf,
+                                              algorithmLookup)(query)
 
       maybeJob shouldBe invalid
       maybeJob.invalidValue.head shouldBe "Could not find key: algorithms.unknown"
@@ -398,8 +402,8 @@ class QueryToJobServiceTest extends WordSpec with Matchers with ValidatedMatcher
 
       val maybeJob =
         QueryToJobService.experimentQuery2Job(TestServices.localVariablesMetaService,
-                                       jobsConf,
-                                       algorithmLookup)(query)
+                                              jobsConf,
+                                              algorithmLookup)(query)
 
       maybeJob shouldBe invalid
       maybeJob.invalidValue.head shouldBe "Found 1 out of 2 variables. Missing unknown"
@@ -425,8 +429,8 @@ class QueryToJobServiceTest extends WordSpec with Matchers with ValidatedMatcher
 
       val maybeJob =
         QueryToJobService.experimentQuery2Job(TestServices.localVariablesMetaService,
-                                       jobsConf,
-                                       algorithmLookup)(query)
+                                              jobsConf,
+                                              algorithmLookup)(query)
 
       maybeJob shouldBe invalid
       maybeJob.invalidValue.head shouldBe "Found 1 out of 2 variables. Missing unknown"
@@ -452,8 +456,8 @@ class QueryToJobServiceTest extends WordSpec with Matchers with ValidatedMatcher
 
       val maybeJob =
         QueryToJobService.experimentQuery2Job(TestServices.localVariablesMetaService,
-                                       jobsConf,
-                                       algorithmLookup)(query)
+                                              jobsConf,
+                                              algorithmLookup)(query)
 
       maybeJob shouldBe valid
 
@@ -487,8 +491,8 @@ class QueryToJobServiceTest extends WordSpec with Matchers with ValidatedMatcher
 
       val maybeJob =
         QueryToJobService.experimentQuery2Job(TestServices.localVariablesMetaService,
-                                       jobsConf,
-                                       algorithmLookup)(query)
+                                              jobsConf,
+                                              algorithmLookup)(query)
 
       maybeJob shouldBe valid
 
@@ -522,8 +526,8 @@ class QueryToJobServiceTest extends WordSpec with Matchers with ValidatedMatcher
 
       val maybeJob =
         QueryToJobService.experimentQuery2Job(TestServices.localVariablesMetaService,
-                                       jobsConf,
-                                       algorithmLookup)(query)
+                                              jobsConf,
+                                              algorithmLookup)(query)
 
       maybeJob shouldBe invalid
     }

@@ -21,6 +21,7 @@ import cats.effect.IO
 import ch.chuv.lren.woken.core.model.VariablesMeta
 import ch.chuv.lren.woken.dao.{
   FeaturesInMemoryRepository,
+  FeaturesTableInMemoryRepository,
   MetadataInMemoryRepository,
   WokenInMemoryRepository
 }
@@ -78,4 +79,9 @@ object TestServices extends JsonUtils {
   lazy val emptyFeaturesService: FeaturesService[IO] = FeaturesService(
     new FeaturesInMemoryRepository[IO]("in_memory", Set())
   )
+
+  lazy val emptyFeaturesTableService: FeaturesTableService[IO] = new FeaturesTableServiceImpl(
+    new FeaturesTableInMemoryRepository[IO]()
+  )
+
 }

@@ -21,7 +21,7 @@ import akka.actor.{ Actor, ActorSystem, Props }
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{ Sink, Source }
 import akka.testkit.TestKit
-import ch.chuv.lren.woken.core.FakeCoordinatorActor
+import ch.chuv.lren.woken.mining.FakeCoordinatorActor
 import ch.chuv.lren.woken.util.{ FakeCoordinatorConfig, JsonUtils }
 import com.typesafe.config.{ Config, ConfigFactory }
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }

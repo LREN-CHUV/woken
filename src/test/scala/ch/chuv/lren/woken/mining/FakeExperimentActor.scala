@@ -15,18 +15,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.core
+package ch.chuv.lren.woken.mining
 
 import java.time.OffsetDateTime
 
-import akka.actor.{Actor, PoisonPill}
+import akka.actor.{ Actor, PoisonPill }
 import ch.chuv.lren.woken.core.model.jobs.ExperimentJobResult
 import ch.chuv.lren.woken.mining.ExperimentActor._
-import ch.chuv.lren.woken.mining.JobCommands
+
 class FakeExperimentActor() extends Actor {
 
   override def receive: PartialFunction[Any, Unit] = {
-    case JobCommands.StartExperimentJob(job, requestedReplyTo, initiator) =>
+    case StartExperimentJob(job, requestedReplyTo, initiator) =>
       val replyTo = if (requestedReplyTo == Actor.noSender) sender() else requestedReplyTo
       replyTo ! Response(
         job,

@@ -53,7 +53,7 @@ class JobToChronosTest extends FlatSpec with Matchers {
   val featuresQuery: FeaturesQuery =
     query
       .filterNulls(variablesCanBeNull = false, covariablesCanBeNull = false)
-      .features("features_table")
+      .features("testdb", None, "features_table", None)
 
   val jdbcConfs: Map[String, ValidatedNel[String, DatabaseConfiguration]] = Map(
     "features_db" -> DatabaseConfiguration(
@@ -182,7 +182,6 @@ class JobToChronosTest extends FlatSpec with Matchers {
 
     val dockerJob = DockerJob(
       jobId = "1234",
-      inputDb = "features_db",
       query = featuresQuery,
       algorithmSpec = query.algorithm,
       algorithmDefinition = knnDefinition,
@@ -281,7 +280,6 @@ class JobToChronosTest extends FlatSpec with Matchers {
 
     val dockerJob = DockerJob(
       jobId = "1234",
-      inputDb = "unknown_db",
       query = featuresQuery,
       algorithmSpec = query.algorithm,
       algorithmDefinition = knnDefinition,

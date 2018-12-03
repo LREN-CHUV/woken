@@ -15,34 +15,38 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.core
+package ch.chuv.lren.woken.mining
 
 import java.util.UUID
 
-import akka.actor.{Actor, ActorSystem, Props}
+import akka.actor.{ Actor, ActorSystem, Props }
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Source
 import akka.stream.testkit.scaladsl.TestSink
-import akka.testkit.{TestKit, TestProbe}
+import akka.testkit.{ TestKit, TestProbe }
+import ch.chuv.lren.woken.Predefined.Algorithms.{
+  anovaDefinition,
+  anovaFactorial,
+  knnDefinition,
+  knnWithK5
+}
 import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.config.AlgorithmsConfiguration
-import ch.chuv.lren.woken.core.model.jobs.{ErrorJobResult, JobResult, PfaJobResult}
+import ch.chuv.lren.woken.core.model.jobs.{ ErrorJobResult, JobResult, PfaJobResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil
-import ch.chuv.lren.woken.cromwell.core.ConfigUtil.{Validation, lift}
-import ch.chuv.lren.woken.messages.datasets.{Dataset, DatasetId}
+import ch.chuv.lren.woken.cromwell.core.ConfigUtil.{ Validation, lift }
+import ch.chuv.lren.woken.messages.datasets.{ Dataset, DatasetId }
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables.VariableId
 import ch.chuv.lren.woken.service.DispatcherService
-import ch.chuv.lren.woken.util.{FakeCoordinatorConfig, JsonUtils}
-import com.typesafe.config.{Config, ConfigFactory}
+import ch.chuv.lren.woken.util.{ FakeCoordinatorConfig, JsonUtils }
+import com.typesafe.config.{ Config, ConfigFactory }
 import com.typesafe.scalalogging.LazyLogging
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import ch.chuv.lren.woken.Predefined.Algorithms.{anovaDefinition, anovaFactorial, knnDefinition, knnWithK5}
-import ch.chuv.lren.woken.mining.{ExperimentActor, ExperimentFlow}
 
 /**
   * Experiment flow should always complete with success, but the error is reported inside the response.
@@ -87,9 +91,10 @@ class ExperimentFlowTest
 
   def experimentQuery2job(query: ExperimentQuery): Validation[ExperimentActor.Job] =
     ConfigUtil.lift(
-      ExperimentActor.Job(
+      ExperimentJob(
         jobId = UUID.randomUUID().toString,
         inputDb = "featuresDb",
+        inputDbSchema = None,
         inputTable = query.targetTable.getOrElse("sample_data"),
         query = query,
         metadata = Nil,
@@ -274,7 +279,6 @@ class ExperimentFlowTest
     private val coordinatorActor =
       context.actorOf(FakeCoordinatorActor.props(expectedAlgorithm, None))
     private val coordinatorConfig  = FakeCoordinatorConfig.coordinatorConfig(coordinatorActor)
-    private val algorithmLookup    = AlgorithmsConfiguration.factory(config)
     private val wokenClientService = WokenClientService("test")
     private val dispatcherService =
       DispatcherService(lift(Map[DatasetId, Dataset]()), wokenClientService)
@@ -284,9 +288,10 @@ class ExperimentFlowTest
         FakeCoordinatorActor.executeJobAsync(FakeCoordinatorActor.props(expectedAlgorithm, None),
                                              context)
       ),
-      coordinatorConfig.featuresService,
+      FakeCoordinatorConfig.fakeFeaturesTableService,
       coordinatorConfig.jobsConf,
       dispatcherService,
+      Nil,
       context
     )
 

@@ -32,9 +32,12 @@ class FeaturesQueryTest extends WordSpec with Matchers {
         dbVariables = List("a"),
         dbCovariables = List("b", "c"),
         dbGrouping = Nil,
+        dbName = "test_db",
+        dbSchema = None,
         dbTable = "table",
         filters = None,
-        sampling = None
+        sampling = None,
+        orderBy = None
       )
 
       query.sql shouldBe """SELECT "a","b","c" FROM "table""""
@@ -46,11 +49,14 @@ class FeaturesQueryTest extends WordSpec with Matchers {
         dbVariables = List("a"),
         dbCovariables = List("b", "c"),
         dbGrouping = Nil,
+        dbName = "test_db",
+        dbSchema = None,
         dbTable = "table",
         filters = Some(
           SingleFilterRule("i", "i", "text", InputType.number, Operator.greaterOrEqual, List("5"))
         ),
-        sampling = None
+        sampling = None,
+        orderBy = None
       )
 
       query.sql shouldBe """SELECT "a","b","c" FROM "table" WHERE "i" >= 5"""
@@ -62,9 +68,12 @@ class FeaturesQueryTest extends WordSpec with Matchers {
         dbVariables = List("a"),
         dbCovariables = List("b", "c"),
         dbGrouping = Nil,
+        dbName = "test_db",
+        dbSchema = None,
         dbTable = "table",
         filters = None,
-        sampling = Some(LeaveOutPartition(10, 2, Some(TableColumn("id", SqlType.varchar))))
+        sampling = Some(LeaveOutPartition(10, 2, Some(TableColumn("id", SqlType.varchar)))),
+        orderBy = None
       )
 
       query.sql shouldBe """SELECT "a","b","c",ntile(10) over (order by abs(('x'||substr(md5("id"),1,16))::bit(64)::BIGINT)) as "_window_" FROM "table" WHERE "_window_" != 3"""
@@ -76,11 +85,14 @@ class FeaturesQueryTest extends WordSpec with Matchers {
         dbVariables = List("a"),
         dbCovariables = List("b", "c"),
         dbGrouping = Nil,
+        dbName = "test_db",
+        dbSchema = None,
         dbTable = "table",
         filters = Some(
           SingleFilterRule("i", "i", "text", InputType.number, Operator.greaterOrEqual, List("5"))
         ),
-        sampling = Some(LeaveOutPartition(10, 2, Some(TableColumn("id", SqlType.varchar))))
+        sampling = Some(LeaveOutPartition(10, 2, Some(TableColumn("id", SqlType.varchar)))),
+        orderBy = None
       )
 
       query.sql shouldBe """SELECT "a","b","c",ntile(10) over (order by abs(('x'||substr(md5("id"),1,16))::bit(64)::BIGINT)) as "_window_" FROM "table" WHERE "i" >= 5 AND "_window_" != 3"""
@@ -92,9 +104,12 @@ class FeaturesQueryTest extends WordSpec with Matchers {
         dbVariables = List("a"),
         dbCovariables = List("b", "c"),
         dbGrouping = Nil,
+        dbName = "test_db",
+        dbSchema = None,
         dbTable = "table",
         filters = None,
-        sampling = Some(LeaveOutPartition(10, 2, Some(TableColumn("id", SqlType.int))))
+        sampling = Some(LeaveOutPartition(10, 2, Some(TableColumn("id", SqlType.int)))),
+        orderBy = None
       )
 
       query.sql shouldBe """SELECT "a","b","c",ntile(10) over (order by pseudo_encrypt("id")) as "_window_" FROM "table" WHERE "_window_" != 3"""
@@ -106,9 +121,12 @@ class FeaturesQueryTest extends WordSpec with Matchers {
         dbVariables = List("a"),
         dbCovariables = List("b", "c"),
         dbGrouping = Nil,
+        dbName = "test_db",
+        dbSchema = None,
         dbTable = "table",
         filters = None,
-        sampling = Some(LeaveOutPartition(10, 2, None))
+        sampling = Some(LeaveOutPartition(10, 2, None)),
+        orderBy = None
       )
 
       query.sql shouldBe """SELECT "a","b","c",ntile(10) over (order by random()) as "_window_" FROM "table" WHERE "_window_" != 3"""
