@@ -29,17 +29,16 @@ import akka.util.Timeout
 import cats.data.{ NonEmptyList, Validated }
 import cats.effect.Effect
 import cats.implicits._
-import ch.chuv.lren.woken.core.CoordinatorActor
-import ch.chuv.lren.woken.core.features.Queries._
-import ch.chuv.lren.woken.core.features.QueryOffset
+import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model.AlgorithmDefinition
 import ch.chuv.lren.woken.core.model.jobs.{ DockerJob, ErrorJobResult, PfaJobResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
-import ch.chuv.lren.woken.messages.query.MiningQuery
+import ch.chuv.lren.woken.messages.query.AlgorithmSpec
 import ch.chuv.lren.woken.messages.validation._
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
+import ch.chuv.lren.woken.mining.CoordinatorActor
 import ch.chuv.lren.woken.service.FeaturesTableService
-import ch.chuv.lren.woken.validation.FeaturesSplitter
+import ch.chuv.lren.woken.validation.{ FeaturesSplitter, PartioningQueries }
 import com.typesafe.scalalogging.LazyLogging
 import spray.json.JsValue
 
@@ -51,20 +50,23 @@ object CrossValidationFlow {
 
   case class Job[F[_]](
       jobId: String,
-      inputDb: String,
-      inputTable: String,
-      query: MiningQuery,
+      query: FeaturesQuery,
       metadata: List[VariableMetaData],
       splitter: FeaturesSplitter[F],
+      featuresTableService: FeaturesTableService[F],
+      algorithm: AlgorithmSpec,
       algorithmDefinition: AlgorithmDefinition
-  )
+  ) {
+
+    // Invariants
+    assert(featuresTableService.table.name == query.dbTable)
+  }
 
   private[CrossValidationFlow] case class FoldContext[R, F[_]: Effect](
       job: Job[F],
       response: R,
-      fold: Int,
-      targetMetaData: VariableMetaData,
-      splitter: FeaturesSplitter[F]
+      partition: PartioningQueries,
+      targetMetaData: VariableMetaData
   )
 
   private[CrossValidationFlow] case class FoldResult[F[_]](
@@ -83,52 +85,38 @@ object CrossValidationFlow {
       validations: List[JsValue]
   )
 
+  type FoldResults[F[_]] = List[FoldResult[F]]
 }
 
 case class CrossValidationFlow[F[_]: Effect](
     executeJobAsync: CoordinatorActor.ExecuteJobAsync,
-    featuresTableService: FeaturesTableService[F],
     context: ActorContext
 )(implicit materializer: Materializer, ec: ExecutionContext)
     extends LazyLogging {
 
   private lazy val mediator: ActorRef = DistributedPubSub(context.system).mediator
 
-  import CrossValidationFlow.{ CrossValidationScore, FoldContext, FoldResult, Job }
+  import CrossValidationFlow._
 
   def crossValidate(
       parallelism: Int
   ): Flow[Job[F], Option[(Job[F], Either[String, Score])], NotUsed] =
     Flow[Job[F]]
       .map { job =>
-        val featuresQuery =
-          job.query
-            .filterNulls(job.algorithmDefinition.variablesCanBeNull,
-                         job.algorithmDefinition.covariablesCanBeNull)
-            .features(job.inputTable)
-
         logger.info(s"Validation spec: ${job.splitter.definition.validation}")
 
-        // TODO For now only kfold cross-validation
-        val crossValidation =
-          KFoldCrossValidation(featuresQuery, foldCount, featuresService)
-            .fold({ error =>
-              throw new IllegalArgumentException(error)
-            }, identity)
-
-        // For every fold
-        crossValidation.partition.toList.map((job, crossValidation, _))
+        job.splitter.splitFeatures(job.query).map((job, _))
       }
       .mapConcat(identity)
       .mapAsyncUnordered(parallelism) { f =>
-        val (job, crossValidation, (fold, offset)) = f
-        localJobForFold(job, offset, fold, crossValidation)
+        val (job, partition) = f
+        localJobForFold(job, partition)
       }
       .mapAsync(parallelism)(handleFoldJobResponse)
       .mapAsync(parallelism)(validateFold)
       .mapAsync(parallelism)(scoreFoldValidationResponse)
       .log("Fold result")
-      .fold[List[FoldResult[F]]](List[FoldResult]()) { (l, r) =>
+      .fold[FoldResults[F]](List[FoldResult[F]]()) { (l, r) =>
         l :+ r
       }
       .mapAsync(1) { foldResults =>
@@ -165,36 +153,25 @@ case class CrossValidationFlow[F[_]: Effect](
       .log("Cross validation result")
       .named("crossValidate")
 
-  private def targetMetadata(job: Job[F]): VariableMetaData = {
-    import ch.chuv.lren.woken.core.features.Queries._
+  private def targetMetadata(job: Job[F]): VariableMetaData =
     job.query.dbVariables.headOption
       .flatMap { v =>
         job.metadata.find(m => m.code == v)
       }
       .getOrElse(throw new Exception("Problem with variables' meta data!"))
-  }
 
   private def localJobForFold(
       job: Job[F],
-      offset: QueryOffset,
-      fold: Int,
-      validation: KFoldCrossValidation
+      partition: PartioningQueries
   ): Future[FoldContext[CoordinatorActor.Response, F]] = {
 
     // Spawn a LocalCoordinatorActor for that one particular fold
     val jobId = UUID.randomUUID().toString
-    val featuresQuery =
-      job.query.filterDatasets
-        .filterNulls(job.algorithmDefinition.variablesCanBeNull,
-                     job.algorithmDefinition.covariablesCanBeNull)
-        .features(job.inputTable)
-        .copy(sampling = Some(validation.sampleForFold(fold)))
 
     val subJob = DockerJob(
       jobId = jobId,
-      inputDb = job.inputDb,
-      query = featuresQuery,
-      algorithmSpec = job.query.algorithm,
+      query = partition.trainingDatasetQuery,
+      algorithmSpec = job.algorithm,
       algorithmDefinition = job.algorithmDefinition,
       metadata = job.metadata
     )
@@ -203,9 +180,8 @@ case class CrossValidationFlow[F[_]: Effect](
       response =>
         FoldContext[CoordinatorActor.Response, F](job = job,
                                                   response = response,
-                                                  fold = fold,
-                                                  targetMetaData = targetMetadata(job),
-                                                  validation = validation)
+                                                  partition = partition,
+                                                  targetMetaData = targetMetadata(job))
     )
   }
 
@@ -217,19 +193,28 @@ case class CrossValidationFlow[F[_]: Effect](
         // Prepare the results for validation
         logger.info("Received result from local method.")
         // Take the raw model, as model contains runtime-inserted validations which are not yet compliant with PFA / Avro spec
-        val model    = pfa.modelWithoutValidation
-        val fold     = context.fold
-        val testData = context.validation.getTestSet(fold)._1
+        val model     = pfa.modelWithoutValidation
+        val partition = context.partition
 
         logger.info(
-          s"Send a validation work for fold $fold to validation worker"
+          s"Send a validation work for fold ${partition.fold} to validation worker"
         )
-        val validationQuery = ValidationQuery(fold, model, testData, context.targetMetaData)
-        Future(validationQuery)
+
+        val tableService                   = context.job.featuresTableService
+        val independentVarsFromTestDataset = partition.testDatasetQuery.independentVariablesOnly
+        val validationQueryF: F[ValidationQuery] =
+          tableService.features(independentVarsFromTestDataset).map { queryResults =>
+            ValidationQuery(partition.fold, model, queryResults._2.toList, context.targetMetaData)
+          }
+
+        Effect[F].toIO(validationQueryF).attempt.unsafeToFuture().flatMap {
+          case Right(validationQuery) => Future(validationQuery)
+          case Left(err)              => Future.failed[ValidationQuery](err)
+        }
 
       case CoordinatorActor.Response(_, List(error: ErrorJobResult), _) =>
         val message =
-          s"Error on cross validation job ${error.jobId} during fold ${context.fold}" +
+          s"Error on cross validation job ${error.jobId} during fold ${context.partition.fold}" +
             s" on variable ${context.targetMetaData.code}: ${error.error}"
         logger.error(message)
         // On training fold fails, we notify supervisor and we stop
@@ -237,7 +222,7 @@ case class CrossValidationFlow[F[_]: Effect](
 
       case CoordinatorActor.Response(_, unhandled, _) =>
         val message =
-          s"Error on cross validation job ${context.job.jobId} during fold ${context.fold}" +
+          s"Error on cross validation job ${context.job.jobId} during fold ${context.partition.fold}" +
             s" on variable ${context.targetMetaData.code}: Unhandled response from CoordinatorActor: $unhandled"
         logger.error(message)
         // On training fold fails, we notify supervisor and we stop
@@ -246,9 +231,8 @@ case class CrossValidationFlow[F[_]: Effect](
       r =>
         FoldContext[ValidationQuery, F](job = context.job,
                                         response = r,
-                                        fold = context.fold,
-                                        targetMetaData = context.targetMetaData,
-                                        validation = context.validation)
+                                        partition = context.partition,
+                                        targetMetaData = context.targetMetaData)
     )
 
   private def validateFold(
@@ -261,9 +245,8 @@ case class CrossValidationFlow[F[_]: Effect](
       r =>
         FoldContext[ValidationResult, F](job = context.job,
                                          response = r,
-                                         fold = context.fold,
-                                         targetMetaData = context.targetMetaData,
-                                         validation = context.validation)
+                                         partition = context.partition,
+                                         targetMetaData = context.targetMetaData)
     )
   }
 
@@ -272,15 +255,20 @@ case class CrossValidationFlow[F[_]: Effect](
   ): Future[FoldResult[F]] = {
     import cats.syntax.list._
 
+    val fold = context.partition.fold
     val resultsV: Validation[NonEmptyList[JsValue]] = Validated
       .fromEither(context.response.result.leftMap(e => NonEmptyList(e, Nil)))
       .andThen { v: List[JsValue] =>
-        Validated.fromOption(v.toNel, NonEmptyList(s"No results on fold ${context.fold}", Nil))
+        Validated.fromOption(v.toNel, NonEmptyList(s"No results on fold $fold", Nil))
       }
-    val groundTruthV: Validation[NonEmptyList[JsValue]] = Validated.fromOption(
-      context.validation.groundTruth(context.fold).toNel,
-      NonEmptyList(s"Empty test set on fold ${context.fold}", Nil)
-    )
+
+    val tableService                 = context.job.featuresTableService
+    val dependentVarsFromTestDataset = context.partition.testDatasetQuery.dependentVariablesOnly
+    val groundTruthF: F[Validation[NonEmptyList[JsValue]]] =
+      tableService.features(dependentVarsFromTestDataset).map { queryResults =>
+        Validated.fromOption(queryResults._2.toList.toNel,
+                             NonEmptyList(s"Empty test set on fold $fold", Nil))
+      }
 
     def performScoring(algorithmOutput: NonEmptyList[JsValue],
                        groundTruth: NonEmptyList[JsValue]): Future[FoldResult[F]] = {
@@ -295,19 +283,21 @@ case class CrossValidationFlow[F[_]: Effect](
               scores = s,
               validationResults = algorithmOutput.toList,
               groundTruth = groundTruth.toList,
-              fold = context.fold,
+              fold = fold,
               targetMetaData = context.targetMetaData
           )
         )
     }
 
-    val foldResultV = (resultsV, groundTruthV) mapN performScoring
-
-    foldResultV.valueOr(e => {
-      val errorMsg = e.toList.mkString(",")
-      logger.error(s"Cannot perform scoring on $context: $errorMsg")
-      Future.failed(new Exception(errorMsg))
-    })
+    Effect[F].toIO(groundTruthF).attempt.unsafeToFuture().flatMap {
+      case Right(groundTruthV) =>
+        ((resultsV, groundTruthV) mapN performScoring).valueOr { e =>
+          val errorMsg = e.toList.mkString(",")
+          logger.error(s"Cannot perform scoring on $context: $errorMsg")
+          Future.failed(new Exception(errorMsg))
+        }
+      case Left(err) => Future.failed[FoldResult[F]](err)
+    }
   }
 
   private def scoreAll(

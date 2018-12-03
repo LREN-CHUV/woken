@@ -101,9 +101,20 @@ object Queries {
       }
     }
 
-    def features(defaultInputTable: String): FeaturesQuery = {
+    def features(database: String,
+                 dbSchema: Option[String],
+                 defaultInputTable: String,
+                 orderBy: Option[String]): FeaturesQuery = {
       val inputTable = query.targetTable.getOrElse(defaultInputTable)
-      FeaturesQuery(dbVariables, dbCovariables, dbGrouping, inputTable, query.filters, None)
+      FeaturesQuery(dbVariables,
+                    dbCovariables,
+                    dbGrouping,
+                    database,
+                    dbSchema,
+                    inputTable,
+                    query.filters,
+                    None,
+                    orderBy)
     }
 
     @SuppressWarnings(Array("org.wartremover.warts.AsInstanceOf"))

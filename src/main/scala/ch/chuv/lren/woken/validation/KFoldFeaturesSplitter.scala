@@ -20,7 +20,7 @@ package ch.chuv.lren.woken.validation
 import cats.effect.Effect
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
-import ch.chuv.lren.woken.dao.utils.{ frConst, frEqual, frName, frNames }
+import ch.chuv.lren.woken.core.sqlUtils.{ frConst, frEqual, frName, frNames }
 import ch.chuv.lren.woken.messages.query.ValidationSpec
 import ch.chuv.lren.woken.messages.query.filters._
 import ch.chuv.lren.woken.messages.variables.SqlType
@@ -66,7 +66,8 @@ case class KFoldFeaturesSplitter[F[_]](
     // ntile also starts from 1
     Range(1, definition.numFolds).toList
       .map { fold =>
-        PartioningQueries(trainingDatasetQuery = trainingDatasetQuery(query, fold),
+        PartioningQueries(fold = fold,
+                          trainingDatasetQuery = trainingDatasetQuery(query, fold),
                           testDatasetQuery = testDatasetQuery(query, fold))
       }
 

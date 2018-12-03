@@ -22,11 +22,12 @@ import cats.effect.Resource
 import cats.implicits._
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
-import ch.chuv.lren.woken.validation.FeaturesSplitterDefinition
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import spray.json.JsObject
 import ch.chuv.lren.woken.messages.query.filters.FilterRule
+import doobie.util.log.LogHandler
+import doobie.util.update.Update0
 
 import scala.collection.concurrent.TrieMap
 import scala.language.higherKinds
@@ -57,6 +58,14 @@ trait FeaturesRepository[F[_]] extends Repository {
     */
   def featuresTable(dbSchema: Option[String], table: String): F[Option[FeaturesTableRepository[F]]]
 
+}
+
+trait PrefillExtendedFeaturesTable {
+
+  @SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
+  def prefillExtendedTableSql(targetTable: FeaturesTableDescription, rndColumn: TableColumn)(
+      implicit h: LogHandler = LogHandler.nop
+  ): Update0
 }
 
 /**
@@ -103,10 +112,19 @@ trait FeaturesTableRepository[F[_]] extends Repository {
 
   def features(query: FeaturesQuery): F[(Headers, Stream[JsObject])]
 
+  /**
+    *
+    * @param filters Filters always applied on the queries
+    * @param newFeatures New features to create, can be used in machine learning tasks
+    * @param otherColumns Other columns to create, present to support some internal functionalities like cross-validation
+    * @param prefills List of generators for update statements used to pre-fill the extended features table with data.
+    * @return
+    */
   def createExtendedFeaturesTable(
       filters: Option[FilterRule],
       newFeatures: List[TableColumn],
-      splitters: List[FeaturesSplitterDefinition]
+      otherColumns: List[TableColumn],
+      prefills: List[PrefillExtendedFeaturesTable]
   ): Validation[Resource[F, FeaturesTableRepository[F]]]
 }
 
@@ -157,6 +175,7 @@ class FeaturesTableInMemoryRepository[F[_]: Applicative] extends FeaturesTableRe
   override def createExtendedFeaturesTable(
       filters: Option[FilterRule],
       newFeatures: List[TableColumn],
-      splitters: List[FeaturesSplitterDefinition]
+      otherColumns: List[TableColumn],
+      prefills: List[PrefillExtendedFeaturesTable]
   ): Validation[Resource[F, FeaturesTableRepository[F]]] = "not implemented".invalidNel
 }

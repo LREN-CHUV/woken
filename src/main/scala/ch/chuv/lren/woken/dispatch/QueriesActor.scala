@@ -25,8 +25,8 @@ import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import cats.effect.{ Effect, IO }
 import ch.chuv.lren.woken.config.WokenConfiguration
-import ch.chuv.lren.woken.core.CoordinatorConfig
 import ch.chuv.lren.woken.core.model.jobs.{ ErrorJobResult, ExperimentJobResult, JobResult }
+import ch.chuv.lren.woken.mining.CoordinatorConfig
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.service.{
   BackendServices,

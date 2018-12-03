@@ -26,7 +26,6 @@ import cats.implicits._
 import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model
-import ch.chuv.lren.woken.validation.FeaturesSplitterDefinition
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
 import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
@@ -34,7 +33,7 @@ import ch.chuv.lren.woken.messages.query.filters.FilterRule
 import ch.chuv.lren.woken.messages.variables.SqlType
 import ch.chuv.lren.woken.messages.variables.SqlType.SqlType
 import doobie.enum.JdbcType
-import utils._
+import ch.chuv.lren.woken.core.sqlUtils._
 
 import scala.language.higherKinds
 
@@ -212,9 +211,10 @@ class FeaturesTableRepositoryDAO[F[_]: Effect] private (
   override def createExtendedFeaturesTable(
       filters: Option[FilterRule],
       newFeatures: List[TableColumn],
-      splitters: List[FeaturesSplitterDefinition]
+      otherColumns: List[TableColumn],
+      prefills: List[PrefillExtendedFeaturesTable]
   ): Validation[Resource[F, FeaturesTableRepository[F]]] =
-    ExtendedFeaturesTableRepositoryDAO(this, filters, newFeatures, splitters)
+    ExtendedFeaturesTableRepositoryDAO(this, filters, newFeatures, otherColumns, prefills)
 
 }
 
@@ -289,7 +289,8 @@ class ExtendedFeaturesTableRepositoryDAO[F[_]: Effect] private (
   override def createExtendedFeaturesTable(
       filters: Option[FilterRule],
       newFeatures: List[TableColumn],
-      splitters: List[FeaturesSplitterDefinition]
+      otherColumns: List[TableColumn],
+      prefills: List[PrefillExtendedFeaturesTable]
   ): Validation[Resource[F, FeaturesTableRepository[F]]] =
     "Impossible to extend an extended table".invalidNel
 
@@ -301,7 +302,8 @@ object ExtendedFeaturesTableRepositoryDAO {
       sourceTable: FeaturesTableRepositoryDAO[F],
       filters: Option[FilterRule],
       newFeatures: List[TableColumn],
-      splitters: List[FeaturesSplitterDefinition]
+      otherColumns: List[TableColumn],
+      prefills: List[PrefillExtendedFeaturesTable]
   ): Validation[Resource[F, FeaturesTableRepository[F]]] = {
 
     val xa = sourceTable.xa
@@ -313,13 +315,13 @@ object ExtendedFeaturesTableRepositoryDAO {
     }
 
     val rndColumn  = TableColumn("_rnd", SqlType.int)
-    val newColumns = newFeatures ++ splitters.map(_.splitColumn)
+    val newColumns = newFeatures ++ otherColumns
 
     val validatedDao = extractPk.map { pk =>
       // Work in context F
       val extTableF = createExtendedTable(xa, sourceTable.table, pk, filters, rndColumn, newColumns)
       extTableF.flatMap { extTable =>
-        val extTableUpdates = splitters.map(_.fillSplitColumnSql(extTable, rndColumn))
+        val extTableUpdates = prefills.map(_.prefillExtendedTableSql(extTable, rndColumn))
 
         extTableUpdates
           .map(_.run.transact(xa))

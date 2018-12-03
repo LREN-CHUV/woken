@@ -36,6 +36,8 @@ case class LeaveOutPartition(folds: Integer, excludeFold: Integer, orderColumn: 
   * @param dbVariables List of variables (dependent features)
   * @param dbCovariables List of covariables (independent features)
   * @param dbGrouping List of fields to use in a group by statement (or equivalent when an algorithm supporting grouping is used)
+  * @param dbName Name of the database
+  * @param dbSchema Schema containing the table, or None for default schema (usually, 'public' schema)
   * @param dbTable Database table containing the data
   * @param filters Filters to apply on the data
   * @param sampling Sampling method used to select
@@ -44,10 +46,16 @@ case class FeaturesQuery(
     dbVariables: List[String],
     dbCovariables: List[String],
     dbGrouping: List[String],
+    dbName: String,
+    dbSchema: Option[String],
     dbTable: String,
     filters: Option[FilterRule],
-    sampling: Option[Sampling]
+    sampling: Option[Sampling],
+    orderBy: Option[String]
 ) {
+
+  def dependentVariablesOnly: FeaturesQuery   = this.copy(dbCovariables = Nil, dbGrouping = Nil)
+  def independentVariablesOnly: FeaturesQuery = this.copy(dbVariables = Nil)
 
   def dbAllVars: List[String] = (dbVariables ++ dbCovariables ++ dbGrouping).distinct
 
@@ -57,8 +65,8 @@ case class FeaturesQuery(
     * @return a SQL query
     */
   @SuppressWarnings(Array("org.wartremover.warts.Throw"))
-  def sql: String =
-    sampling match {
+  def sql: String = {
+    val unorderedSql = sampling match {
       case None => selectFiltered(selectOnly, filters)
 
       case Some(LeaveOutPartition(folds, excludeFold, Some(orderColumn)))
@@ -74,6 +82,8 @@ case class FeaturesQuery(
 
       case _ => throw new NotImplementedError(s"Unhandled sampling $sampling")
     }
+    orderBy.fold(unorderedSql)(orderCol => s"$unorderedSql ORDER BY $orderCol")
+  }
 
   private def selectFields = s"SELECT ${dbAllVars.map(_.identifier).mkString(",")}"
 

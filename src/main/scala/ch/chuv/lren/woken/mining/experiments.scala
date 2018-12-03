@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.core
+package ch.chuv.lren.woken.mining
 
 import java.time.OffsetDateTime
 import java.util.UUID
@@ -24,25 +24,26 @@ import akka.NotUsed
 import akka.actor.{ Actor, ActorContext, ActorRef, Props }
 import akka.stream._
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Merge, Partition, Sink, Source, ZipWith }
-import cats.effect.Effect
 import cats.data.Validated._
+import cats.effect.Effect
 import cats.implicits._
-import ch.chuv.lren.woken.messages.variables.VariableMetaData
-import ch.chuv.lren.woken.validation.{ FeaturesSplitter, FeaturesSplitterDefinition }
-import ch.chuv.lren.woken.validation.flows.ValidatedAlgorithmFlow
-
-import scala.concurrent.{ ExecutionContext, Future }
-import scala.util.{ Failure, Success }
-import ch.chuv.lren.woken.akka.commands.JobCommands.StartExperimentJob
 import ch.chuv.lren.woken.config.JobsConfiguration
-import ch.chuv.lren.woken.core.model.{ AlgorithmDefinition, UserWarning }
+import ch.chuv.lren.woken.core.model.AlgorithmDefinition
 import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.service.{ DispatcherService, FeaturesTableService }
+import ch.chuv.lren.woken.validation.flows.ValidatedAlgorithmFlow
+import ch.chuv.lren.woken.validation.{
+  FeaturesSplitter,
+  FeaturesSplitterDefinition,
+  defineSplitters
+}
 import com.typesafe.scalalogging.LazyLogging
 
+import scala.concurrent.{ ExecutionContext, Future }
 import scala.language.higherKinds
+import scala.util.{ Failure, Success }
 
 /**
   * We use the companion object to hold all the messages that the ``ExperimentActor`` receives.
@@ -50,22 +51,7 @@ import scala.language.higherKinds
 object ExperimentActor {
 
   // Incoming messages
-  case class Job(
-      jobId: String,
-      inputDb: String,
-      inputTable: String,
-      query: ExperimentQuery,
-      algorithms: Map[AlgorithmSpec, AlgorithmDefinition],
-      metadata: List[VariableMetaData]
-  ) extends model.jobs.Job {
-
-    def definitionOf(algorithm: AlgorithmSpec): AlgorithmDefinition =
-      algorithms.getOrElse(algorithm,
-                           throw new IllegalStateException(
-                             s"Expected a definition matching algorithm spec $algorithm"
-                           ))
-
-  }
+  type Job = ExperimentJob
 
   case object Done
 
@@ -133,7 +119,7 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
 
       val splitterDefsV: Validation[List[FeaturesSplitterDefinition]] =
         if (containsPredictiveAlgorithms) {
-          FeaturesSplitter.defineSplitters(job.query.validations)
+          defineSplitters(job.query.validations)
         } else Nil.validNel[String]
 
       ((featuresTableServiceV, splitterDefsV) mapN Tuple2.apply).fold(
@@ -143,15 +129,13 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
         }, {
           case (featuresTableService, splitterDefs) =>
             if (splitterDefs.isEmpty)
-              buildExperimentFlowWithCompletion(job,
-                                                Nil,
-                                                featuresTableService,
-                                                thisActor,
-                                                initiator,
-                                                replyTo)
+              executeExperimentFlow(job, Nil, featuresTableService, thisActor, initiator, replyTo)
             else
               featuresTableService
-                .createExtendedFeaturesTable(job.query.filters, Nil, splitterDefs)
+                .createExtendedFeaturesTable(job.query.filters,
+                                             Nil,
+                                             splitterDefs.map(_.splitColumn),
+                                             splitterDefs)
                 .fold(
                   err => {
                     val msg =
@@ -166,12 +150,18 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
                           FeaturesSplitter(_, extendedFeaturesTable)
                         }
 
-                        val future = buildExperimentFlowWithCompletion(job,
-                                                                       splitters,
-                                                                       extendedFeaturesTable,
-                                                                       thisActor,
-                                                                       initiator,
-                                                                       replyTo)
+                        val extTableName = extendedFeaturesTable.table.name
+                        val extendedJob = job.copy(
+                          inputTable = extTableName,
+                          query = job.query.copy(targetTable = Some(extTableName))
+                        )
+
+                        val future = executeExperimentFlow(extendedJob,
+                                                           splitters,
+                                                           extendedFeaturesTable,
+                                                           thisActor,
+                                                           initiator,
+                                                           replyTo)
 
                         Effect[F].async[Unit] { cb =>
                           // Success and failure cases have been already handled
@@ -189,12 +179,12 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
       context stop self
   }
 
-  private def buildExperimentFlowWithCompletion(job: Job,
-                                                splitters: List[FeaturesSplitter[F]],
-                                                featuresTableService: FeaturesTableService[F],
-                                                thisActor: ActorRef,
-                                                initiator: ActorRef,
-                                                replyTo: ActorRef): Future[Response] = {
+  private def executeExperimentFlow(job: Job,
+                                    splitters: List[FeaturesSplitter[F]],
+                                    featuresTableService: FeaturesTableService[F],
+                                    thisActor: ActorRef,
+                                    initiator: ActorRef,
+                                    replyTo: ActorRef): Future[Response] = {
     val algorithms = job.query.algorithms
     val experimentFlow: Flow[Job, Map[AlgorithmSpec, JobResult], NotUsed] =
       ExperimentFlow(
@@ -328,8 +318,9 @@ case class ExperimentFlow[F[_]: Effect](
         // prepare graph elements
         val jobSplitter = builder.add(splitJob)
         val partition =
-          builder.add(Partition[JobForAlgorithmPreparation](2, partitionAlgorithmByType))
-        val merge = builder.add(Merge[AlgorithmResult](2))
+          builder
+            .add(Partition[JobForAlgorithmPreparation](outputPorts = 2, partitionAlgorithmByType))
+        val merge = builder.add(Merge[AlgorithmResult](inputPorts = 2))
         val toMap =
           builder.add(Flow[AlgorithmResult].fold[Map[AlgorithmSpec, JobResult]](Map()) { (m, r) =>
             m + (r.algorithmSpec -> r.result)
@@ -368,7 +359,6 @@ case class ExperimentFlow[F[_]: Effect](
         val query               = job.query
         val algorithmSpec       = a.algorithmSpec
         val algorithmDefinition = a.algorithmDefinition
-        val validations         = if (algorithmDefinition.predictive) a.validations else Nil
         val miningQuery = MiningQuery(
           user = query.user,
           variables = query.variables,
@@ -383,10 +373,11 @@ case class ExperimentFlow[F[_]: Effect](
         )
         val subJob = ValidatedAlgorithmFlow.Job(jobId,
                                                 job.inputDb,
+                                                job.inputDbSchema,
                                                 job.inputTable,
                                                 miningQuery,
-                                                job.metadata,
                                                 splitters,
+                                                job.metadata,
                                                 algorithmDefinition)
         logger.info(s"Prepared mining query sub job $subJob")
         JobForAlgorithm(job, algorithmSpec, subJob)
@@ -398,9 +389,10 @@ case class ExperimentFlow[F[_]: Effect](
       .fromGraph(GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
         import GraphDSL.Implicits._
 
-        val broadcast               = builder.add(Broadcast[JobForAlgorithm](3))
-        val runAlgorithmAndValidate = validatedAlgorithmFlow.runLocalAlgorithmAndValidate(4)
-        val zip                     = builder.add(ZipWith(AlgorithmResult))
+        val broadcast = builder.add(Broadcast[JobForAlgorithm](outputPorts = 3))
+        val runAlgorithmAndValidate =
+          validatedAlgorithmFlow.runLocalAlgorithmAndValidate(parallelism = 4)
+        val zip = builder.add(ZipWith(AlgorithmResult))
 
         broadcast.out(0).map(_.job) ~> zip.in0
         broadcast.out(1).map(_.algorithmSpec) ~> zip.in1
@@ -416,7 +408,7 @@ case class ExperimentFlow[F[_]: Effect](
       .fromGraph(GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
         import GraphDSL.Implicits._
 
-        val broadcast    = builder.add(Broadcast[JobForAlgorithm](3))
+        val broadcast    = builder.add(Broadcast[JobForAlgorithm](outputPorts = 3))
         val runAlgorithm = validatedAlgorithmFlow.runAlgorithmOnLocalData
         val takeModel    = Flow[CoordinatorActor.Response].map(extractResult)
         val zip          = builder.add(ZipWith(AlgorithmResult))

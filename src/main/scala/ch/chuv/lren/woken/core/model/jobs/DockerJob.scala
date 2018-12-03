@@ -30,7 +30,6 @@ import spray.json._
   * Definition of a computation using an algorithm packaged as a Docker container.
   *
   * @param jobId Id of the job. Must be unique
-  * @param inputDb Name of the input database
   * @param query A representation of the query selecting features
   * @param algorithmSpec Specifications for the algorithm. We use only the parameters here, the algorithm having already been used to select the Docker image to execute.
   * @param algorithmDefinition: Definition of the algorithm and how to execute it in Docker
@@ -38,7 +37,6 @@ import spray.json._
   */
 case class DockerJob(
     jobId: String,
-    inputDb: String,
     query: FeaturesQuery,
     algorithmSpec: AlgorithmSpec,
     algorithmDefinition: AlgorithmDefinition,

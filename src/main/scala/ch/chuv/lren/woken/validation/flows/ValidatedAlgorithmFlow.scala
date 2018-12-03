@@ -26,13 +26,13 @@ import akka.stream._
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Zip }
 import cats.effect.Effect
 import ch.chuv.lren.woken.config.JobsConfiguration
-import ch.chuv.lren.woken.core.CoordinatorActor
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.core.model.AlgorithmDefinition
 import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.validation.Score
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
+import ch.chuv.lren.woken.mining.CoordinatorActor
 import ch.chuv.lren.woken.service.FeaturesTableService
 import ch.chuv.lren.woken.validation.FeaturesSplitter
 import com.typesafe.scalalogging.LazyLogging
@@ -44,13 +44,15 @@ object ValidatedAlgorithmFlow {
 
   case class Job[F[_]](jobId: String,
                        inputDb: String,
+                       inputDbSchema: Option[String],
                        inputTable: String,
                        query: MiningQuery,
-                       metadata: List[VariableMetaData],
                        cvSplitters: List[FeaturesSplitter[F]],
+                       metadata: List[VariableMetaData],
                        algorithmDefinition: AlgorithmDefinition) {
     // Invariants
     assert(query.algorithm.code == algorithmDefinition.code)
+    query.targetTable.foreach(t => assert(t == inputTable))
 
     if (!algorithmDefinition.predictive) {
       assert(cvSplitters.isEmpty)
@@ -74,7 +76,7 @@ case class ValidatedAlgorithmFlow[F[_]: Effect](
   import ValidatedAlgorithmFlow._
 
   private val crossValidationFlow =
-    CrossValidationFlow(executeJobAsync, featuresTableService, context)
+    CrossValidationFlow(executeJobAsync, context)
 
   /**
     * Run a predictive and local algorithm and perform its validation procedure.
@@ -122,15 +124,10 @@ case class ValidatedAlgorithmFlow[F[_]: Effect](
         logger.info(s"Start job for algorithm ${algorithm.code}")
 
         // Spawn a CoordinatorActor
-        val jobId = UUID.randomUUID().toString
-        val featuresQuery =
-          job.query.filterDatasets
-            .filterNulls(job.algorithmDefinition.variablesCanBeNull,
-                         job.algorithmDefinition.covariablesCanBeNull)
-            .features(job.inputTable)
+        val jobId         = UUID.randomUUID().toString
+        val featuresQuery = job.query.features(job.inputDb, job.inputDbSchema, job.inputTable, None)
         val subJob =
           DockerJob(jobId,
-                    job.inputDb,
                     featuresQuery,
                     job.query.algorithm,
                     job.algorithmDefinition,
@@ -148,12 +145,17 @@ case class ValidatedAlgorithmFlow[F[_]: Effect](
       .map { job =>
         job.cvSplitters.map { splitter =>
           val jobId = UUID.randomUUID().toString
+          val orderBy = featuresTableService.table.primaryKey match {
+            case pk1 :: Nil => Some(pk1.name)
+            case _          => None
+          }
+          val query = job.query.features(job.inputDb, job.inputDbSchema, job.inputTable, orderBy)
           CrossValidationFlow.Job(jobId,
-                                  job.inputDb,
-                                  job.inputTable,
-                                  job.query,
+                                  query,
                                   job.metadata,
                                   splitter,
+                                  featuresTableService,
+                                  job.query.algorithm,
                                   job.algorithmDefinition)
         }
       }

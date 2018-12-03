@@ -17,9 +17,32 @@
 
 package ch.chuv.lren.woken
 
+import cats.data.ValidatedNel
+import cats.implicits._
+
+import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
+import ch.chuv.lren.woken.messages.query.ValidationSpec
+
 package object validation {
 
-  // TODO Use acyclic to reduce inter-dependencies and reorganise code
-  //import acyclic.pkg
+  import acyclic.pkg
+
+  def defineSplitters(
+      validations: List[ValidationSpec]
+  ): Validation[List[FeaturesSplitterDefinition]] =
+    validations
+      .map { spec =>
+        defineSplitter(spec)
+      }
+      .sequence[Validation, FeaturesSplitterDefinition]
+
+  def defineSplitter(spec: ValidationSpec): ValidatedNel[String, FeaturesSplitterDefinition] =
+    spec.code match {
+      case "kfold" =>
+        val numFolds = spec.parametersAsMap("k").toInt
+        KFoldFeaturesSplitterDefinition(spec, numFolds).validNel[String]
+
+      case other => s"Validation $other is not handled".invalidNel[FeaturesSplitterDefinition]
+    }
 
 }

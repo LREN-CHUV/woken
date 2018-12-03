@@ -21,10 +21,13 @@ import cats.effect.{ Effect, Resource }
 import cats.syntax.validated._
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
-import ch.chuv.lren.woken.dao.{ FeaturesRepository, FeaturesTableRepository }
+import ch.chuv.lren.woken.dao.{
+  FeaturesRepository,
+  FeaturesTableRepository,
+  PrefillExtendedFeaturesTable
+}
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.core.fp.runNow
-import ch.chuv.lren.woken.validation.FeaturesSplitterDefinition
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query.filters.FilterRule
 import spray.json.JsObject
@@ -60,7 +63,8 @@ trait FeaturesTableService[F[_]] {
   def createExtendedFeaturesTable(
       filters: Option[FilterRule],
       newFeatures: List[TableColumn],
-      splitters: List[FeaturesSplitterDefinition]
+      otherColumns: List[TableColumn],
+      prefills: List[PrefillExtendedFeaturesTable]
   ): Validation[Resource[F, FeaturesTableService[F]]]
 
 }
@@ -107,10 +111,11 @@ class FeaturesTableServiceImpl[F[_]: Effect](repository: FeaturesTableRepository
   override def createExtendedFeaturesTable(
       filters: Option[FilterRule],
       newFeatures: List[TableColumn],
-      splitters: List[FeaturesSplitterDefinition]
+      otherColumns: List[TableColumn],
+      prefills: List[PrefillExtendedFeaturesTable]
   ): Validation[Resource[F, FeaturesTableService[F]]] =
     repository
-      .createExtendedFeaturesTable(filters, newFeatures, splitters)
+      .createExtendedFeaturesTable(filters, newFeatures, otherColumns, prefills)
       .map(
         _.flatMap(
           extendedTable =>

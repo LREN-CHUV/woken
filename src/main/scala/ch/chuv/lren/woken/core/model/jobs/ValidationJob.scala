@@ -26,6 +26,7 @@ import ch.chuv.lren.woken.messages.variables.VariableMetaData
 case class ValidationJob(
     jobId: String,
     inputDb: String,
+    inputDbSchema: Option[String],
     inputTable: String,
     query: MiningQuery,
     metadata: List[VariableMetaData]

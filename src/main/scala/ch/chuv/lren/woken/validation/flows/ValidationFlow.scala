@@ -27,7 +27,6 @@ import akka.util.Timeout
 import cats.data.{ NonEmptyList, Validated }
 import cats.effect.Effect
 import cats.implicits._
-import ch.chuv.lren.woken.core.CoordinatorActor
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.core.fp.runNow
 import ch.chuv.lren.woken.core.model.jobs.ValidationJob
@@ -35,6 +34,7 @@ import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query.AlgorithmSpec
 import ch.chuv.lren.woken.messages.validation._
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
+import ch.chuv.lren.woken.mining.CoordinatorActor
 import ch.chuv.lren.woken.service.FeaturesService
 import com.typesafe.scalalogging.LazyLogging
 import spray.json._
@@ -85,13 +85,13 @@ case class ValidationFlow[F[_]: Effect](
       .map { job =>
         val validation = job.query.algorithm
 
+        // TODO: filter nulls and related parameters may be removed. Need to ensure that incoming query is valid though
         val variablesCanBeNull   = booleanParameter(validation, "variablesCanBeNull")
         val covariablesCanBeNull = booleanParameter(validation, "covariablesCanBeNull")
 
-        val featuresQuery =
-          job.query
-            .filterNulls(variablesCanBeNull, covariablesCanBeNull)
-            .features(job.inputTable)
+        val featuresQuery = job.query
+          .filterNulls(variablesCanBeNull, covariablesCanBeNull)
+          .features(job.inputDb, job.inputDbSchema, job.inputTable, None)
 
         logger.info(s"Validation query: $featuresQuery")
 

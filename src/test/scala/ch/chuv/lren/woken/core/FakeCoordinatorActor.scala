@@ -19,14 +19,13 @@ package ch.chuv.lren.woken.core
 
 import java.time.OffsetDateTime
 
-import akka.actor.{ Actor, ActorContext, ActorRef, PoisonPill, Props }
+import akka.actor.{Actor, ActorContext, ActorRef, PoisonPill, Props}
 import akka.pattern.ask
-import ch.chuv.lren.woken.core.model.jobs.{ DockerJob, ErrorJobResult, PfaJobResult }
+import ch.chuv.lren.woken.core.model.jobs.{DockerJob, ErrorJobResult, PfaJobResult}
 import spray.json._
-import CoordinatorActor._
 import akka.util.Timeout
-import ch.chuv.lren.woken.akka.commands.JobCommands
-import ch.chuv.lren.woken.akka.commands.JobCommands.StartCoordinatorJob
+import ch.chuv.lren.woken.mining.JobCommands
+import ch.chuv.lren.woken.mining.commands.JobCommands.StartCoordinatorJob
 
 import scala.concurrent.Future
 import scala.concurrent.duration._

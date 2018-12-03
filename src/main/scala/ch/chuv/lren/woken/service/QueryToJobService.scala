@@ -25,7 +25,6 @@ import cats.data.Validated._
 import cats.effect.{ Async, Effect }
 import cats.implicits._
 import ch.chuv.lren.woken.config.JobsConfiguration
-import ch.chuv.lren.woken.core.ExperimentActor
 import ch.chuv.lren.woken.core.features.Queries
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.core.model._
@@ -33,6 +32,7 @@ import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.{ Validation, lift }
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
+import ch.chuv.lren.woken.mining.ExperimentJob
 import com.typesafe.scalalogging.LazyLogging
 import shapeless.{ ::, HNil }
 
@@ -54,11 +54,12 @@ trait QueryToJobService[F[_]] {
 object QueryToJobService extends LazyLogging {
 
   // LATER Scala 3 - use opaque types
-  type JobId         = String
-  type FeaturesDb    = String
-  type FeaturesTable = String
+  type JobId            = String
+  type FeaturesDb       = String
+  type FeaturesDbSchema = Option[String]
+  type FeaturesTable    = String
   type PreparedQuery[Q <: Query] =
-    JobId :: FeaturesDb :: FeaturesTable :: List[VariableMetaData] :: Q :: UserFeedbacks :: HNil
+    JobId :: FeaturesDb :: FeaturesDbSchema :: FeaturesTable :: List[VariableMetaData] :: Q :: UserFeedbacks :: HNil
 
   def apply[F[_]: Effect](
       featuresService: FeaturesService[F],
@@ -96,7 +97,7 @@ class QueryToJobServiceImpl[F[_]: Effect](
       preparedQuery: PreparedQuery[MiningQuery],
       algorithmLookup: String => Validation[AlgorithmDefinition]
   ): Validation[(Job, UserFeedbacks)] = {
-    val jobId :: featuresDb :: featuresTable :: metadata :: query :: feedback :: HNil =
+    val jobId :: featuresDb :: featuresDbSchema :: featuresTable :: metadata :: query :: feedback :: HNil =
       preparedQuery
 
     def createMiningJob(mt: List[VariableMetaData],
@@ -104,15 +105,16 @@ class QueryToJobServiceImpl[F[_]: Effect](
                         ad: AlgorithmDefinition): DockerJob = {
       val featuresQuery = q.filterDatasets
         .filterNulls(ad.variablesCanBeNull, ad.covariablesCanBeNull)
-        .features(featuresTable)
+        .features(featuresDb, featuresDbSchema, featuresTable, None)
 
-      DockerJob(jobId, featuresDb, featuresQuery, q.algorithm, ad, metadata = mt)
+      DockerJob(jobId, featuresQuery, q.algorithm, ad, metadata = mt)
     }
 
     val job = query.algorithm.code match {
       case ValidationJob.algorithmCode =>
         ValidationJob(jobId = jobId,
                       inputDb = featuresDb,
+                      inputDbSchema = featuresDbSchema,
                       inputTable = featuresTable,
                       query = query,
                       metadata = metadata).validNel[String]
@@ -139,18 +141,19 @@ class QueryToJobServiceImpl[F[_]: Effect](
       algorithmLookup: String => Validation[AlgorithmDefinition]
   ): Validation[(Job, UserFeedbacks)] = {
 
-    val jobId :: featuresDb :: featuresTable :: metadata :: query :: feedback :: HNil =
+    val jobId :: featuresDb :: featuresDbSchema :: featuresTable :: metadata :: query :: feedback :: HNil =
       preparedQuery
 
     def createJob(mt: List[VariableMetaData],
                   q: ExperimentQuery,
                   algorithms: Map[AlgorithmSpec, AlgorithmDefinition]) =
-      ExperimentActor.Job(jobId,
-                          featuresDb,
-                          featuresTable,
-                          q,
-                          metadata = mt,
-                          algorithms = algorithms)
+      ExperimentJob(jobId,
+                    featuresDb,
+                    featuresDbSchema,
+                    featuresTable,
+                    q,
+                    metadata = mt,
+                    algorithms = algorithms)
 
     query.algorithms
       .map { algorithm =>
@@ -158,7 +161,27 @@ class QueryToJobServiceImpl[F[_]: Effect](
       }
       .sequence[Validation, (AlgorithmSpec, AlgorithmDefinition)]
       .map(_.toMap)
-      .map(algorithms => (createJob(metadata, query, algorithms), feedback))
+      .map { algorithms =>
+        // Select the dataset common between all algorithms. If one algorithms cannot handle nulls, all nulls must be ignored
+        // This restrict the set of features we can learn from in some cases. User is warned about this case and
+        // can correct his selection of ML algorithms
+        val variablesCanBeNull = algorithms.exists { case (_, defn) => defn.variablesCanBeNull }
+        val allRequireVariablesNotNull = !variablesCanBeNull && !algorithms.exists {
+          case (_, defn) => defn.variablesCanBeNull
+        }
+        val covariablesCanBeNull = algorithms.exists { case (_, defn) => defn.covariablesCanBeNull }
+        val allRequireCovariablesNotNull = !covariablesCanBeNull && !algorithms.exists {
+          case (_, defn) => defn.covariablesCanBeNull
+        }
+        val experimentQuery = query.filterDatasets
+          .filterNulls(variablesCanBeNull, covariablesCanBeNull)
+
+        // TODO: report to user filtering on nulls when activated
+        // TODO: report to user which algorithms are causing filter on nulls, and how many records are lost from training dataset
+
+        val job = createJob(metadata, experimentQuery, algorithms)
+        (job, feedback)
+      }
   }
 
   private def prepareQuery[Q <: Query](
@@ -167,10 +190,12 @@ class QueryToJobServiceImpl[F[_]: Effect](
       query: Q
   ): F[Validation[PreparedQuery[Q]]] = {
 
-    val jobId         = UUID.randomUUID().toString
-    val featuresDb    = jobsConfiguration.featuresDb
-    val featuresTable = query.targetTable.getOrElse(jobsConfiguration.featuresTable)
-    val metadataKey   = query.targetTable.getOrElse(jobsConfiguration.metadataKeyForFeaturesTable)
+    val jobId      = UUID.randomUUID().toString
+    val featuresDb = jobsConfiguration.featuresDb
+    // TODO: define target db schema from configuration or query
+    val featuresDbSchema = None
+    val featuresTable    = query.targetTable.getOrElse(jobsConfiguration.featuresTable)
+    val metadataKey      = query.targetTable.getOrElse(jobsConfiguration.metadataKeyForFeaturesTable)
 
     def prepareFeedback(oldVars: FeatureIdentifiers,
                         existingVars: FeatureIdentifiers): UserFeedbacks =
@@ -243,7 +268,7 @@ class QueryToJobServiceImpl[F[_]: Effect](
 
       (metadata, validatedQuery) mapN Tuple2.apply map {
         case (m, q) =>
-          jobId :: featuresDb :: featuresTable :: m :: q :: feedback :: HNil
+          jobId :: featuresDb :: featuresDbSchema :: featuresTable :: m :: q :: feedback :: HNil
       }
     }
   }
@@ -253,7 +278,7 @@ class QueryToJobServiceImpl[F[_]: Effect](
       featuresService: FeaturesService[F]
   ): F[Validation[PreparedQuery[Q]]] = {
 
-    val _ :: _ :: featuresTable :: _ :: query :: _ :: HNil = preparedQuery
+    val _ :: _ :: _ :: featuresTable :: _ :: query :: _ :: HNil = preparedQuery
 
     val table = query.targetTable.getOrElse(featuresTable)
     // TODO: Add targetSchema to query or schema to configuration or both, use it here instead of None
