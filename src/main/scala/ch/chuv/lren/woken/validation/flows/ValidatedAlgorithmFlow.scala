@@ -23,7 +23,7 @@ import java.util.UUID
 import akka.NotUsed
 import akka.actor.ActorContext
 import akka.stream._
-import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Zip}
+import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Zip }
 import cats.effect.Effect
 import ch.chuv.lren.woken.config.JobsConfiguration
 import ch.chuv.lren.woken.core.CoordinatorActor
@@ -33,8 +33,8 @@ import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.validation.Score
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
-import ch.chuv.lren.woken.service.FeaturesService
-import ch.chuv.lren.woken.validation.FeaturesSplitterDefinition
+import ch.chuv.lren.woken.service.FeaturesTableService
+import ch.chuv.lren.woken.validation.FeaturesSplitter
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.ExecutionContext
@@ -42,18 +42,18 @@ import scala.language.higherKinds
 
 object ValidatedAlgorithmFlow {
 
-  case class Job(jobId: String,
-                 inputDb: String,
-                 inputTable: String,
-                 query: MiningQuery,
-                 metadata: List[VariableMetaData],
-                 validations: List[ValidationSpec],
-                 algorithmDefinition: AlgorithmDefinition) {
+  case class Job[F[_]](jobId: String,
+                       inputDb: String,
+                       inputTable: String,
+                       query: MiningQuery,
+                       metadata: List[VariableMetaData],
+                       cvSplitters: List[FeaturesSplitter[F]],
+                       algorithmDefinition: AlgorithmDefinition) {
     // Invariants
     assert(query.algorithm.code == algorithmDefinition.code)
 
     if (!algorithmDefinition.predictive) {
-      assert(validations.isEmpty)
+      assert(cvSplitters.isEmpty)
     }
   }
 
@@ -65,9 +65,8 @@ object ValidatedAlgorithmFlow {
 
 case class ValidatedAlgorithmFlow[F[_]: Effect](
     executeJobAsync: CoordinatorActor.ExecuteJobAsync,
-    featuresService: FeaturesService[F],
+    featuresTableService: FeaturesTableService[F],
     jobsConf: JobsConfiguration,
-    splitterDef: FeaturesSplitterDefinition,
     context: ActorContext
 )(implicit materializer: Materializer, ec: ExecutionContext)
     extends LazyLogging {
@@ -75,7 +74,7 @@ case class ValidatedAlgorithmFlow[F[_]: Effect](
   import ValidatedAlgorithmFlow._
 
   private val crossValidationFlow =
-    CrossValidationFlow(executeJobAsync, featuresService, splitterDef, context)
+    CrossValidationFlow(executeJobAsync, featuresTableService, context)
 
   /**
     * Run a predictive and local algorithm and perform its validation procedure.
@@ -88,13 +87,13 @@ case class ValidatedAlgorithmFlow[F[_]: Effect](
   @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
   def runLocalAlgorithmAndValidate(
       parallelism: Int
-  ): Flow[ValidatedAlgorithmFlow.Job, ResultResponse, NotUsed] =
+  ): Flow[ValidatedAlgorithmFlow.Job[F], ResultResponse, NotUsed] =
     Flow
       .fromGraph(GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
         import GraphDSL.Implicits._
 
         // prepare graph elements
-        val broadcast = builder.add(Broadcast[ValidatedAlgorithmFlow.Job](2))
+        val broadcast = builder.add(Broadcast[ValidatedAlgorithmFlow.Job[F]](2))
         val zip       = builder.add(Zip[CoordinatorActor.Response, ValidationResults]())
         val response  = builder.add(buildResponse)
 
@@ -113,10 +112,10 @@ case class ValidatedAlgorithmFlow[F[_]: Effect](
     * @return
     */
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
-  def runAlgorithmOnLocalData: Flow[ValidatedAlgorithmFlow.Job,
-                                    (ValidatedAlgorithmFlow.Job, CoordinatorActor.Response),
+  def runAlgorithmOnLocalData: Flow[ValidatedAlgorithmFlow.Job[F],
+                                    (ValidatedAlgorithmFlow.Job[F], CoordinatorActor.Response),
                                     NotUsed] =
-    Flow[ValidatedAlgorithmFlow.Job]
+    Flow[ValidatedAlgorithmFlow.Job[F]]
       .mapAsync(1) { job =>
         val algorithm = job.query.algorithm
 
@@ -144,26 +143,26 @@ case class ValidatedAlgorithmFlow[F[_]: Effect](
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
   private def crossValidate(
       parallelism: Int
-  ): Flow[ValidatedAlgorithmFlow.Job, ValidationResults, NotUsed] =
-    Flow[ValidatedAlgorithmFlow.Job]
+  ): Flow[ValidatedAlgorithmFlow.Job[F], ValidationResults, NotUsed] =
+    Flow[ValidatedAlgorithmFlow.Job[F]]
       .map { job =>
-        job.validations.map { v =>
+        job.cvSplitters.map { splitter =>
           val jobId = UUID.randomUUID().toString
           CrossValidationFlow.Job(jobId,
                                   job.inputDb,
                                   job.inputTable,
                                   job.query,
                                   job.metadata,
-                                  v,
+                                  splitter,
                                   job.algorithmDefinition)
         }
       }
       .mapConcat(identity)
       .via(crossValidationFlow.crossValidate(parallelism))
-      .map(_.map(t => t._1.validation -> t._2))
+      .map(_.map(t => t._1.splitter.definition -> t._2))
       .fold[Map[ValidationSpec, Either[String, Score]]](Map()) { (m, rOpt) =>
         rOpt.fold(m) { r =>
-          m + r
+          m + (r._1.validation -> r._2)
         }
       }
       .log("Cross validation results")

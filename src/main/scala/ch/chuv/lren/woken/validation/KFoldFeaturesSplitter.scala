@@ -17,77 +17,84 @@
 
 package ch.chuv.lren.woken.validation
 
-import cats.implicits._
 import cats.effect.Effect
-import cats.effect.concurrent.Deferred
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
 import ch.chuv.lren.woken.dao.utils.{ frConst, frEqual, frName, frNames }
+import ch.chuv.lren.woken.messages.query.ValidationSpec
 import ch.chuv.lren.woken.messages.query.filters._
 import ch.chuv.lren.woken.messages.variables.SqlType
+import ch.chuv.lren.woken.service.FeaturesTableService
 import doobie._
 import doobie.implicits._
 
 import scala.language.higherKinds
 
-class KFoldFeaturesSplitter[F[_]: Effect, A](val numFolds: Int,
-                                             val splitColumn: TableColumn,
-                                             val dynTable: Deferred[F, FeaturesTableDescription],
-                                             val dynView: Deferred[F, FeaturesTableDescription])
-    extends FeaturesSplitter[F] {
+case class KFoldFeaturesSplitterDefinition(override val validation: ValidationSpec, numFolds: Int)
+    extends FeaturesSplitterDefinition {
 
-  override def splitFeatures(query: FeaturesQuery): F[List[FeaturesQuery]] =
-    // ntile also starts from 1
-    Range(1, numFolds).toList
-      .map { fold =>
-        dynView.get.map { view =>
-          query.copy(
-            dbTable = view.name,
-            filters = query.filters.map(
-              f => {
-                val splitRule = SingleFilterRule("split",
-                                                 splitColumn.name,
-                                                 "int",
-                                                 InputType.number,
-                                                 Operator.equal,
-                                                 List(fold.toString))
-                CompoundFilterRule(Condition.and, List(f, splitRule))
-              }
-            )
-          )
-        }
-      }
-      .sequence[F, FeaturesQuery]
+  override val splitColumn: TableColumn =
+    TableColumn(s"_win_kfold_$numFolds", SqlType.int)
 
+  @SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
+  override def fillSplitColumnSql(
+      targetTable: FeaturesTableDescription,
+      rndColumn: TableColumn
+  )(implicit h: LogHandler = LogHandler.nop): Update0 = {
+
+    val winTable = targetTable.copy(name = "win", datasetColumn = None)
+    val stmt = fr"WITH win as (SELECT " ++ frNames(targetTable.primaryKey) ++ fr", ntile(" ++
+      frConst(numFolds) ++ fr") over (order by " ++ frName(rndColumn) ++ fr") as win FROM " ++
+      frName(targetTable) ++ fr") UPDATE cde_features_a_1 SET " ++ frName(splitColumn) ++
+      fr"= win.win FROM win WHERE " ++
+      frEqual(targetTable, targetTable.primaryKey, winTable, targetTable.primaryKey) ++ fr";"
+    stmt.update
+  }
+
+  override def makeSplitter[F[_]: Effect](
+      targetTable: FeaturesTableService[F]
+  ): FeaturesSplitter[F] =
+    KFoldFeaturesSplitter(definition = this, targetTable = targetTable)
 }
 
-object KFoldFeaturesSplitter {
+case class KFoldFeaturesSplitter[F[_]](
+    override val definition: KFoldFeaturesSplitterDefinition,
+    override val targetTable: FeaturesTableService[F]
+) extends FeaturesSplitter[F] {
 
-  def kFoldSplitterDefinition(numFolds: Int): FeaturesSplitterDefinition =
-    new FeaturesSplitterDefinition {
-
-      override val splitColumn: TableColumn =
-        TableColumn(s"_win_kfold_$numFolds", SqlType.int)
-
-      @SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
-      override def fillSplitColumnSql(
-          targetTable: FeaturesTableDescription,
-          rndColumn: TableColumn
-      )(implicit h: LogHandler = LogHandler.nop): Update0 = {
-
-        val winTable = targetTable.copy(name = "win", datasetColumn = None)
-        val stmt = fr"WITH win as (SELECT " ++ frNames(targetTable.primaryKey) ++ fr", ntile(" ++
-          frConst(numFolds) ++ fr") over (order by " ++ frName(rndColumn) ++ fr") as win FROM " ++
-          frName(targetTable) ++ fr") UPDATE cde_features_a_1 SET " ++ frName(splitColumn) ++
-          fr"= win.win FROM win WHERE " ++
-          frEqual(targetTable, targetTable.primaryKey, winTable, targetTable.primaryKey) ++ fr";"
-        stmt.update
+  override def splitFeatures(query: FeaturesQuery): List[PartioningQueries] =
+    // ntile also starts from 1
+    Range(1, definition.numFolds).toList
+      .map { fold =>
+        PartioningQueries(trainingDatasetQuery = trainingDatasetQuery(query, fold),
+                          testDatasetQuery = testDatasetQuery(query, fold))
       }
 
-      override def makeSplitter[F[_]: Effect, A](
-          dynTable: Deferred[F, FeaturesTableDescription],
-          dynView: Deferred[F, FeaturesTableDescription]
-      ): FeaturesSplitter[F] =
-        new KFoldFeaturesSplitter[F, A](numFolds, splitColumn, dynTable, dynView)
-    }
+  private def trainingDatasetQuery(query: FeaturesQuery, fold: Int): FeaturesQuery = query.copy(
+    dbTable = targetTable.table.name,
+    filters = andSplitOnFold(query.filters, fold, Operator.notEqual)
+  )
+
+  private def testDatasetQuery(query: FeaturesQuery, fold: Int): FeaturesQuery = query.copy(
+    dbTable = targetTable.table.name,
+    filters = andSplitOnFold(query.filters, fold, Operator.equal)
+  )
+
+  private def andSplitOnFold(previousFilters: Option[FilterRule],
+                             fold: Int,
+                             operator: Operator.Operator): Option[FilterRule] = {
+
+    val splitRule = SingleFilterRule("split",
+                                     definition.splitColumn.name,
+                                     "int",
+                                     InputType.number,
+                                     operator,
+                                     List(fold.toString))
+
+    Some(
+      previousFilters.fold(splitRule: FilterRule)(
+        f => CompoundFilterRule(Condition.and, List(f, splitRule))
+      )
+    )
+  }
 }

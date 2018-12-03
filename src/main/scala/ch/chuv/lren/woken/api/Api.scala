@@ -18,10 +18,10 @@
 package ch.chuv.lren.woken.api
 
 import akka.actor.ActorSystem
-import ch.chuv.lren.woken.core.Core
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
+import ch.chuv.lren.woken.akka.CoreSystem
 import ch.chuv.lren.woken.api.swagger.SwaggerService
 import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
@@ -37,7 +37,7 @@ import com.typesafe.scalalogging.LazyLogging
   */
 trait Api extends LazyLogging {
 
-  def core: Core
+  def core: CoreSystem
   def config: WokenConfiguration
 
   def routes: Route = {

@@ -18,7 +18,7 @@
 package ch.chuv.lren.woken
 
 /**
-  * Core concepts and actors
+  * Core concepts and models
   */
 package object core {
 

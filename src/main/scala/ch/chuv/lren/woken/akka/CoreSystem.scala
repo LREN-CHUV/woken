@@ -15,11 +15,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.core
+package ch.chuv.lren.woken.akka
 
 import akka.actor.{ ActorRef, ActorSystem }
 import akka.cluster.Cluster
-import akka.stream._
+import akka.stream.ActorMaterializer
 
 import scala.concurrent.ExecutionContext
 
@@ -27,7 +27,7 @@ import scala.concurrent.ExecutionContext
   * Core is type containing the ``system: ActorSystem`` member. This enables us to use it in our
   * apps as well as in our tests.
   */
-trait Core {
+trait CoreSystem {
 
   implicit def system: ActorSystem
   implicit def actorMaterializer: ActorMaterializer

@@ -19,18 +19,17 @@ package ch.chuv.lren.woken.web
 
 import akka.http.scaladsl.Http
 import cats.effect._
-import ch.chuv.lren.woken.akka.AkkaServer
+import ch.chuv.lren.woken.akka.{ AkkaServer, CoreSystem }
 import ch.chuv.lren.woken.api.Api
 import ch.chuv.lren.woken.api.ssl.WokenSSLConfiguration
 import ch.chuv.lren.woken.config.WokenConfiguration
-import ch.chuv.lren.woken.core.Core
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.{ Await, Future }
 import scala.concurrent.duration._
 import scala.language.higherKinds
 
-class WebServer[F[_]: ConcurrentEffect: Timer](override val core: Core,
+class WebServer[F[_]: ConcurrentEffect: Timer](override val core: CoreSystem,
                                                override val config: WokenConfiguration)
     extends Api
     with StaticResources

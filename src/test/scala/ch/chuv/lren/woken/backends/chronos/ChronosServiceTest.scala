@@ -18,25 +18,24 @@
 package ch.chuv.lren.woken.backends.chronos
 
 import akka.Done
-import akka.actor.{ ActorRef, ActorSystem }
+import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http.ServerBinding
-import akka.http.scaladsl.server.{ Directives, HttpApp, Route }
+import akka.http.scaladsl.server.{Directives, HttpApp, Route}
 import akka.http.scaladsl.settings.ServerSettings
-import akka.testkit.{ ImplicitSender, TestKit, TestKitBase }
+import akka.testkit.{ImplicitSender, TestKit, TestKitBase}
 import com.typesafe.config.ConfigFactory
 import ch.chuv.lren.woken.backends.chronos.ChronosService.Ok
-import ch.chuv.lren.woken.core.Core
-import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpec, WordSpecLike }
-import ch.chuv.lren.woken.backends.chronos.{ EnvironmentVariable => EV, Parameter => P }
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec, WordSpecLike}
+import ch.chuv.lren.woken.backends.chronos.{EnvironmentVariable => EV, Parameter => P}
 import ch.chuv.lren.woken.util.FakeActors
 
-import scala.concurrent.{ Await, ExecutionContext, Future, Promise }
+import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import ChronosJob._
 import akka.cluster.Cluster
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
-import ch.chuv.lren.woken.akka.CoreActors
+import ch.chuv.lren.woken.akka.{CoreActors, CoreSystem}
 import ch.chuv.lren.woken.config.WokenConfiguration
 import com.typesafe.scalalogging.LazyLogging
 import spray.json.DefaultJsonProtocol
@@ -48,7 +47,7 @@ class ChronosServiceTest
     with WordSpecLike
     with Matchers
     with BeforeAndAfterAll
-    with Core
+    with CoreSystem
     with CoreActors
     with DefaultJsonProtocol
     with SprayJsonSupport

@@ -23,7 +23,6 @@ import akka.stream.{ ActorMaterializer, ActorMaterializerSettings, Supervision }
 import ch.chuv.lren.woken.akka.monitoring.DeadLetterMonitorActor
 import ch.chuv.lren.woken.backends.chronos.ChronosThrottler
 import ch.chuv.lren.woken.config.WokenConfiguration
-import ch.chuv.lren.woken.core.Core
 import com.typesafe.scalalogging.Logger
 
 import scala.concurrent.ExecutionContextExecutor
@@ -35,7 +34,7 @@ import scala.language.postfixOps
   * ``BootedCore`` for running code or ``TestKit`` for unit and integration tests.
   */
 trait CoreActors {
-  this: Core =>
+  this: CoreSystem =>
 
   protected def logger: Logger
   protected def config: WokenConfiguration

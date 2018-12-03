@@ -22,12 +22,12 @@ import java.security.{ KeyStore, SecureRandom }
 import javax.net.ssl.{ KeyManagerFactory, SSLContext, TrustManagerFactory }
 import akka.actor.ActorSystem
 import akka.http.scaladsl.{ ConnectionContext, HttpsConnectionContext }
-import ch.chuv.lren.woken.core.Core
+import ch.chuv.lren.woken.akka.CoreSystem
 import com.typesafe.sslconfig.akka.AkkaSSLConfig
 
 trait WokenSSLConfiguration {
 
-  implicit def core: Core
+  implicit def core: CoreSystem
 
   def https: HttpsConnectionContext = {
     implicit val system: ActorSystem = core.system

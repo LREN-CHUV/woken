@@ -20,9 +20,8 @@ package ch.chuv.lren.woken.monitoring
 import java.io.File
 
 import cats.effect._
-import ch.chuv.lren.woken.akka.AkkaServer
+import ch.chuv.lren.woken.akka.{ AkkaServer, CoreSystem }
 import ch.chuv.lren.woken.config.WokenConfiguration
-import ch.chuv.lren.woken.core.Core
 import com.typesafe.scalalogging.Logger
 import kamon.Kamon
 import kamon.prometheus.PrometheusReporter
@@ -35,7 +34,8 @@ import org.slf4j.LoggerFactory
 import scala.language.higherKinds
 import scala.util.Try
 
-case class KamonMonitoring[F[_]: ConcurrentEffect: Timer](core: Core, config: WokenConfiguration) {
+case class KamonMonitoring[F[_]: ConcurrentEffect: Timer](core: CoreSystem,
+                                                          config: WokenConfiguration) {
 
   private val logger: Logger =
     Logger(LoggerFactory.getLogger("woken.KamonMonitoring"))

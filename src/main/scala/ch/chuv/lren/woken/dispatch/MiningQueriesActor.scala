@@ -21,9 +21,9 @@ import java.time.OffsetDateTime
 
 import akka.NotUsed
 import akka.actor.SupervisorStrategy.Restart
-import akka.actor.{Actor, ActorRef, OneForOneStrategy, Props}
-import akka.routing.{OptimalSizeExploringResizer, RoundRobinPool}
-import akka.stream.scaladsl.{Flow, Sink, Source}
+import akka.actor.{ Actor, ActorRef, OneForOneStrategy, Props }
+import akka.routing.{ OptimalSizeExploringResizer, RoundRobinPool }
+import akka.stream.scaladsl.{ Flow, Sink, Source }
 import cats.effect.Effect
 import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.core._
@@ -34,14 +34,14 @@ import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.validation.Score
 import ch.chuv.lren.woken.messages.validation.validationProtocol._
-import ch.chuv.lren.woken.service.{BackendServices, DatabaseServices}
+import ch.chuv.lren.woken.service.{ BackendServices, DatabaseServices }
 import ch.chuv.lren.woken.validation.flows.ValidationFlow
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.language.{higherKinds, postfixOps}
-import scala.util.{Failure, Success}
+import scala.language.{ higherKinds, postfixOps }
+import scala.util.{ Failure, Success }
 import spray.json._
 
 object MiningQueriesActor extends LazyLogging {

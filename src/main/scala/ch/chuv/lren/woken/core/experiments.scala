@@ -28,10 +28,8 @@ import cats.effect.Effect
 import cats.data.Validated._
 import cats.implicits._
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
-import ch.chuv.lren.woken.validation.{
-  FeaturesSplitter,
-  FeaturesSplitterDefinition
-}
+import ch.chuv.lren.woken.validation.{ FeaturesSplitter, FeaturesSplitterDefinition }
+import ch.chuv.lren.woken.validation.flows.ValidatedAlgorithmFlow
 
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.{ Failure, Success }
@@ -41,7 +39,7 @@ import ch.chuv.lren.woken.core.model.{ AlgorithmDefinition, UserWarning }
 import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query._
-import ch.chuv.lren.woken.service.{ DispatcherService, FeaturesService }
+import ch.chuv.lren.woken.service.{ DispatcherService, FeaturesTableService }
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.language.higherKinds
@@ -109,6 +107,7 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
   implicit val materializer: ActorMaterializer = ActorMaterializer(
     ActorMaterializerSettings(context.system).withSupervisionStrategy(decider)
   )
+
   implicit val ec: ExecutionContext = context.dispatcher
 
   @SuppressWarnings(Array("org.wartremover.warts.Any", "org.wartremover.warts.NonUnitStatements"))
@@ -123,6 +122,9 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
       val replyTo    = if (requestedReplyTo == Actor.noSender) sender() else requestedReplyTo
       val thisActor  = self
       val algorithms = job.query.algorithms
+      // TODO: support schemas
+      val featuresTableServiceV =
+        coordinatorConfig.featuresService.featuresTable(None, job.inputTable)
 
       logger.info(s"Start new experiment job $job")
       logger.info(s"List of algorithms: ${algorithms.mkString(",")}")
@@ -134,52 +136,99 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
           FeaturesSplitter.defineSplitters(job.query.validations)
         } else Nil.validNel[String]
 
-      XXX
-
-      splitterDefsV.fold(
+      ((featuresTableServiceV, splitterDefsV) mapN Tuple2.apply).fold(
         err => {
           val msg = s"""Invalid definition of validations: ${err.mkString_("", ",", "")}"""
           completeWithError(job, msg, initiator, replyTo)
-        },
-        splitterDefs => {
-          coordinatorConfig.featuresService
+        }, {
+          case (featuresTableService, splitterDefs) =>
+            if (splitterDefs.isEmpty)
+              buildExperimentFlowWithCompletion(job,
+                                                Nil,
+                                                featuresTableService,
+                                                thisActor,
+                                                initiator,
+                                                replyTo)
+            else
+              featuresTableService
+                .createExtendedFeaturesTable(job.query.filters, Nil, splitterDefs)
+                .fold(
+                  err => {
+                    val msg =
+                      s"""Invalid definition of extended features table: ${err
+                        .mkString_("", ",", "")}"""
+                    completeWithError(job, msg, initiator, replyTo)
+                  },
+                  extendedFeaturesTableR => {
+                    extendedFeaturesTableR.use[Unit] {
+                      extendedFeaturesTable =>
+                        val splitters = splitterDefs.map {
+                          FeaturesSplitter(_, extendedFeaturesTable)
+                        }
+
+                        val future = buildExperimentFlowWithCompletion(job,
+                                                                       splitters,
+                                                                       extendedFeaturesTable,
+                                                                       thisActor,
+                                                                       initiator,
+                                                                       replyTo)
+
+                        Effect[F].async[Unit] { cb =>
+                          // Success and failure cases have been already handled
+                          future.onSuccess { case _   => cb(Right(())) }
+                          future.onFailure { case err => cb(Left(err)) }
+                        }
+                    }
+                  }
+                )
         }
       )
-
-      val experimentFlow: Flow[Job, Map[AlgorithmSpec, JobResult], NotUsed] =
-        ExperimentFlow(
-          CoordinatorActor.executeJobAsync(coordinatorConfig, context),
-          coordinatorConfig.featuresService,
-          coordinatorConfig.jobsConf,
-          dispatcherService,
-          context
-        ).flow
-
-      val future: Future[Response] = Source
-        .single(job)
-        .via(experimentFlow)
-        .runWith(Sink.head)
-        .map { results =>
-          logger.info("Experiment - build final response")
-          logger.info(s"Algorithms: $algorithms")
-          logger.info(s"Results: $results")
-
-          assert(results.size == algorithms.size, "There should be as many results as algorithms")
-          assert(results.keySet equals algorithms.toSet,
-                 "Algorithms defined in the results should match the incoming list of algorithms")
-
-          val pfa = ExperimentJobResult(jobId = job.jobId,
-                                        node = coordinatorConfig.jobsConf.node,
-                                        results = results)
-
-          Response(job, Right(pfa), initiator)
-        }
-
-      completeExperiment(job, future, thisActor, initiator, replyTo)
 
     case e =>
       logger.error(s"Unhandled message: $e")
       context stop self
+  }
+
+  private def buildExperimentFlowWithCompletion(job: Job,
+                                                splitters: List[FeaturesSplitter[F]],
+                                                featuresTableService: FeaturesTableService[F],
+                                                thisActor: ActorRef,
+                                                initiator: ActorRef,
+                                                replyTo: ActorRef): Future[Response] = {
+    val algorithms = job.query.algorithms
+    val experimentFlow: Flow[Job, Map[AlgorithmSpec, JobResult], NotUsed] =
+      ExperimentFlow(
+        CoordinatorActor.executeJobAsync(coordinatorConfig, context),
+        featuresTableService,
+        coordinatorConfig.jobsConf,
+        dispatcherService,
+        splitters,
+        context
+      ).flow
+
+    val future: Future[Response] = Source
+      .single(job)
+      .via(experimentFlow)
+      .map { results =>
+        logger.info("Experiment - build final response")
+        logger.info(s"Algorithms: $algorithms")
+        logger.info(s"Results: $results")
+
+        assert(results.size == algorithms.size, "There should be as many results as algorithms")
+        assert(results.keySet equals algorithms.toSet,
+               "Algorithms defined in the results should match the incoming list of algorithms")
+
+        val pfa = ExperimentJobResult(jobId = job.jobId,
+                                      node = coordinatorConfig.jobsConf.node,
+                                      results = results)
+
+        Response(job, Right(pfa), initiator)
+      }
+      .runWith(Sink.head)
+
+    completeExperiment(job, future, thisActor, initiator, replyTo)
+
+    future
   }
 
   private def completeWithError(job: Job,
@@ -219,7 +268,7 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
           replyTo ! response
       }
       .onComplete { _ =>
-        logger.info("Stopping...")
+        logger.info("Stopping experiment...")
         context stop thisActor
       }
 }
@@ -234,9 +283,10 @@ object ExperimentFlow {
 
 case class ExperimentFlow[F[_]: Effect](
     executeJobAsync: CoordinatorActor.ExecuteJobAsync,
-    featuresService: FeaturesService[F],
+    featuresTableService: FeaturesTableService[F],
     jobsConf: JobsConfiguration,
     dispatcherService: DispatcherService,
+    splitters: List[FeaturesSplitter[F]],
     context: ActorContext
 )(implicit materializer: Materializer, ec: ExecutionContext)
     extends LazyLogging {
@@ -245,14 +295,14 @@ case class ExperimentFlow[F[_]: Effect](
 
   private case class JobForAlgorithm(job: ExperimentActor.Job,
                                      algorithmSpec: AlgorithmSpec,
-                                     subJob: ValidatedAlgorithmFlow.Job)
+                                     subJob: ValidatedAlgorithmFlow.Job[F])
 
   private case class AlgorithmResult(job: ExperimentActor.Job,
                                      algorithmSpec: AlgorithmSpec,
                                      result: JobResult)
 
   private val validatedAlgorithmFlow =
-    ValidatedAlgorithmFlow(executeJobAsync, featuresService, jobsConf, context)
+    ValidatedAlgorithmFlow(executeJobAsync, featuresTableService, jobsConf, context)
 
   @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
   def flow: Flow[ExperimentActor.Job, Map[AlgorithmSpec, JobResult], NotUsed] =
@@ -336,7 +386,7 @@ case class ExperimentFlow[F[_]: Effect](
                                                 job.inputTable,
                                                 miningQuery,
                                                 job.metadata,
-                                                validations,
+                                                splitters,
                                                 algorithmDefinition)
         logger.info(s"Prepared mining query sub job $subJob")
         JobForAlgorithm(job, algorithmSpec, subJob)

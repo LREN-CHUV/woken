@@ -17,13 +17,14 @@
 
 package ch.chuv.lren.woken.validation
 
+import cats.data.ValidatedNel
 import cats.effect.Effect
-import cats.effect.concurrent.Deferred
 import cats.implicits._
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query.ValidationSpec
+import ch.chuv.lren.woken.service.FeaturesTableService
 import doobie.{ LogHandler, Update0 }
 
 import scala.language.higherKinds
@@ -31,13 +32,21 @@ import scala.language.higherKinds
 // TODO: support Training-test split for longitudinal datasets
 // https://www.quora.com/Is-it-better-using-training-test-split-or-k-fold-CV-when-we-are-working-with-large-datasets
 
+case class PartioningQueries(trainingDatasetQuery: FeaturesQuery, testDatasetQuery: FeaturesQuery)
+
 trait FeaturesSplitter[F[_]] {
 
-  def splitFeatures(query: FeaturesQuery): F[List[FeaturesQuery]]
+  def targetTable: FeaturesTableService[F]
+
+  def definition: FeaturesSplitterDefinition
+
+  def splitFeatures(query: FeaturesQuery): List[PartioningQueries]
 
 }
 
 trait FeaturesSplitterDefinition {
+
+  def validation: ValidationSpec
 
   def splitColumn: TableColumn
 
@@ -46,34 +55,33 @@ trait FeaturesSplitterDefinition {
       implicit h: LogHandler = LogHandler.nop
   ): Update0
 
-  def makeSplitter[F[_]: Effect, A](
-      dynTable: Deferred[F, FeaturesTableDescription],
-      dynView: Deferred[F, FeaturesTableDescription]
-  ): FeaturesSplitter[F]
+  def makeSplitter[F[_]: Effect](targetTable: FeaturesTableService[F]): FeaturesSplitter[F]
 }
 
 object FeaturesSplitter {
 
   def defineSplitters(
-      splitters: List[ValidationSpec]
+      validations: List[ValidationSpec]
   ): Validation[List[FeaturesSplitterDefinition]] =
-    splitters
+    validations
       .map { spec =>
-        spec.code match {
-          case "kfold" =>
-            val numFolds = spec.parametersAsMap("k").toInt
-            KFoldFeaturesSplitter.kFoldSplitterDefinition(numFolds).validNel[String]
-
-          case other => s"Validation $other is not handled".invalidNel[FeaturesSplitterDefinition]
-        }
+        defineSplitter(spec)
       }
       .sequence[Validation, FeaturesSplitterDefinition]
 
+  def defineSplitter(spec: ValidationSpec): ValidatedNel[String, FeaturesSplitterDefinition] =
+    spec.code match {
+      case "kfold" =>
+        val numFolds = spec.parametersAsMap("k").toInt
+        KFoldFeaturesSplitterDefinition(spec, numFolds).validNel[String]
+
+      case other => s"Validation $other is not handled".invalidNel[FeaturesSplitterDefinition]
+    }
+
   def apply[F[_]: Effect](
       splitterDef: FeaturesSplitterDefinition,
-      dynTable: Deferred[F, FeaturesTableDescription],
-      dynView: Deferred[F, FeaturesTableDescription]
+      targetTable: FeaturesTableService[F]
   ): FeaturesSplitter[F] =
-    splitterDef.makeSplitter(dynTable, dynView)
+    splitterDef.makeSplitter(targetTable)
 
 }

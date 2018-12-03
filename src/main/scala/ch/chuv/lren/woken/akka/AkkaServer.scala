@@ -25,7 +25,6 @@ import akka.pattern.{ Backoff, BackoffSupervisor }
 import cats.effect._
 import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.config.{ DatasetsConfiguration, WokenConfiguration }
-import ch.chuv.lren.woken.core.{ CoordinatorConfig, Core }
 import ch.chuv.lren.woken.service._
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -46,7 +45,7 @@ class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
     override val config: WokenConfiguration,
     override implicit val system: ActorSystem,
     override implicit val cluster: Cluster
-) extends Core
+) extends CoreSystem
     with CoreActors {
 
   override protected def logger: Logger = AkkaServer.logger
