@@ -22,7 +22,9 @@ import cats.effect.{ ContextShift, IO, Timer }
 import cats.effect.internals.IOContextShift
 import ch.chuv.lren.woken.JsonUtils
 import ch.chuv.lren.woken.config.WokenConfiguration
-import ch.chuv.lren.woken.core.model.VariablesMeta
+import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, VariablesMeta }
+import ch.chuv.lren.woken.core.model.database.TableId
+import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
 import ch.chuv.lren.woken.dao.{
   FeaturesInMemoryRepository,
   FeaturesTableInMemoryRepository,
@@ -31,6 +33,7 @@ import ch.chuv.lren.woken.dao.{
 }
 import ch.chuv.lren.woken.messages.variables.GroupMetaData
 import ch.chuv.lren.woken.messages.variables.variablesProtocol._
+import spray.json.JsObject
 
 import scala.concurrent.ExecutionContext
 
@@ -81,12 +84,24 @@ object TestServices extends JsonUtils {
 
   lazy val algorithmLibraryService: AlgorithmLibraryService = AlgorithmLibraryService()
 
+  val database = "features_db"
+  val churnTable = FeaturesTableDescription(TableId(database, None, "CHURN"),
+                                            Nil,
+                                            None,
+                                            validateSchema = false,
+                                            None,
+                                            0.67)
+  val tables: Set[FeaturesTableDescription] = Set(churnTable)
+  val tablesContent: Map[TableId, (Headers, List[JsObject])] = Map(
+    )
   lazy val emptyFeaturesService: FeaturesService[IO] = FeaturesService(
-    new FeaturesInMemoryRepository[IO]("features_db", Set())
+    new FeaturesInMemoryRepository[IO](database, tables, tablesContent)
   )
 
+  val featuresTableId = TableId("features_db", None, "features_table")
+
   lazy val emptyFeaturesTableService: FeaturesTableService[IO] = new FeaturesTableServiceImpl(
-    new FeaturesTableInMemoryRepository[IO]()
+    new FeaturesTableInMemoryRepository[IO](featuresTableId)
   )
 
   implicit val ec: ExecutionContext                       = ExecutionContext.global

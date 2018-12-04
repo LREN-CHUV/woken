@@ -24,8 +24,10 @@ import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
+import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
 import ch.chuv.lren.woken.messages.datasets.DatasetId
-import spray.json.JsObject
+import spray.json._
+import spray.json.DefaultJsonProtocol._
 import ch.chuv.lren.woken.messages.query.filters.FilterRule
 import doobie.util.log.LogHandler
 import doobie.util.update.Update0
@@ -93,6 +95,7 @@ trait FeaturesTableRepository[F[_]] extends Repository {
 
   /**
     * Number of rows belonging to the dataset.
+    *
     * @param dataset The dataset used to filter rows
     * @return the number of rows in the dataset, 0 if dataset is not associated with the table
     */
@@ -100,6 +103,7 @@ trait FeaturesTableRepository[F[_]] extends Repository {
 
   /**
     * Number of rows matching the filters.
+    *
     * @param filters The filters used to filter rows
     * @return the number of rows in the dataset matching the filters, or the total number of rows if there are no filters
     */
@@ -136,43 +140,54 @@ object FeaturesTableRepository {
 
 class FeaturesInMemoryRepository[F[_]: Applicative](
     override val database: String,
-    override val tables: Set[FeaturesTableDescription]
+    override val tables: Set[FeaturesTableDescription],
+    val tablesContent: Map[TableId, (Headers, List[JsObject])]
 ) extends FeaturesRepository[F] {
 
   private val cache = new TrieMap[TableId, FeaturesTableRepository[F]]()
 
   override def featuresTable(table: TableId): F[Option[FeaturesTableRepository[F]]] = {
     cache.get(table).orElse {
-      if (tables.exists(_.table == table)) {
-        Some(cache.getOrElseUpdate(table, new FeaturesTableInMemoryRepository[F](table)))
-      } else None
+      tables.find(_.table == table).map { t =>
+        val (headers, data) = tablesContent.getOrElse(table, Nil -> Nil)
+        cache.getOrElseUpdate(
+          table,
+          new FeaturesTableInMemoryRepository[F](table, headers, t.datasetColumn, data)
+        )
+      }
     }
   }.pure[F]
 
 }
 
-class FeaturesTableInMemoryRepository[F[_]: Applicative](val tableId: TableId) extends FeaturesTableRepository[F] {
+class FeaturesTableInMemoryRepository[F[_]: Applicative](val tableId: TableId,
+                                                         override val columns: List[TableColumn],
+                                                         val datasetColumn: Option[TableColumn],
+                                                         val dataFeatures: List[JsObject])
+    extends FeaturesTableRepository[F] {
 
   import FeaturesTableRepository.Headers
+  import spray.json._
 
   override val table =
-    FeaturesTableDescription(tableId,
-                             Nil,
-                             None,
-                             validateSchema = false,
-                             None,
-                             0.0)
+    FeaturesTableDescription(tableId, Nil, datasetColumn, validateSchema = false, None, 0.0)
 
-  override def count: F[Int] = 0.pure[F]
+  override def count: F[Int] = dataFeatures.size.pure[F]
 
-  override def count(dataset: DatasetId): F[Int] = 0.pure[F]
+  override def count(dataset: DatasetId): F[Int] =
+    datasetColumn.fold(if (dataset.code == tableId.name) count else 0.pure[F])(
+      ds =>
+        dataFeatures
+          .count(
+            row => row.fields.getOrElse(ds.name, JsString("")).convertTo[String] == dataset.code
+          )
+          .pure[F]
+    )
 
   override def count(filters: Option[FilterRule]): F[Int] = 0.pure[F]
 
-  override def columns: Headers = Nil
-
   override def features(query: FeaturesQuery): F[(Headers, Stream[JsObject])] =
-    (List[TableColumn](), List[JsObject]().toStream).pure[F]
+    (columns, dataFeatures.toStream).pure[F]
 
   override def createExtendedFeaturesTable(
       filters: Option[FilterRule],
