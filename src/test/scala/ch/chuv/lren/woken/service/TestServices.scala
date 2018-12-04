@@ -82,7 +82,7 @@ object TestServices extends JsonUtils {
   lazy val algorithmLibraryService: AlgorithmLibraryService = AlgorithmLibraryService()
 
   lazy val emptyFeaturesService: FeaturesService[IO] = FeaturesService(
-    new FeaturesInMemoryRepository[IO]("in_memory", Set())
+    new FeaturesInMemoryRepository[IO]("features_db", Set())
   )
 
   lazy val emptyFeaturesTableService: FeaturesTableService[IO] = new FeaturesTableServiceImpl(

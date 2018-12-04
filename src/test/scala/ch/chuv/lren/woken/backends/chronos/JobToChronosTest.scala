@@ -51,7 +51,7 @@ class JobToChronosTest extends FlatSpec with Matchers {
     executionPlan = None
   )
 
-  val tableId = TableId("test_db", None, "features_table")
+  val tableId = TableId("features_db", None, "features_table")
 
   val featuresQuery: FeaturesQuery =
     query

@@ -141,24 +141,22 @@ class FeaturesInMemoryRepository[F[_]: Applicative](
 
   private val cache = new TrieMap[TableId, FeaturesTableRepository[F]]()
 
-  override def featuresTable(table: TableId): F[Option[FeaturesTableRepository[F]]] =
-    Option(
-      cache
-        .getOrElse(table, {
-          val ftr = new FeaturesTableInMemoryRepository[F]()
-          val _   = cache.put(table, ftr)
-          ftr
-        })
-    ).pure[F]
+  override def featuresTable(table: TableId): F[Option[FeaturesTableRepository[F]]] = {
+    cache.get(table).orElse {
+      if (tables.exists(_.table == table)) {
+        Some(cache.getOrElseUpdate(table, new FeaturesTableInMemoryRepository[F](table)))
+      } else None
+    }
+  }.pure[F]
 
 }
 
-class FeaturesTableInMemoryRepository[F[_]: Applicative] extends FeaturesTableRepository[F] {
+class FeaturesTableInMemoryRepository[F[_]: Applicative](val tableId: TableId) extends FeaturesTableRepository[F] {
 
   import FeaturesTableRepository.Headers
 
   override val table =
-    FeaturesTableDescription(TableId("in_memory", None, "tmp"),
+    FeaturesTableDescription(tableId,
                              Nil,
                              None,
                              validateSchema = false,
