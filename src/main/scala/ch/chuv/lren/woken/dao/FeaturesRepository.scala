@@ -21,6 +21,7 @@ import cats.Applicative
 import cats.effect.Resource
 import cats.implicits._
 import ch.chuv.lren.woken.core.features.FeaturesQuery
+import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.datasets.DatasetId
@@ -52,11 +53,10 @@ trait FeaturesRepository[F[_]] extends Repository {
   /**
     * Provides the interface to a features table
     *
-    * @param dbSchema Database schema containing the table. Defaults to 'public'
     * @param table Name of the table
     * @return an option to the features table repository
     */
-  def featuresTable(dbSchema: Option[String], table: String): F[Option[FeaturesTableRepository[F]]]
+  def featuresTable(table: TableId): F[Option[FeaturesTableRepository[F]]]
 
 }
 
@@ -139,10 +139,9 @@ class FeaturesInMemoryRepository[F[_]: Applicative](
     override val tables: Set[FeaturesTableDescription]
 ) extends FeaturesRepository[F] {
 
-  private val cache = new TrieMap[String, FeaturesTableRepository[F]]()
+  private val cache = new TrieMap[TableId, FeaturesTableRepository[F]]()
 
-  override def featuresTable(dbSchema: Option[String],
-                             table: String): F[Option[FeaturesTableRepository[F]]] =
+  override def featuresTable(table: TableId): F[Option[FeaturesTableRepository[F]]] =
     Option(
       cache
         .getOrElse(table, {
@@ -159,7 +158,12 @@ class FeaturesTableInMemoryRepository[F[_]: Applicative] extends FeaturesTableRe
   import FeaturesTableRepository.Headers
 
   override val table =
-    FeaturesTableDescription("in_memory", None, "tmp", Nil, None, validateSchema = false, None, 0.0)
+    FeaturesTableDescription(TableId("in_memory", None, "tmp"),
+                             Nil,
+                             None,
+                             validateSchema = false,
+                             None,
+                             0.0)
 
   override def count: F[Int] = 0.pure[F]
 

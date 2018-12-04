@@ -22,6 +22,7 @@ import cats.data.NonEmptyList
 import cats.effect._
 import cats.implicits._
 import ch.chuv.lren.woken.config.{ DatabaseConfiguration, WokenConfiguration, configurationFailed }
+import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.dao.{ FeaturesRepositoryDAO, MetadataRepositoryDAO, WokenRepositoryDAO }
 import com.typesafe.scalalogging.Logger
 import doobie.hikari.HikariTransactor
@@ -30,6 +31,7 @@ import org.slf4j.LoggerFactory
 import scala.language.higherKinds
 
 case class DatabaseServices[F[_]: ConcurrentEffect: ContextShift: Timer](
+    config: WokenConfiguration,
     featuresService: FeaturesService[F],
     jobResultService: JobResultService[F],
     variablesMetaService: VariablesMetaService[F],
@@ -40,6 +42,7 @@ case class DatabaseServices[F[_]: ConcurrentEffect: ContextShift: Timer](
 
   import DatabaseServices.logger
 
+  @SuppressWarnings(Array("org.wartremover.warts.Throw"))
   def validate(): F[Unit] = {
 
     logger.info("Check configuration of datasets...")
@@ -53,13 +56,10 @@ case class DatabaseServices[F[_]: ConcurrentEffect: ContextShift: Timer](
       Monoid.combineAll(dataset.tables.map {
         qualifiedTableName =>
           {
-            val dbSchema =
-              if (qualifiedTableName.contains(".")) Some(qualifiedTableName.split(".")(0)) else None
-            val tableName =
-              if (qualifiedTableName.contains(".")) qualifiedTableName.split(".")(1)
-              else qualifiedTableName
+            val table = TableId(config.jobs.featuresDb, qualifiedTableName)
+
             featuresService
-              .featuresTable(dbSchema, tableName)
+              .featuresTable(table)
               .fold[F[Unit]](
                 { error: NonEmptyList[String] =>
                   val errMsg = error.mkString_("", ",", "")
@@ -69,7 +69,7 @@ case class DatabaseServices[F[_]: ConcurrentEffect: ContextShift: Timer](
                   table.count(dataset.dataset).map { count =>
                     if (count == 0) {
                       val error =
-                        s"Table $tableName contains no value for dataset ${dataset.dataset.code}"
+                        s"Table ${table.table} contains no value for dataset ${dataset.dataset.code}"
                       logger.error(error)
                       throw new IllegalStateException(error)
                     }
@@ -135,7 +135,8 @@ object DatabaseServices {
                                               config.jobs,
                                               config.algorithmLookup)
       } yield
-        DatabaseServices[F](featuresService,
+        DatabaseServices[F](config,
+                            featuresService,
                             jobResultService,
                             variablesMetaService,
                             queryToJobService,

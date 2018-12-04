@@ -19,13 +19,13 @@ package ch.chuv.lren.woken.core.model
 
 import cats.data.NonEmptyList
 import cats.data.Validated.Invalid
+import ch.chuv.lren.woken.JsonUtils
 import ch.chuv.lren.woken.messages.variables.{
   GroupMetaData,
   VariableMetaData,
   VariableType,
   variablesProtocol
 }
-import ch.chuv.lren.woken.util.JsonUtils
 import org.scalatest.{ Matchers, WordSpec }
 import spray.json._
 import variablesProtocol._

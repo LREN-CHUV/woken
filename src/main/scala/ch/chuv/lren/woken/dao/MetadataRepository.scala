@@ -73,12 +73,12 @@ class MetadataInMemoryRepository[F[_]: Applicative] extends MetadataRepository[F
     private val cache = new TrieMap[String, FeaturesTableDescription]
 
     override def put(table: FeaturesTableDescription): F[FeaturesTableDescription] = {
-      cache.put(table.name.toUpperCase, table)
+      cache.put(table.table.name, table)
       table.pure[F]
     }
 
     override def get(table: String): F[Option[FeaturesTableDescription]] =
-      cache.get(table.toUpperCase).pure[F]
+      cache.get(table).pure[F]
 
   }
 

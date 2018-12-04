@@ -26,6 +26,7 @@ import cats.implicits._
 import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model
+import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
 import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
@@ -43,19 +44,11 @@ class FeaturesRepositoryDAO[F[_]: Effect] private (
     override val tables: Set[FeaturesTableDescription]
 ) extends FeaturesRepository[F] {
 
-  override def featuresTable(dbSchema: Option[String],
-                             table: String): F[Option[FeaturesTableRepository[F]]] = {
-
-    val matchTable = { t: FeaturesTableDescription =>
-      (t.schema == dbSchema || dbSchema.isEmpty && t.schema
-        .contains("public")) && (t.name == table)
-    }
-
+  override def featuresTable(table: TableId): F[Option[FeaturesTableRepository[F]]] =
     tables
-      .find(matchTable)
+      .find(_.table.same(table))
       .map(t => FeaturesTableRepositoryDAO[F](xa, t))
       .sequence
-  }
 }
 
 object FeaturesRepositoryDAO {
@@ -69,7 +62,7 @@ object FeaturesRepositoryDAO {
     case class Check(schema: String, table: String, column: String)
 
     def columnCheck(table: FeaturesTableDescription, column: TableColumn): Check =
-      Check(table.schema.getOrElse("public"), table.name, column.name)
+      Check(table.table.schemaOrPublic, table.table.name, column.name)
 
     // TODO: add "and is_identity='YES'" to the check. Problem: our tables don't have their primary key properly defined
     def checkPrimaryKey(check: Check): Fragment = sql"""
@@ -129,6 +122,8 @@ object FeaturesRepositoryDAO {
 abstract class BaseFeaturesTableRepositoryDAO[F[_]: Effect] extends FeaturesTableRepository[F] {
   def xa: Transactor[F]
 
+  protected def defaultDataset: String = table.table.name
+
   override def count: F[Int] = {
     val q: Fragment = fr"SELECT count(*) FROM " ++ frName(table)
     q.query[Int]
@@ -138,7 +133,7 @@ abstract class BaseFeaturesTableRepositoryDAO[F[_]: Effect] extends FeaturesTabl
 
   override def count(dataset: DatasetId): F[Int] =
     table.datasetColumn.fold {
-      if (dataset.code == table.quotedName || dataset.code == table.name) count
+      if (dataset.code == table.quotedName || dataset.code == defaultDataset) count
       else 0.pure[F]
     } { datasetColumn =>
       val q: Fragment = sql"SELECT count(*) FROM " ++ frName(table) ++ fr"WHERE " ++ frName(
@@ -272,9 +267,10 @@ class ExtendedFeaturesTableRepositoryDAO[F[_]: Effect] private (
     val rndColumn: TableColumn
 ) extends BaseFeaturesTableRepositoryDAO[F] {
 
-  override val xa: Transactor[F]               = sourceTable.xa
-  override val table: FeaturesTableDescription = view
-  override val columns: List[TableColumn]      = viewColumns
+  override val xa: Transactor[F]                = sourceTable.xa
+  override val table: FeaturesTableDescription  = view
+  override val columns: List[TableColumn]       = viewColumns
+  override protected def defaultDataset: String = sourceTable.table.table.name
 
   def close(): F[Unit] = {
     val rmView     = fr"DELETE VIEW " ++ frName(view)
@@ -310,7 +306,8 @@ object ExtendedFeaturesTableRepositoryDAO {
     val extractPk: Validation[TableColumn] = sourceTable.table.primaryKey match {
       case pk :: Nil => lift(pk)
       case _ =>
-        s"Dynamic features table expects a primary key of one column for table ${sourceTable.table.name}"
+        val sourceTableName = sourceTable.table.table.name
+        s"Dynamic features table expects a primary key of one column for table $sourceTableName"
           .invalidNel[TableColumn]
     }
 
@@ -405,7 +402,8 @@ object ExtendedFeaturesTableRepositoryDAO {
 
     for {
       tableNum <- genTableNum.transact(xa)
-      extTable = table.copy(name = s"${table.name}__$tableNum", validateSchema = false)
+      extTable = table.copy(table = table.table.copy(name = s"${table.table.name}__$tableNum"),
+                            validateSchema = false)
       _ <- createAdditionalFeaturesTable(extTable, pk).transact(xa)
       _ <- fillAdditionalFeaturesTable(extTable, pk).transact(xa)
     } yield extTable
@@ -441,9 +439,10 @@ object ExtendedFeaturesTableRepositoryDAO {
       stmt.update.run
     }
 
-    val extTableColumns    = newFeatures ++ List(rndColumn: TableColumn)
-    val extViewDescription = extTable.copy(name = s"${extTable.name}v")
-    val extViewColumns     = tableColumns ++ extTableColumns.filter(_ != pk)
+    val extTableColumns = newFeatures ++ List(rndColumn: TableColumn)
+    val extViewDescription =
+      extTable.copy(table = table.table.copy(name = s"${extTable.table.name}v"))
+    val extViewColumns = tableColumns ++ extTableColumns.filter(_ != pk)
 
     for {
       _ <- createFeaturesView(table,

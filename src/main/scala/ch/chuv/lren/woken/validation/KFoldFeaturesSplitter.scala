@@ -42,7 +42,8 @@ case class KFoldFeaturesSplitterDefinition(override val validation: ValidationSp
       rndColumn: TableColumn
   )(implicit h: LogHandler = LogHandler.nop): Update0 = {
 
-    val winTable = targetTable.copy(name = "win", datasetColumn = None)
+    val winTable =
+      targetTable.copy(table = targetTable.table.copy(name = "win"), datasetColumn = None)
     val stmt = fr"WITH win as (SELECT " ++ frNames(targetTable.primaryKey) ++ fr", ntile(" ++
       frConst(numFolds) ++ fr") over (order by " ++ frName(rndColumn) ++ fr") as win FROM " ++
       frName(targetTable) ++ fr") UPDATE cde_features_a_1 SET " ++ frName(splitColumn) ++
@@ -72,12 +73,12 @@ case class KFoldFeaturesSplitter[F[_]](
       }
 
   private def trainingDatasetQuery(query: FeaturesQuery, fold: Int): FeaturesQuery = query.copy(
-    dbTable = targetTable.table.name,
+    dbTable = targetTable.table.table,
     filters = andSplitOnFold(query.filters, fold, Operator.notEqual)
   )
 
   private def testDatasetQuery(query: FeaturesQuery, fold: Int): FeaturesQuery = query.copy(
-    dbTable = targetTable.table.name,
+    dbTable = targetTable.table.table,
     filters = andSplitOnFold(query.filters, fold, Operator.equal)
   )
 

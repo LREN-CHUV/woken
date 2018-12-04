@@ -20,6 +20,7 @@ package ch.chuv.lren.woken.mining
 import akka.actor.ActorRef
 import ch.chuv.lren.woken.core.model
 import ch.chuv.lren.woken.core.model.AlgorithmDefinition
+import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.core.model.jobs.DockerJob
 import ch.chuv.lren.woken.messages.query.{ AlgorithmSpec, ExperimentQuery }
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
@@ -37,10 +38,8 @@ case class StartCoordinatorJob(job: DockerJob, replyTo: ActorRef, initiator: Act
     extends Command
 
 case class ExperimentJob(
-    jobId: String,
-    inputDb: String,
-    inputDbSchema: Option[String],
-    inputTable: String,
+    override val jobId: String,
+    inputTable: TableId,
     query: ExperimentQuery,
     algorithms: Map[AlgorithmSpec, AlgorithmDefinition],
     metadata: List[VariableMetaData]

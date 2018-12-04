@@ -17,11 +17,13 @@
 
 package ch.chuv.lren.woken.service
 
+import cats.effect.IO
 import cats.scalatest.{ ValidatedMatchers, ValidatedValues }
 import ch.chuv.lren.woken.config.{ AlgorithmsConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.core.features.FeaturesQuery
+import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.core.model.{ AlgorithmDefinition, CdeVariables }
-import ch.chuv.lren.woken.core.model.jobs.{ DockerJob, ValidationJob }
+import ch.chuv.lren.woken.core.model.jobs.{ DockerJob, Job, ValidationJob }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.messages.query._
@@ -56,8 +58,14 @@ class QueryToJobServiceTest
                       0.5,
                       512)
 
-  private val algorithmLookup: String => Validation[AlgorithmDefinition] =
+  val algorithmLookup: String => Validation[AlgorithmDefinition] =
     AlgorithmsConfiguration.factory(config)
+
+  val variablesMetaService: VariablesMetaService[IO] = TestServices.localVariablesMetaService
+  val featuresService: FeaturesService[IO]           = TestServices.emptyFeaturesService
+
+  val queryToJobService: QueryToJobService[IO] =
+    QueryToJobService[IO](featuresService, variablesMetaService, jobsConf, algorithmLookup)
 
   "Transforming a mining query to a job" should {
 
@@ -75,9 +83,7 @@ class QueryToJobServiceTest
         executionPlan = None
       )
 
-      val maybeJob = QueryToJobService.miningQuery2Job(TestServices.localVariablesMetaService,
-                                                       jobsConf,
-                                                       algorithmLookup)(query)
+      val maybeJob = queryToJobService.miningQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe invalid
       maybeJob.invalidValue.head shouldBe "Cannot find metadata for table unknown"
@@ -97,9 +103,7 @@ class QueryToJobServiceTest
         executionPlan = None
       )
 
-      val maybeJob = QueryToJobService.miningQuery2Job(TestServices.localVariablesMetaService,
-                                                       jobsConf,
-                                                       algorithmLookup)(query)
+      val maybeJob = queryToJobService.miningQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe invalid
       maybeJob.invalidValue.head shouldBe "Could not find key: algorithms.unknown"
@@ -120,9 +124,7 @@ class QueryToJobServiceTest
         executionPlan = None
       )
 
-      val maybeJob = QueryToJobService.miningQuery2Job(TestServices.localVariablesMetaService,
-                                                       jobsConf,
-                                                       algorithmLookup)(query)
+      val maybeJob = queryToJobService.miningQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe invalid
       maybeJob.invalidValue.head shouldBe "Found 1 out of 2 variables. Missing unknown"
@@ -143,9 +145,7 @@ class QueryToJobServiceTest
         executionPlan = None
       )
 
-      val maybeJob = QueryToJobService.miningQuery2Job(TestServices.localVariablesMetaService,
-                                                       jobsConf,
-                                                       algorithmLookup)(query)
+      val maybeJob = queryToJobService.miningQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe invalid
       maybeJob.invalidValue.head shouldBe "Found 1 out of 2 variables. Missing unknown"
@@ -169,15 +169,14 @@ class QueryToJobServiceTest
         executionPlan = None
       )
 
-      val maybeJob = QueryToJobService.miningQuery2Job(TestServices.localVariablesMetaService,
-                                                       jobsConf,
-                                                       algorithmLookup)(query)
+      val maybeJob = queryToJobService.miningQuery2Job(query).unsafeRunSync()
 
       println(maybeJob)
       maybeJob shouldBe valid
       maybeJob.value shouldBe a[DockerJob]
 
       val job: DockerJob = maybeJob.value.asInstanceOf[DockerJob]
+      val table          = TableId("in_memory", None, "cde_features_a")
 
       job.jobId should not be empty
       job.algorithmDefinition.dockerImage should startWith("hbpmip/python-knn")
@@ -188,7 +187,7 @@ class QueryToJobServiceTest
             List("apoe4"),
             List("lefthippocampus"),
             List(),
-            "cde_features_a",
+            table,
             Some(
               CompoundFilterRule(
                 Condition.and,
@@ -214,6 +213,7 @@ class QueryToJobServiceTest
                 )
               )
             ),
+            None,
             None
             //"""SELECT "apoe4","lefthippocampus" FROM cde_features_a WHERE "apoe4" IS NOT NULL AND "lefthippocampus" IS NOT NULL AND "dataset" IN ('desd-synthdata')"""
           )
@@ -239,14 +239,13 @@ class QueryToJobServiceTest
         executionPlan = None
       )
 
-      val maybeJob = QueryToJobService.miningQuery2Job(TestServices.localVariablesMetaService,
-                                                       jobsConf,
-                                                       algorithmLookup)(query)
+      val maybeJob = queryToJobService.miningQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe valid
       maybeJob.value shouldBe a[DockerJob]
 
       val job: DockerJob = maybeJob.value.asInstanceOf[DockerJob]
+      val table          = TableId("in_memory", None, "cde_features_a")
 
       job.jobId should not be empty
       job.algorithmDefinition.dockerImage should startWith("hbpmip/python-knn")
@@ -257,7 +256,7 @@ class QueryToJobServiceTest
             List("apoe4"),
             List("lefthippocampus"),
             List(),
-            "cde_features_a",
+            table,
             Some(
               CompoundFilterRule(
                 Condition.and,
@@ -283,6 +282,7 @@ class QueryToJobServiceTest
                 )
               )
             ),
+            None,
             None
             // """SELECT "apoe4","lefthippocampus" FROM cde_features_a WHERE "apoe4" IS NOT NULL AND "lefthippocampus" IS NOT NULL AND "dataset" IN ('desd-synthdata')"""
           )
@@ -308,9 +308,7 @@ class QueryToJobServiceTest
         executionPlan = None
       )
 
-      val maybeJob = QueryToJobService.miningQuery2Job(TestServices.localVariablesMetaService,
-                                                       jobsConf,
-                                                       algorithmLookup)(query)
+      val maybeJob = queryToJobService.miningQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe valid
       maybeJob.value shouldBe a[ValidationJob]
@@ -348,9 +346,7 @@ class QueryToJobServiceTest
       )
 
       val maybeJob =
-        QueryToJobService.experimentQuery2Job(TestServices.localVariablesMetaService,
-                                              jobsConf,
-                                              algorithmLookup)(query)
+        queryToJobService.experimentQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe invalid
       maybeJob.invalidValue.head shouldBe "Cannot find metadata for table unknown"
@@ -374,9 +370,7 @@ class QueryToJobServiceTest
       )
 
       val maybeJob =
-        QueryToJobService.experimentQuery2Job(TestServices.localVariablesMetaService,
-                                              jobsConf,
-                                              algorithmLookup)(query)
+        queryToJobService.experimentQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe invalid
       maybeJob.invalidValue.head shouldBe "Could not find key: algorithms.unknown"
@@ -401,9 +395,7 @@ class QueryToJobServiceTest
       )
 
       val maybeJob =
-        QueryToJobService.experimentQuery2Job(TestServices.localVariablesMetaService,
-                                              jobsConf,
-                                              algorithmLookup)(query)
+        queryToJobService.experimentQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe invalid
       maybeJob.invalidValue.head shouldBe "Found 1 out of 2 variables. Missing unknown"
@@ -428,9 +420,7 @@ class QueryToJobServiceTest
       )
 
       val maybeJob =
-        QueryToJobService.experimentQuery2Job(TestServices.localVariablesMetaService,
-                                              jobsConf,
-                                              algorithmLookup)(query)
+        queryToJobService.experimentQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe invalid
       maybeJob.invalidValue.head shouldBe "Found 1 out of 2 variables. Missing unknown"
@@ -455,13 +445,11 @@ class QueryToJobServiceTest
       )
 
       val maybeJob =
-        QueryToJobService.experimentQuery2Job(TestServices.localVariablesMetaService,
-                                              jobsConf,
-                                              algorithmLookup)(query)
+        queryToJobService.experimentQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe valid
 
-      val job = maybeJob.value
+      val job: Job = maybeJob.value._1
 
       job.jobId should not be empty
       job should have(
@@ -490,13 +478,11 @@ class QueryToJobServiceTest
       )
 
       val maybeJob =
-        QueryToJobService.experimentQuery2Job(TestServices.localVariablesMetaService,
-                                              jobsConf,
-                                              algorithmLookup)(query)
+        queryToJobService.experimentQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe valid
 
-      val job = maybeJob.value
+      val job = maybeJob.value._1
 
       job.jobId should not be empty
       job should have(
@@ -524,10 +510,7 @@ class QueryToJobServiceTest
         executionPlan = None
       )
 
-      val maybeJob =
-        QueryToJobService.experimentQuery2Job(TestServices.localVariablesMetaService,
-                                              jobsConf,
-                                              algorithmLookup)(query)
+      val maybeJob = queryToJobService.experimentQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe invalid
     }

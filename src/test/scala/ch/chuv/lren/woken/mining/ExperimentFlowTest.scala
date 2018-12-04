@@ -24,6 +24,7 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Source
 import akka.stream.testkit.scaladsl.TestSink
 import akka.testkit.{ TestKit, TestProbe }
+import ch.chuv.lren.woken.JsonUtils
 import ch.chuv.lren.woken.Predefined.Algorithms.{
   anovaDefinition,
   anovaFactorial,
@@ -32,6 +33,7 @@ import ch.chuv.lren.woken.Predefined.Algorithms.{
 }
 import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.config.AlgorithmsConfiguration
+import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.core.model.jobs.{ ErrorJobResult, JobResult, PfaJobResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.{ Validation, lift }
@@ -39,7 +41,6 @@ import ch.chuv.lren.woken.messages.datasets.{ Dataset, DatasetId }
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables.VariableId
 import ch.chuv.lren.woken.service.DispatcherService
-import ch.chuv.lren.woken.util.{ FakeCoordinatorConfig, JsonUtils }
 import com.typesafe.config.{ Config, ConfigFactory }
 import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
@@ -93,9 +94,7 @@ class ExperimentFlowTest
     ConfigUtil.lift(
       ExperimentJob(
         jobId = UUID.randomUUID().toString,
-        inputDb = "featuresDb",
-        inputDbSchema = None,
-        inputTable = query.targetTable.getOrElse("sample_data"),
+        inputTable = TableId("featuresDb", None, query.targetTable.getOrElse("sample_data")),
         query = query,
         metadata = Nil,
         algorithms = Map(knnWithK5 -> knnDefinition, anovaFactorial -> anovaDefinition)

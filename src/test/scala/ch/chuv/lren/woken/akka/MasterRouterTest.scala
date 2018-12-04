@@ -19,7 +19,7 @@ package ch.chuv.lren.woken.akka
 
 import java.util.UUID
 
-import akka.actor.{ ActorRef, ActorSystem, Props }
+import akka.actor.{ ActorSystem, Props }
 import akka.stream.ActorMaterializer
 import akka.testkit.{ ImplicitSender, TestKit }
 import com.typesafe.config.{ Config, ConfigFactory }
@@ -31,25 +31,25 @@ import ch.chuv.lren.woken.mining.{
   FakeCoordinatorActor
 }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
-import ch.chuv.lren.woken.util.FakeCoordinatorConfig._
+import ch.chuv.lren.woken.mining.FakeCoordinatorConfig._
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.service._
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil
 import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.core.features.Queries._
-import ch.chuv.lren.woken.util.FakeActors
 import ch.chuv.lren.woken.messages.datasets.{ Dataset, DatasetId, DatasetsQuery, DatasetsResponse }
 import ch.chuv.lren.woken.messages.datasets.AnonymisationLevel._
 import ch.chuv.lren.woken.messages.variables.VariableId
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import org.scalatest.tagobjects.Slow
 import cats.data.Validated._
-import cats.effect.IO
+import cats.effect.{ Effect, IO }
+import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.core.model.jobs.DockerJob
 import ch.chuv.lren.woken.messages.remoting.RemoteLocation
 
 import scala.concurrent.duration._
-import scala.language.postfixOps
+import scala.language.{ higherKinds, postfixOps }
 
 /**
   * Validates correct implementation of the MasterRouter.
@@ -65,13 +65,13 @@ class MasterRouterTest
 
   import ch.chuv.lren.woken.service.TestServices._
 
+  val tableId = TableId("test_db", None, "features_table")
+
   def experimentQuery2job(query: ExperimentQuery): Validation[ExperimentActor.Job] =
     ConfigUtil.lift(
       ExperimentJob(
         jobId = UUID.randomUUID().toString,
-        inputDb = "test_db",
-        inputDbSchema = None,
-        inputTable = "test",
+        inputTable = tableId,
         query = query,
         metadata = Nil,
         algorithms = Map()
@@ -81,37 +81,26 @@ class MasterRouterTest
   def miningQuery2job(query: MiningQuery): Validation[DockerJob] = {
     val featuresQuery = query
       .filterNulls(variablesCanBeNull = true, covariablesCanBeNull = true)
-      .features("test_db", None, "test", None)
+      .features(tableId, None)
 
     ConfigUtil.lift(
       DockerJob(
         jobId = UUID.randomUUID().toString,
         query = featuresQuery,
         algorithmSpec = query.algorithm,
-        algorithmDefinition = AlgorithmsConfiguration
-          .factory(config)(query.algorithm.code)
+        algorithmDefinition = config
+          .algorithmLookup(query.algorithm.code)
           .getOrElse(throw new IllegalArgumentException("Unknown algorithm")),
         metadata = Nil
       )
     )
   }
 
-  class MasterRouterUnderTest(config: Config,
-                              appConfiguration: AppConfiguration,
-                              coordinatorConfig: CoordinatorConfig[IO],
-                              dispatcherService: DispatcherService,
-                              algorithmLibraryService: AlgorithmLibraryService,
-                              datasetService: DatasetService,
-                              variablesMetaService: VariablesMetaService[IO])
-      extends MasterRouter(
-        config,
-        appConfiguration,
-        coordinatorConfig,
-        dispatcherService,
-        algorithmLibraryService,
-        datasetService,
-        variablesMetaService
-      ) {
+  class MasterRouterUnderTest[F[_]: Effect](
+      config: WokenConfiguration,
+      databaseServices: DatabaseServices[F],
+      backendServices: BackendServices
+  ) extends MasterRouter(config, databaseServices, backendServices) {
 
 //    override def newExperimentActor: ActorRef =
 //      system.actorOf(Props(new FakeExperimentActor()))
@@ -121,37 +110,29 @@ class MasterRouterTest
 
   }
 
-  class RouterWithProbeCoordinator(config: Config,
-                                   appConfiguration: AppConfiguration,
-                                   coordinatorConfig: CoordinatorConfig[IO],
-                                   dispatcherService: DispatcherService,
-                                   algorithmLibraryService: AlgorithmLibraryService,
-                                   datasetService: DatasetService,
-                                   variablesMetaService: VariablesMetaService[IO],
-                                   coordinatorActor: ActorRef)
-      extends MasterRouterUnderTest(config,
-                                    appConfiguration,
-                                    coordinatorConfig,
-                                    dispatcherService,
-                                    algorithmLibraryService,
-                                    datasetService,
-                                    variablesMetaService) {
+  class RouterWithProbeCoordinator[F[_]: Effect](config: WokenConfiguration,
+                                                 databaseServices: DatabaseServices[F],
+                                                 backendServices: BackendServices)
+      extends MasterRouterUnderTest(config, databaseServices, backendServices) {
 
     //override def newCoordinatorActor: ActorRef = coordinatorActor
 
   }
 
-  val config: Config = ConfigFactory
+  val tsConfig: Config = ConfigFactory
     .parseResourcesAnySyntax("remoteDatasets.conf")
     .withFallback(ConfigFactory.load("test.conf"))
     .resolve()
+
   val appConfig: AppConfiguration = AppConfiguration
-    .read(config)
+    .read(tsConfig)
     .valueOr(
       e => throw new IllegalStateException(s"Invalid configuration: ${e.toList.mkString(", ")}")
     )
 
   val jdbcConfigs: String => ConfigUtil.Validation[DatabaseConfiguration] = _ => Valid(noDbConfig)
+
+  val config: WokenConfiguration = WokenConfiguration(tsConfig)
 
   val coordinatorConfig: CoordinatorConfig[IO] = CoordinatorConfig(
     system.actorOf(FakeActors.echoActorProps),
@@ -167,9 +148,9 @@ class MasterRouterTest
   val wokenService: WokenClientService = WokenClientService("test")
 
   val dispatcherService: DispatcherService =
-    DispatcherService(DatasetsConfiguration.datasets(config), wokenService)
+    DispatcherService(DatasetsConfiguration.datasets(config.config), wokenService)
 
-  val datasetService: DatasetService = ConfBasedDatasetService(config)
+  val databaseServices: DatabaseServices[IO] = TestServices.databaseServices(config)
 
   val user: UserId = UserId("test")
 
@@ -178,15 +159,7 @@ class MasterRouterTest
     val router =
       system.actorOf(
         Props(
-          new MasterRouterUnderTest(
-            config,
-            appConfig,
-            coordinatorConfig,
-            dispatcherService,
-            algorithmLibraryService,
-            datasetService,
-            emptyVariablesMetaService
-          )
+          new MasterRouterUnderTest(config, databaseServices, backendServices)
         )
       )
 
@@ -313,16 +286,7 @@ class MasterRouterTest
 
       val miningRouter = system.actorOf(
         Props(
-          new RouterWithProbeCoordinator(
-            config,
-            appConfig,
-            coordinatorConfig,
-            dispatcherService,
-            algorithmLibraryService,
-            datasetService,
-            emptyVariablesMetaService,
-            testCoordinatorActor
-          )
+          new RouterWithProbeCoordinator(config, databaseServices, backendServices)
         )
       )
 

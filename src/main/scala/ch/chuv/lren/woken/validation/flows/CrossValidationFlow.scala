@@ -59,7 +59,7 @@ object CrossValidationFlow {
   ) {
 
     // Invariants
-    assert(featuresTableService.table.name == query.dbTable)
+    assert(featuresTableService.table.table == query.dbTable)
   }
 
   private[CrossValidationFlow] case class FoldContext[R, F[_]: Effect](

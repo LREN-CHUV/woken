@@ -17,7 +17,11 @@
 
 package ch.chuv.lren.woken.service
 
-import cats.effect.IO
+import akka.actor.ActorRef
+import cats.effect.{ ContextShift, IO, Timer }
+import cats.effect.internals.IOContextShift
+import ch.chuv.lren.woken.JsonUtils
+import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.core.model.VariablesMeta
 import ch.chuv.lren.woken.dao.{
   FeaturesInMemoryRepository,
@@ -27,7 +31,8 @@ import ch.chuv.lren.woken.dao.{
 }
 import ch.chuv.lren.woken.messages.variables.GroupMetaData
 import ch.chuv.lren.woken.messages.variables.variablesProtocol._
-import ch.chuv.lren.woken.util.JsonUtils
+
+import scala.concurrent.ExecutionContext
 
 object TestServices extends JsonUtils {
 
@@ -84,4 +89,27 @@ object TestServices extends JsonUtils {
     new FeaturesTableInMemoryRepository[IO]()
   )
 
+  implicit val ec: ExecutionContext                       = ExecutionContext.global
+  implicit lazy val defaultContextShift: ContextShift[IO] = IOContextShift.global
+  implicit lazy val defaultTimer: Timer[IO]               = cats.effect.IO.timer(ec)
+
+  def databaseServices(config: WokenConfiguration): DatabaseServices[IO] = {
+    val datasetService: DatasetService = ConfBasedDatasetService(config.config)
+    val queryToJobService = QueryToJobService(emptyFeaturesService,
+                                              localVariablesMetaService,
+                                              config.jobs,
+                                              config.algorithmLookup)
+    DatabaseServices(
+      config,
+      emptyFeaturesService,
+      jobResultService,
+      localVariablesMetaService,
+      queryToJobService,
+      datasetService,
+      algorithmLibraryService
+    )
+  }
+
+  lazy val backendServices: BackendServices =
+    BackendServices(dispatcherService = ???, chronosHttp = ???)
 }

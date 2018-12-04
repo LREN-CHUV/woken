@@ -22,4 +22,8 @@ package ch.chuv.lren.woken.core.model.jobs
   *
   * Jobs are issued by an external command, either a user action or another Woken process calling this server.
   */
-trait Job
+trait Job {
+
+  def jobId: String
+
+}

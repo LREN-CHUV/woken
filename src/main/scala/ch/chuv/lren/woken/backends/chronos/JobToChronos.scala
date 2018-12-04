@@ -83,7 +83,7 @@ object JobToChronos {
       )
     }
 
-    val inputDb  = jdbcConfF(job.query.dbName)
+    val inputDb  = jdbcConfF(job.query.dbTable.database)
     val outputDb = jdbcConfF(jobsConf.resultDb)
 
     (inputDb, outputDb) mapN buildChronosJob

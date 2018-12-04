@@ -27,7 +27,6 @@ import com.typesafe.config.ConfigFactory
 import ch.chuv.lren.woken.backends.chronos.ChronosService.Ok
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpec, WordSpecLike }
 import ch.chuv.lren.woken.backends.chronos.{ EnvironmentVariable => EV, Parameter => P }
-import ch.chuv.lren.woken.util.FakeActors
 
 import scala.concurrent.{ Await, ExecutionContext, Future, Promise }
 import scala.concurrent.duration._
@@ -35,7 +34,7 @@ import scala.language.postfixOps
 import ChronosJob._
 import akka.cluster.Cluster
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
-import ch.chuv.lren.woken.akka.{ CoreActors, CoreSystem }
+import ch.chuv.lren.woken.akka.{ CoreActors, CoreSystem, FakeActors }
 import ch.chuv.lren.woken.config.WokenConfiguration
 import com.typesafe.scalalogging.LazyLogging
 import spray.json.DefaultJsonProtocol

@@ -17,6 +17,7 @@
 
 package ch.chuv.lren.woken.core.model.jobs
 
+import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.messages.query.MiningQuery
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
 
@@ -24,10 +25,8 @@ import ch.chuv.lren.woken.messages.variables.VariableMetaData
   * A validation job will trigger validation of a PFA model
   */
 case class ValidationJob(
-    jobId: String,
-    inputDb: String,
-    inputDbSchema: Option[String],
-    inputTable: String,
+    override val jobId: String,
+    inputTable: TableId,
     query: MiningQuery,
     metadata: List[VariableMetaData]
 ) extends Job

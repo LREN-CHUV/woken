@@ -38,6 +38,27 @@ import ch.chuv.lren.woken.messages.variables.{
 
 import scala.language.higherKinds
 
+trait DispatcherService {
+
+  type VariablesForDatasetsQR = (VariablesForDatasetsQuery, VariablesForDatasetsResponse)
+
+  def localDatasets: Set[DatasetId]
+
+  def dispatchTo(dataset: DatasetId): Option[RemoteLocation]
+
+  def dispatchTo(datasets: Set[DatasetId]): (Set[RemoteLocation], Boolean)
+
+  def dispatchRemoteMiningFlow: Flow[MiningQuery, (RemoteLocation, QueryResult), NotUsed]
+
+  def dispatchRemoteExperimentFlow: Flow[ExperimentQuery, (RemoteLocation, QueryResult), NotUsed]
+
+  def dispatchVariablesQueryFlow[F[_]: Effect](
+      datasetService: DatasetService,
+      variablesMetaService: VariablesMetaService[F]
+  ): Flow[VariablesForDatasetsQuery, VariablesForDatasetsQR, NotUsed]
+
+}
+
 /**
   * Creates flows that dispatch queries to local or remote Woken workers according to the datasets
   *
@@ -46,23 +67,22 @@ import scala.language.higherKinds
   *
   * @author Ludovic Claude <ludovic.claude@chuv.ch>
   */
-class DispatcherService(allDatasets: Map[DatasetId, Dataset],
-                        wokenClientService: WokenClientService)
-    extends LazyLogging {
+class DispatcherServiceImpl(val allDatasets: Map[DatasetId, Dataset],
+                            val wokenClientService: WokenClientService)
+    extends DispatcherService
+    with LazyLogging {
 
-  type VariablesForDatasetsQR = (VariablesForDatasetsQuery, VariablesForDatasetsResponse)
-
-  lazy val localDatasets: Set[DatasetId] = allDatasets.filter {
+  override lazy val localDatasets: Set[DatasetId] = allDatasets.filter {
     case (_, dataset) => dataset.location.isEmpty
   }.keySet
 
-  def dispatchTo(dataset: DatasetId): Option[RemoteLocation] =
+  override def dispatchTo(dataset: DatasetId): Option[RemoteLocation] =
     if (allDatasets.isEmpty)
       None
     else
       allDatasets.get(dataset).flatMap(_.location)
 
-  def dispatchTo(datasets: Set[DatasetId]): (Set[RemoteLocation], Boolean) = {
+  override def dispatchTo(datasets: Set[DatasetId]): (Set[RemoteLocation], Boolean) = {
     logger.info(s"Dispatch to datasets $datasets knowing $allDatasets")
     val maybeLocations = datasets.map(dispatchTo)
     val local          = maybeLocations.isEmpty || maybeLocations.contains(None)
@@ -72,7 +92,7 @@ class DispatcherService(allDatasets: Map[DatasetId, Dataset],
     (maybeSet.getOrElse(Set.empty), local)
   }
 
-  def dispatchRemoteMiningFlow: Flow[MiningQuery, (RemoteLocation, QueryResult), NotUsed] =
+  override def dispatchRemoteMiningFlow: Flow[MiningQuery, (RemoteLocation, QueryResult), NotUsed] =
     Flow[MiningQuery]
       .map(q => dispatchTo(q.datasets)._1.map(ds => ds -> q))
       .mapConcat(identity)
@@ -81,7 +101,8 @@ class DispatcherService(allDatasets: Map[DatasetId, Dataset],
       .via(wokenClientService.queryFlow)
       .named("dispatch-remote-mining")
 
-  def dispatchRemoteExperimentFlow: Flow[ExperimentQuery, (RemoteLocation, QueryResult), NotUsed] =
+  override def dispatchRemoteExperimentFlow
+    : Flow[ExperimentQuery, (RemoteLocation, QueryResult), NotUsed] =
     Flow[ExperimentQuery]
       .map(q => dispatchTo(q.trainingDatasets)._1.map(ds => ds -> q))
       .mapConcat(identity)
@@ -92,7 +113,7 @@ class DispatcherService(allDatasets: Map[DatasetId, Dataset],
       .via(wokenClientService.queryFlow)
       .named("dispatch-remote-experiment")
 
-  def dispatchVariablesQueryFlow[F[_]: Effect](
+  override def dispatchVariablesQueryFlow[F[_]: Effect](
       datasetService: DatasetService,
       variablesMetaService: VariablesMetaService[F]
   ): Flow[VariablesForDatasetsQuery, VariablesForDatasetsQR, NotUsed] =
@@ -174,6 +195,6 @@ object DispatcherService {
 
   def apply(datasets: Validation[Map[DatasetId, Dataset]],
             wokenService: WokenClientService): DispatcherService =
-    new DispatcherService(loadDatasets(datasets), wokenService)
+    new DispatcherServiceImpl(loadDatasets(datasets), wokenService)
 
 }

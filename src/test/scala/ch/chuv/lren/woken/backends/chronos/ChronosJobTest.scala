@@ -17,8 +17,8 @@
 
 package ch.chuv.lren.woken.backends.chronos
 
+import ch.chuv.lren.woken.JsonUtils
 import ch.chuv.lren.woken.backends.chronos.{ EnvironmentVariable => EV, Parameter => P }
-import ch.chuv.lren.woken.util.JsonUtils
 import org.scalatest._
 
 class ChronosJobTest extends FlatSpec with Matchers with JsonUtils {

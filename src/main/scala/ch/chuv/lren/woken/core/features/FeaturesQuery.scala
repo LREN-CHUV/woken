@@ -18,6 +18,7 @@
 package ch.chuv.lren.woken.core.features
 
 import ch.chuv.lren.woken.core.model.TableColumn
+import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.messages.query.filters._
 import ch.chuv.lren.woken.messages.query.filters.FilterRule._
 import ch.chuv.lren.woken.messages.variables.SqlType
@@ -36,8 +37,6 @@ case class LeaveOutPartition(folds: Integer, excludeFold: Integer, orderColumn: 
   * @param dbVariables List of variables (dependent features)
   * @param dbCovariables List of covariables (independent features)
   * @param dbGrouping List of fields to use in a group by statement (or equivalent when an algorithm supporting grouping is used)
-  * @param dbName Name of the database
-  * @param dbSchema Schema containing the table, or None for default schema (usually, 'public' schema)
   * @param dbTable Database table containing the data
   * @param filters Filters to apply on the data
   * @param sampling Sampling method used to select
@@ -46,9 +45,7 @@ case class FeaturesQuery(
     dbVariables: List[String],
     dbCovariables: List[String],
     dbGrouping: List[String],
-    dbName: String,
-    dbSchema: Option[String],
-    dbTable: String,
+    dbTable: TableId,
     filters: Option[FilterRule],
     sampling: Option[Sampling],
     orderBy: Option[String]

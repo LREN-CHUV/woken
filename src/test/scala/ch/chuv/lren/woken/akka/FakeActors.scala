@@ -15,20 +15,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.util
+package ch.chuv.lren.woken.akka
+import akka.actor.{ Actor, Props }
 
-import spray.json.JsValue
+object FakeActors {
 
-import scala.io.Source
-
-trait JsonUtils {
-
-  def loadJson(path: String): JsValue = {
-    import spray.json._
-    import spray.json.DefaultJsonProtocol.RootJsObjectFormat
-
-    val source = Source.fromURL(getClass.getResource(path))
-    jsonReader
-    source.mkString.parseJson
+  /**
+    * EchoActor sends back received messages (unmodified).
+    */
+  class EchoActor extends Actor {
+    override def receive: PartialFunction[Any, Unit] = {
+      case message =>
+        Thread.sleep(300)
+        sender() ! message
+        context.stop(self)
+    }
   }
+
+  val echoActorProps: Props = Props[EchoActor]()
 }

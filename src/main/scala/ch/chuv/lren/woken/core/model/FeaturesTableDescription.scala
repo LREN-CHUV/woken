@@ -17,6 +17,7 @@
 
 package ch.chuv.lren.woken.core.model
 
+import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.messages.query.UserId
 import ch.chuv.lren.woken.messages.variables.SqlType.SqlType
 
@@ -40,9 +41,7 @@ case class TableColumn(name: String, sqlType: SqlType) {
 /**
   * Description of a table containing features.
   *
-  * @param database Name of the database, must be defined in DatabaseConfiguration
-  * @param schema Schema containing the table
-  * @param name Name of the table
+  * @param table Identifier of the table
   * @param primaryKey List of fields belonging to the primary key.
   * @param datasetColumn Column if it exists used to discriminate rows on the dataset owning them.
   * @param validateSchema Validate the schema, in particular the columns used for the primary key and the dataset.
@@ -53,9 +52,7 @@ case class TableColumn(name: String, sqlType: SqlType) {
   *             ensure reproducibility of the results.
   */
 case class FeaturesTableDescription(
-    database: String,
-    schema: Option[String],
-    name: String,
+    table: TableId,
     primaryKey: List[TableColumn],
     datasetColumn: Option[TableColumn],
     validateSchema: Boolean,
@@ -66,6 +63,7 @@ case class FeaturesTableDescription(
   /**
     * @return the quoted name of the table, for use in SELECT statements
     */
-  def quotedName: String = schema.fold(s""""$name"""")(sch => s""""$sch"."$name"""")
+  def quotedName: String =
+    table.dbSchema.fold(s""""${table.name}"""")(sch => s""""$sch"."${table.name}"""")
 
 }

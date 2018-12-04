@@ -15,16 +15,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.util
-
+package ch.chuv.lren.woken.mining
 import akka.actor.ActorRef
 import cats.data.Validated.Valid
 import cats.effect.IO
 import ch.chuv.lren.woken.config.{ DatabaseConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil
-import ch.chuv.lren.woken.mining.CoordinatorConfig
-import ch.chuv.lren.woken.service.{ FeaturesService, FeaturesTableService, TestServices }
 import ch.chuv.lren.woken.service.TestServices.jobResultService
+import ch.chuv.lren.woken.service.{ FeaturesService, FeaturesTableService, TestServices }
 
 object FakeCoordinatorConfig {
 

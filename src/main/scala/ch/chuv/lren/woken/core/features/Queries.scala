@@ -17,6 +17,7 @@
 
 package ch.chuv.lren.woken.core.features
 
+import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.messages.query.{ ExperimentQuery, MiningQuery, Query }
 import ch.chuv.lren.woken.messages.query.filters._
@@ -101,16 +102,13 @@ object Queries {
       }
     }
 
-    def features(database: String,
-                 dbSchema: Option[String],
-                 defaultInputTable: String,
-                 orderBy: Option[String]): FeaturesQuery = {
-      val inputTable = query.targetTable.getOrElse(defaultInputTable)
+    def features(defaultInputTable: TableId, orderBy: Option[String]): FeaturesQuery = {
+      val inputTable =
+        query.targetTable.fold(defaultInputTable)(t => defaultInputTable.copy(name = t))
+
       FeaturesQuery(dbVariables,
                     dbCovariables,
                     dbGrouping,
-                    database,
-                    dbSchema,
                     inputTable,
                     query.filters,
                     None,

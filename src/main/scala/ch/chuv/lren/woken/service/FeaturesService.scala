@@ -28,6 +28,7 @@ import ch.chuv.lren.woken.dao.{
 }
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.core.fp.runNow
+import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query.filters.FilterRule
 import spray.json.JsObject
@@ -42,7 +43,7 @@ object FeaturesService {
 
 trait FeaturesService[F[_]] {
 
-  def featuresTable(dbSchema: Option[String], table: String): Validation[FeaturesTableService[F]]
+  def featuresTable(table: TableId): Validation[FeaturesTableService[F]]
 
 }
 
@@ -72,14 +73,14 @@ trait FeaturesTableService[F[_]] {
 class FeaturesServiceImpl[F[_]: Effect](repository: FeaturesRepository[F])
     extends FeaturesService[F] {
 
-  private val featuresTableCache: mutable.Map[String, FeaturesTableService[F]] =
-    new mutable.WeakHashMap[String, FeaturesTableService[F]]()
+  private val featuresTableCache: mutable.Map[TableId, FeaturesTableService[F]] =
+    new mutable.WeakHashMap[TableId, FeaturesTableService[F]]()
 
-  def featuresTable(dbSchema: Option[String], table: String): Validation[FeaturesTableService[F]] =
+  def featuresTable(table: TableId): Validation[FeaturesTableService[F]] =
     featuresTableCache
       .get(table)
       .orElse {
-        runNow(repository.featuresTable(dbSchema, table))
+        runNow(repository.featuresTable(table))
           .map { featuresTable =>
             val service = new FeaturesTableServiceImpl(featuresTable)
             featuresTableCache.put(table, service)

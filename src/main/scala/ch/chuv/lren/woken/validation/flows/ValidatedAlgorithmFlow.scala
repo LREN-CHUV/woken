@@ -28,6 +28,7 @@ import cats.effect.Effect
 import ch.chuv.lren.woken.config.JobsConfiguration
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.core.model.AlgorithmDefinition
+import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.validation.Score
@@ -43,16 +44,14 @@ import scala.language.higherKinds
 object ValidatedAlgorithmFlow {
 
   case class Job[F[_]](jobId: String,
-                       inputDb: String,
-                       inputDbSchema: Option[String],
-                       inputTable: String,
+                       inputTable: TableId,
                        query: MiningQuery,
                        cvSplitters: List[FeaturesSplitter[F]],
                        metadata: List[VariableMetaData],
                        algorithmDefinition: AlgorithmDefinition) {
     // Invariants
     assert(query.algorithm.code == algorithmDefinition.code)
-    query.targetTable.foreach(t => assert(t == inputTable))
+    query.targetTable.foreach(t => assert(t == inputTable.name))
 
     if (!algorithmDefinition.predictive) {
       assert(cvSplitters.isEmpty)
@@ -125,7 +124,7 @@ case class ValidatedAlgorithmFlow[F[_]: Effect](
 
         // Spawn a CoordinatorActor
         val jobId         = UUID.randomUUID().toString
-        val featuresQuery = job.query.features(job.inputDb, job.inputDbSchema, job.inputTable, None)
+        val featuresQuery = job.query.features(job.inputTable, None)
         val subJob =
           DockerJob(jobId,
                     featuresQuery,
@@ -149,7 +148,7 @@ case class ValidatedAlgorithmFlow[F[_]: Effect](
             case pk1 :: Nil => Some(pk1.name)
             case _          => None
           }
-          val query = job.query.features(job.inputDb, job.inputDbSchema, job.inputTable, orderBy)
+          val query = job.query.features(job.inputTable, orderBy)
           CrossValidationFlow.Job(jobId,
                                   query,
                                   job.metadata,

@@ -133,7 +133,7 @@ case class WokenClientService(node: String)(implicit val system: ActorSystem,
     Flow[(RemoteLocation, VariablesForDatasetsQuery)]
       .map(query => sendReceive(Get(query._1)).map((query._1, query._2, _)))
       .mapAsync(10)(identity)
-      .mapAsync[((RemoteLocation, VariablesForDatasetsQuery, VariablesForDatasetsResponse))](10) {
+      .mapAsync[(RemoteLocation, VariablesForDatasetsQuery, VariablesForDatasetsResponse)](10) {
         case (url, query, response) if response.status.isSuccess() =>
           val varResponse = Unmarshal(response).to[VariablesForDatasetsResponse]
           (url.pure[Future], query.pure[Future], varResponse).mapN((_, _, _))

@@ -18,11 +18,14 @@
 package ch.chuv.lren.woken.core.features
 
 import ch.chuv.lren.woken.core.model.TableColumn
+import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.messages.query.filters.{ InputType, Operator, SingleFilterRule }
 import ch.chuv.lren.woken.messages.variables.SqlType
 import org.scalatest.{ Matchers, WordSpec }
 
 class FeaturesQueryTest extends WordSpec with Matchers {
+
+  val tableId = TableId("test_db", None, "table")
 
   "FeaturesQuery" should {
 
@@ -32,9 +35,7 @@ class FeaturesQueryTest extends WordSpec with Matchers {
         dbVariables = List("a"),
         dbCovariables = List("b", "c"),
         dbGrouping = Nil,
-        dbName = "test_db",
-        dbSchema = None,
-        dbTable = "table",
+        dbTable = tableId,
         filters = None,
         sampling = None,
         orderBy = None
@@ -49,9 +50,7 @@ class FeaturesQueryTest extends WordSpec with Matchers {
         dbVariables = List("a"),
         dbCovariables = List("b", "c"),
         dbGrouping = Nil,
-        dbName = "test_db",
-        dbSchema = None,
-        dbTable = "table",
+        dbTable = tableId,
         filters = Some(
           SingleFilterRule("i", "i", "text", InputType.number, Operator.greaterOrEqual, List("5"))
         ),
@@ -68,9 +67,7 @@ class FeaturesQueryTest extends WordSpec with Matchers {
         dbVariables = List("a"),
         dbCovariables = List("b", "c"),
         dbGrouping = Nil,
-        dbName = "test_db",
-        dbSchema = None,
-        dbTable = "table",
+        dbTable = tableId,
         filters = None,
         sampling = Some(LeaveOutPartition(10, 2, Some(TableColumn("id", SqlType.varchar)))),
         orderBy = None
@@ -85,9 +82,7 @@ class FeaturesQueryTest extends WordSpec with Matchers {
         dbVariables = List("a"),
         dbCovariables = List("b", "c"),
         dbGrouping = Nil,
-        dbName = "test_db",
-        dbSchema = None,
-        dbTable = "table",
+        dbTable = tableId,
         filters = Some(
           SingleFilterRule("i", "i", "text", InputType.number, Operator.greaterOrEqual, List("5"))
         ),
@@ -104,9 +99,7 @@ class FeaturesQueryTest extends WordSpec with Matchers {
         dbVariables = List("a"),
         dbCovariables = List("b", "c"),
         dbGrouping = Nil,
-        dbName = "test_db",
-        dbSchema = None,
-        dbTable = "table",
+        dbTable = tableId,
         filters = None,
         sampling = Some(LeaveOutPartition(10, 2, Some(TableColumn("id", SqlType.int)))),
         orderBy = None
@@ -121,9 +114,7 @@ class FeaturesQueryTest extends WordSpec with Matchers {
         dbVariables = List("a"),
         dbCovariables = List("b", "c"),
         dbGrouping = Nil,
-        dbName = "test_db",
-        dbSchema = None,
-        dbTable = "table",
+        dbTable = tableId,
         filters = None,
         sampling = Some(LeaveOutPartition(10, 2, None)),
         orderBy = None

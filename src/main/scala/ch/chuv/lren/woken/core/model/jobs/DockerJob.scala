@@ -36,7 +36,7 @@ import spray.json._
   * @param metadata Metadata associated with each field used in the query
   */
 case class DockerJob(
-    jobId: String,
+    override val jobId: String,
     query: FeaturesQuery,
     algorithmSpec: AlgorithmSpec,
     algorithmDefinition: AlgorithmDefinition,

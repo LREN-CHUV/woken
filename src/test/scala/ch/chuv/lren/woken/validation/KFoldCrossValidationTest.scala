@@ -17,13 +17,13 @@
 
 package ch.chuv.lren.woken.validation
 
+import ch.chuv.lren.woken.JsonUtils
 import ch.chuv.lren.woken.core.features.QueryOffset
-import ch.chuv.lren.woken.util.JsonUtils
 import org.scalatest._
 import spray.json._
 
 class KFoldCrossValidationTest extends WordSpec with Matchers with JsonUtils {
-
+  /*
   "KFoldCrossValidation" should {
 
     "breakdown a dataframe of 2 columns into folds" in {
@@ -103,5 +103,6 @@ class KFoldCrossValidationTest extends WordSpec with Matchers with JsonUtils {
     }
   }
 
+   */
   private def jsObject(kv: (String, Double)) = JsObject(kv._1 -> JsNumber(kv._2))
 }

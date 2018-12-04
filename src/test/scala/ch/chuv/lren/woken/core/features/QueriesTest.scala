@@ -17,6 +17,7 @@
 
 package ch.chuv.lren.woken.core.features
 
+import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.messages.query.{ AlgorithmSpec, CodeValue, MiningQuery, UserId }
 import org.scalatest.{ Matchers, WordSpec }
 import ch.chuv.lren.woken.messages.query.filters._
@@ -51,8 +52,10 @@ class QueriesTest extends WordSpec with Matchers {
       executionPlan = None
     )
 
+    val inputTable = TableId("test_db", None, "inputTable")
+
     "generate the SQL query" ignore {
-      val featuresQuery = query.features("test_db", None, "inputTable", None)
+      val featuresQuery = query.features(inputTable, None)
       featuresQuery.sql shouldBe
       """SELECT "target","a","b","c","grp1","grp2" FROM inputTable WHERE "a" < 10"""
     }
@@ -60,19 +63,19 @@ class QueriesTest extends WordSpec with Matchers {
     "generate a SQL query filtering null values" ignore {
       val featuresQuery = query
         .filterNulls(variablesCanBeNull = true, covariablesCanBeNull = true)
-        .features("test_db", None, "inputTable", None)
+        .features(inputTable, None)
       featuresQuery.sql shouldBe
       """SELECT "target","a","b","c","grp1","grp2" FROM inputTable WHERE "a" < 10"""
 
       val featuresQuery2 = query
         .filterNulls(variablesCanBeNull = false, covariablesCanBeNull = true)
-        .features("test_db", None, "inputTable", None)
+        .features(inputTable, None)
       featuresQuery2.sql shouldBe
       """SELECT "target","a","b","c","grp1","grp2" FROM inputTable WHERE "target" IS NOT NULL AND "a" < 10"""
 
       val featuresQuery3 = query
         .filterNulls(variablesCanBeNull = false, covariablesCanBeNull = false)
-        .features("test_db", None, "inputTable", None)
+        .features(inputTable, None)
       featuresQuery3.sql shouldBe
       """SELECT "target","a","b","c","grp1","grp2" FROM inputTable WHERE "target" IS NOT NULL AND "a" IS NOT NULL
           | AND "b" IS NOT NULL AND "c" IS NOT NULL AND "grp1" IS NOT NULL AND "grp2" IS NOT NULL AND "a" < 10""".stripMargin
@@ -80,7 +83,7 @@ class QueriesTest extends WordSpec with Matchers {
 
       val featuresQuery4 = query
         .filterNulls(variablesCanBeNull = true, covariablesCanBeNull = false)
-        .features("test_db", None, "inputTable", None)
+        .features(inputTable, None)
       featuresQuery4.sql shouldBe
       """SELECT "target","a","b","c","grp1","grp2" FROM inputTable WHERE "a" IS NOT NULL
           | AND "b" IS NOT NULL AND "c" IS NOT NULL AND "grp1" IS NOT NULL AND "grp2" IS NOT NULL AND "a" < 10""".stripMargin
@@ -103,7 +106,7 @@ class QueriesTest extends WordSpec with Matchers {
         executionPlan = None
       )
 
-      val featuresQuery = badQuery.features("test_db", None, "inputTable", None)
+      val featuresQuery = badQuery.features(inputTable, None)
       featuresQuery.sql shouldBe
       """SELECT "target_var","_1a","_12_b","c","grp1","grp2" FROM inputTable WHERE "_1a" < 10"""
     }

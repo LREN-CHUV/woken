@@ -91,13 +91,13 @@ case class ValidationFlow[F[_]: Effect](
 
         val featuresQuery = job.query
           .filterNulls(variablesCanBeNull, covariablesCanBeNull)
-          .features(job.inputDb, job.inputDbSchema, job.inputTable, None)
+          .features(job.inputTable, None)
 
         logger.info(s"Validation query: $featuresQuery")
 
         // JSON objects with fieldname corresponding to variables names
         featuresService
-          .featuresTable(None, featuresQuery.dbTable)
+          .featuresTable(featuresQuery.dbTable)
           .map { table =>
             val (_, dataframe) = runNow(table.features(featuresQuery))
             logger.info(s"Query response: ${dataframe.mkString(",")}")

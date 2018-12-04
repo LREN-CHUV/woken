@@ -110,7 +110,7 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
       val algorithms = job.query.algorithms
       // TODO: support schemas
       val featuresTableServiceV =
-        coordinatorConfig.featuresService.featuresTable(None, job.inputTable)
+        coordinatorConfig.featuresService.featuresTable(job.inputTable)
 
       logger.info(s"Start new experiment job $job")
       logger.info(s"List of algorithms: ${algorithms.mkString(",")}")
@@ -150,10 +150,10 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
                           FeaturesSplitter(_, extendedFeaturesTable)
                         }
 
-                        val extTableName = extendedFeaturesTable.table.name
+                        val extTable = extendedFeaturesTable.table.table
                         val extendedJob = job.copy(
-                          inputTable = extTableName,
-                          query = job.query.copy(targetTable = Some(extTableName))
+                          inputTable = extTable,
+                          query = job.query.copy(targetTable = Some(extTable.name))
                         )
 
                         val future = executeExperimentFlow(extendedJob,
@@ -366,14 +366,12 @@ case class ExperimentFlow[F[_]: Effect](
           covariablesMustExist = query.covariablesMustExist,
           grouping = query.grouping,
           filters = query.filters,
-          targetTable = Some(job.inputTable),
+          targetTable = Some(job.inputTable.name),
           datasets = query.trainingDatasets,
           algorithm = algorithmSpec,
           executionPlan = None
         )
         val subJob = ValidatedAlgorithmFlow.Job(jobId,
-                                                job.inputDb,
-                                                job.inputDbSchema,
                                                 job.inputTable,
                                                 miningQuery,
                                                 splitters,

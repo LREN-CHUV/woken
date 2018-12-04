@@ -28,6 +28,7 @@ import org.scalatest.{ FlatSpec, Matchers }
 import cats.data.ValidatedNel
 import cats.syntax.validated._
 import ch.chuv.lren.woken.Predefined.Algorithms.{ knnDefinition, knnWithK5 }
+import ch.chuv.lren.woken.core.model.database.TableId
 
 class JobToChronosTest extends FlatSpec with Matchers {
 
@@ -50,10 +51,12 @@ class JobToChronosTest extends FlatSpec with Matchers {
     executionPlan = None
   )
 
+  val tableId = TableId("test_db", None, "features_table")
+
   val featuresQuery: FeaturesQuery =
     query
       .filterNulls(variablesCanBeNull = false, covariablesCanBeNull = false)
-      .features("testdb", None, "features_table", None)
+      .features(tableId, None)
 
   val jdbcConfs: Map[String, ValidatedNel[String, DatabaseConfiguration]] = Map(
     "features_db" -> DatabaseConfiguration(

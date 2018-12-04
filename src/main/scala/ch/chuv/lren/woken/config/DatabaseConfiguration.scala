@@ -23,6 +23,7 @@ import doobie.hikari._
 import cats.implicits._
 import cats.effect._
 import cats.data.Validated._
+import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
 import com.typesafe.config.Config
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
@@ -63,11 +64,11 @@ object DatabaseConfiguration {
 
     dbConfig.andThen { db =>
       val dbiDriver: Validation[String] =
-        db.validateString("dbi_driver").orElse(lift("PostgreSQL"))
+        db.validateString("dbi_driver").orElse("PostgreSQL".validNel)
       val dbApiDriver: Validation[String] =
-        db.validateString("dbapi_driver").orElse(lift("postgresql"))
+        db.validateString("dbapi_driver").orElse("postgresql".validNel)
       val jdbcDriver: Validation[String] =
-        db.validateString("jdbc_driver").orElse(lift("org.postgresql.Driver"))
+        db.validateString("jdbc_driver").orElse("org.postgresql.Driver".validNel)
       val jdbcUrl                      = db.validateString("jdbc_url")
       val host                         = db.validateString("host")
       val port                         = db.validateInt("port")
@@ -75,12 +76,12 @@ object DatabaseConfiguration {
       val password                     = db.validateString("password")
       val database: Validation[String] = db.validateString("database")
       val poolSize: Validation[Int] =
-        db.validateInt("pool_size").orElse(lift(10))
+        db.validateInt("pool_size").orElse(10.validNel)
 
       val tableNames: Validation[Set[String]] = db
         .validateConfig("tables")
         .map(_.keys)
-        .orElse(lift(Set()))
+        .orElse(Set[String]().validNel[String])
 
       val tableFactory: String => Validation[FeaturesTableDescription] =
         table =>
@@ -111,8 +112,10 @@ object DatabaseConfiguration {
 
   private def readTable(config: Config,
                         path: List[String],
-                        database: String): Validation[FeaturesTableDescription] = {
-    val tableConfig = config.validateConfig(path.mkString("."))
+                        databaseName: String): Validation[FeaturesTableDescription] = {
+
+    val database: Validation[String] = databaseName.validNel
+    val tableConfig                  = config.validateConfig(path.mkString("."))
 
     tableConfig.andThen { table =>
       val tableName = path.lastOption.map(lift).getOrElse("Empty path".invalidNel[String])
@@ -139,21 +142,15 @@ object DatabaseConfiguration {
           val s: Validation[Option[TableColumn]]    = validatedCol.map(Option.apply)
           s
         }
-        .orElse(lift(None))
+        .orElse(None.validNel)
 
       val schema: Validation[Option[String]] = table.validateOptionalString("schema")
       val validateSchema: Validation[Boolean] =
         table.validateBoolean("validateSchema").orElse(lift(true))
-      val seed: Validation[Double] = table.validateDouble("seed").orElse(lift(0.67))
+      val seed: Validation[Double]     = table.validateDouble("seed").orElse(0.67.validNel)
+      val tableId: Validation[TableId] = (database, schema, tableName) mapN TableId.apply
 
-      (lift(database),
-       schema,
-       tableName,
-       primaryKey,
-       datasetColumn,
-       validateSchema,
-       lift(None),
-       seed) mapN FeaturesTableDescription
+      (tableId, primaryKey, datasetColumn, validateSchema, lift(None), seed) mapN FeaturesTableDescription
     }
   }
 

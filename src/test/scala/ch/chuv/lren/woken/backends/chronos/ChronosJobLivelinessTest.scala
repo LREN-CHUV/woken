@@ -19,7 +19,7 @@ package ch.chuv.lren.woken.backends.chronos
 
 import java.time.OffsetDateTime
 
-import ch.chuv.lren.woken.util.JsonUtils
+import ch.chuv.lren.woken.JsonUtils
 import org.scalatest._
 
 class ChronosJobLivelinessTest extends FlatSpec with Matchers with JsonUtils {
