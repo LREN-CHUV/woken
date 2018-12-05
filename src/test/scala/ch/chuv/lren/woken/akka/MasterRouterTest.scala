@@ -30,13 +30,12 @@ import ch.chuv.lren.woken.mining.{
   ExperimentJob,
   FakeCoordinatorActor
 }
+import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
+import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.mining.FakeCoordinatorConfig._
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.service._
-import ch.chuv.lren.woken.cromwell.core.ConfigUtil
-import ch.chuv.lren.woken.backends.woken.WokenClientService
-import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.messages.datasets.{ Dataset, DatasetId, DatasetsQuery, DatasetsResponse }
 import ch.chuv.lren.woken.messages.datasets.AnonymisationLevel._
 import ch.chuv.lren.woken.messages.variables.VariableId
@@ -44,6 +43,8 @@ import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import org.scalatest.tagobjects.Slow
 import cats.data.Validated._
 import cats.effect.{ Effect, IO }
+import cats.syntax.validated._
+
 import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.core.model.jobs.DockerJob
 import ch.chuv.lren.woken.messages.remoting.RemoteLocation
@@ -68,32 +69,28 @@ class MasterRouterTest
   val tableId = TableId("test_db", None, "features_table")
 
   def experimentQuery2job(query: ExperimentQuery): Validation[ExperimentActor.Job] =
-    ConfigUtil.lift(
-      ExperimentJob(
-        jobId = UUID.randomUUID().toString,
-        inputTable = tableId,
-        query = query,
-        metadata = Nil,
-        algorithms = Map()
-      )
-    )
+    ExperimentJob(
+      jobId = UUID.randomUUID().toString,
+      inputTable = tableId,
+      query = query,
+      metadata = Nil,
+      algorithms = Map()
+    ).validNel[String]
 
   def miningQuery2job(query: MiningQuery): Validation[DockerJob] = {
     val featuresQuery = query
       .filterNulls(variablesCanBeNull = true, covariablesCanBeNull = true)
       .features(tableId, None)
 
-    ConfigUtil.lift(
-      DockerJob(
-        jobId = UUID.randomUUID().toString,
-        query = featuresQuery,
-        algorithmSpec = query.algorithm,
-        algorithmDefinition = config
-          .algorithmLookup(query.algorithm.code)
-          .getOrElse(throw new IllegalArgumentException("Unknown algorithm")),
-        metadata = Nil
-      )
-    )
+    DockerJob(
+      jobId = UUID.randomUUID().toString,
+      query = featuresQuery,
+      algorithmSpec = query.algorithm,
+      algorithmDefinition = config
+        .algorithmLookup(query.algorithm.code)
+        .getOrElse(throw new IllegalArgumentException("Unknown algorithm")),
+      metadata = Nil
+    ).validNel[String]
   }
 
   class MasterRouterUnderTest[F[_]: Effect](
@@ -130,7 +127,7 @@ class MasterRouterTest
       e => throw new IllegalStateException(s"Invalid configuration: ${e.toList.mkString(", ")}")
     )
 
-  val jdbcConfigs: String => ConfigUtil.Validation[DatabaseConfiguration] = _ => Valid(noDbConfig)
+  val jdbcConfigs: String => Validation[DatabaseConfiguration] = _ => Valid(noDbConfig)
 
   val config: WokenConfiguration = WokenConfiguration(tsConfig)
 

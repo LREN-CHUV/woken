@@ -45,6 +45,7 @@ object CdeVariables {
     None,
     Set()
   )
+
   val leftHipocampus = VariableMetaData("lefthippocampus",
                                         "Left Hippocampus",
                                         VariableType.real,

@@ -50,7 +50,7 @@ object FakeCoordinatorConfig {
                       0.5,
                       512)
 
-  val fakeFeaturesService: FeaturesService[IO]           = TestServices.emptyFeaturesService
+  val fakeFeaturesService: FeaturesService[IO]           = TestServices.featuresService
   val fakeFeaturesTableService: FeaturesTableService[IO] = TestServices.emptyFeaturesTableService
 
   val jdbcConfigs: String => ConfigUtil.Validation[DatabaseConfiguration] = _ => Valid(noDbConfig)

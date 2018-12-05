@@ -28,7 +28,7 @@ import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import ch.chuv.lren.woken.messages.query.filters.FilterRule
+import ch.chuv.lren.woken.messages.query.filters._
 import doobie.util.log.LogHandler
 import doobie.util.update.Update0
 
@@ -184,7 +184,30 @@ class FeaturesTableInMemoryRepository[F[_]: Applicative](val tableId: TableId,
           .pure[F]
     )
 
-  override def count(filters: Option[FilterRule]): F[Int] = 0.pure[F]
+  override def count(filters: Option[FilterRule]): F[Int] = filters.fold(count) { f =>
+    filter(dataFeatures, f).size.pure[F]
+  }
+
+  @SuppressWarnings(Array("org.wartremover.warts.Throw", "org.wartremover.warts.TraversableOps"))
+  private def filter(data: List[JsObject], filters: FilterRule): List[JsObject] = filters match {
+    case SingleFilterRule(_, field, _, _, operator, value) =>
+      operator match {
+        case Operator.equal     => data.filter(_.fields(field).toString == value.head.toString)
+        case Operator.notEqual  => data.filter(_.fields(field).toString != value.head.toString)
+        case Operator.isNull    => data.filter(_.fields(field) == JsNull)
+        case Operator.isNotNull => data.filter(_.fields(field) != JsNull)
+        case _                  => throw new NotImplementedError(s"Filter on operator $operator is not implemented")
+      }
+    case CompoundFilterRule(condition, rules) =>
+      condition match {
+        case Condition.and =>
+          rules.map(filter(data, _)).foldRight(data)((filtered, curr) => curr.intersect(filtered))
+        case Condition.or =>
+          rules
+            .map(filter(data, _))
+            .foldRight(data)((filtered, curr) => curr.union(filtered.diff(curr)))
+      }
+  }
 
   override def features(query: FeaturesQuery): F[(Headers, Stream[JsObject])] =
     (columns, dataFeatures.toStream).pure[F]

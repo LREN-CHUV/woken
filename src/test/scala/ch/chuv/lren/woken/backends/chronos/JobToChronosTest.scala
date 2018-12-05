@@ -283,7 +283,7 @@ class JobToChronosTest extends FlatSpec with Matchers {
 
     val dockerJob = DockerJob(
       jobId = "1234",
-      query = featuresQuery,
+      query = featuresQuery.copy(dbTable = featuresQuery.dbTable.copy(database = "unknown_db")),
       algorithmSpec = query.algorithm,
       algorithmDefinition = knnDefinition,
       metadata = metadata

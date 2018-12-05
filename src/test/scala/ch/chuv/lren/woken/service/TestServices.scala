@@ -22,7 +22,7 @@ import cats.effect.{ ContextShift, IO, Timer }
 import cats.effect.internals.IOContextShift
 import ch.chuv.lren.woken.JsonUtils
 import ch.chuv.lren.woken.config.WokenConfiguration
-import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, VariablesMeta }
+import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn, VariablesMeta }
 import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
 import ch.chuv.lren.woken.dao.{
@@ -31,9 +31,9 @@ import ch.chuv.lren.woken.dao.{
   MetadataInMemoryRepository,
   WokenInMemoryRepository
 }
-import ch.chuv.lren.woken.messages.variables.GroupMetaData
+import ch.chuv.lren.woken.messages.variables.{ GroupMetaData, SqlType }
 import ch.chuv.lren.woken.messages.variables.variablesProtocol._
-import spray.json.JsObject
+import spray.json.{ JsNumber, JsObject, JsString }
 
 import scala.concurrent.ExecutionContext
 
@@ -55,7 +55,7 @@ object TestServices extends JsonUtils {
       VariablesMeta(1, "churn", churnHierarchy, "CHURN", List("state", "custserv_calls", "churn"))
 
     val sampleHierarchy     = loadJson("/metadata/sample_variables.json").convertTo[GroupMetaData]
-    val sampleVariablesMeta = VariablesMeta(2, "sample", sampleHierarchy, "SAMPLE_DATA", Nil)
+    val sampleVariablesMeta = VariablesMeta(2, "sample", sampleHierarchy, "Sample", Nil)
 
     val cdeHierarchy = loadJson("/metadata/mip_cde_variables.json").convertTo[GroupMetaData]
     val cdeGroupings = List("dataset", "gender", "agegroup", "alzheimerbroadcategory")
@@ -85,23 +85,67 @@ object TestServices extends JsonUtils {
   lazy val algorithmLibraryService: AlgorithmLibraryService = AlgorithmLibraryService()
 
   val database = "features_db"
-  val churnTable = FeaturesTableDescription(TableId(database, None, "CHURN"),
-                                            Nil,
-                                            None,
-                                            validateSchema = false,
-                                            None,
-                                            0.67)
-  val tables: Set[FeaturesTableDescription] = Set(churnTable)
+  val sampleTable = FeaturesTableDescription(TableId(database, None, "Sample"),
+                                             Nil,
+                                             None,
+                                             validateSchema = false,
+                                             None,
+                                             0.67)
+  val sampleHeaders = List(
+    TableColumn("ID", SqlType.int),
+    TableColumn("stress_before_test1", SqlType.numeric),
+    TableColumn("score_test1", SqlType.numeric),
+    TableColumn("IQ", SqlType.numeric),
+    TableColumn("cognitive_task2", SqlType.numeric),
+    TableColumn("practice_task2", SqlType.numeric),
+    TableColumn("response_time_task2", SqlType.numeric),
+    TableColumn("college_math", SqlType.numeric),
+    TableColumn("score_math_course1", SqlType.numeric),
+    TableColumn("score_math_course2", SqlType.numeric)
+  )
+
+  val sampleData = List(
+    JsObject("ID"                  -> JsNumber(1),
+             "stress_before_test1" -> JsNumber(2.0),
+             "score_test1"         -> JsNumber(1.0))
+  )
+
+  val cdeTable = FeaturesTableDescription(
+    TableId(database, None, "cde_features_a"),
+    List(TableColumn("subjectcode", SqlType.varchar)),
+    Some(TableColumn("dataset", SqlType.varchar)),
+    validateSchema = false,
+    None,
+    0.67
+  )
+  val cdeHeaders = List(
+    TableColumn("subjectcode", SqlType.varchar),
+    TableColumn("apoe4", SqlType.int),
+    TableColumn("lefthippocampus", SqlType.numeric),
+    TableColumn("dataset", SqlType.varchar)
+  )
+
+  val cdeData = List(
+    JsObject("subjectcode"     -> JsString("p001"),
+             "apoe4"           -> JsNumber(2),
+             "lefthippocampus" -> JsNumber(1.37),
+             "dataset"         -> JsString("desd-synthdata"))
+  )
+
+  val tables: Set[FeaturesTableDescription] = Set(sampleTable, cdeTable)
   val tablesContent: Map[TableId, (Headers, List[JsObject])] = Map(
-    )
-  lazy val emptyFeaturesService: FeaturesService[IO] = FeaturesService(
+    sampleTable.table -> (sampleHeaders -> sampleData),
+    cdeTable.table    -> (cdeHeaders    -> cdeData)
+  )
+
+  lazy val featuresService: FeaturesService[IO] = FeaturesService(
     new FeaturesInMemoryRepository[IO](database, tables, tablesContent)
   )
 
   val featuresTableId = TableId("features_db", None, "features_table")
 
   lazy val emptyFeaturesTableService: FeaturesTableService[IO] = new FeaturesTableServiceImpl(
-    new FeaturesTableInMemoryRepository[IO](featuresTableId)
+    new FeaturesTableInMemoryRepository[IO](featuresTableId, Nil, None, Nil)
   )
 
   implicit val ec: ExecutionContext                       = ExecutionContext.global
@@ -110,13 +154,13 @@ object TestServices extends JsonUtils {
 
   def databaseServices(config: WokenConfiguration): DatabaseServices[IO] = {
     val datasetService: DatasetService = ConfBasedDatasetService(config.config)
-    val queryToJobService = QueryToJobService(emptyFeaturesService,
+    val queryToJobService = QueryToJobService(featuresService,
                                               localVariablesMetaService,
                                               config.jobs,
                                               config.algorithmLookup)
     DatabaseServices(
       config,
-      emptyFeaturesService,
+      featuresService,
       jobResultService,
       localVariablesMetaService,
       queryToJobService,

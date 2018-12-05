@@ -17,6 +17,7 @@
 
 package ch.chuv.lren.woken.core.features
 
+import ch.chuv.lren.woken.core.model.TableColumn
 import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.messages.query.{ ExperimentQuery, MiningQuery, Query }
@@ -36,7 +37,8 @@ object Queries {
     */
   def toField(feature: FeatureIdentifier): String = feature match {
     case v: VariableId => v.code.toLowerCase().replaceAll("-", "_").replaceFirst("^(\\d)", "_$1")
-    case _             => throw new NotImplementedError("Need to add support for groups as a feature")
+    // TODO: add support for groups as a feature
+    case _ => throw new NotImplementedError("Need to add support for groups as a feature")
   }
 
   // TODO: add support for GroupId as feature
@@ -78,7 +80,7 @@ object Queries {
       *
       * If the list of datasets is empty, this method does nothing.
       */
-    def filterDatasets: Q = {
+    def filterDatasets(datasetColumn: Option[TableColumn]): Q = {
       val datasets: Set[DatasetId] = query match {
         case q: MiningQuery     => q.datasets
         case q: ExperimentQuery => q.trainingDatasets
@@ -86,19 +88,22 @@ object Queries {
 
       if (datasets.isEmpty) query
       else {
-        val datasetsFilter = SingleFilterRule("dataset",
-                                              "dataset",
-                                              "string",
-                                              InputType.text,
-                                              Operator.in,
-                                              datasets.map(_.code).toList)
-        val filters: FilterRule =
-          query.filters
-            .fold(datasetsFilter: FilterRule)(
-              f => CompoundFilterRule(Condition.and, List(datasetsFilter, f))
-            )
+        //
+        datasetColumn.fold(query) { dsCol =>
+          val datasetsFilter = SingleFilterRule(dsCol.name,
+                                                dsCol.name,
+                                                "string",
+                                                InputType.text,
+                                                Operator.in,
+                                                datasets.map(_.code).toList)
+          val filters: FilterRule =
+            query.filters
+              .fold(datasetsFilter: FilterRule)(
+                f => CompoundFilterRule(Condition.and, List(datasetsFilter, f))
+              )
 
-        setFilters(filters)
+          setFilters(filters)
+        }
       }
     }
 

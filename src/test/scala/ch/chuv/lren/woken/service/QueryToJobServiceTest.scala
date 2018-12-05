@@ -22,7 +22,12 @@ import cats.scalatest.{ ValidatedMatchers, ValidatedValues }
 import ch.chuv.lren.woken.config.{ AlgorithmsConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model.database.TableId
-import ch.chuv.lren.woken.core.model.{ AlgorithmDefinition, CdeVariables }
+import ch.chuv.lren.woken.core.model.{
+  AlgorithmDefinition,
+  CdeVariables,
+  SampleVariables,
+  UserFeedbacks
+}
 import ch.chuv.lren.woken.core.model.jobs.{ DockerJob, Job, ValidationJob }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.datasets.DatasetId
@@ -50,11 +55,11 @@ class QueryToJobServiceTest
     JobsConfiguration("testNode",
                       "admin",
                       "http://chronos",
-                      "featuresDb",
-                      "features",
-                      "features",
-                      "resultsDb",
-                      "metaDb",
+                      "features_db",
+                      "Sample",
+                      "Sample",
+                      "results_db",
+                      "meta_db",
                       0.5,
                       512)
 
@@ -62,7 +67,7 @@ class QueryToJobServiceTest
     AlgorithmsConfiguration.factory(config)
 
   val variablesMetaService: VariablesMetaService[IO] = TestServices.localVariablesMetaService
-  val featuresService: FeaturesService[IO]           = TestServices.emptyFeaturesService
+  val featuresService: FeaturesService[IO]           = TestServices.featuresService
 
   val queryToJobService: QueryToJobService[IO] =
     QueryToJobService[IO](featuresService, variablesMetaService, jobsConf, algorithmLookup)
@@ -92,12 +97,12 @@ class QueryToJobServiceTest
     "fail when the algorithm is unknown" in {
       val query = MiningQuery(
         user = user,
-        variables = List(VariableId("apoe4")),
+        variables = List(VariableId("score_test1")),
         covariables = List(VariableId("lefthippocampus")),
         covariablesMustExist = false,
         grouping = Nil,
         filters = None,
-        targetTable = Some("cde_features_a"),
+        targetTable = Some("Sample"),
         algorithm = AlgorithmSpec("unknown", Nil, None),
         datasets = Set(),
         executionPlan = None
@@ -114,11 +119,11 @@ class QueryToJobServiceTest
       val query = MiningQuery(
         user = user,
         variables = List(VariableId("unknown")),
-        covariables = List(VariableId("lefthippocampus")),
+        covariables = List(VariableId("score_test1")),
         covariablesMustExist = true,
         grouping = Nil,
         filters = None,
-        targetTable = Some("cde_features_a"),
+        targetTable = Some("Sample"),
         algorithm = AlgorithmSpec("knn", Nil, None),
         datasets = Set(),
         executionPlan = None
@@ -134,12 +139,12 @@ class QueryToJobServiceTest
     "fail when the covariable is unknown yet must exist" in {
       val query = MiningQuery(
         user = user,
-        variables = List(VariableId("apoe4")),
+        variables = List(VariableId("score_test1")),
         covariables = List(VariableId("unknown")),
         covariablesMustExist = true,
         grouping = Nil,
         filters = None,
-        targetTable = Some("cde_features_a"),
+        targetTable = Some("Sample"),
         algorithm = AlgorithmSpec("knn", Nil, None),
         datasets = Set(),
         executionPlan = None
@@ -152,7 +157,77 @@ class QueryToJobServiceTest
       maybeJob.invalidValue.size shouldBe 1
     }
 
-    "create a DockerJob for a kNN algorithm" in {
+    "create a DockerJob for a kNN algorithm on a table without dataset column" in {
+      // variablesCanBeNull = false
+      // covariablesCanBeNull = false
+
+      val query = MiningQuery(
+        user = user,
+        variables = List(VariableId("score_test1")),
+        covariables = List(VariableId("stress_before_test1")),
+        covariablesMustExist = true,
+        grouping = Nil,
+        filters = None,
+        targetTable = Some("Sample"),
+        algorithm = AlgorithmSpec("knn", List(CodeValue("k", "5")), None),
+        datasets = Set(DatasetId("Sample")),
+        executionPlan = None
+      )
+
+      val maybeJob = queryToJobService.miningQuery2Job(query).unsafeRunSync()
+
+      maybeJob shouldBe valid
+      maybeJob.value._1 shouldBe a[DockerJob]
+
+      val job: DockerJob = maybeJob.value._1.asInstanceOf[DockerJob]
+      val feedback       = maybeJob.value._2
+      val table          = TableId("features_db", None, "Sample")
+
+      job.jobId should not be empty
+      job.algorithmDefinition.dockerImage should startWith("hbpmip/python-knn")
+      job should have(
+        'query (
+          // rm Dataset
+          FeaturesQuery(
+            List("score_test1"),
+            List("stress_before_test1"),
+            List(),
+            table,
+            Some(
+              CompoundFilterRule(
+                Condition.and,
+                List(
+                  SingleFilterRule("score_test1",
+                                   "score_test1",
+                                   "string",
+                                   InputType.text,
+                                   Operator.isNotNull,
+                                   List()),
+                  SingleFilterRule("stress_before_test1",
+                                   "stress_before_test1",
+                                   "string",
+                                   InputType.text,
+                                   Operator.isNotNull,
+                                   List())
+                )
+              )
+            ),
+            None,
+            None
+          )
+        ),
+        'algorithmSpec (
+          AlgorithmSpec("knn", List(CodeValue("k", "5")), None)
+        ),
+        'metadata (List(SampleVariables.score_test1, SampleVariables.stress_before_test1))
+      )
+
+      job.query.sql shouldBe """SELECT "score_test1","stress_before_test1" FROM "Sample" WHERE "score_test1" IS NOT NULL AND "stress_before_test1" IS NOT NULL"""
+
+      feedback shouldBe Nil
+    }
+
+    "create a DockerJob for a kNN algorithm on a table with several datasets" in {
       // variablesCanBeNull = false
       // covariablesCanBeNull = false
 
@@ -171,17 +246,16 @@ class QueryToJobServiceTest
 
       val maybeJob = queryToJobService.miningQuery2Job(query).unsafeRunSync()
 
-      println(maybeJob)
       maybeJob shouldBe valid
-      maybeJob.value shouldBe a[DockerJob]
+      maybeJob.value._1 shouldBe a[DockerJob]
 
-      val job: DockerJob = maybeJob.value.asInstanceOf[DockerJob]
-      val table          = TableId("in_memory", None, "cde_features_a")
+      val job: DockerJob = maybeJob.value._1.asInstanceOf[DockerJob]
+      val feedback       = maybeJob.value._2
+      val table          = TableId("features_db", None, "cde_features_a")
 
       job.jobId should not be empty
       job.algorithmDefinition.dockerImage should startWith("hbpmip/python-knn")
       job should have(
-        'inputDb ("featuresDb"),
         'query (
           FeaturesQuery(
             List("apoe4"),
@@ -221,8 +295,10 @@ class QueryToJobServiceTest
         'algorithmSpec (
           AlgorithmSpec("knn", List(CodeValue("k", "5")), None)
         ),
-        'metadata (List(CdeVariables.apoe4, CdeVariables.leftHipocampus))
+        'metadata (List(SampleVariables.score_test1, SampleVariables.stress_before_test1))
       )
+
+      feedback shouldBe Nil
     }
 
     "drop the unknown covariables that do not need to exist" in {
@@ -242,15 +318,15 @@ class QueryToJobServiceTest
       val maybeJob = queryToJobService.miningQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe valid
-      maybeJob.value shouldBe a[DockerJob]
+      maybeJob.value._1 shouldBe a[DockerJob]
 
-      val job: DockerJob = maybeJob.value.asInstanceOf[DockerJob]
+      val job: DockerJob = maybeJob.value._1.asInstanceOf[DockerJob]
+      val feedback       = maybeJob.value._2
       val table          = TableId("in_memory", None, "cde_features_a")
 
       job.jobId should not be empty
       job.algorithmDefinition.dockerImage should startWith("hbpmip/python-knn")
       job should have(
-        'inputDb ("featuresDb"),
         'query (
           FeaturesQuery(
             List("apoe4"),
@@ -290,8 +366,10 @@ class QueryToJobServiceTest
         'algorithmSpec (
           AlgorithmSpec("knn", List(CodeValue("k", "5")), None)
         ),
-        'metadata (List(CdeVariables.apoe4, CdeVariables.leftHipocampus))
+        'metadata (List(SampleVariables.score_test1, SampleVariables.stress_before_test1))
       )
+
+      feedback shouldBe Nil
     }
 
     "create a ValidationJob for a validation algorithm" in {
