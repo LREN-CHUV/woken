@@ -48,7 +48,8 @@ object DatasetsConfiguration {
     val datasetConfig = config.validateConfig(path.mkString("."))
 
     datasetConfig.andThen { f =>
-      val dataset                          = path.lastOption.map(lift).getOrElse("Empty path".invalidNel[String])
+      val dataset: Validation[String] =
+        path.lastOption.map(_.validNel[String]).getOrElse("Empty path".invalidNel[String])
       val label                            = f.validateString("label")
       val description                      = f.validateString("description")
       val tables: Validation[List[String]] = f.validateStringList("tables")
@@ -65,12 +66,12 @@ object DatasetsConfiguration {
               (user, password) mapN BasicAuthentication
             }
             .map(_.some)
-            .orElse(lift(None.asInstanceOf[Option[BasicAuthentication]]))
+            .orElse(Option.empty[BasicAuthentication].validNel[String])
 
           (url, credentials) mapN RemoteLocation
         }
         .map(_.some)
-        .orElse(lift(None.asInstanceOf[Option[RemoteLocation]]))
+        .orElse(Option.empty[RemoteLocation].validNel[String])
       val anonymisationLevel: Validation[String] = f
         .validateString("anonymisationLevel")
         .ensure(
@@ -96,7 +97,12 @@ object DatasetsConfiguration {
     val datasetFactory = factory(config)
     datasetNames(config).andThen { names: Set[String] =>
       val m: List[Validation[(DatasetId, Dataset)]] =
-        names.toList.map(n => lift(DatasetId(n)) -> datasetFactory(n)).map(_.tupled)
+        names.toList
+          .map { n =>
+            val datasetIdV: Validation[DatasetId] = DatasetId(n).validNel[String]
+            datasetIdV -> datasetFactory(n)
+          }
+          .map(_.tupled)
       val t: Validation[List[(DatasetId, Dataset)]] = m.sequence[Validation, (DatasetId, Dataset)]
       t.map(_.toMap)
     }

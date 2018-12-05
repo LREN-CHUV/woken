@@ -36,7 +36,7 @@ import ch.chuv.lren.woken.config.AlgorithmsConfiguration
 import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.core.model.jobs.{ ErrorJobResult, JobResult, PfaJobResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil
-import ch.chuv.lren.woken.cromwell.core.ConfigUtil.{ Validation, lift }
+import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.datasets.{ Dataset, DatasetId }
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables.VariableId
@@ -44,6 +44,8 @@ import ch.chuv.lren.woken.service.DispatcherService
 import com.typesafe.config.{ Config, ConfigFactory }
 import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
+
+import cats.implicits._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -91,15 +93,13 @@ class ExperimentFlowTest
     )
 
   def experimentQuery2job(query: ExperimentQuery): Validation[ExperimentActor.Job] =
-    ConfigUtil.lift(
-      ExperimentJob(
-        jobId = UUID.randomUUID().toString,
-        inputTable = TableId("featuresDb", None, query.targetTable.getOrElse("sample_data")),
-        query = query,
-        metadata = Nil,
-        algorithms = Map(knnWithK5 -> knnDefinition, anovaFactorial -> anovaDefinition)
-      )
-    )
+    ExperimentJob(
+      jobId = UUID.randomUUID().toString,
+      inputTable = TableId("featuresDb", None, query.targetTable.getOrElse("sample_data")),
+      query = query,
+      metadata = Nil,
+      algorithms = Map(knnWithK5 -> knnDefinition, anovaFactorial -> anovaDefinition)
+    ).validNel[String]
 
   import ExperimentFlowWrapper._
 
@@ -280,7 +280,7 @@ class ExperimentFlowTest
     private val coordinatorConfig  = FakeCoordinatorConfig.coordinatorConfig(coordinatorActor)
     private val wokenClientService = WokenClientService("test")
     private val dispatcherService =
-      DispatcherService(lift(Map[DatasetId, Dataset]()), wokenClientService)
+      DispatcherService(Map[DatasetId, Dataset]().validNel[String], wokenClientService)
 
     val experimentFlow = ExperimentFlow(
       executeJob.getOrElse(

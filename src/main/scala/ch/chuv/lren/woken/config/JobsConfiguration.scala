@@ -59,10 +59,11 @@ object JobsConfiguration {
       val featuresTable    = jobs.validateString("featuresTable")
       val metadataKeyForFeaturesTable: Validation[String] =
         jobs.validateString("metadataKeyForFeaturesTable").orElse(featuresTable)
-      val resultDb                 = jobs.validateString("resultDb")
-      val metaDb                   = jobs.validateString("metaDb")
-      val cpus: Validation[Double] = jobs.validateDouble("defaultJobCpus").orElse(lift(0.5))
-      val mem: Validation[Int]     = jobs.validateInt("defaultJobMemory").orElse(lift(512))
+      val resultDb = jobs.validateString("resultDb")
+      val metaDb   = jobs.validateString("metaDb")
+      val cpus: Validation[Double] =
+        jobs.validateDouble("defaultJobCpus").orElse(0.5.validNel[String])
+      val mem: Validation[Int] = jobs.validateInt("defaultJobMemory").orElse(512.validNel[String])
 
       (node,
        owner,

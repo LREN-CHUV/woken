@@ -84,7 +84,7 @@ case class FeaturesQuery(
 
   private def selectFields = s"SELECT ${dbAllVars.map(_.identifier).mkString(",")}"
 
-  private def selectOnly = s"""$selectFields FROM "$dbTable""""
+  private def selectOnly = s"""$selectFields FROM "${dbTable.name}""""
 
   private def selectFiltered(select: String, filters: Option[FilterRule]) =
     filters.fold(selectOnly) { filters =>
@@ -118,7 +118,7 @@ case class FeaturesQuery(
 
   private def selectExcludingFold(excludeFold: Integer, windowRowDefinition: String): String = {
     val filtersExcludingFold = filtersExcludingWindow(excludeFold + 1)
-    selectFiltered(s"""$selectFields,$windowRowDefinition FROM "$dbTable"""",
+    selectFiltered(s"""$selectFields,$windowRowDefinition FROM "${dbTable.name}"""",
                    Some(filtersExcludingFold))
   }
 

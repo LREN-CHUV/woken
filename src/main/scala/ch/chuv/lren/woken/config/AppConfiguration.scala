@@ -70,9 +70,10 @@ object AppConfiguration {
       val port                = app.validateInt("webServicesPort")
       val jobServiceName      = app.validateString("jobServiceName")
 
-      val https: Validation[Boolean] = app.validateBoolean("webServicesHttps").orElse(lift(true))
+      val https: Validation[Boolean] =
+        app.validateBoolean("webServicesHttps").orElse(true.validNel[String])
       val disableWorkers: Validation[Boolean] =
-        app.validateBoolean("disableWorkers").orElse(lift(false))
+        app.validateBoolean("disableWorkers").orElse(false.validNel[String])
 
       val basicAuth: Validation[BasicAuthentication] = app.validateConfig("basicAuth").andThen {
         c =>

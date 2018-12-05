@@ -30,7 +30,7 @@ import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.core.model._
 import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.core.model.jobs._
-import ch.chuv.lren.woken.cromwell.core.ConfigUtil.{ Validation, lift }
+import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
 import ch.chuv.lren.woken.mining.ExperimentJob
@@ -102,23 +102,34 @@ class QueryToJobServiceImpl[F[_]: Effect](
     def createMiningJob(mt: List[VariableMetaData],
                         q: MiningQuery,
                         ad: AlgorithmDefinition): DockerJob = {
-      val featuresQuery = q.filterDatasets
+      val featuresQuery = q
         .filterNulls(ad.variablesCanBeNull, ad.covariablesCanBeNull)
         .features(featuresTable, None)
 
       DockerJob(jobId, featuresQuery, q.algorithm, ad, metadata = mt)
     }
 
-    val job = query.algorithm.code match {
-      case ValidationJob.algorithmCode =>
-        ValidationJob(jobId = jobId, inputTable = featuresTable, query = query, metadata = metadata)
-          .validNel[String]
+    featuresService.featuresTable(featuresTable).andThen { fts =>
+      val featuresTableDescription = fts.table
 
-      case code =>
-        algorithmLookup(code).map(algorithm => createMiningJob(metadata, query, algorithm))
+      val job = query.algorithm.code match {
+        case ValidationJob.algorithmCode =>
+          ValidationJob(jobId = jobId,
+                        inputTable = featuresTable,
+                        query = query,
+                        metadata = metadata)
+            .validNel[String]
+
+        case code =>
+          val queryForDatasets = query.filterDatasets(featuresTableDescription.datasetColumn)
+          algorithmLookup(code)
+            .map(algorithm => createMiningJob(metadata, queryForDatasets, algorithm))
+      }
+
+      job.map(_ -> feedback)
+
     }
 
-    job.map(_ -> feedback)
   }
 
   override def experimentQuery2Job(query: ExperimentQuery): F[Validation[(Job, UserFeedbacks)]] =
@@ -144,33 +155,41 @@ class QueryToJobServiceImpl[F[_]: Effect](
                   algorithms: Map[AlgorithmSpec, AlgorithmDefinition]) =
       ExperimentJob(jobId, featuresTable, q, metadata = mt, algorithms = algorithms)
 
-    query.algorithms
-      .map { algorithm =>
-        (lift(algorithm), algorithmLookup(algorithm.code)) mapN Tuple2.apply
-      }
-      .sequence[Validation, (AlgorithmSpec, AlgorithmDefinition)]
-      .map(_.toMap)
-      .map { algorithms =>
-        // Select the dataset common between all algorithms. If one algorithms cannot handle nulls, all nulls must be ignored
-        // This restrict the set of features we can learn from in some cases. User is warned about this case and
-        // can correct his selection of ML algorithms
-        val variablesCanBeNull = algorithms.exists { case (_, defn) => defn.variablesCanBeNull }
-        val allRequireVariablesNotNull = !variablesCanBeNull && !algorithms.exists {
-          case (_, defn) => defn.variablesCanBeNull
-        }
-        val covariablesCanBeNull = algorithms.exists { case (_, defn) => defn.covariablesCanBeNull }
-        val allRequireCovariablesNotNull = !covariablesCanBeNull && !algorithms.exists {
-          case (_, defn) => defn.covariablesCanBeNull
-        }
-        val experimentQuery = query.filterDatasets
-          .filterNulls(variablesCanBeNull, covariablesCanBeNull)
+    featuresService.featuresTable(featuresTable).andThen { fts =>
+      val featuresTableDescription = fts.table
 
-        // TODO: report to user filtering on nulls when activated
-        // TODO: report to user which algorithms are causing filter on nulls, and how many records are lost from training dataset
+      query.algorithms
+        .map { algorithm =>
+          val algorithmV: Validation[AlgorithmSpec] = algorithm.validNel[String]
+          (algorithmV, algorithmLookup(algorithm.code)) mapN Tuple2.apply
+        }
+        .sequence[Validation, (AlgorithmSpec, AlgorithmDefinition)]
+        .map(_.toMap)
+        .map { algorithms =>
+          // Select the dataset common between all algorithms. If one algorithms cannot handle nulls, all nulls must be ignored
+          // This restrict the set of features we can learn from in some cases. User is warned about this case and
+          // can correct his selection of ML algorithms
+          val variablesCanBeNull = algorithms.exists { case (_, defn) => defn.variablesCanBeNull }
+          val allRequireVariablesNotNull = !variablesCanBeNull && !algorithms.exists {
+            case (_, defn) => defn.variablesCanBeNull
+          }
+          val covariablesCanBeNull = algorithms.exists {
+            case (_, defn) => defn.covariablesCanBeNull
+          }
+          val allRequireCovariablesNotNull = !covariablesCanBeNull && !algorithms.exists {
+            case (_, defn) => defn.covariablesCanBeNull
+          }
+          val experimentQuery = query
+            .filterDatasets(featuresTableDescription.datasetColumn)
+            .filterNulls(variablesCanBeNull, covariablesCanBeNull)
 
-        val job = createJob(metadata, experimentQuery, algorithms)
-        (job, feedback)
-      }
+          // TODO: report to user filtering on nulls when activated
+          // TODO: report to user which algorithms are causing filter on nulls, and how many records are lost from training dataset
+
+          val job = createJob(metadata, experimentQuery, algorithms)
+          (job, feedback)
+        }
+    }
   }
 
   private def prepareQuery[Q <: Query](

@@ -18,7 +18,7 @@
 package ch.chuv.lren.woken.core.model
 
 import ch.chuv.lren.woken.messages.variables.{ GroupMetaData, VariableMetaData }
-import ch.chuv.lren.woken.cromwell.core.ConfigUtil.{ Validation, lift }
+import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import cats.syntax.validated._
 
 /**
@@ -37,13 +37,14 @@ case class VariablesMeta(id: Int,
                          defaultHistogramGroupings: List[String]) {
 
   def selectVariables(variables: List[String]): Validation[List[VariableMetaData]] = {
-    val variablesMeta = filterVariables(variables.contains)
+    val variablesMeta =
+      filterVariables(variables.contains).sortBy(varMeta => variables.indexOf(varMeta.code))
     if (variablesMeta.lengthCompare(variables.size) != 0) {
       val missingVars = variables.diff(variablesMeta.map(_.code))
       s"Found ${variablesMeta.size} out of ${variables.size} variables. Missing ${missingVars
         .mkString(",")}".invalidNel
     } else
-      lift(variablesMeta)
+      variablesMeta.validNel[String]
   }
 
   def filterVariables(filter: String => Boolean): List[VariableMetaData] = {

@@ -33,22 +33,23 @@ object AlgorithmsConfiguration {
     val algoConfig = config.validateConfig(path.mkString("."))
 
     algoConfig.andThen { c: Config =>
-      val code                 = path.lastOption.map(lift).getOrElse("Empty path".invalidNel[String])
+      val code: Validation[String] =
+        path.lastOption.map(_.validNel[String]).getOrElse("Empty path".invalidNel[String])
       val dockerImage          = c.validateString("dockerImage")
       val predictive           = c.validateBoolean("predictive")
       val variablesCanBeNull   = c.validateBoolean("variablesCanBeNull")
       val covariablesCanBeNull = c.validateBoolean("covariablesCanBeNull")
       val engine: Validation[AlgorithmEngine.Value] =
-        c.validateString("engine").orElse(lift("Docker")).map(AlgorithmEngine.withName)
+        c.validateString("engine").orElse("Docker".validNel[String]).map(AlgorithmEngine.withName)
       val distributedExecutionPlan: Validation[ExecutionPlan] =
         c.validateString("distributedExecutionPlan")
           .andThen {
-            case "scatter-gather" => lift(ExecutionPlan.scatterGather)
-            case "map-reduce"     => lift(ExecutionPlan.mapReduce)
-            case "streaming"      => lift(ExecutionPlan.streaming)
+            case "scatter-gather" => ExecutionPlan.scatterGather.validNel[String]
+            case "map-reduce"     => ExecutionPlan.mapReduce.validNel[String]
+            case "streaming"      => ExecutionPlan.streaming.validNel[String]
             case other            => s"Unknown type of execution plan: $other".invalidNel[ExecutionPlan]
           }
-          .orElse(lift(ExecutionPlan.scatterGather))
+          .orElse(ExecutionPlan.scatterGather.validNel[String])
 
       (code,
        dockerImage,

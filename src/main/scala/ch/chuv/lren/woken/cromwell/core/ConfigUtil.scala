@@ -63,6 +63,7 @@ object ConfigUtil {
 
   private val validationLogger = Logger("ConfigurationValidation")
 
+  @deprecated("Use .validNel[String]", since = "2.9.0")
   def lift[A](v: A): Validation[A] = v.validNel[String]
 
   def liftOption[A](v: Option[A]): Validation[A] =

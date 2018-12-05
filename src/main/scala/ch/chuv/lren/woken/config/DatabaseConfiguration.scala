@@ -27,6 +27,7 @@ import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
 import com.typesafe.config.Config
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
+import ch.chuv.lren.woken.messages.query.UserId
 import ch.chuv.lren.woken.messages.variables.SqlType
 
 import scala.language.higherKinds
@@ -118,7 +119,8 @@ object DatabaseConfiguration {
     val tableConfig                  = config.validateConfig(path.mkString("."))
 
     tableConfig.andThen { table =>
-      val tableName = path.lastOption.map(lift).getOrElse("Empty path".invalidNel[String])
+      val tableName: Validation[String] =
+        path.lastOption.map(_.validNel[String]).getOrElse("Empty path".invalidNel[String])
       val primaryKey: Validation[List[TableColumn]] = table
         .validateConfigList("primaryKey")
         .andThen { cl =>
@@ -146,11 +148,12 @@ object DatabaseConfiguration {
 
       val schema: Validation[Option[String]] = table.validateOptionalString("schema")
       val validateSchema: Validation[Boolean] =
-        table.validateBoolean("validateSchema").orElse(lift(true))
-      val seed: Validation[Double]     = table.validateDouble("seed").orElse(0.67.validNel)
-      val tableId: Validation[TableId] = (database, schema, tableName) mapN TableId.apply
+        table.validateBoolean("validateSchema").orElse(true.validNel[String])
+      val seed: Validation[Double]          = table.validateDouble("seed").orElse(0.67.validNel)
+      val tableId: Validation[TableId]      = (database, schema, tableName) mapN TableId.apply
+      val owner: Validation[Option[UserId]] = None.validNel[String]
 
-      (tableId, primaryKey, datasetColumn, validateSchema, lift(None), seed) mapN FeaturesTableDescription
+      (tableId, primaryKey, datasetColumn, validateSchema, owner, seed) mapN FeaturesTableDescription
     }
   }
 
@@ -196,6 +199,6 @@ object DatabaseConfiguration {
       test <- sql"select 1".query[Int].unique.transact(xa)
     } yield {
       if (test != 1) "Cannot connect to $dbConfig.jdbcUrl".invalidNel[HikariTransactor[F]]
-      else lift(xa)
+      else xa.validNel[String]
     }
 }

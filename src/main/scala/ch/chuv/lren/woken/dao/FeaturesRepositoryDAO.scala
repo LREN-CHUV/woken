@@ -111,7 +111,7 @@ object FeaturesRepositoryDAO {
       .map(_.flatten)
 
     errors.map {
-      case Nil                 => lift(new FeaturesRepositoryDAO(xa, database, tables))
+      case Nil                 => new FeaturesRepositoryDAO(xa, database, tables).validNel[String]
       case error :: moreErrors => Validated.Invalid(NonEmptyList(error, moreErrors))
     }
 
@@ -304,7 +304,7 @@ object ExtendedFeaturesTableRepositoryDAO {
 
     val xa = sourceTable.xa
     val extractPk: Validation[TableColumn] = sourceTable.table.primaryKey match {
-      case pk :: Nil => lift(pk)
+      case pk :: Nil => pk.validNel[String]
       case _ =>
         val sourceTableName = sourceTable.table.table.name
         s"Dynamic features table expects a primary key of one column for table $sourceTableName"
