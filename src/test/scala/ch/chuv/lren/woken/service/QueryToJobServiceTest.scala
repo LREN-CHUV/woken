@@ -22,12 +22,7 @@ import cats.scalatest.{ ValidatedMatchers, ValidatedValues }
 import ch.chuv.lren.woken.config.{ AlgorithmsConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model.database.TableId
-import ch.chuv.lren.woken.core.model.{
-  AlgorithmDefinition,
-  CdeVariables,
-  SampleVariables,
-  UserFeedbacks
-}
+import ch.chuv.lren.woken.core.model._
 import ch.chuv.lren.woken.core.model.jobs.{ DockerJob, Job, ValidationJob }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.datasets.DatasetId
@@ -71,6 +66,47 @@ class QueryToJobServiceTest
 
   val queryToJobService: QueryToJobService[IO] =
     QueryToJobService[IO](featuresService, variablesMetaService, jobsConf, algorithmLookup)
+
+  val apoe4LeftHippDesdFilter = Some(
+    CompoundFilterRule(
+      Condition.and,
+      List(
+        SingleFilterRule("apoe4", "apoe4", "string", InputType.text, Operator.isNotNull, List()),
+        SingleFilterRule("lefthippocampus",
+                         "lefthippocampus",
+                         "string",
+                         InputType.text,
+                         Operator.isNotNull,
+                         List()),
+        SingleFilterRule("dataset",
+                         "dataset",
+                         "string",
+                         InputType.text,
+                         Operator.in,
+                         List("desd-synthdata"))
+      )
+    )
+  )
+
+  val scoreStressTest1Filter = Some(
+    CompoundFilterRule(
+      Condition.and,
+      List(
+        SingleFilterRule("score_test1",
+                         "score_test1",
+                         "string",
+                         InputType.text,
+                         Operator.isNotNull,
+                         List()),
+        SingleFilterRule("stress_before_test1",
+                         "stress_before_test1",
+                         "string",
+                         InputType.text,
+                         Operator.isNotNull,
+                         List())
+      )
+    )
+  )
 
   "Transforming a mining query to a job" should {
 
@@ -193,25 +229,7 @@ class QueryToJobServiceTest
             List("stress_before_test1"),
             List(),
             table,
-            Some(
-              CompoundFilterRule(
-                Condition.and,
-                List(
-                  SingleFilterRule("score_test1",
-                                   "score_test1",
-                                   "string",
-                                   InputType.text,
-                                   Operator.isNotNull,
-                                   List()),
-                  SingleFilterRule("stress_before_test1",
-                                   "stress_before_test1",
-                                   "string",
-                                   InputType.text,
-                                   Operator.isNotNull,
-                                   List())
-                )
-              )
-            ),
+            scoreStressTest1Filter,
             None,
             None
           )
@@ -262,41 +280,18 @@ class QueryToJobServiceTest
             List("lefthippocampus"),
             List(),
             table,
-            Some(
-              CompoundFilterRule(
-                Condition.and,
-                List(
-                  SingleFilterRule("apoe4",
-                                   "apoe4",
-                                   "string",
-                                   InputType.text,
-                                   Operator.isNotNull,
-                                   List()),
-                  SingleFilterRule("lefthippocampus",
-                                   "lefthippocampus",
-                                   "string",
-                                   InputType.text,
-                                   Operator.isNotNull,
-                                   List()),
-                  SingleFilterRule("dataset",
-                                   "dataset",
-                                   "string",
-                                   InputType.text,
-                                   Operator.in,
-                                   List("desd-synthdata"))
-                )
-              )
-            ),
+            apoe4LeftHippDesdFilter,
             None,
             None
-            //"""SELECT "apoe4","lefthippocampus" FROM cde_features_a WHERE "apoe4" IS NOT NULL AND "lefthippocampus" IS NOT NULL AND "dataset" IN ('desd-synthdata')"""
           )
         ),
         'algorithmSpec (
           AlgorithmSpec("knn", List(CodeValue("k", "5")), None)
         ),
-        'metadata (List(SampleVariables.score_test1, SampleVariables.stress_before_test1))
+        'metadata (List(CdeVariables.apoe4, CdeVariables.leftHipocampus))
       )
+
+      job.query.sql shouldBe """SELECT "apoe4","lefthippocampus" FROM "cde_features_a" WHERE "apoe4" IS NOT NULL AND "lefthippocampus" IS NOT NULL AND "dataset" IN ('desd-synthdata')"""
 
       feedback shouldBe Nil
     }
@@ -322,7 +317,7 @@ class QueryToJobServiceTest
 
       val job: DockerJob = maybeJob.value._1.asInstanceOf[DockerJob]
       val feedback       = maybeJob.value._2
-      val table          = TableId("in_memory", None, "cde_features_a")
+      val table          = TableId("features_db", None, "cde_features_a")
 
       job.jobId should not be empty
       job.algorithmDefinition.dockerImage should startWith("hbpmip/python-knn")
@@ -333,43 +328,20 @@ class QueryToJobServiceTest
             List("lefthippocampus"),
             List(),
             table,
-            Some(
-              CompoundFilterRule(
-                Condition.and,
-                List(
-                  SingleFilterRule("apoe4",
-                                   "apoe4",
-                                   "string",
-                                   InputType.text,
-                                   Operator.isNotNull,
-                                   List()),
-                  SingleFilterRule("lefthippocampus",
-                                   "lefthippocampus",
-                                   "string",
-                                   InputType.text,
-                                   Operator.isNotNull,
-                                   List()),
-                  SingleFilterRule("dataset",
-                                   "dataset",
-                                   "string",
-                                   InputType.text,
-                                   Operator.in,
-                                   List("desd-synthdata"))
-                )
-              )
-            ),
+            apoe4LeftHippDesdFilter,
             None,
             None
-            // """SELECT "apoe4","lefthippocampus" FROM cde_features_a WHERE "apoe4" IS NOT NULL AND "lefthippocampus" IS NOT NULL AND "dataset" IN ('desd-synthdata')"""
           )
         ),
         'algorithmSpec (
           AlgorithmSpec("knn", List(CodeValue("k", "5")), None)
         ),
-        'metadata (List(SampleVariables.score_test1, SampleVariables.stress_before_test1))
+        'metadata (List(CdeVariables.apoe4, CdeVariables.leftHipocampus))
       )
 
-      feedback shouldBe Nil
+      job.query.sql shouldBe """SELECT "apoe4","lefthippocampus" FROM "cde_features_a" WHERE "apoe4" IS NOT NULL AND "lefthippocampus" IS NOT NULL AND "dataset" IN ('desd-synthdata')"""
+
+      feedback shouldBe List(UserInfo("Missing variables lefthippocampus"))
     }
 
     "create a ValidationJob for a validation algorithm" in {
@@ -385,23 +357,25 @@ class QueryToJobServiceTest
         datasets = Set(DatasetId("desd-synthdata")),
         executionPlan = None
       )
+      val table = TableId("features_db", None, "cde_features_a")
 
       val maybeJob = queryToJobService.miningQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe valid
-      maybeJob.value shouldBe a[ValidationJob]
+      maybeJob.value._1 shouldBe a[ValidationJob]
 
-      val job: ValidationJob = maybeJob.value.asInstanceOf[ValidationJob]
+      val job: ValidationJob = maybeJob.value._1.asInstanceOf[ValidationJob]
+      val feedback           = maybeJob.value._2
 
       job.jobId should not be empty
       job should have(
-        'inputDb ("featuresDb"),
-        'inputTable ("cde_features_a"),
+        'inputTable (table),
         'query (query),
         'metadata (List(CdeVariables.apoe4, CdeVariables.leftHipocampus))
       )
-    }
 
+      feedback shouldBe Nil
+    }
   }
 
   "Transforming an experiment query to a job" should {
@@ -521,6 +495,7 @@ class QueryToJobServiceTest
         validations = Nil,
         executionPlan = None
       )
+      val table = TableId("features_db", None, "cde_features_a")
 
       val maybeJob =
         queryToJobService.experimentQuery2Job(query).unsafeRunSync()
@@ -531,11 +506,12 @@ class QueryToJobServiceTest
 
       job.jobId should not be empty
       job should have(
-        'inputDb ("featuresDb"),
-        'inputTable ("cde_features_a"),
-        'query (query),
+        'inputTable (table),
+        'query (query.copy(filters = apoe4LeftHippDesdFilter)),
         'metadata (List(CdeVariables.apoe4, CdeVariables.leftHipocampus))
       )
+      //ExperimentQuery(UserId(test),List(VariableId(apoe4)),List(VariableId(lefthippocampus)),true,List(),Some(CompoundFilterRule(AND,List(SingleFilterRule(apoe4,apoe4,string,text,is_not_null,List()), SingleFilterRule(lefthippocampus,lefthippocampus,string,text,is_not_null,List()), SingleFilterRule(dataset,dataset,string,text,in,List(desd-synthdata))))),Some(cde_features_a),Set(DatasetId(desd-synthdata)),Set(),List(AlgorithmSpec(knn,List(CodeValue(k,5)),None)),Set(),List(),None), instead of its expected value
+      //ExperimentQuery(UserId(test),List(VariableId(apoe4)),List(VariableId(lefthippocampus)),true,List(),None,Some(cde_features_a),Set(DatasetId(desd-synthdata)),Set(),List(AlgorithmSpec(knn,List(CodeValue(k,5)),None)),Set(),List(),None), on object ExperimentJob(f415b620-5bd6-47c9-9060-f9f68a91f72b,TableId(features_db,None,cde_features_a),ExperimentQuery(UserId(test),List(VariableId(apoe4)),List(VariableId(lefthippocampus)),true,List(),Some(CompoundFilterRule(AND,List(SingleFilterRule(apoe4,apoe4,string,text,is_not_null,List()), SingleFilterRule(lefthippocampus,lefthippocampus,string,text,is_not_null,List()), SingleFilterRule(dataset,dataset,string,text,in,List(desd-synthdata))))),Some(cde_features_a),Set(DatasetId(desd-synthdata)),Set(),List(AlgorithmSpec(knn,List(CodeValue(k,5)),None)),Set(),List(),None),Map(AlgorithmSpec(knn,List(CodeValue(k,5)),None) -> AlgorithmDefinition(knn,hbpmip/python-knn:0.4.0,true,false,false,Docker,ExecutionPlan(List(ExecutionStep(map,map,SelectDataset(training),Compute(compute-local)), ExecutionStep(reduce,reduce,PreviousResults(map),Compute(compute-global)))))),List(VariableMetaData(apoe4,ApoE4,polynominal,Some(int),Some(adni-merge),Some(Apolipoprotein E (APOE) e4 allele: is the strongest risk factor for Late Onset Alzheimer Disease (LOAD). At least one copy of APOE-e4 ),None,Some(List(EnumeratedValue(0,0), EnumeratedValue(1,1), EnumeratedValue(2,2))),None,None,None,None,Set()), VariableMetaData(lefthippocampus,Left Hippocampus,real,None,Some(lren-nmm-volumes),Some(),Some(cm3),None,None,None,None,None,Set())))
     }
 
     "drop the unknown covariables that do not need to exist" in {
@@ -554,6 +530,7 @@ class QueryToJobServiceTest
         validations = Nil,
         executionPlan = None
       )
+      val table = TableId("features_db", None, "cde_features_a")
 
       val maybeJob =
         queryToJobService.experimentQuery2Job(query).unsafeRunSync()
@@ -564,9 +541,11 @@ class QueryToJobServiceTest
 
       job.jobId should not be empty
       job should have(
-        'inputDb ("featuresDb"),
-        'inputTable ("cde_features_a"),
-        'query (query.copy(covariables = List(VariableId("lefthippocampus")))),
+        'inputTable (table),
+        'query (
+          query.copy(covariables = List(VariableId("lefthippocampus")),
+                     filters = apoe4LeftHippDesdFilter)
+        ),
         'metadata (List(CdeVariables.apoe4, CdeVariables.leftHipocampus))
       )
     }
