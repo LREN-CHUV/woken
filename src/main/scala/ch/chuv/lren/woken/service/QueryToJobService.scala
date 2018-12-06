@@ -152,8 +152,8 @@ class QueryToJobServiceImpl[F[_]: Effect](
 
     def createJob(mt: List[VariableMetaData],
                   q: ExperimentQuery,
-                  algorithms: Map[AlgorithmSpec, AlgorithmDefinition]) =
-      ExperimentJob(jobId, featuresTable, q, metadata = mt, algorithms = algorithms)
+                  algorithms: Map[AlgorithmSpec, AlgorithmDefinition]): Validation[ExperimentJob] =
+      ExperimentJob.mkValid(jobId, q, featuresTable, mt, algorithms.get)
 
     featuresService.featuresTable(featuresTable).andThen { fts =>
       val featuresTableDescription = fts.table

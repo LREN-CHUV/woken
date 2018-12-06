@@ -22,13 +22,17 @@ import ch.chuv.lren.woken.core.model
 import ch.chuv.lren.woken.core.model.AlgorithmDefinition
 import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.core.model.jobs.DockerJob
+import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query.{ AlgorithmSpec, ExperimentQuery }
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
+
+import cats.implicits._
 
 sealed trait Command
 
 /**
   * Start mining command.
+  *
   * @param job - docker job
   * @param replyTo Actor to reply to. Can be Actor.noSender when the ask pattern is used. This information is added in preparation for Akka Typed
   * @param initiator The initiator of the request, this information will be returned by CoordinatorActor.Response#initiator.
@@ -41,20 +45,41 @@ case class ExperimentJob(
     override val jobId: String,
     inputTable: TableId,
     query: ExperimentQuery,
-    algorithms: Map[AlgorithmSpec, AlgorithmDefinition],
+    queryAlgorithms: Map[AlgorithmSpec, AlgorithmDefinition],
     metadata: List[VariableMetaData]
-) extends model.jobs.Job {
+) extends model.jobs.Job
 
-  def definitionOf(algorithm: AlgorithmSpec): AlgorithmDefinition =
-    algorithms.getOrElse(algorithm,
-                         throw new IllegalStateException(
-                           s"Expected a definition matching algorithm spec $algorithm"
-                         ))
+object ExperimentJob {
 
+  def mkValid(
+      jobId: String,
+      query: ExperimentQuery,
+      inputTable: TableId,
+      metadata: List[VariableMetaData],
+      algorithmsLookup: AlgorithmSpec => Option[AlgorithmDefinition]
+  ): Validation[ExperimentJob] =
+    query.algorithms
+      .map(
+        a =>
+          algorithmsLookup(a)
+            .map(defn => a -> defn)
+            .toRight(s"Missing specification for algorithm ${a.code}")
+            .toValidatedNel[String]
+      )
+      .sequence[Validation, (AlgorithmSpec, AlgorithmDefinition)]
+      .map(_.toMap)
+      .map { queryAlgorithms =>
+        new ExperimentJob(jobId,
+                          inputTable,
+                          query.copy(targetTable = Some(inputTable.name)),
+                          queryAlgorithms = queryAlgorithms,
+                          metadata = metadata)
+      }
 }
 
 /**
   * Start a new experiment job.
+  *
   * @param job - experiment job
   * @param replyTo Actor to reply to. Can be Actor.noSender when the ask pattern is used. This information is added in preparation for Akka Typed
   * @param initiator The initiator of the request, this information will be returned by CoordinatorActor.Response#initiator.

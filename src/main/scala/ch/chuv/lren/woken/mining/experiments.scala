@@ -28,6 +28,7 @@ import cats.data.Validated._
 import cats.effect.Effect
 import cats.implicits._
 import ch.chuv.lren.woken.config.JobsConfiguration
+import ch.chuv.lren.woken.core.fp.runNow
 import ch.chuv.lren.woken.core.model.AlgorithmDefinition
 import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
@@ -75,7 +76,7 @@ object ExperimentActor {
   *
   */
 class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
-                                    dispatcherService: DispatcherService)
+                                    val dispatcherService: DispatcherService)
     extends Actor
     with LazyLogging {
 
@@ -115,7 +116,9 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
       logger.info(s"Start new experiment job $job")
       logger.info(s"List of algorithms: ${algorithms.mkString(",")}")
 
-      val containsPredictiveAlgorithms = job.algorithms.exists { case (_, defn) => defn.predictive }
+      val containsPredictiveAlgorithms = job.queryAlgorithms.exists {
+        case (_, defn) => defn.predictive
+      }
 
       val splitterDefsV: Validation[List[FeaturesSplitterDefinition]] =
         if (containsPredictiveAlgorithms) {
@@ -230,7 +233,7 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
                                 OffsetDateTime.now(),
                                 None,
                                 msg)
-    coordinatorConfig.jobResultService.put(result)
+    val _ = runNow(coordinatorConfig.jobResultService.put(result))
     replyTo ! Response(job, Left(result), initiator)
     context stop self
   }
@@ -244,7 +247,7 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
       .andThen {
         case Success(response) =>
           val result = response.result.fold(identity, identity)
-          coordinatorConfig.jobResultService.put(result)
+          val _ = runNow(coordinatorConfig.jobResultService.put(result))
           replyTo ! response
         case Failure(e) =>
           logger.error(s"Cannot complete experiment ${job.jobId}: ${e.getMessage}", e)
@@ -254,7 +257,7 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
                                       None,
                                       e.toString)
           val response = Response(job, Left(result), initiator)
-          coordinatorConfig.jobResultService.put(result)
+          val _ = runNow(coordinatorConfig.jobResultService.put(result))
           replyTo ! response
       }
       .onComplete { _ =>
@@ -342,10 +345,13 @@ case class ExperimentFlow[F[_]: Effect](
   def splitJob: Flow[ExperimentActor.Job, JobForAlgorithmPreparation, NotUsed] =
     Flow[ExperimentActor.Job]
       .map { job =>
-        val algorithms  = job.query.algorithms
+        val algorithms  = job.queryAlgorithms
         val validations = job.query.validations
 
-        algorithms.map(a => JobForAlgorithmPreparation(job, a, job.definitionOf(a), validations))
+        algorithms.map {
+          case (algoSpec, algoDefn) =>
+            JobForAlgorithmPreparation(job, algoSpec, algoDefn, validations)
+        }
       }
       .mapConcat(identity)
       .named("split-job")
