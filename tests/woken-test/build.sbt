@@ -12,7 +12,6 @@ lazy val `woken-test` =
     .settings(settings)
     .settings(
       Seq(
-        mainClass in Runtime := Some("eu.hbp.mip.woken.test.AkkaAPITest"),
         libraryDependencies ++= Seq(
           library.akkaActor,
           library.akkaRemote,
@@ -55,22 +54,23 @@ lazy val library =
     object Version {
       val scalaCheck      = "1.14.0"
       val scalaTest       = "3.0.5"
-      val akka            = "2.5.12"
+      val akka            = "2.5.18"
       val akkaHttp        = "10.1.5"
       val kamon           = "1.1.3"
-      val kamonAkka       = "1.0.1"
-      val kamonAkkaRemote = "1.0.1"
-      val kamonAkkaHttp   = "1.1.0"
+      val kamonAkka       = "1.1.2"
+      val kamonAkkaRemote = "1.1.0"
+      val kamonAkkaHttp   = "1.1.1"
+      val kamonPrometheus = "1.1.1"
       val kamonReporter   = "1.0.0"
       val kamonSystemMetrics = "1.0.0"
       val kamonSigar      = "1.6.6-rev002"
-      val sprayJson       = "1.3.4"
+      val sprayJson       = "1.3.5"
       val slf4j           = "1.7.25"
-      val log4j           = "2.11.0"
+      val log4j           = "2.11.1"
       val disruptor       = "3.4.2"
       val scalaLogging    = "3.9.0"
       val config          = "1.3.3"
-      val wokenMessages   = "2.8.2"
+      val wokenMessages   = "2.8.3"
     }
     object ExclusionRules {
       val excludeLogback = ExclusionRule(organization = "ch.qos.logback", name = "logback-classic")
@@ -92,7 +92,7 @@ lazy val library =
     val kamonAkkaRemote: ModuleID = "io.kamon" %% "kamon-akka-remote-2.5" % Version.kamonAkkaRemote excludeAll ExclusionRules.excludeLogback
     val kamonAkkaHttp: ModuleID = "io.kamon" %% "kamon-akka-http-2.5" % Version.kamonAkkaHttp excludeAll ExclusionRules.excludeLogback
     val kamonSystemMetrics: ModuleID = "io.kamon" %% "kamon-system-metrics" % Version.kamonSystemMetrics excludeAll ExclusionRules.excludeLogback
-    val kamonPrometheus: ModuleID = "io.kamon" %% "kamon-prometheus" % Version.kamonReporter excludeAll ExclusionRules.excludeLogback
+    val kamonPrometheus: ModuleID = "io.kamon" %% "kamon-prometheus" % Version.kamonPrometheus excludeAll ExclusionRules.excludeLogback
     val kamonZipkin: ModuleID  =  "io.kamon" %% "kamon-zipkin" % Version.kamonReporter excludeAll ExclusionRules.excludeLogback
     val kamonSigar: ModuleID   = "io.kamon"           % "sigar-loader" % Version.kamonSigar
 
@@ -154,7 +154,7 @@ lazy val scalafmtSettings =
   Seq(
     scalafmtOnCompile := true,
     scalafmtOnCompile.in(Sbt) := false,
-    scalafmtVersion := "1.4.0"
+    scalafmtVersion := "1.5.1"
   )
 
 // Create a new MergeStrategy for aop.xml files

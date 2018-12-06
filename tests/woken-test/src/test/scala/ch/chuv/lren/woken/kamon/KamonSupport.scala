@@ -34,20 +34,20 @@ object KamonSupport {
       .getConfig("kamon")
 
     if (kamonConfig.getBoolean("enabled") || kamonConfig.getBoolean(
-      "prometheus.enabled") || kamonConfig
-      .getBoolean("zipkin.enabled")) {
+          "prometheus.enabled") || kamonConfig
+          .getBoolean("zipkin.enabled")) {
 
       logger.info("Kamon configuration:")
       logger.info(config.getConfig("kamon").toString)
       logger.info(s"Start monitoring...")
 
-      Kamon.reconfigure(config.withValue("kamon.trace.join-remote-parents-with-same-span-id",
-        ConfigValueFactory.fromAnyRef("yes"))
-      )
+      Kamon.reconfigure(
+        config.withValue("kamon.trace.join-remote-parents-with-same-span-id",
+                         ConfigValueFactory.fromAnyRef("yes")))
 
       if (kamonConfig.getBoolean("zipkin.enabled"))
         Kamon.addReporter(new ZipkinReporter)
-       Kamon.addReporter(new PrometheusReporter)
+      Kamon.addReporter(new PrometheusReporter)
     }
   }
 

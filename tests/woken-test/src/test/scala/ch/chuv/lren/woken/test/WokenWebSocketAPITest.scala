@@ -133,7 +133,8 @@ class WokenWebSocketAPITest
                            expectedResult: Option[String],
                            endpointUrl: String): Unit = {
 
-    val span = Kamon.buildSpan(endpointUrl.split("/").takeRight(2).mkString("-")).start()
+    val span =
+      Kamon.buildSpan(endpointUrl.split("/").takeRight(2).mkString("-")).start()
 
     val probeSource: Source[Message, NotUsed] = probeData match {
       case Some(probe) =>

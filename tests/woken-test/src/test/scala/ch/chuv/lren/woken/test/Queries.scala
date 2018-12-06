@@ -48,6 +48,7 @@ trait Queries {
       user = UserId("test1"),
       variables = variables,
       covariables = covariables,
+      covariablesMustExist = true,
       grouping = Nil,
       filters = None,
       targetTable = targetTable,
@@ -106,13 +107,12 @@ trait Queries {
         case JsNull  => sb.append("null")
         case JsTrue  => sb.append("true")
         case JsFalse => sb.append("false")
-        case JsNumber(x) => {
+        case JsNumber(x) =>
           val approx = f"$x%1.5f"
           if (approx == "-0.00000")
             sb.append("0.00000")
           else
             sb.append(approx)
-        }
         case JsString(x) => printString(x, sb)
         case _           => throw new IllegalStateException
       }

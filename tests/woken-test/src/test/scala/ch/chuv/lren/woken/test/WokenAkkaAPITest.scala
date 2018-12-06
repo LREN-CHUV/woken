@@ -29,7 +29,11 @@ import ch.chuv.lren.woken.monitoring.KamonSupport
 import com.typesafe.config.{Config, ConfigFactory}
 import ch.chuv.lren.woken.messages.datasets._
 import ch.chuv.lren.woken.messages.query._
-import ch.chuv.lren.woken.messages.variables.{VariableId, VariablesForDatasetsQuery, VariablesForDatasetsResponse}
+import ch.chuv.lren.woken.messages.variables.{
+  VariableId,
+  VariablesForDatasetsQuery,
+  VariablesForDatasetsResponse
+}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
@@ -70,12 +74,11 @@ class WokenAkkaAPITest
       .resolve()
   }
 
-
   implicit val system: ActorSystem = ActorSystem("woken", config)
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executionContext: ExecutionContextExecutor = system.dispatcher
 
-  val cluster = Cluster(system)
+  val cluster: Cluster = Cluster(system)
   val mediator: ActorRef = DistributedPubSub(system).mediator
 
   val entryPoint = "/user/entrypoint"
@@ -178,6 +181,7 @@ class WokenAkkaAPITest
           user = UserId("test1"),
           variables = List(VariableId("cognitive_task2")),
           covariables = List(VariableId("score_math_course1")),
+          covariablesMustExist = true,
           grouping = Nil,
           filters = None,
           targetTable = Some("sample_data"),
@@ -202,6 +206,7 @@ class WokenAkkaAPITest
           variables = List(VariableId("cognitive_task2")),
           covariables =
             List("score_math_course1", "score_math_course2").map(VariableId),
+          covariablesMustExist = true,
           grouping = Nil,
           filters = None,
           targetTable = Some("sample_data"),
@@ -226,6 +231,7 @@ class WokenAkkaAPITest
           user = UserId("test1"),
           variables = List(VariableId("cognitive_task2")),
           covariables = List(),
+          covariablesMustExist = true,
           grouping = Nil,
           filters = None,
           targetTable = Some("sample_data"),
@@ -251,6 +257,7 @@ class WokenAkkaAPITest
           variables = List(VariableId("cognitive_task2")),
           covariables =
             List("score_math_course1", "score_math_course2").map(VariableId),
+          covariablesMustExist = true,
           grouping = Nil,
           filters = None,
           targetTable = Some("sample_data"),
@@ -279,6 +286,7 @@ class WokenAkkaAPITest
           variables = List(VariableId("cognitive_task2")),
           covariables =
             List("score_math_course1", "score_math_course2").map(VariableId),
+          covariablesMustExist = true,
           grouping = Nil,
           filters = None,
           targetTable = Some("sample_data"),
@@ -305,6 +313,7 @@ class WokenAkkaAPITest
           variables = List(VariableId("cognitive_task2")),
           covariables =
             List("score_math_course1", "score_math_course2").map(VariableId),
+          covariablesMustExist = true,
           grouping = Nil,
           filters = None,
           targetTable = Some("sample_data"),
@@ -334,6 +343,7 @@ class WokenAkkaAPITest
           variables = List(VariableId("cognitive_task2")),
           covariables =
             List("score_math_course1", "score_math_course2").map(VariableId),
+          covariablesMustExist = true,
           grouping = Nil,
           filters = None,
           targetTable = Some("sample_data"),
@@ -359,6 +369,7 @@ class WokenAkkaAPITest
           variables = List(VariableId("cognitive_task2")),
           covariables =
             List("score_math_course1", "score_math_course2").map(VariableId),
+          covariablesMustExist = true,
           grouping = Nil,
           filters = None,
           targetTable = Some("sample_data"),
@@ -393,6 +404,7 @@ class WokenAkkaAPITest
           variables = List(VariableId("cognitive_task2")),
           covariables =
             List("score_math_course1", "score_math_course2").map(VariableId),
+          covariablesMustExist = true,
           grouping = Nil,
           filters = None,
           targetTable = Some("sample_data"),
@@ -424,6 +436,7 @@ class WokenAkkaAPITest
           variables = List(VariableId("cognitive_task2")),
           covariables =
             List("score_math_course1", "score_math_course2").map(VariableId),
+          covariablesMustExist = true,
           grouping = Nil,
           filters = None,
           targetTable = Some("sample_data"),
@@ -640,11 +653,10 @@ class WokenAkkaAPITest
   private def timedQuery[R](query: Any, description: String): R = {
     val span = Kamon.buildSpan(description.replaceAll(" ", "-")).start()
     val start = System.currentTimeMillis()
-    val future = Kamon.withSpan(span){
-      mediator ? DistributedPubSubMediator.Send(
-        entryPoint,
-        query,
-        localAffinity = false)
+    val future = Kamon.withSpan(span) {
+      mediator ? DistributedPubSubMediator.Send(entryPoint,
+                                                query,
+                                                localAffinity = false)
     }
 
     val result = waitFor[R](future)

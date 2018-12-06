@@ -4,8 +4,11 @@ resolvers += Classpaths.sbtPluginReleases
 
 resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/"
 
+// Kamon
+resolvers += Resolver.bintrayRepo("kamon-io", "sbt-plugins")
+
 // App Packaging
-addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.7")
+addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.9")
 
 // Dependency Resolution
 addSbtPlugin("io.get-coursier" % "sbt-coursier" % "1.0.0")
@@ -15,7 +18,7 @@ addSbtPlugin("org.scalastyle" %% "scalastyle-sbt-plugin" % "1.0.0") // scalastyl
 
 // addSbtPlugin("com.sksamuel.scapegoat" % "sbt-scapegoat" % "1.3.3") // scapegoat
 
-addSbtPlugin("org.wartremover"   % "sbt-wartremover" % "2.3.6") // Wartremover
+addSbtPlugin("org.wartremover"   % "sbt-wartremover" % "2.3.7") // Wartremover
 
 // Code formatter
 addSbtPlugin("com.lucidchart"    % "sbt-scalafmt"    % "1.15")
@@ -23,7 +26,5 @@ addSbtPlugin("com.lucidchart"    % "sbt-scalafmt"    % "1.15")
 // Copyright headers
 addSbtPlugin("de.heikoseeberger" % "sbt-header"      % "5.0.0")
 
-// Kamon
-resolvers += Resolver.bintrayRepo("kamon-io", "sbt-plugins")
-
+// Monitoring
 addSbtPlugin("io.kamon" % "sbt-aspectj-runner" % "1.1.1")
