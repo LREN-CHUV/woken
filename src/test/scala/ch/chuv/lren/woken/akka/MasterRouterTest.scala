@@ -156,7 +156,7 @@ class MasterRouterTest
     val router =
       system.actorOf(
         Props(
-          new MasterRouterUnderTest(config, databaseServices, backendServices)
+          new MasterRouterUnderTest(config, databaseServices, backendServices(system))
         )
       )
 
@@ -283,7 +283,7 @@ class MasterRouterTest
 
       val miningRouter = system.actorOf(
         Props(
-          new RouterWithProbeCoordinator(config, databaseServices, backendServices)
+          new RouterWithProbeCoordinator(config, databaseServices, backendServices(system))
         )
       )
 

@@ -17,10 +17,13 @@
 
 package ch.chuv.lren.woken.service
 
-import akka.actor.ActorRef
-import cats.effect.{ ContextShift, IO, Timer }
+import akka.NotUsed
+import akka.actor.{ ActorRef, ActorSystem }
+import akka.stream.scaladsl.Flow
+import cats.effect.{ ContextShift, Effect, IO, Timer }
 import cats.effect.internals.IOContextShift
 import ch.chuv.lren.woken.JsonUtils
+import ch.chuv.lren.woken.akka.FakeActors
 import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn, VariablesMeta }
 import ch.chuv.lren.woken.core.model.database.TableId
@@ -31,11 +34,20 @@ import ch.chuv.lren.woken.dao.{
   MetadataInMemoryRepository,
   WokenInMemoryRepository
 }
-import ch.chuv.lren.woken.messages.variables.{ GroupMetaData, SqlType }
+import ch.chuv.lren.woken.messages.datasets.DatasetId
+import ch.chuv.lren.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryResult }
+import ch.chuv.lren.woken.messages.remoting.RemoteLocation
+import ch.chuv.lren.woken.messages.variables.{
+  GroupMetaData,
+  SqlType,
+  VariablesForDatasetsQuery,
+  VariablesForDatasetsResponse
+}
 import ch.chuv.lren.woken.messages.variables.variablesProtocol._
 import spray.json.{ JsNumber, JsObject, JsString }
 
 import scala.concurrent.ExecutionContext
+import scala.language.higherKinds
 
 object TestServices extends JsonUtils {
 
@@ -169,6 +181,23 @@ object TestServices extends JsonUtils {
     )
   }
 
-  lazy val backendServices: BackendServices =
-    BackendServices(dispatcherService = ???, chronosHttp = ???)
+  lazy val dispatcherService: DispatcherService = new DispatcherService {
+    override def localDatasets: Set[DatasetId]                                        = ???
+    override def dispatchTo(dataset: DatasetId): Option[RemoteLocation]               = ???
+    override def dispatchTo(datasets: Set[DatasetId]): (Set[RemoteLocation], Boolean) = ???
+    override def dispatchRemoteMiningFlow
+      : Flow[MiningQuery, (RemoteLocation, QueryResult), NotUsed] = ???
+    override def dispatchRemoteExperimentFlow
+      : Flow[ExperimentQuery, (RemoteLocation, QueryResult), NotUsed] = ???
+    override def dispatchVariablesQueryFlow[F[_]: Effect](
+        datasetService: DatasetService,
+        variablesMetaService: VariablesMetaService[F]
+    ): Flow[VariablesForDatasetsQuery,
+            (VariablesForDatasetsQuery, VariablesForDatasetsResponse),
+            NotUsed] = ???
+  }
+
+  def backendServices(system: ActorSystem): BackendServices =
+    BackendServices(dispatcherService = dispatcherService,
+                    chronosHttp = system.actorOf(FakeActors.echoActorProps))
 }
