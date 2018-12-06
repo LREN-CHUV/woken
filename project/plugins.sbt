@@ -4,6 +4,7 @@ resolvers += Classpaths.sbtPluginReleases
 
 resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/"
 
+// Kamon
 resolvers += Resolver.bintrayRepo("kamon-io", "sbt-plugins")
 
 libraryDependencies += "org.slf4j" % "slf4j-api" % "1.7.25" // Needed by sbt-git

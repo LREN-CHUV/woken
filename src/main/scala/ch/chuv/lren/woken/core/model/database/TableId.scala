@@ -39,7 +39,7 @@ object TableId {
 
   @SuppressWarnings(Array("org.wartremover.warts.Throw"))
   def apply(defaultDatabase: String, qualifiedTableName: String): TableId =
-    qualifiedTableName.split(".").toList match {
+    qualifiedTableName.split("\\.").toList match {
       case tableName :: Nil                   => TableId(defaultDatabase, None, tableName)
       case dbSchema :: tableName :: Nil       => TableId(defaultDatabase, Some(dbSchema), tableName)
       case db :: dbSchema :: tableName :: Nil => TableId(db, Some(dbSchema), tableName)
