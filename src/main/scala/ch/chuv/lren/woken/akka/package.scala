@@ -27,6 +27,8 @@ import scala.language.higherKinds
   */
 package object akka {
 
+  import acyclic.pkg
+
   /**
     * Resource that creates and yields an Akka server, guaranteeing cleanup.
     */

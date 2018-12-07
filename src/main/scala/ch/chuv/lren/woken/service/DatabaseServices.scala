@@ -52,33 +52,36 @@ case class DatabaseServices[F[_]: ConcurrentEffect: ContextShift: Timer](
       def combine(x: F[Unit], y: F[Unit]): F[Unit] = x.handleErrorWith(_ => y)
     }
 
-    Monoid.combineAll(datasetService.datasets().filter(_.location.isEmpty).map { dataset =>
-      Monoid.combineAll(dataset.tables.map {
-        qualifiedTableName =>
-          {
-            val table = TableId(config.jobs.featuresDb, qualifiedTableName)
+    Monoid
+      .combineAll(datasetService.datasets().filter(_.location.isEmpty).map { dataset =>
+        Monoid.combineAll(dataset.tables.map {
+          qualifiedTableName =>
+            {
+              val table = TableId(config.jobs.featuresDb, qualifiedTableName)
 
-            featuresService
-              .featuresTable(table)
-              .fold[F[Unit]](
-                { error: NonEmptyList[String] =>
-                  val errMsg = error.mkString_("", ",", "")
-                  logger.error(errMsg)
-                  Effect[F].raiseError(new IllegalStateException(errMsg))
-                }, { table: FeaturesTableService[F] =>
-                  table.count(dataset.dataset).map { count =>
-                    if (count == 0) {
-                      val error =
-                        s"Table ${table.table} contains no value for dataset ${dataset.dataset.code}"
-                      logger.error(error)
-                      throw new IllegalStateException(error)
+              featuresService
+                .featuresTable(table)
+                .fold[F[Unit]](
+                  { error: NonEmptyList[String] =>
+                    val errMsg = error.mkString_("", ",", "")
+                    logger.error(errMsg)
+                    Effect[F].raiseError(new IllegalStateException(errMsg))
+                  }, { table: FeaturesTableService[F] =>
+                    table.count(dataset.dataset).map { count =>
+                      if (count == 0) {
+                        val error =
+                          s"Table ${table.table} contains no value for dataset ${dataset.dataset.code}"
+                        logger.error(error)
+                        throw new IllegalStateException(error)
+                      }
                     }
                   }
-                }
-              )
-          }
+                )
+            }
+        })
       })
-    })
+      .map(_ => logger.info("[OK] Datasets are valid"))
+
   }
 
   def close(): F[Unit] = Effect[F].pure(())
@@ -101,6 +104,8 @@ object DatabaseServices {
   def resource[F[_]: ConcurrentEffect: ContextShift: Timer](
       config: WokenConfiguration
   )(implicit cs: ContextShift[IO]): Resource[F, DatabaseServices[F]] = {
+
+    logger.info("Connect to databases...")
 
     val transactors: Resource[F, Transactors[F]] = for {
       featuresTransactor <- DatabaseConfiguration.dbTransactor[F](config.featuresDb)
@@ -158,7 +163,9 @@ object DatabaseServices {
         .validate(transactor, dbConfig)
         .map(_.valueOr(configurationFailed))
       validatedDb <- serviceGen(validatedXa)
-      _           <- Async[F].delay(logger.info(s"Connected to database ${dbConfig.database}"))
+      _ <- Async[F].delay(
+        logger.info(s"[OK] Connected to database ${dbConfig.database} on ${dbConfig.jdbcUrl}")
+      )
     } yield {
       validatedDb
     }

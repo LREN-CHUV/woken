@@ -94,8 +94,9 @@ class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
     logger.info("Self checks...")
 
     // TODO: add self checks for Akka
+    // TODO: it should fail fast if the network configuration is incorrect and the cluster cannot be created
 
-    logger.info("[OK] Self checks passed")
+    logger.info("[OK] Akka server is running")
   }
 
   def unbind(): F[Unit] =
@@ -120,6 +121,8 @@ object AkkaServer {
       config: WokenConfiguration
   ): Resource[F, AkkaServer[F]] =
     Resource.make(Sync[F].delay {
+
+      logger.debug(s"Akka configuration : ${config.config.getConfig("akka")}")
 
       logger.info(s"Start actor system ${config.app.clusterSystemName}...")
 

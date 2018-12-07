@@ -22,6 +22,8 @@ import ch.chuv.lren.woken.config.mainConfig
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
+import scala.io.StdIn
+
 /**
   * Provides the web server (spray-can) for the REST api in ``Api``, using the actor system
   * defined in ``Core``.
@@ -43,11 +45,21 @@ object Main extends IOApp {
   def run(args: List[String]): IO[ExitCode] = {
     val config = mainConfig.unsafeRunSync()
     MainServer.resource[IO](config).use { _ =>
-      for {
-        _ <- IO(Console.println("Woken startup complete.")) // scalastyle:off
-        _ <- IO(Console.println("Press a key to exit.")) // scalastyle:off
-        _ <- IO(scala.io.StdIn.readLine())
+      val io = for {
+        _ <- IO(logger.info("[OK] Woken startup complete."))          // scalastyle:off
+        _ <- IO(Console.println("Type 'exit' then <Enter> to exit.")) // scalastyle:off
+        _ <- IO {
+          do {} while (!Option(StdIn.readLine()).exists(_.toLowerCase == "exit"))
+          logger.info("Stopping Woken...")
+        }
       } yield ExitCode.Success
+
+      io.handleErrorWith { err =>
+        IO.delay {
+          logger.error("Unexpected error", err)
+          ExitCode.Error
+        }
+      }
     }
   }
 

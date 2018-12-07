@@ -31,28 +31,31 @@ import kamon.zipkin.ZipkinReporter
 import org.hyperic.sigar.{ Sigar, SigarLoader }
 import org.slf4j.LoggerFactory
 
+import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
-import scala.util.Try
+import scala.util.{ Failure, Success, Try }
 
-case class KamonMonitoring[F[_]: ConcurrentEffect: Timer](core: CoreSystem,
-                                                          config: WokenConfiguration) {
+case class Monitoring[F[_]: ConcurrentEffect: Timer](core: CoreSystem, config: WokenConfiguration) {
 
-  private val logger: Logger =
-    Logger(LoggerFactory.getLogger("woken.KamonMonitoring"))
+  import Monitoring.logger
 
+  @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
   def startReporters(): Unit = {
     val kamonConfig = config.config.getConfig("kamon")
 
     if (kamonConfig.getBoolean("enabled") || kamonConfig.getBoolean("prometheus.enabled") || kamonConfig
           .getBoolean("zipkin.enabled")) {
 
-      logger.info("Kamon configuration:")
-      logger.info(kamonConfig.toString)
+      logger.debug("Kamon configuration:")
+      logger.debug(kamonConfig.toString)
+
       logger.info(s"Start monitoring...")
 
       Kamon.reconfigure(config.config)
 
       val hostSystemMetrics = kamonConfig.getBoolean("system-metrics.host.enabled")
+      val jvmSystemMetrics  = kamonConfig.getBoolean("system-metrics.jvm.enabled")
+
       if (hostSystemMetrics) {
         logger.info(s"Start Sigar metrics...")
         Try {
@@ -72,7 +75,7 @@ case class KamonMonitoring[F[_]: ConcurrentEffect: Timer](core: CoreSystem,
           logger.warn("Sigar metrics are not available")
       }
 
-      if (hostSystemMetrics || kamonConfig.getBoolean("system-metrics.jvm.enabled")) {
+      if (hostSystemMetrics || jvmSystemMetrics) {
         logger.info(s"Start collection of system metrics...")
         SystemMetrics.startCollecting()
       }
@@ -85,21 +88,46 @@ case class KamonMonitoring[F[_]: ConcurrentEffect: Timer](core: CoreSystem,
     }
   }
 
-  def unbind(): F[Unit] = Sync[F].delay {
-    SystemMetrics.stopCollecting()
-    Kamon.stopAllReporters()
-  }
+  def unbind(): F[Unit] = Sync[F].defer {
+    logger.info("Stop monitoring")
+    logger.warn("Stopping here", new Exception())
 
+    val kamonConfig       = config.config.getConfig("kamon")
+    val hostSystemMetrics = kamonConfig.getBoolean("system-metrics.host.enabled")
+    val jvmSystemMetrics  = kamonConfig.getBoolean("system-metrics.jvm.enabled")
+
+    if (hostSystemMetrics || jvmSystemMetrics) {
+      SystemMetrics.stopCollecting()
+    }
+
+    implicit val ec: ExecutionContext = ExecutionContext.global
+    val ending                        = Kamon.stopAllReporters()
+    Async[F].async { cb =>
+      ending.onComplete {
+        case Success(_)     => cb(Right(()))
+        case Failure(error) => cb(Left(error))
+      }
+    }
+  }
 }
 
-object KamonMonitoring {
+object Monitoring {
+
+  private val logger: Logger =
+    Logger(LoggerFactory.getLogger("woken.Monitoring"))
 
   /** Resource that creates and yields monitoring services with Kamon, guaranteeing cleanup. */
   def resource[F[_]: ConcurrentEffect: ContextShift: Timer](
       akkaServer: AkkaServer[F],
       config: WokenConfiguration
-  ): Resource[F, KamonMonitoring[F]] =
-    // start a new HTTP server with our service actor as the handler
-    Resource.make(Sync[F].delay(new KamonMonitoring(akkaServer, config)))(_.unbind())
+  ): Resource[F, Monitoring[F]] =
+    // start the Kamon monitoring services
+    Resource.make(Sync[F].delay {
+      val monitoring = new Monitoring(akkaServer, config)
+      monitoring.startReporters()
+
+      logger.info("[OK] Monitoring Woken")
+      monitoring
+    })(_.unbind())
 
 }

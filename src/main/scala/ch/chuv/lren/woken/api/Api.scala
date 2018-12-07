@@ -25,7 +25,6 @@ import ch.chuv.lren.woken.akka.CoreSystem
 import ch.chuv.lren.woken.api.swagger.SwaggerService
 import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
-import com.typesafe.scalalogging.LazyLogging
 
 /**
   * The REST API layer. It exposes the REST services, but does not provide any
@@ -35,7 +34,7 @@ import com.typesafe.scalalogging.LazyLogging
   *
   * @author Ludovic Claude <ludovic.claude@chuv.ch>
   */
-trait Api extends LazyLogging {
+trait Api {
 
   def core: CoreSystem
   def config: WokenConfiguration

@@ -47,10 +47,10 @@ object MasterRouter {
 
 }
 
-case class MasterRouter[F[_]: Effect](
-    config: WokenConfiguration,
-    databaseServices: DatabaseServices[F],
-    backendServices: BackendServices
+class MasterRouter[F[_]: Effect](
+    val config: WokenConfiguration,
+    val databaseServices: DatabaseServices[F],
+    val backendServices: BackendServices
 ) extends Actor
     with LazyLogging {
 

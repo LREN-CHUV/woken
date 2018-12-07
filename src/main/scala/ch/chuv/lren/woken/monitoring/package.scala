@@ -31,5 +31,5 @@ package object monitoring {
   def resource[F[_]: ConcurrentEffect: ContextShift: Timer](
       akkaServer: AkkaServer[F],
       config: WokenConfiguration
-  ): Resource[F, KamonMonitoring[F]] = KamonMonitoring.resource(akkaServer, config)
+  ): Resource[F, Monitoring[F]] = Monitoring.resource(akkaServer, config)
 }

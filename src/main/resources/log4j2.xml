@@ -37,7 +37,7 @@
     <Logger name="com.wordnik.swagger" level="INFO">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="com.zaxxer.hikari.pool" level="INFO">
+    <Logger name="com.zaxxer.hikari" level="WARN">
       <AppenderRef ref="Console"/>
     </Logger>
   </Loggers>
