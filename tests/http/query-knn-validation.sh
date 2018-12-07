@@ -8,6 +8,7 @@ http -v --verify=no -a admin:WoKeN --timeout 180 POST http://localhost:8087/mini
          variables:='[{"code":"brainstem"}]' \
          grouping:='[]' \
          covariables:='[{"code":"leftcaudate"}]' \
+         covariablesMustExist:=true \
          targetTable='cde_features_mixed' \
          algorithms:='[{"code":"knn", "name": "knn", "parameters": []}]' \
          validations:='[{"code":"kfold", "name": "kfold", "parameters": [{"code": "k", "value": "2"}]}]' \

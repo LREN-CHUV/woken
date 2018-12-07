@@ -18,6 +18,7 @@
       "code": "college_math"
     }
   ],
+  "covariablesMustExist": true,
   "grouping": [],
   "targetTable": "sample_data",
   "user": {

@@ -13,6 +13,7 @@
       "code": "score_math_course1"
     }
   ],
+  "covariablesMustExist": true,
   "datasets": [],
   "grouping": [],
   "targetTable": "sample_data",
