@@ -146,7 +146,7 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
                     completeWithError(job, msg, initiator, replyTo)
                   },
                   extendedFeaturesTableR => {
-                    extendedFeaturesTableR.use[Unit] {
+                    val task = extendedFeaturesTableR.use[Unit] {
                       extendedFeaturesTable =>
                         val splitters = splitterDefs.map {
                           FeaturesSplitter(_, extendedFeaturesTable)
@@ -171,6 +171,7 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
                           future.onFailure { case err => cb(Left(err)) }
                         }
                     }
+                    Effect[F].toIO(task).unsafeRunSync()
                   }
                 )
         }
