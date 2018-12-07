@@ -93,7 +93,7 @@ class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
   def selfChecks(): Unit = {
     logger.info("Self checks...")
 
-    // TODO
+    // TODO: add self checks for Akka
 
     logger.info("[OK] Self checks passed")
   }

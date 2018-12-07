@@ -74,7 +74,7 @@ class MasterRouterTest
       inputTable = tableId,
       query = query,
       metadata = Nil,
-      algorithms = Map()
+      queryAlgorithms = Map()
     ).validNel[String]
 
   def miningQuery2job(query: MiningQuery): Validation[DockerJob] = {

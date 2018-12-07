@@ -26,6 +26,7 @@ import akka.stream._
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Zip }
 import cats.effect.Effect
 import ch.chuv.lren.woken.config.JobsConfiguration
+import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.core.model.AlgorithmDefinition
 import ch.chuv.lren.woken.core.model.database.TableId
@@ -41,7 +42,7 @@ import com.typesafe.scalalogging.LazyLogging
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
-object ValidatedAlgorithmFlow {
+object AlgorithmWithCVFlow {
 
   case class Job[F[_]](jobId: String,
                        inputTable: TableId,
@@ -64,7 +65,12 @@ object ValidatedAlgorithmFlow {
 
 }
 
-case class ValidatedAlgorithmFlow[F[_]: Effect](
+/**
+  * Generates flows for execution of an algorithm that may require Cross Validation of the model built during its training phase.
+  *
+  * @tparam F Monadic effect
+  */
+case class AlgorithmWithCVFlow[F[_]: Effect](
     executeJobAsync: CoordinatorActor.ExecuteJobAsync,
     featuresTableService: FeaturesTableService[F],
     jobsConf: JobsConfiguration,
@@ -72,7 +78,7 @@ case class ValidatedAlgorithmFlow[F[_]: Effect](
 )(implicit materializer: Materializer, ec: ExecutionContext)
     extends LazyLogging {
 
-  import ValidatedAlgorithmFlow._
+  import AlgorithmWithCVFlow._
 
   private val crossValidationFlow =
     CrossValidationFlow(executeJobAsync, context)
@@ -88,13 +94,13 @@ case class ValidatedAlgorithmFlow[F[_]: Effect](
   @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
   def runLocalAlgorithmAndValidate(
       parallelism: Int
-  ): Flow[ValidatedAlgorithmFlow.Job[F], ResultResponse, NotUsed] =
+  ): Flow[AlgorithmWithCVFlow.Job[F], ResultResponse, NotUsed] =
     Flow
       .fromGraph(GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
         import GraphDSL.Implicits._
 
         // prepare graph elements
-        val broadcast = builder.add(Broadcast[ValidatedAlgorithmFlow.Job[F]](2))
+        val broadcast = builder.add(Broadcast[AlgorithmWithCVFlow.Job[F]](2))
         val zip       = builder.add(Zip[CoordinatorActor.Response, ValidationResults]())
         val response  = builder.add(buildResponse)
 
@@ -113,10 +119,10 @@ case class ValidatedAlgorithmFlow[F[_]: Effect](
     * @return
     */
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
-  def runAlgorithmOnLocalData: Flow[ValidatedAlgorithmFlow.Job[F],
-                                    (ValidatedAlgorithmFlow.Job[F], CoordinatorActor.Response),
+  def runAlgorithmOnLocalData: Flow[AlgorithmWithCVFlow.Job[F],
+                                    (AlgorithmWithCVFlow.Job[F], CoordinatorActor.Response),
                                     NotUsed] =
-    Flow[ValidatedAlgorithmFlow.Job[F]]
+    Flow[AlgorithmWithCVFlow.Job[F]]
       .mapAsync(1) { job =>
         val algorithm = job.query.algorithm
 
@@ -125,22 +131,23 @@ case class ValidatedAlgorithmFlow[F[_]: Effect](
         // Spawn a CoordinatorActor
         val jobId         = UUID.randomUUID().toString
         val featuresQuery = job.query.features(job.inputTable, None)
-        val subJob =
-          DockerJob(jobId,
-                    featuresQuery,
-                    job.query.algorithm,
-                    job.algorithmDefinition,
-                    job.metadata)
+        val subJob        = createDockerJob(job, jobId, featuresQuery)
+
         executeJobAsync(subJob).map(response => (job, response))
       }
       .log("Learned from available local data")
       .named("learn-from-available-local-data")
 
+  private def createDockerJob(job: AlgorithmWithCVFlow.Job[F],
+                              jobId: String,
+                              featuresQuery: FeaturesQuery): DockerJob =
+    DockerJob(jobId, featuresQuery, job.query.algorithm, job.algorithmDefinition, job.metadata)
+
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
   private def crossValidate(
       parallelism: Int
-  ): Flow[ValidatedAlgorithmFlow.Job[F], ValidationResults, NotUsed] =
-    Flow[ValidatedAlgorithmFlow.Job[F]]
+  ): Flow[AlgorithmWithCVFlow.Job[F], ValidationResults, NotUsed] =
+    Flow[AlgorithmWithCVFlow.Job[F]]
       .map { job =>
         job.cvSplitters.map { splitter =>
           val jobId = UUID.randomUUID().toString
@@ -149,13 +156,7 @@ case class ValidatedAlgorithmFlow[F[_]: Effect](
             case _          => None
           }
           val query = job.query.features(job.inputTable, orderBy)
-          CrossValidationFlow.Job(jobId,
-                                  query,
-                                  job.metadata,
-                                  splitter,
-                                  featuresTableService,
-                                  job.query.algorithm,
-                                  job.algorithmDefinition)
+          createCrossValidationJob(job, splitter, jobId, query)
         }
       }
       .mapConcat(identity)
@@ -169,7 +170,19 @@ case class ValidatedAlgorithmFlow[F[_]: Effect](
       .log("Cross validation results")
       .named("cross-validate")
 
-  // TODO: keep?
+  private def createCrossValidationJob(job: AlgorithmWithCVFlow.Job[F],
+                                       splitter: FeaturesSplitter[F],
+                                       jobId: String,
+                                       query: FeaturesQuery) =
+    CrossValidationFlow.Job(jobId,
+                            query,
+                            job.metadata,
+                            splitter,
+                            featuresTableService,
+                            job.query.algorithm,
+                            job.algorithmDefinition)
+
+// TODO: keep?
   private def nodeOf(spec: ValidationSpec): Option[String] =
     spec.parameters.find(_.code == "node").map(_.value)
 

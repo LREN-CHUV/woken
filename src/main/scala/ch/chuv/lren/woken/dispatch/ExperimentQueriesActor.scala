@@ -108,7 +108,7 @@ class ExperimentQueriesActor[F[_]: Effect](
     case ExperimentActor.Response(job, Right(results), initiator) =>
       logger.info(s"Received response for experiment on ${job.query}: $results")
       Source
-        .single(ValidationContext(job.query, job.algorithms, results))
+        .single(ValidationContext(job.query, job.queryAlgorithms, results))
         .via(remoteValidationFlow)
         .map[QueryResult] { r =>
           val result = r.experimentResult.asQueryResult(Some(job.query))
@@ -147,7 +147,10 @@ class ExperimentQueriesActor[F[_]: Effect](
           )
         }, {
           // TODO: report feedback
-          case (job: ExperimentActor.Job, feedback) => runExperiment(query, initiator, job)
+          case (job: ExperimentActor.Job, feedback) =>
+            if (feedback.nonEmpty)
+              logger.info(s"User feedback: ${feedback.mkString(" and ")}")
+            runExperiment(query, initiator, job)
           case (job, _) =>
             reportErrorMessage(query, initiator)(
               s"Unsupported job $job. Was expecting a job of type ExperimentActor.Job"
@@ -170,7 +173,7 @@ class ExperimentQueriesActor[F[_]: Effect](
       // Offload execution of the experiment from the central server to a remote worker node
       case (remoteLocations, false) if remoteLocations.size == 1 =>
         logger.info(s"Remote experiment on a single node $remoteLocations for query $query")
-        mapFlow(job.query, job.algorithms)
+        mapFlow(job.query, job.queryAlgorithms)
           .mapAsync(1) {
             case List()        => Future(noResult(job.query))
             case List(result)  => Future(result.copy(query = Some(query)))
@@ -187,19 +190,21 @@ class ExperimentQueriesActor[F[_]: Effect](
       case (remoteLocations, _) =>
         logger.info(s"Remote experiment on nodes $remoteLocations for query $query")
         val queriesByStepExecution: Map[ExecutionStyle.Value, ExperimentQuery] =
-          job.query.algorithms
+          job.queryAlgorithms
             .flatMap { algorithm =>
-              val algorithmDefinition = job.definitionOf(algorithm)
+              val algorithmSpec       = algorithm._1
+              val algorithmDefinition = algorithm._2
 
               algorithmDefinition.distributedExecutionPlan.steps.map { step =>
-                (step, algorithm.copy(step = Some(step)))
+                (step, algorithmSpec.copy(step = Some(step)))
               }.toMap
             }
             .groupBy(_._1.execution)
             .map {
               case (step, algorithmSpecs) =>
                 (step,
-                 job.query.copy(covariablesMustExist = true, algorithms = algorithmSpecs.map(_._2)))
+                 job.query.copy(covariablesMustExist = true,
+                                algorithms = algorithmSpecs.values.toList))
             }
 
         val mapQuery = queriesByStepExecution.getOrElse(ExecutionStyle.map, job.query)
@@ -207,7 +212,7 @@ class ExperimentQueriesActor[F[_]: Effect](
           .get(ExecutionStyle.reduce)
           .map(_.copy(trainingDatasets = Set(), validationDatasets = Set()))
 
-        mapFlow(mapQuery, job.algorithms)
+        mapFlow(mapQuery, job.queryAlgorithms)
           .mapAsync(1) {
             case List()       => Future(noResult(query))
             case List(result) => Future(result.copy(query = Some(query)))

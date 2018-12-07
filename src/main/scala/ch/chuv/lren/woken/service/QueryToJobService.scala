@@ -112,7 +112,7 @@ class QueryToJobServiceImpl[F[_]: Effect](
     featuresService.featuresTable(featuresTable).andThen { fts =>
       val featuresTableDescription = fts.table
 
-      val job = query.algorithm.code match {
+      val job: Validation[Job] = query.algorithm.code match {
         case ValidationJob.algorithmCode =>
           ValidationJob(jobId = jobId,
                         inputTable = featuresTable,
@@ -139,8 +139,8 @@ class QueryToJobServiceImpl[F[_]: Effect](
         toInvalidF[PreparedQuery[ExperimentQuery]],
         pq => validateQuery(pq, featuresService)
       )
-      // TODO: query for experiment should filter for nulls if one of the algorithms require it
-    } yield validatedQuery.andThen(q => createExperimentJob(q, algorithmLookup))
+      job = validatedQuery.andThen(q => createExperimentJob(q, algorithmLookup))
+    } yield job
 
   private[this] def createExperimentJob(
       preparedQuery: PreparedQuery[ExperimentQuery],
@@ -150,46 +150,17 @@ class QueryToJobServiceImpl[F[_]: Effect](
     val jobId :: featuresTable :: metadata :: query :: feedback :: HNil =
       preparedQuery
 
-    def createJob(mt: List[VariableMetaData],
-                  q: ExperimentQuery,
-                  algorithms: Map[AlgorithmSpec, AlgorithmDefinition]): Validation[ExperimentJob] =
-      ExperimentJob.mkValid(jobId, q, featuresTable, mt, algorithms.get)
+    featuresService
+      .featuresTable(featuresTable)
+      .andThen { fts =>
+        val featuresTableDescription = fts.table
+        ExperimentJob.mkValid(jobId, query, featuresTableDescription, metadata, {
+          a: AlgorithmSpec =>
+            algorithmLookup(a.code)
+        })
+      }
+      .map(job => job -> feedback)
 
-    featuresService.featuresTable(featuresTable).andThen { fts =>
-      val featuresTableDescription = fts.table
-
-      query.algorithms
-        .map { algorithm =>
-          val algorithmV: Validation[AlgorithmSpec] = algorithm.validNel[String]
-          (algorithmV, algorithmLookup(algorithm.code)) mapN Tuple2.apply
-        }
-        .sequence[Validation, (AlgorithmSpec, AlgorithmDefinition)]
-        .map(_.toMap)
-        .map { algorithms =>
-          // Select the dataset common between all algorithms. If one algorithms cannot handle nulls, all nulls must be ignored
-          // This restrict the set of features we can learn from in some cases. User is warned about this case and
-          // can correct his selection of ML algorithms
-          val variablesCanBeNull = algorithms.exists { case (_, defn) => defn.variablesCanBeNull }
-          val allRequireVariablesNotNull = !variablesCanBeNull && !algorithms.exists {
-            case (_, defn) => defn.variablesCanBeNull
-          }
-          val covariablesCanBeNull = algorithms.exists {
-            case (_, defn) => defn.covariablesCanBeNull
-          }
-          val allRequireCovariablesNotNull = !covariablesCanBeNull && !algorithms.exists {
-            case (_, defn) => defn.covariablesCanBeNull
-          }
-          val experimentQuery = query
-            .filterDatasets(featuresTableDescription.datasetColumn)
-            .filterNulls(variablesCanBeNull, covariablesCanBeNull)
-
-          // TODO: report to user filtering on nulls when activated
-          // TODO: report to user which algorithms are causing filter on nulls, and how many records are lost from training dataset
-
-          val job = createJob(metadata, experimentQuery, algorithms)
-          (job, feedback)
-        }
-    }
   }
 
   private def prepareQuery[Q <: Query](

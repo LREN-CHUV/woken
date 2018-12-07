@@ -18,15 +18,7 @@
 package ch.chuv.lren.woken.mining
 
 import akka.actor.ActorRef
-import ch.chuv.lren.woken.core.model
-import ch.chuv.lren.woken.core.model.AlgorithmDefinition
-import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.core.model.jobs.DockerJob
-import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
-import ch.chuv.lren.woken.messages.query.{ AlgorithmSpec, ExperimentQuery }
-import ch.chuv.lren.woken.messages.variables.VariableMetaData
-
-import cats.implicits._
 
 sealed trait Command
 
@@ -40,42 +32,6 @@ sealed trait Command
   */
 case class StartCoordinatorJob(job: DockerJob, replyTo: ActorRef, initiator: ActorRef)
     extends Command
-
-case class ExperimentJob(
-    override val jobId: String,
-    inputTable: TableId,
-    query: ExperimentQuery,
-    queryAlgorithms: Map[AlgorithmSpec, AlgorithmDefinition],
-    metadata: List[VariableMetaData]
-) extends model.jobs.Job
-
-object ExperimentJob {
-
-  def mkValid(
-      jobId: String,
-      query: ExperimentQuery,
-      inputTable: TableId,
-      metadata: List[VariableMetaData],
-      algorithmsLookup: AlgorithmSpec => Option[AlgorithmDefinition]
-  ): Validation[ExperimentJob] =
-    query.algorithms
-      .map(
-        a =>
-          algorithmsLookup(a)
-            .map(defn => a -> defn)
-            .toRight(s"Missing specification for algorithm ${a.code}")
-            .toValidatedNel[String]
-      )
-      .sequence[Validation, (AlgorithmSpec, AlgorithmDefinition)]
-      .map(_.toMap)
-      .map { queryAlgorithms =>
-        new ExperimentJob(jobId,
-                          inputTable,
-                          query.copy(targetTable = Some(inputTable.name)),
-                          queryAlgorithms = queryAlgorithms,
-                          metadata = metadata)
-      }
-}
 
 /**
   * Start a new experiment job.

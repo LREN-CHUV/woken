@@ -32,10 +32,8 @@ import ch.chuv.lren.woken.Predefined.Algorithms.{
   knnWithK5
 }
 import ch.chuv.lren.woken.backends.woken.WokenClientService
-import ch.chuv.lren.woken.config.AlgorithmsConfiguration
 import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.core.model.jobs.{ ErrorJobResult, JobResult, PfaJobResult }
-import ch.chuv.lren.woken.cromwell.core.ConfigUtil
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.datasets.{ Dataset, DatasetId }
 import ch.chuv.lren.woken.messages.query._
@@ -44,8 +42,9 @@ import ch.chuv.lren.woken.service.DispatcherService
 import com.typesafe.config.{ Config, ConfigFactory }
 import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
-
 import cats.implicits._
+import cats.scalatest.{ ValidatedMatchers, ValidatedValues }
+import ch.chuv.lren.woken.core.model.FeaturesTableDescription
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -58,6 +57,8 @@ class ExperimentFlowTest
     extends TestKit(ActorSystem("ExperimentFlowTest"))
     with WordSpecLike
     with Matchers
+    with ValidatedMatchers
+    with ValidatedValues
     with BeforeAndAfterAll
     with JsonUtils
     with LazyLogging {
@@ -83,7 +84,7 @@ class ExperimentFlowTest
       covariablesMustExist = false,
       grouping = Nil,
       filters = None,
-      targetTable = Some("sample_data"),
+      targetTable = Some("Sample"),
       algorithms = List(AlgorithmSpec(algorithm, parameters, None)),
       validations = List(ValidationSpec("kfold", List(CodeValue("k", "2")))),
       trainingDatasets = Set(),
@@ -93,21 +94,28 @@ class ExperimentFlowTest
     )
 
   def experimentQuery2job(query: ExperimentQuery): Validation[ExperimentActor.Job] =
-    ExperimentJob(
-      jobId = UUID.randomUUID().toString,
-      inputTable = TableId("featuresDb", None, query.targetTable.getOrElse("sample_data")),
-      query = query,
-      metadata = Nil,
-      algorithms = Map(knnWithK5 -> knnDefinition, anovaFactorial -> anovaDefinition)
-    ).validNel[String]
+    ExperimentJob.mkValid(
+      UUID.randomUUID().toString,
+      query,
+      FeaturesTableDescription(TableId("features_db", None, query.targetTable.getOrElse("Sample")),
+                               Nil,
+                               None,
+                               validateSchema = false,
+                               None,
+                               0.67),
+      Nil, { spec =>
+        Map(knnWithK5 -> knnDefinition, anovaFactorial -> anovaDefinition)
+          .get(spec)
+          .toRight("Missing algorithm")
+          .toValidatedNel[String]
+      }
+    )
 
   import ExperimentFlowWrapper._
 
   "Experiment flow" should {
 
-    "complete with success in case of a query with no algorithms" in {
-      val experimentWrapper =
-        system.actorOf(ExperimentFlowWrapper.propsFailingAlgorithm("Algorithm not defined"))
+    "fail in case of a query with no algorithms" in {
       val experimentQuery = ExperimentQuery(
         user = user,
         variables = Nil,
@@ -124,33 +132,20 @@ class ExperimentFlowTest
         executionPlan = None
       )
       val experimentJob = experimentQuery2job(experimentQuery)
-      experimentJob.isValid shouldBe true
-      val testProbe = TestProbe()
-      testProbe.send(experimentWrapper, experimentJob.toOption.get)
-      testProbe.expectMsgPF(20 seconds, "error") {
-        case response: ExperimentResponse =>
-          response.result.isEmpty shouldBe true
-      }
-
+      experimentJob.isValid shouldBe false
+      experimentJob.invalidValue.head shouldBe "No algorithm defined"
+      experimentJob.invalidValue.size shouldBe 1
     }
 
     "fail in case of a query containing an invalid algorithm" in {
-      val experimentWrapper =
-        system.actorOf(ExperimentFlowWrapper.propsFailingAlgorithm("Algorithm not defined"))
       val experiment    = experimentQuery("invalid-algo", Nil)
       val experimentJob = experimentQuery2job(experiment)
-      experimentJob.isValid shouldBe true
-      val testProbe = TestProbe()
-      testProbe.send(experimentWrapper, experimentJob.toOption.get)
-      testProbe.expectMsgPF(20 seconds, "error") {
-        case response: ExperimentResponse =>
-          println(response)
-          response.result.isEmpty shouldBe true
-      }
-
+      experimentJob.isValid shouldBe false
+      experimentJob.invalidValue.head shouldBe "Missing algorithm"
+      experimentJob.invalidValue.size shouldBe 1
     }
 
-    "complete with success in case of a query containing a failing algorithm" ignore {
+    "complete with an error response in case of a query containing a failing algorithm" ignore {
       val experimentWrapper =
         system.actorOf(ExperimentFlowWrapper.propsFailingAlgorithm("Algorithm execution failed"))
       val experiment    = experimentQuery("knn", Nil)
