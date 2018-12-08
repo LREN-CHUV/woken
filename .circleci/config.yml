@@ -5,7 +5,7 @@ jobs:
   build:
     working_directory: ~/src
     docker:
-      - image: hbpmip/docker-compose-for-ci:17.06-1
+      - image: hbpmip/docker-compose-for-ci:17.06-2
     environment:
        - CIRCLECI: true
     steps:
@@ -29,6 +29,6 @@ jobs:
           name: "Test the project"
           command: |
             PATH=$PATH:/$HOME/.captain/bin/ ./tests/ci.sh --all
-    notify:
-      webhooks:
-      - url: 'https://webhook.atomist.com/atomist/circle'
+  notify:
+    webhooks:
+    - url: 'https://webhook.atomist.com/atomist/circle'
