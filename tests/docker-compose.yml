@@ -255,7 +255,7 @@ services:
       - chronos
 
   wokenvalidation:
-    image: hbpmip/woken-validation:2.5.7
+    image: hbpmip/woken-validation:2.5.8
     ports:
       - "8081:8081"
       - "8082:8082"
