@@ -101,6 +101,7 @@ lazy val library =
       val kamonReporter   = "1.0.0"
       val kamonSystemMetrics = "1.0.0"
       val kamonSigar      = "1.6.6-rev002"
+      val bugsnag         = "3.4.1"
       val swaggerJaxrs    = "1.5.21"
       val swaggerUI       = "3.19.5"
       val sprayJson       = "1.3.5"
@@ -123,6 +124,7 @@ lazy val library =
     }
     object ExclusionRules {
       val excludeLogback = ExclusionRule(organization = "ch.qos.logback", name = "logback-classic")
+      val excludeJackson = ExclusionRule(organization = "com.fasterxml.jackson.core")
     }
     val scalaCheck: ModuleID   = "org.scalacheck"    %% "scalacheck"   % Version.scalaCheck
     val scalaTest: ModuleID    = "org.scalatest"     %% "scalatest"    % Version.scalaTest
@@ -151,6 +153,7 @@ lazy val library =
     val kamonPrometheus: ModuleID = "io.kamon" %% "kamon-prometheus" % Version.kamonPrometheus excludeAll ExclusionRules.excludeLogback
     val kamonZipkin: ModuleID  =  "io.kamon" %% "kamon-zipkin" % Version.kamonReporter excludeAll ExclusionRules.excludeLogback
     val kamonSigar: ModuleID   = "io.kamon"           % "sigar-loader" % Version.kamonSigar
+    val bugsnag: ModuleID      = "com.bugsnag"       % "bugsnag"       % Version.bugsnag excludeAll ExclusionRules.excludeJackson
 
     val swaggerJaxrs: ModuleID  = "io.swagger"        % "swagger-jaxrs" % Version.swaggerJaxrs
     val swaggerUI: ModuleID    = "org.webjars"        % "swagger-ui"   % Version.swaggerUI
@@ -205,10 +208,10 @@ lazy val commonSettings =
     scalacOptions ++= Seq(
       "-unchecked",
       "-deprecation",
-      //"-Xlint", -- disabled due to Scala bug, waiting for 2.12.5
+      "-Xlint",
       "-Yno-adapted-args",
-      //"-Ywarn-dead-code", -- disabled due to Scala bug, waiting for 2.12.5
-      //"-Ywarn-value-discard", -- disabled due to Scala bug, waiting for 2.12.5
+      "-Ywarn-dead-code",
+      "-Ywarn-value-discard",
       "-Ypartial-unification",
       "-language:_",
       "-target:jvm-1.8",
