@@ -35,6 +35,7 @@ import ch.chuv.lren.woken.messages.variables.SqlType
 import ch.chuv.lren.woken.messages.variables.SqlType.SqlType
 import doobie.enum.JdbcType
 import ch.chuv.lren.woken.core.sqlUtils._
+import doobie.util.transactor.Strategy
 
 import scala.language.higherKinds
 
@@ -123,6 +124,8 @@ object FeaturesRepositoryDAO {
 
 abstract class BaseFeaturesTableRepositoryDAO[F[_]: Effect] extends FeaturesTableRepository[F] {
   def xa: Transactor[F]
+
+  implicit val han: LogHandler = LogHandler.jdkLogHandler
 
   protected def defaultDataset: String = table.table.name
 
@@ -382,6 +385,8 @@ object ExtendedFeaturesTableRepositoryDAO {
   ): F[FeaturesTableDescription] = {
 
     implicit val han: LogHandler = LogHandler.jdkLogHandler
+    val setSeed                  = fr"SELECT setseed(" ++ frConst(table.seed) ++ fr");"
+    val seededXa                 = Transactor.strategy.set(xa, Strategy.default.copy(before = setSeed.query.unique))
 
     def createAdditionalFeaturesTable(extTable: FeaturesTableDescription,
                                       pk: TableColumn): ConnectionIO[Int] = {
@@ -404,8 +409,9 @@ object ExtendedFeaturesTableRepositoryDAO {
       // insert into cde_features_a_1 (subjectcode) (select subjectcode from cde_features_a where subjectage > 82 order by random());
       // with win as (select subjectcode, ntile(10) over (order by rnd) as win_1 from cde_features_a_1) update cde_features_a_1 set win_1=win.win_1 from win where cde_features_a_1.subjectcode=win.subjectcode;
 
-      val insertRndStmt = fr"SELECT setseed(" ++ frConst(table.seed) ++ fr""");
-        INSERT INTO """ ++ frName(extTable) ++ fr"(" ++ frNames(List(pk, rndColumn)) ++ fr") (SELECT " ++ frName(
+      val insertRndStmt = fr"INSERT INTO" ++ frName(extTable) ++ fr"(" ++ frNames(
+        List(pk, rndColumn)
+      ) ++ fr") (SELECT " ++ frName(
         pk
       ) ++ fr", random() as rnd FROM " ++
         frName(table) ++ frWhereFilter(filters) ++ fr" ORDER BY rnd);"
@@ -417,8 +423,8 @@ object ExtendedFeaturesTableRepositoryDAO {
       tableNum <- nextTableSeqNumber()
       extTable = table.copy(table = table.table.copy(name = s"${table.table.name}__$tableNum"),
                             validateSchema = false)
-      _ <- createAdditionalFeaturesTable(extTable, pk).transact(xa)
-      _ <- fillAdditionalFeaturesTable(extTable, pk).transact(xa)
+      _ <- createAdditionalFeaturesTable(extTable, pk).transact(seededXa)
+      _ <- fillAdditionalFeaturesTable(extTable, pk).transact(seededXa)
     } yield extTable
 
   }
@@ -433,6 +439,8 @@ object ExtendedFeaturesTableRepositoryDAO {
       rndColumn: TableColumn,
       newFeatures: List[TableColumn]
   ): F[(FeaturesTableDescription, Headers)] = {
+
+    implicit val han: LogHandler = LogHandler.jdkLogHandler
 
     def createFeaturesView(table: FeaturesTableDescription,
                            pk: TableColumn,

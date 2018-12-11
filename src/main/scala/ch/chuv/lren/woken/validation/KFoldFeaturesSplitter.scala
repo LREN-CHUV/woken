@@ -46,7 +46,7 @@ case class KFoldFeaturesSplitterDefinition(override val validation: ValidationSp
       targetTable.copy(table = targetTable.table.copy(name = "win"), datasetColumn = None)
     val stmt = fr"WITH win as (SELECT " ++ frNames(targetTable.primaryKey) ++ fr", ntile(" ++
       frConst(numFolds) ++ fr") over (order by " ++ frName(rndColumn) ++ fr") as win FROM " ++
-      frName(targetTable) ++ fr") UPDATE cde_features_a_1 SET " ++ frName(splitColumn) ++
+      frName(targetTable) ++ fr") UPDATE " ++ frName(winTable) ++ fr"SET " ++ frName(splitColumn) ++
       fr"= win.win FROM win WHERE " ++
       frEqual(targetTable, targetTable.primaryKey, winTable, targetTable.primaryKey) ++ fr";"
     stmt.update
