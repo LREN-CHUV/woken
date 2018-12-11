@@ -411,7 +411,6 @@ object JobResult {
             case JsString(s) => s
             case _ =>
               deserializationError("Expected a string")
-              ""
           }
         )
 

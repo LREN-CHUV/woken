@@ -387,7 +387,7 @@ object ExtendedFeaturesTableRepositoryDAO {
                                       pk: TableColumn): ConnectionIO[Int] = {
       val stmt = fr"CREATE TABLE " ++ frName(extTable) ++ fr"(" ++ frName(pk) ++ frType(pk) ++ fr"PRIMARY KEY," ++
         frName(rndColumn) ++ fr" SERIAL," ++
-        frNameType(newFeatures :+ rndColumn) ++ fr"""
+        frNameType(newFeatures) ++ fr"""
        )
        WITH (
          OIDS=FALSE
@@ -404,11 +404,11 @@ object ExtendedFeaturesTableRepositoryDAO {
       // insert into cde_features_a_1 (subjectcode) (select subjectcode from cde_features_a where subjectage > 82 order by random());
       // with win as (select subjectcode, ntile(10) over (order by rnd) as win_1 from cde_features_a_1) update cde_features_a_1 set win_1=win.win_1 from win where cde_features_a_1.subjectcode=win.subjectcode;
 
-      val insertRndStmt = fr"""SELECT setseed(" ++ frConst(table.seed) ++ fr");
-        INSERT INTO """ ++ frName(extTable) ++ fr"(" ++ frName(rndColumn) ++ fr") (SELECT " ++ frName(
+      val insertRndStmt = fr"SELECT setseed(" ++ frConst(table.seed) ++ fr""");
+        INSERT INTO """ ++ frName(extTable) ++ fr"(" ++ frNames(List(pk, rndColumn)) ++ fr") (SELECT " ++ frName(
         pk
-      ) ++ fr" FROM " ++
-        frName(table) ++ frWhereFilter(filters) ++ fr" ORDER BY random());"
+      ) ++ fr", random() as rnd FROM " ++
+        frName(table) ++ frWhereFilter(filters) ++ fr" ORDER BY rnd);"
 
       insertRndStmt.update.run
     }
