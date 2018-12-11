@@ -65,7 +65,9 @@ trait FeaturesRepository[F[_]] extends Repository {
 trait PrefillExtendedFeaturesTable {
 
   @SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
-  def prefillExtendedTableSql(targetTable: FeaturesTableDescription, rndColumn: TableColumn)(
+  def prefillExtendedTableSql(sourceTable: FeaturesTableDescription,
+                              targetTable: FeaturesTableDescription,
+                              rndColumn: TableColumn)(
       implicit h: LogHandler = LogHandler.nop
   ): Update0
 }

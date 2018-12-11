@@ -285,8 +285,8 @@ class ExtendedFeaturesTableRepositoryDAO[F[_]: Effect] private (
   override protected def defaultDataset: String = sourceTable.table.table.name
 
   def close(): F[Unit] = {
-    val rmView     = fr"DELETE VIEW " ++ frName(view)
-    val rmDynTable = fr"DELETE TABLE " ++ frName(extTable)
+    val rmView     = fr"DROP VIEW IF EXISTS " ++ frName(view)
+    val rmDynTable = fr"DROP TABLE IF EXISTS " ++ frName(extTable)
 
     for {
       _ <- rmView.update.run.transact(xa)
@@ -315,7 +315,8 @@ object ExtendedFeaturesTableRepositoryDAO {
       nextTableSeqNumber: () => F[Int]
   ): Validation[Resource[F, FeaturesTableRepository[F]]] = {
 
-    val xa = sourceTable.xa
+    implicit val han: LogHandler = LogHandler.jdkLogHandler
+    val xa                       = sourceTable.xa
     val extractPk: Validation[TableColumn] = sourceTable.table.primaryKey match {
       case pk :: Nil => pk.validNel[String]
       case _ =>
@@ -337,7 +338,8 @@ object ExtendedFeaturesTableRepositoryDAO {
                                           newColumns,
                                           nextTableSeqNumber)
       extTableF.flatMap { extTable =>
-        val extTableUpdates = prefills.map(_.prefillExtendedTableSql(extTable, rndColumn))
+        val extTableUpdates =
+          prefills.map(_.prefillExtendedTableSql(sourceTable.table, extTable, rndColumn))
 
         extTableUpdates
           .map(_.run.transact(xa))

@@ -51,14 +51,18 @@ trait FeaturesSplitterDefinition extends PrefillExtendedFeaturesTable {
   def splitColumn: TableColumn
 
   @SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
-  def fillSplitColumnSql(targetTable: FeaturesTableDescription, rndColumn: TableColumn)(
+  def fillSplitColumnSql(sourceTable: FeaturesTableDescription,
+                         targetTable: FeaturesTableDescription,
+                         rndColumn: TableColumn)(
       implicit h: LogHandler = LogHandler.nop
   ): Update0
 
-  override final def prefillExtendedTableSql(targetTable: FeaturesTableDescription,
+  @SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
+  override final def prefillExtendedTableSql(sourceTable: FeaturesTableDescription,
+                                             targetTable: FeaturesTableDescription,
                                              rndColumn: TableColumn)(
       implicit h: LogHandler = LogHandler.nop
-  ): Update0 = fillSplitColumnSql(targetTable, rndColumn)
+  ): Update0 = fillSplitColumnSql(sourceTable, targetTable, rndColumn)
 
   def makeSplitter[F[_]: Effect](targetTable: FeaturesTableService[F]): FeaturesSplitter[F]
 

@@ -38,17 +38,16 @@ case class KFoldFeaturesSplitterDefinition(override val validation: ValidationSp
 
   @SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
   override def fillSplitColumnSql(
+      sourceTable: FeaturesTableDescription,
       targetTable: FeaturesTableDescription,
       rndColumn: TableColumn
   )(implicit h: LogHandler = LogHandler.nop): Update0 = {
 
-    val winTable =
-      targetTable.copy(table = targetTable.table.copy(name = "win"), datasetColumn = None)
     val stmt = fr"WITH win as (SELECT " ++ frNames(targetTable.primaryKey) ++ fr", ntile(" ++
       frConst(numFolds) ++ fr") over (order by " ++ frName(rndColumn) ++ fr") as win FROM " ++
-      frName(targetTable) ++ fr") UPDATE " ++ frName(winTable) ++ fr"SET " ++ frName(splitColumn) ++
+      frName(targetTable) ++ fr") UPDATE " ++ frName(targetTable) ++ fr"SET " ++ frName(splitColumn) ++
       fr"= win.win FROM win WHERE " ++
-      frEqual(targetTable, targetTable.primaryKey, winTable, targetTable.primaryKey) ++ fr";"
+      frEqual(targetTable, targetTable.primaryKey, targetTable, targetTable.primaryKey) ++ fr";"
     stmt.update
   }
 
