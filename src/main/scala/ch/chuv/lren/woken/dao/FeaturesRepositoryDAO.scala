@@ -41,13 +41,14 @@ import scala.language.higherKinds
 class FeaturesRepositoryDAO[F[_]: Effect] private (
     val xa: Transactor[F],
     override val database: String,
-    override val tables: Set[FeaturesTableDescription]
+    override val tables: Set[FeaturesTableDescription],
+    val wokenRepository: WokenRepository[F]
 ) extends FeaturesRepository[F] {
 
   override def featuresTable(table: TableId): F[Option[FeaturesTableRepository[F]]] =
     tables
       .find(_.table.same(table))
-      .map(t => FeaturesTableRepositoryDAO[F](xa, t))
+      .map(t => FeaturesTableRepositoryDAO[F](xa, t, wokenRepository))
       .sequence
 }
 
@@ -56,7 +57,8 @@ object FeaturesRepositoryDAO {
   def apply[F[_]: Effect](
       xa: Transactor[F],
       database: String,
-      tables: Set[FeaturesTableDescription]
+      tables: Set[FeaturesTableDescription],
+      wokenRepository: WokenRepository[F]
   ): F[Validation[FeaturesRepositoryDAO[F]]] = {
 
     case class Check(schema: String, table: String, column: String)
@@ -111,7 +113,7 @@ object FeaturesRepositoryDAO {
       .map(_.flatten)
 
     errors.map {
-      case Nil                 => new FeaturesRepositoryDAO(xa, database, tables).validNel[String]
+      case Nil                 => new FeaturesRepositoryDAO(xa, database, tables, wokenRepository).validNel[String]
       case error :: moreErrors => Validated.Invalid(NonEmptyList(error, moreErrors))
     }
 
@@ -200,7 +202,8 @@ abstract class BaseFeaturesTableRepositoryDAO[F[_]: Effect] extends FeaturesTabl
 class FeaturesTableRepositoryDAO[F[_]: Effect] private (
     override val xa: Transactor[F],
     override val table: FeaturesTableDescription,
-    override val columns: FeaturesTableRepository.Headers
+    override val columns: FeaturesTableRepository.Headers,
+    val wokenRepository: WokenRepository[F]
 ) extends BaseFeaturesTableRepositoryDAO[F] {
 
   override def createExtendedFeaturesTable(
@@ -209,18 +212,24 @@ class FeaturesTableRepositoryDAO[F[_]: Effect] private (
       otherColumns: List[TableColumn],
       prefills: List[PrefillExtendedFeaturesTable]
   ): Validation[Resource[F, FeaturesTableRepository[F]]] =
-    ExtendedFeaturesTableRepositoryDAO(this, filters, newFeatures, otherColumns, prefills)
+    ExtendedFeaturesTableRepositoryDAO(this,
+                                       filters,
+                                       newFeatures,
+                                       otherColumns,
+                                       prefills,
+                                       wokenRepository.nextTableSeqNumber)
 
 }
 
 object FeaturesTableRepositoryDAO {
 
   def apply[F[_]: Effect](xa: Transactor[F],
-                          table: FeaturesTableDescription): F[FeaturesTableRepository[F]] =
+                          table: FeaturesTableDescription,
+                          wokenRepository: WokenRepository[F]): F[FeaturesTableRepository[F]] =
     HC.prepareStatement(s"SELECT * FROM ${table.quotedName}")(prepareHeaders)
       .transact(xa)
       .map { headers =>
-        new FeaturesTableRepositoryDAO(xa, table, headers)
+        new FeaturesTableRepositoryDAO(xa, table, headers, wokenRepository)
       }
 
   private[dao] def prepareHeaders: PreparedStatementIO[Headers] =
@@ -299,7 +308,8 @@ object ExtendedFeaturesTableRepositoryDAO {
       filters: Option[FilterRule],
       newFeatures: List[TableColumn],
       otherColumns: List[TableColumn],
-      prefills: List[PrefillExtendedFeaturesTable]
+      prefills: List[PrefillExtendedFeaturesTable],
+      nextTableSeqNumber: () => F[Int]
   ): Validation[Resource[F, FeaturesTableRepository[F]]] = {
 
     val xa = sourceTable.xa
@@ -316,7 +326,13 @@ object ExtendedFeaturesTableRepositoryDAO {
 
     val validatedDao = extractPk.map { pk =>
       // Work in context F
-      val extTableF = createExtendedTable(xa, sourceTable.table, pk, filters, rndColumn, newColumns)
+      val extTableF = createExtendedTable(xa,
+                                          sourceTable.table,
+                                          pk,
+                                          filters,
+                                          rndColumn,
+                                          newColumns,
+                                          nextTableSeqNumber)
       extTableF.flatMap { extTable =>
         val extTableUpdates = prefills.map(_.prefillExtendedTableSql(extTable, rndColumn))
 
@@ -361,20 +377,17 @@ object ExtendedFeaturesTableRepositoryDAO {
       pk: TableColumn,
       filters: Option[FilterRule],
       rndColumn: TableColumn,
-      newFeatures: List[TableColumn]
+      newFeatures: List[TableColumn],
+      nextTableSeqNumber: () => F[Int]
   ): F[FeaturesTableDescription] = {
 
     implicit val han: LogHandler = LogHandler.jdkLogHandler
-
-    val genTableNum = sql"""
-      SELECT nextval('gen_features_table_seq');
-    """.query[Int].unique
 
     def createAdditionalFeaturesTable(extTable: FeaturesTableDescription,
                                       pk: TableColumn): ConnectionIO[Int] = {
       val stmt = fr"CREATE TABLE " ++ frName(extTable) ++ fr"(" ++ frName(pk) ++ frType(pk) ++ fr" PRIMARY KEY," ++
         frName(rndColumn) ++ fr" SERIAL," ++
-        frNameType(newFeatures :+ rndColumn) ++ fr""")
+        frNameType(newFeatures :+ rndColumn) ++ fr"""
        )
        WITH (
          OIDS=FALSE
@@ -401,7 +414,7 @@ object ExtendedFeaturesTableRepositoryDAO {
     }
 
     for {
-      tableNum <- genTableNum.transact(xa)
+      tableNum <- nextTableSeqNumber()
       extTable = table.copy(table = table.table.copy(name = s"${table.table.name}__$tableNum"),
                             validateSchema = false)
       _ <- createAdditionalFeaturesTable(extTable, pk).transact(xa)

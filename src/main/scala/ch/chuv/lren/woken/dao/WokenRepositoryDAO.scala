@@ -35,6 +35,12 @@ import scala.util.Try
 
 case class WokenRepositoryDAO[F[_]: Monad](xa: Transactor[F]) extends WokenRepository[F] {
 
+  private val genTableNum = sql"""
+      SELECT nextval('gen_features_table_seq');
+    """.query[Int].unique
+
+  override def nextTableSeqNumber(): F[Int] = genTableNum.transact(xa)
+
   override val jobResults: JobResultRepositoryDAO[F] = new JobResultRepositoryDAO[F](xa)
 
 }

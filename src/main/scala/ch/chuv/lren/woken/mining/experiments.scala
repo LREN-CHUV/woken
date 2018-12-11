@@ -44,7 +44,8 @@ import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.language.higherKinds
-import scala.util.{ Failure, Success }
+import scala.util.control.NonFatal
+import scala.util.{ Failure, Success, Try }
 
 /**
   * We use the companion object to hold all the messages that the ``ExperimentActor`` receives.
@@ -130,9 +131,11 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
           completeWithError(job, msg, initiator, replyTo)
         }, {
           case (featuresTableService, splitterDefs) =>
-            if (splitterDefs.isEmpty)
-              executeExperimentFlow(job, Nil, featuresTableService, thisActor, initiator, replyTo)
-            else
+            if (splitterDefs.isEmpty) {
+              // Discard returned future as the flow is already handled with completeExperiment()
+              val _ =
+                executeExperimentFlow(job, Nil, featuresTableService, thisActor, initiator, replyTo)
+            } else
               featuresTableService
                 .createExtendedFeaturesTable(job.query.filters,
                                              Nil,
@@ -238,7 +241,7 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
     context stop self
   }
 
-  private def completeExperiment(job: ExperimentActor.Job,
+  private def completeExperiment(job: ExperimentJob,
                                  responseF: Future[Response],
                                  thisActor: ActorRef,
                                  initiator: ActorRef,
@@ -262,12 +265,17 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
       }
       .onComplete { _ =>
         logger.info("Stopping experiment...")
-        context stop thisActor
+        Try {
+          context stop thisActor
+        }.recover {
+          case NonFatal(e) =>
+            logger.error("Cannot shutdown cleanly Experiment actor", e)
+        }
       }
 }
 
 object ExperimentFlow {
-  case class JobForAlgorithmPreparation(job: ExperimentActor.Job,
+  case class JobForAlgorithmPreparation(job: ExperimentJob,
                                         algorithmSpec: AlgorithmSpec,
                                         algorithmDefinition: AlgorithmDefinition,
                                         validations: List[ValidationSpec]) {

@@ -17,6 +17,8 @@
 
 package ch.chuv.lren.woken.dao
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import cats._
 import cats.implicits._
 import ch.chuv.lren.woken.core.model.jobs.JobResult
@@ -25,9 +27,16 @@ import scala.collection.concurrent.TrieMap
 import scala.language.higherKinds
 
 /**
-  * The interface to Woken database
+  * The interface to Woken database.
+  *
+  * This database contains internal tables and functions
   */
 trait WokenRepository[F[_]] extends Repository {
+
+  /**
+    * Generate a new sequence number used when generating table names
+    */
+  def nextTableSeqNumber(): F[Int]
 
   def jobResults: JobResultRepository[F]
 
@@ -45,6 +54,13 @@ trait JobResultRepository[F[_]] extends Repository {
 }
 
 class WokenInMemoryRepository[F[_]: Applicative] extends WokenRepository[F] {
+
+  private val seq = new AtomicInteger()
+
+  /**
+    * Generate a new sequence number used when generating table names
+    */
+  override def nextTableSeqNumber(): F[Int] = seq.incrementAndGet().pure[F]
 
   override val jobResults: JobResultRepository[F] = new JobResultRepository[F] {
 

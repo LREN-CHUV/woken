@@ -23,7 +23,12 @@ import cats.effect._
 import cats.implicits._
 import ch.chuv.lren.woken.config.{ DatabaseConfiguration, WokenConfiguration, configurationFailed }
 import ch.chuv.lren.woken.core.model.database.TableId
-import ch.chuv.lren.woken.dao.{ FeaturesRepositoryDAO, MetadataRepositoryDAO, WokenRepositoryDAO }
+import ch.chuv.lren.woken.dao.{
+  FeaturesRepositoryDAO,
+  MetadataRepositoryDAO,
+  WokenRepository,
+  WokenRepositoryDAO
+}
 import com.typesafe.scalalogging.Logger
 import doobie.hikari.HikariTransactor
 import org.slf4j.LoggerFactory
@@ -114,14 +119,23 @@ object DatabaseServices {
     } yield Transactors[F](featuresTransactor, resultsTransactor, metaTransactor)
 
     transactors.flatMap { t =>
-      val fsIO: F[FeaturesService[F]] = mkService(t.featuresTransactor, config.featuresDb) { xa =>
-        FeaturesRepositoryDAO(xa, config.featuresDb.database, config.featuresDb.tables).map {
-          _.map { FeaturesService.apply[F] }
-        }
-      }.map(_.valueOr(configurationFailed))
+      val wokenIO: F[WokenRepository[F]] = mkService(t.resultsTransactor, config.resultsDb) { xa =>
+        Sync[F].delay(WokenRepositoryDAO(xa))
+      }
 
-      val jrsIO: F[JobResultService[F]] = mkService(t.resultsTransactor, config.resultsDb) { xa =>
-        Sync[F].delay(JobResultService(WokenRepositoryDAO(xa).jobResults))
+      val jrsIO: F[JobResultService[F]] = wokenIO.map { wokenRepository =>
+        JobResultService(wokenRepository.jobResults)
+      }
+
+      val fsIO: F[FeaturesService[F]] = wokenIO.flatMap { wokenRepository =>
+        mkService(t.featuresTransactor, config.featuresDb) { xa =>
+          FeaturesRepositoryDAO(xa,
+                                config.featuresDb.database,
+                                config.featuresDb.tables,
+                                wokenRepository).map {
+            _.map { FeaturesService.apply[F] }
+          }
+        }.map(_.valueOr(configurationFailed))
       }
 
       val vmsIO: F[VariablesMetaService[F]] = mkService(t.metaTransactor, config.metaDb) { xa =>
