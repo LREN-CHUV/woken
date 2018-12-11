@@ -112,6 +112,13 @@ trait FeaturesTableRepository[F[_]] extends Repository {
   def count(filters: Option[FilterRule]): F[Int]
 
   /**
+    * Number of rows grouped by a reference column
+    *
+    * @return a map containing the number of rows for each value of the group by column
+    */
+  def countGroupBy(groupByColumn: TableColumn, filters: Option[FilterRule]): F[Map[String, Int]]
+
+  /**
     * @return all headers of the table
     */
   def columns: Headers
@@ -189,6 +196,18 @@ class FeaturesTableInMemoryRepository[F[_]: Applicative](val tableId: TableId,
   override def count(filters: Option[FilterRule]): F[Int] = filters.fold(count) { f =>
     filter(dataFeatures, f).size.pure[F]
   }
+
+  override def countGroupBy(groupByColumn: TableColumn,
+                            filters: Option[FilterRule]): F[Map[String, Int]] =
+    filters.fold(countGroupBy(dataFeatures, groupByColumn)) { f =>
+      countGroupBy(filter(dataFeatures, f), groupByColumn)
+    }
+
+  private def countGroupBy(data: List[JsObject], groupByColumn: TableColumn): F[Map[String, Int]] =
+    data
+      .groupBy(row => row.fields.getOrElse(groupByColumn.name, JsString("")).convertTo[String])
+      .mapValues(_.size)
+      .pure[F]
 
   @SuppressWarnings(Array("org.wartremover.warts.Throw", "org.wartremover.warts.TraversableOps"))
   private def filter(data: List[JsObject], filters: FilterRule): List[JsObject] = filters match {

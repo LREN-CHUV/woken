@@ -198,7 +198,7 @@ object DatabaseConfiguration {
     for {
       test <- sql"select 1".query[Int].unique.transact(xa)
     } yield {
-      if (test != 1) "Cannot connect to $dbConfig.jdbcUrl".invalidNel[HikariTransactor[F]]
+      if (test != 1) s"Cannot connect to $dbConfig.jdbcUrl".invalidNel[HikariTransactor[F]]
       else xa.validNel[String]
     }
 }

@@ -69,7 +69,7 @@ object sqlUtils {
   import ch.chuv.lren.woken.messages.variables.{ SqlType => SqlT }
   def toSql(sqlType: SqlType): String = sqlType match {
     case SqlT.int     => "int"
-    case SqlT.numeric => "number"
+    case SqlT.numeric => "numeric"
     case SqlT.char    => "char(256)"
     case SqlT.varchar => "varchar(256)"
   }

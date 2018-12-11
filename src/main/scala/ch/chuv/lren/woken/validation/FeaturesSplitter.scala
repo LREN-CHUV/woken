@@ -46,6 +46,8 @@ trait FeaturesSplitter[F[_]] {
 
 trait FeaturesSplitterDefinition extends PrefillExtendedFeaturesTable {
 
+  def numFolds: Int
+
   def validation: ValidationSpec
 
   def splitColumn: TableColumn

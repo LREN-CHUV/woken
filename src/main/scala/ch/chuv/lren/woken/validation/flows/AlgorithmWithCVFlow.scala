@@ -100,7 +100,7 @@ case class AlgorithmWithCVFlow[F[_]: Effect](
         import GraphDSL.Implicits._
 
         // prepare graph elements
-        val broadcast = builder.add(Broadcast[AlgorithmWithCVFlow.Job[F]](2))
+        val broadcast = builder.add(Broadcast[AlgorithmWithCVFlow.Job[F]](outputPorts = 2))
         val zip       = builder.add(Zip[CoordinatorActor.Response, ValidationResults]())
         val response  = builder.add(buildResponse)
 

@@ -51,11 +51,35 @@ trait FeaturesTableService[F[_]] {
 
   def table: FeaturesTableDescription
 
+  /**
+    * Total number of rows in the table
+    *
+    * @return number of rows
+    */
   def count: F[Int]
 
+  /**
+    * Number of rows belonging to the dataset.
+    *
+    * @param dataset The dataset used to filter rows
+    * @return the number of rows in the dataset, 0 if dataset is not associated with the table
+    */
   def count(dataset: DatasetId): F[Int]
 
+  /**
+    * Number of rows matching the filters.
+    *
+    * @param filters The filters used to filter rows
+    * @return the number of rows in the dataset matching the filters, or the total number of rows if there are no filters
+    */
   def count(filters: Option[FilterRule]): F[Int]
+
+  /**
+    * Number of rows grouped by a reference column
+    *
+    * @return a map containing the number of rows for each value of the group by column
+    */
+  def countGroupBy(groupByColumn: TableColumn, filters: Option[FilterRule]): F[Map[String, Int]]
 
   type Headers = List[TableColumn]
 
@@ -106,6 +130,15 @@ class FeaturesTableServiceImpl[F[_]: Effect](repository: FeaturesTableRepository
   def count(dataset: DatasetId): F[Int] = repository.count(dataset)
 
   def count(filters: Option[FilterRule]): F[Int] = repository.count(filters)
+
+  /**
+    * Number of rows grouped by a reference column
+    *
+    * @return a map containing the number of rows for each value of the group by column
+    */
+  override def countGroupBy(groupByColumn: TableColumn,
+                            filters: Option[FilterRule]): F[Map[String, Int]] =
+    repository.countGroupBy(groupByColumn, filters)
 
   def features(query: FeaturesQuery): F[(Headers, Stream[JsObject])] = repository.features(query)
 

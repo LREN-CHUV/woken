@@ -30,7 +30,8 @@ import doobie.implicits._
 
 import scala.language.higherKinds
 
-case class KFoldFeaturesSplitterDefinition(override val validation: ValidationSpec, numFolds: Int)
+case class KFoldFeaturesSplitterDefinition(override val validation: ValidationSpec,
+                                           override val numFolds: Int)
     extends FeaturesSplitterDefinition {
 
   override val splitColumn: TableColumn =

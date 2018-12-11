@@ -24,6 +24,8 @@ import akka.NotUsed
 import akka.actor.{ Actor, ActorContext, ActorRef, Props }
 import akka.stream._
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Merge, Partition, Sink, Source, ZipWith }
+import cats.Monoid
+import cats.data.NonEmptyList
 import cats.data.Validated._
 import cats.effect.Effect
 import cats.implicits._
@@ -125,6 +127,8 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
           defineSplitters(job.query.validations)
         } else Nil.validNel[String]
 
+      // TODO: validate the folds
+
       ((featuresTableServiceV, splitterDefsV) mapN Tuple2.apply).fold(
         err => {
           val msg = s"""Invalid definition of validations: ${err.mkString_("", ",", "")}"""
@@ -132,51 +136,15 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
         }, {
           case (featuresTableService, splitterDefs) =>
             if (splitterDefs.isEmpty) {
-              // Discard returned future as the flow is already handled with completeExperiment()
-              val _ =
-                executeExperimentFlow(job, Nil, featuresTableService, thisActor, initiator, replyTo)
+              val future = executeExperimentFlow(job, Nil, featuresTableService, initiator)
+              completeExperiment(job, future, thisActor, initiator, replyTo)
             } else
-              featuresTableService
-                .createExtendedFeaturesTable(job.query.filters,
-                                             Nil,
-                                             splitterDefs.map(_.splitColumn),
-                                             splitterDefs)
-                .fold(
-                  err => {
-                    val msg =
-                      s"""Invalid definition of extended features table: ${err
-                        .mkString_("", ",", "")}"""
-                    completeWithError(job, msg, initiator, replyTo)
-                  },
-                  extendedFeaturesTableR => {
-                    val task = extendedFeaturesTableR.use[Unit] {
-                      extendedFeaturesTable =>
-                        val splitters = splitterDefs.map {
-                          FeaturesSplitter(_, extendedFeaturesTable)
-                        }
-
-                        val extTable = extendedFeaturesTable.table.table
-                        val extendedJob = job.copy(
-                          inputTable = extTable,
-                          query = job.query.copy(targetTable = Some(extTable.name))
-                        )
-
-                        val future = executeExperimentFlow(extendedJob,
-                                                           splitters,
-                                                           extendedFeaturesTable,
-                                                           thisActor,
-                                                           initiator,
-                                                           replyTo)
-
-                        Effect[F].async[Unit] { cb =>
-                          // Success and failure cases have been already handled
-                          future.onSuccess { case _   => cb(Right(())) }
-                          future.onFailure { case err => cb(Left(err)) }
-                        }
-                    }
-                    Effect[F].toIO(task).unsafeRunSync()
-                  }
-                )
+              executeExtendedExperimentFlow(job,
+                                            splitterDefs,
+                                            featuresTableService,
+                                            thisActor,
+                                            initiator,
+                                            replyTo)
         }
       )
 
@@ -185,12 +153,104 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
       context stop self
   }
 
+  private def executeExtendedExperimentFlow(
+      job: ExperimentJob,
+      splitterDefs: List[FeaturesSplitterDefinition],
+      featuresTableService: FeaturesTableService[F],
+      thisActor: ActorRef,
+      initiator: ActorRef,
+      replyTo: ActorRef
+  ): Unit =
+    featuresTableService
+      .createExtendedFeaturesTable(job.query.filters,
+                                   Nil,
+                                   splitterDefs.map(_.splitColumn),
+                                   splitterDefs)
+      .fold(
+        err => {
+          val msg =
+            s"""Invalid definition of extended features table: ${err
+              .mkString_("", ",", "")}"""
+          completeWithError(job, msg, initiator, replyTo)
+        },
+        extendedFeaturesTableR => {
+          val task = extendedFeaturesTableR.use[Unit] {
+            extendedFeaturesTable =>
+              val splitters = splitterDefs.map {
+                FeaturesSplitter(_, extendedFeaturesTable)
+              }
+
+              val extTable = extendedFeaturesTable.table.table
+              val extendedJob = job.copy(
+                inputTable = extTable,
+                query = job.query.copy(targetTable = Some(extTable.name))
+              )
+
+              validateFolds(extendedJob, splitterDefs, extendedFeaturesTable).map {
+                case Left(err) =>
+                  val msg =
+                    s"""Invalid folding of extended features table: ${err
+                      .mkString_("", ",", "")}"""
+                  completeWithError(job, msg, initiator, replyTo)
+                case Right(_) =>
+                  val future =
+                    executeExperimentFlow(extendedJob, splitters, extendedFeaturesTable, initiator)
+                  completeExperiment(job, future, thisActor, initiator, replyTo)
+              }
+          }
+          Effect[F]
+            .toIO(task)
+            .attempt
+            .unsafeRunSync()
+            .fold(
+              err => completeWithError(job, err.toString, initiator, replyTo),
+              _ => ()
+            )
+        }
+      )
+
+  private def validateFolds(
+      job: Job,
+      splitterDefs: List[FeaturesSplitterDefinition],
+      extendedFeaturesTable: FeaturesTableService[F]
+  ): F[Either[NonEmptyList[String], Unit]] = {
+    implicit val FPlus: Monoid[Either[NonEmptyList[String], Unit]] =
+      new Monoid[Either[NonEmptyList[String], Unit]] {
+        def empty: Either[NonEmptyList[String], Unit] = ().rightNel[String]
+        def combine(
+            x: Either[NonEmptyList[String], Unit],
+            y: Either[NonEmptyList[String], Unit]
+        ): Either[NonEmptyList[String], Unit] =
+          x.combine(y)
+      }
+
+    splitterDefs
+      .map { splitterDef =>
+        extendedFeaturesTable
+          .countGroupBy(splitterDef.splitColumn, job.query.filters)
+          .map(counts => (splitterDef, counts))
+      }
+      .sequence
+      .map[Either[NonEmptyList[String], Unit]] { ldc =>
+        Monoid.combineAll(ldc.map {
+          case (splitterDef, counts) =>
+            if (splitterDef.numFolds != counts.size)
+              s"Expected ${splitterDef.numFolds} folds, got ${counts.size}".leftNel[Unit]
+            else {
+              Monoid.combineAll(
+                counts
+                  .filter(_._2 == 0)
+                  .map { case (value, _) => s"Fold $value has no data".leftNel[Unit] }
+              )
+            }
+        })
+      }
+  }
+
   private def executeExperimentFlow(job: Job,
                                     splitters: List[FeaturesSplitter[F]],
                                     featuresTableService: FeaturesTableService[F],
-                                    thisActor: ActorRef,
-                                    initiator: ActorRef,
-                                    replyTo: ActorRef): Future[Response] = {
+                                    initiator: ActorRef): Future[Response] = {
     val algorithms = job.query.algorithms
     val experimentFlow: Flow[Job, Map[AlgorithmSpec, JobResult], NotUsed] =
       ExperimentFlow(
@@ -202,7 +262,7 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
         context
       ).flow
 
-    val future: Future[Response] = Source
+    Source
       .single(job)
       .via(experimentFlow)
       .map { results =>
@@ -221,10 +281,6 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
         Response(job, Right(pfa), initiator)
       }
       .runWith(Sink.head)
-
-    completeExperiment(job, future, thisActor, initiator, replyTo)
-
-    future
   }
 
   private def completeWithError(job: Job,

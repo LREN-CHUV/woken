@@ -162,6 +162,21 @@ abstract class BaseFeaturesTableRepositoryDAO[F[_]: Effect] extends FeaturesTabl
       .transact(xa)
   }
 
+  /**
+    * Number of rows grouped by a reference column
+    *
+    * @return a map containing the number of rows for each value of the group by column
+    */
+  override def countGroupBy(groupByColumn: TableColumn,
+                            filters: Option[FilterRule]): F[Map[String, Int]] = {
+    val q: Fragment = fr"SELECT " ++ frName(groupByColumn) ++ fr", count(*) FROM " ++
+      frName(table) ++ frWhereFilter(filters) ++ fr" GROUP BY " ++ frName(groupByColumn)
+    q.query[(String, Int)]
+      .to[List]
+      .transact(xa)
+      .map(_.toMap)
+  }
+
   import FeaturesTableRepositoryDAO.{ prepareHeaders, toJsValue }
 
   @SuppressWarnings(Array("org.wartremover.warts.Null"))
@@ -325,7 +340,7 @@ object ExtendedFeaturesTableRepositoryDAO {
           .invalidNel[TableColumn]
     }
 
-    val rndColumn  = TableColumn("_rnd", SqlType.int)
+    val rndColumn  = TableColumn("_rnd", SqlType.numeric)
     val newColumns = newFeatures ++ otherColumns
 
     val validatedDao = extractPk.map { pk =>
@@ -393,8 +408,7 @@ object ExtendedFeaturesTableRepositoryDAO {
     def createAdditionalFeaturesTable(extTable: FeaturesTableDescription,
                                       pk: TableColumn): ConnectionIO[Int] = {
       val stmt = fr"CREATE TABLE " ++ frName(extTable) ++ fr"(" ++ frName(pk) ++ frType(pk) ++ fr"PRIMARY KEY," ++
-        frName(rndColumn) ++ fr" SERIAL," ++
-        frNameType(newFeatures) ++ fr"""
+        frNameType(newFeatures :+ rndColumn) ++ fr"""
        )
        WITH (
          OIDS=FALSE
@@ -413,9 +427,8 @@ object ExtendedFeaturesTableRepositoryDAO {
 
       val insertRndStmt = fr"INSERT INTO" ++ frName(extTable) ++ fr"(" ++ frNames(
         List(pk, rndColumn)
-      ) ++ fr") (SELECT " ++ frName(
-        pk
-      ) ++ fr", random() as rnd FROM " ++
+      ) ++ fr") (SELECT " ++ frName(pk) ++
+        fr", random() as " ++ frName(rndColumn) ++ fr" FROM " ++
         frName(table) ++ frWhereFilter(filters) ++ fr" ORDER BY rnd);"
 
       insertRndStmt.update.run
