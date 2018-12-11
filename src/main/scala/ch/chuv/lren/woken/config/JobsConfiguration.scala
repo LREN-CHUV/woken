@@ -48,6 +48,7 @@ final case class JobsConfiguration(
 
 object JobsConfiguration {
 
+  @SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
   def read(config: Config, path: List[String] = List("jobs")): Validation[JobsConfiguration] = {
     val jobsConfig = config.validateConfig(path.mkString("."))
 

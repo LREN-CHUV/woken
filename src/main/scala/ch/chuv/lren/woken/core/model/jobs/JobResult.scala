@@ -63,6 +63,7 @@ object PfaJobResult {
   * @param algorithm Name of the algorithm
   * @param rawModel PFA model, without validations that are injected dynamically. The full model can be retrived by the method `model`
   */
+@SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
 case class PfaJobResult(jobId: String,
                         node: String,
                         timestamp: OffsetDateTime,
@@ -137,6 +138,7 @@ case class PfaJobResult(jobId: String,
   * @param timestamp Date of execution
   * @param results List of models produced by the experiment
   */
+@SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
 case class ExperimentJobResult(jobId: String,
                                node: String,
                                results: Map[AlgorithmSpec, JobResult],

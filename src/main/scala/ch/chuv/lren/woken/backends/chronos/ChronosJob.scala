@@ -83,11 +83,13 @@ case class Volume(
 
 case class PortMapping(hostPort: Int, containerPort: Int, protocol: Option[String])
 
+@SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
 case class Network(name: String,
                    protocol: Option[ProtocolType] = None,
                    labels: List[Label] = Nil,
                    portMappings: List[PortMapping] = Nil)
 
+@SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
 case class Container(
     `type`: ContainerType,
     image: String,
@@ -129,6 +131,7 @@ case class EnvironmentVariable(
   * @param owner The email address of the person responsible for the job
   * @param environmentVariables An array of environment variables passed to the Mesos executor. For Docker containers, these are also passed to Docker using the -e flag
   */
+@SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
 case class ChronosJob(
     name: String,
     description: Option[String] = None,

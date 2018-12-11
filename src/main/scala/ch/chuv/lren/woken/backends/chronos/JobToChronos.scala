@@ -25,6 +25,7 @@ import cats.implicits._
 
 object JobToChronos {
 
+  @SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
   private[this] def dbEnvironment(conf: DatabaseConfiguration,
                                   prefix: String = ""): List[EnvironmentVariable] =
     List(

@@ -45,7 +45,7 @@ object ChronosJobLiveliness extends DefaultJsonProtocol {
       case JsString(x) =>
         Some(OffsetDateTime.parse(x))
       case unknown =>
-        deserializationError("Expected OffsetDateTime as JsNumber, but got " + unknown)
+        deserializationError(s"Expected OffsetDateTime as JsNumber, but got $unknown")
     }
   }
 

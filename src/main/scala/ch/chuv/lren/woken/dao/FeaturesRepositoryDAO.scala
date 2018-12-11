@@ -385,7 +385,7 @@ object ExtendedFeaturesTableRepositoryDAO {
 
     def createAdditionalFeaturesTable(extTable: FeaturesTableDescription,
                                       pk: TableColumn): ConnectionIO[Int] = {
-      val stmt = fr"CREATE TABLE " ++ frName(extTable) ++ fr"(" ++ frName(pk) ++ frType(pk) ++ fr" PRIMARY KEY," ++
+      val stmt = fr"CREATE TABLE " ++ frName(extTable) ++ fr"(" ++ frName(pk) ++ frType(pk) ++ fr"PRIMARY KEY," ++
         frName(rndColumn) ++ fr" SERIAL," ++
         frNameType(newFeatures :+ rndColumn) ++ fr"""
        )
