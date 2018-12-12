@@ -59,11 +59,15 @@ object sqlUtils {
               table2: FeaturesTableDescription,
               cols2: List[TableColumn]): Fragment = {
     assert(cols1.size == cols2.size, "Lists should have the same size")
+    val frEmpty = fr""
     cols1
       .map(frQualifiedName(table1, _))
       .zip(cols2.map(frQualifiedName(table2, _)))
-      .map { case (c1, c2) => c1 ++ fr" = " ++ c2 }
-      .foldRight(fr"")(_ ++ _)
+      .map { case (c1, c2) => c1 ++ fr"=" ++ c2 }
+      .foldRight(frEmpty) {
+        case (start, rest) if rest == frEmpty => start
+        case (start, rest)                    => start ++ fr"AND" ++ rest
+      }
   }
 
   import ch.chuv.lren.woken.messages.variables.{ SqlType => SqlT }
