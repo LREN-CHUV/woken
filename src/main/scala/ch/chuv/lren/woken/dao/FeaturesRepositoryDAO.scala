@@ -20,10 +20,10 @@ package ch.chuv.lren.woken.dao
 import doobie._
 import doobie.implicits._
 import spray.json._
-import cats.data.{NonEmptyList, Validated}
-import cats.effect.{Effect, Resource}
+import cats.data.{ NonEmptyList, Validated }
+import cats.effect.{ Effect, Resource }
 import cats.implicits._
-import ch.chuv.lren.woken.core.model.{FeaturesTableDescription, TableColumn}
+import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model
 import ch.chuv.lren.woken.core.model.database.TableId
@@ -188,7 +188,7 @@ abstract class BaseFeaturesTableRepositoryDAO[F[_]: Effect] extends FeaturesTabl
         (h, d.map { row =>
           val fields = row.mapWithIndex {
             case (o, i) =>
-              h(i).name -> toJsValue(o)
+              h(i).name -> toJsValue(o, h(i).name)
           }
           JsObject(fields: _*)
         })
@@ -198,7 +198,7 @@ abstract class BaseFeaturesTableRepositoryDAO[F[_]: Effect] extends FeaturesTabl
 
   /** Construct a parameterized query and process it with a custom program. */
   private def connProg(sql: String): ConnectionIO[(Headers, Data)] =
-    HC.prepareStatement(s"SELECT setseed(${table.seed}); $sql")(prepareAndExec)
+    HC.prepareStatement(sql)(prepareAndExec)
 
   /** Configure and run a PreparedStatement. We don't know the column count or types. */
   private def prepareAndExec: PreparedStatementIO[(Headers, Data)] =
@@ -248,10 +248,10 @@ object FeaturesTableRepositoryDAO {
     implicit val han: LogHandler = LogHandler.jdkLogHandler
 
     HC.prepareStatement(s"SELECT * FROM ${table.quotedName}")(prepareHeaders)
-    .transact(xa)
-    .map { headers =>
-      new FeaturesTableRepositoryDAO(xa, table, headers, wokenRepository)
-    }
+      .transact(xa)
+      .map { headers =>
+        new FeaturesTableRepositoryDAO(xa, table, headers, wokenRepository)
+      }
   }
 
   private[dao] def prepareHeaders: PreparedStatementIO[Headers] =
@@ -266,25 +266,31 @@ object FeaturesTableRepositoryDAO {
     case JdbcType.BigInt | JdbcType.Integer | JdbcType.SmallInt | JdbcType.TinyInt => SqlType.int
     case JdbcType.Decimal | JdbcType.Double | JdbcType.Float | JdbcType.Real | JdbcType.Numeric =>
       SqlType.numeric
-    case _ => throw new IllegalArgumentException(s"Unsupported type ${column.jdbcType} on column ${column.name}")
+    case _ =>
+      throw new IllegalArgumentException(
+        s"Unsupported type ${column.jdbcType} on column ${column.name}"
+      )
   }
 
   @SuppressWarnings(Array("org.wartremover.warts.Null", "org.wartremover.warts.Throw"))
-  private[dao] def toJsValue(o: Object): JsValue = {
+  private[dao] def toJsValue(o: Object, column: String): JsValue = {
     import DefaultJsonProtocol.{ lift => _, _ }
 
     o match {
-      case null                 => JsNull
-      case s: String            => s.toJson
-      case i: java.lang.Byte    => JsNumber(i.toInt)
-      case i: java.lang.Integer => JsNumber(i)
-      case l: java.lang.Long    => JsNumber(l)
-      case d: java.lang.Double  => JsNumber(d)
-      case f: java.lang.Float   => JsNumber(f.toDouble)
-      case b: BigInt            => b.toJson
-      case b: BigDecimal        => b.toJson
-      case b: java.lang.Boolean => JsBoolean(b)
-      case _                    => throw new IllegalStateException(s"Unsupported data type ${o.getClass}")
+      case null                    => JsNull
+      case s: String               => s.toJson
+      case i: java.lang.Byte       => JsNumber(i.toInt)
+      case i: java.lang.Integer    => JsNumber(i)
+      case l: java.lang.Long       => JsNumber(l)
+      case d: java.lang.Double     => JsNumber(d)
+      case f: java.lang.Float      => JsNumber(f.toDouble)
+      case b: java.math.BigInteger => JsNumber(b.longValue())
+      case b: java.math.BigDecimal => JsNumber(b.doubleValue())
+      case b: BigInt               => b.toJson
+      case b: BigDecimal           => b.toJson
+      case b: java.lang.Boolean    => JsBoolean(b)
+      case _ =>
+        throw new IllegalStateException(s"Unsupported data type ${o.getClass} on column $column")
     }
   }
 }

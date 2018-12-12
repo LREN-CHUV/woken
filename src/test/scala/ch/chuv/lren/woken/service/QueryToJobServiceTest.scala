@@ -362,14 +362,14 @@ class QueryToJobServiceTest
       val maybeJob = queryToJobService.miningQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe valid
-      maybeJob.value._1 shouldBe a[ValidationJob]
+      maybeJob.value._1 shouldBe a[ValidationJob[IO]]
 
-      val job: ValidationJob = maybeJob.value._1.asInstanceOf[ValidationJob]
-      val feedback           = maybeJob.value._2
+      val job: ValidationJob[IO] = maybeJob.value._1.asInstanceOf[ValidationJob[IO]]
+      val feedback               = maybeJob.value._2
 
       job.jobId should not be empty
       job should have(
-        'inputTable (table),
+        // TODO 'featuresTableService (table),
         'query (query),
         'metadata (List(CdeVariables.apoe4, CdeVariables.leftHipocampus))
       )

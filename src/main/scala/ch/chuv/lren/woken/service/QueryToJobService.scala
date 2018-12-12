@@ -115,7 +115,7 @@ class QueryToJobServiceImpl[F[_]: Effect](
       val job: Validation[Job] = query.algorithm.code match {
         case ValidationJob.algorithmCode =>
           ValidationJob(jobId = jobId,
-                        inputTable = featuresTable,
+                        featuresTableService = fts,
                         query = query,
                         metadata = metadata)
             .validNel[String]

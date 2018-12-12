@@ -91,10 +91,10 @@ class MiningQueriesActor[F[_]: Effect](
 
   import MiningQueriesActor.Mine
 
-  private val validationFlow: Flow[ValidationJob, (ValidationJob, Either[String, Score]), NotUsed] =
+  private val validationFlow
+    : Flow[ValidationJob[F], (ValidationJob[F], Either[String, Score]), NotUsed] =
     ValidationFlow(
       CoordinatorActor.executeJobAsync(coordinatorConfig, context),
-      coordinatorConfig.featuresService,
       context
     ).validate()
 
@@ -147,9 +147,13 @@ class MiningQueriesActor[F[_]: Effect](
             s"Mining for $query failed with message: " + errorMsg.reduceLeft(_ + ", " + _)
           )
         }, {
-          // TODO: report feedback
-          case (job: DockerJob, feedback)     => runMiningJob(query, initiator, job)
-          case (job: ValidationJob, feedback) => runValidationJob(initiator, job)
+          // TODO: report feedback to user
+          case (job: DockerJob, feedback) =>
+            if (feedback.nonEmpty) logger.info(s"Feedback: ${feedback.mkString(", ")}")
+            runMiningJob(query, initiator, job)
+          case (job: ValidationJob[F], feedback) =>
+            if (feedback.nonEmpty) logger.info(s"Feedback: ${feedback.mkString(", ")}")
+            runValidationJob(initiator, job)
           case (job, _) =>
             reportErrorMessage(query, initiator)(
               s"Unsupported job $job. Was expecting a job of type DockerJob or ValidationJob"
@@ -234,7 +238,7 @@ class MiningQueriesActor[F[_]: Effect](
   private[dispatch] def newCoordinatorActor: ActorRef =
     context.actorOf(CoordinatorActor.props(coordinatorConfig))
 
-  private def runValidationJob(initiator: ActorRef, job: ValidationJob): Unit =
+  private def runValidationJob(initiator: ActorRef, job: ValidationJob[F]): Unit =
     dispatcherService.dispatchTo(job.query.datasets) match {
       case (_, true) =>
         Source
@@ -242,7 +246,7 @@ class MiningQueriesActor[F[_]: Effect](
           .via(validationFlow)
           .runWith(Sink.last)
           .andThen {
-            case Success((job: ValidationJob, Right(score))) =>
+            case Success((job: ValidationJob[F], Right(score))) =>
               initiator ! QueryResult(
                 Some(job.jobId),
                 coordinatorConfig.jobsConf.node,
@@ -253,7 +257,7 @@ class MiningQueriesActor[F[_]: Effect](
                 None,
                 Some(job.query)
               )
-            case Success((job: ValidationJob, Left(error))) =>
+            case Success((job: ValidationJob[F], Left(error))) =>
               initiator ! QueryResult(
                 Some(job.jobId),
                 coordinatorConfig.jobsConf.node,

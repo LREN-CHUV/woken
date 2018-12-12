@@ -35,7 +35,6 @@ import ch.chuv.lren.woken.messages.query.AlgorithmSpec
 import ch.chuv.lren.woken.messages.validation._
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
 import ch.chuv.lren.woken.mining.CoordinatorActor
-import ch.chuv.lren.woken.service.FeaturesService
 import com.typesafe.scalalogging.LazyLogging
 import spray.json._
 
@@ -45,23 +44,23 @@ import scala.language.{ higherKinds, postfixOps }
 
 object ValidationFlow {
 
-  private[ValidationFlow] case class Context[R](
-      job: ValidationJob,
+  private[ValidationFlow] case class Context[R, F[_]](
+      job: ValidationJob[F],
       response: R,
       targetMetaData: VariableMetaData,
       groundTruth: List[JsValue]
   )
 
-  private[ValidationFlow] case class Result(
-      job: ValidationJob,
+  private[ValidationFlow] case class Result[F[_]](
+      job: ValidationJob[F],
       scores: ScoringResult,
       validationResults: List[JsValue],
       groundTruth: List[JsValue],
       targetMetaData: VariableMetaData
   )
 
-  private[ValidationFlow] case class ValidationScore(
-      job: ValidationJob,
+  private[ValidationFlow] case class ValidationScore[F[_]](
+      job: ValidationJob[F],
       score: ScoringResult,
       foldScore: ScoringResult,
       validations: List[JsValue]
@@ -71,7 +70,6 @@ object ValidationFlow {
 
 case class ValidationFlow[F[_]: Effect](
     executeJobAsync: CoordinatorActor.ExecuteJobAsync,
-    featuresService: FeaturesService[F],
     context: ActorContext
 )(implicit materializer: Materializer, ec: ExecutionContext)
     extends LazyLogging {
@@ -80,57 +78,51 @@ case class ValidationFlow[F[_]: Effect](
 
   import ValidationFlow.{ Context, Result }
 
-  def validate(): Flow[ValidationJob, (ValidationJob, Either[String, Score]), NotUsed] =
-    Flow[ValidationJob]
+  def validate(): Flow[ValidationJob[F], (ValidationJob[F], Either[String, Score]), NotUsed] =
+    Flow[ValidationJob[F]]
       .map { job =>
         val validation = job.query.algorithm
 
         // TODO: filter nulls and related parameters may be removed. Need to ensure that incoming query is valid though
         val variablesCanBeNull   = booleanParameter(validation, "variablesCanBeNull")
         val covariablesCanBeNull = booleanParameter(validation, "covariablesCanBeNull")
+        val tableService         = job.featuresTableService
+        val inputTable           = tableService.table.table
 
         val featuresQuery = job.query
           .filterNulls(variablesCanBeNull, covariablesCanBeNull)
-          .features(job.inputTable, None)
+          .features(inputTable, None)
 
         logger.info(s"Validation query: $featuresQuery")
 
         // JSON objects with fieldname corresponding to variables names
-        featuresService
-          .featuresTable(featuresQuery.dbTable)
-          .map { table =>
-            val (_, dataframe) = runNow(table.features(featuresQuery))
-            logger.info(s"Query response: ${dataframe.mkString(",")}")
+        val (_, dataframe) = runNow(tableService.features(featuresQuery))
+        logger.info(s"Query response: ${dataframe.mkString(",")}")
 
-            // Separate features from labels
-            val variables = featuresQuery.dbVariables
-            val features  = featuresQuery.dbCovariables ++ featuresQuery.dbGrouping
+        // Separate features from labels
+        val variables = featuresQuery.dbVariables
+        val features  = featuresQuery.dbCovariables ++ featuresQuery.dbGrouping
 
-            val (testData, labels) = dataframe.toList
-              .map(
-                o =>
-                  (JsObject(o.fields.filterKeys(features.contains(_))),
-                   JsObject(o.fields.filterKeys(variables.contains(_))))
-              )
-              .unzip
-            val groundTruth: List[JsValue] = labels.map(_.fields.toList.head._2)
+        val (testData, labels) = dataframe.toList
+          .map(
+            o =>
+              (JsObject(o.fields.filterKeys(features.contains(_))),
+               JsObject(o.fields.filterKeys(variables.contains(_))))
+          )
+          .unzip
+        val groundTruth: List[JsValue] = labels.map(_.fields.toList.head._2)
 
-            logger.info(
-              s"Send validation work for all local data to validation worker"
-            )
-            val model = modelOf(validation).getOrElse(
-              throw new IllegalStateException(
-                "Should have a model in the validation algorithm parameters"
-              )
-            )
-            val validationQuery = ValidationQuery(-1, model, testData, targetMetadata(job))
+        logger.info(
+          s"Send validation work for all local data to validation worker"
+        )
+        val model = modelOf(validation).getOrElse(
+          throw new IllegalStateException(
+            "Should have a model in the validation algorithm parameters"
+          )
+        )
+        val validationQuery = ValidationQuery(-1, model, testData, targetMetadata(job))
 
-            Context(job, validationQuery, validationQuery.varInfo, groundTruth)
-          }
-          .fold({ error =>
-            val errMsg = error.mkString_("", ",", "")
-            throw new IllegalArgumentException(errMsg)
-          }, identity)
+        Context(job, validationQuery, validationQuery.varInfo, groundTruth)
       }
       .mapAsync(1)(executeValidation)
       .mapAsync(1)(scoreValidationResponse)
@@ -146,7 +138,7 @@ case class ValidationFlow[F[_]: Effect](
   private def booleanParameter(spec: AlgorithmSpec, parameter: String): Boolean =
     spec.parameters.find(_.code == parameter).exists(_.value.toBoolean)
 
-  private def targetMetadata(job: ValidationJob): VariableMetaData = {
+  private def targetMetadata(job: ValidationJob[F]): VariableMetaData = {
     import ch.chuv.lren.woken.core.features.Queries._
     job.query.dbVariables.headOption
       .flatMap { v =>
@@ -156,8 +148,8 @@ case class ValidationFlow[F[_]: Effect](
   }
 
   private def executeValidation(
-      context: Context[ValidationQuery]
-  ): Future[Context[ValidationResult]] = {
+      context: Context[ValidationQuery, F]
+  ): Future[Context[ValidationResult, F]] = {
 
     implicit val askTimeout: Timeout = Timeout(5 minutes)
     val validationQuery              = context.response
@@ -165,16 +157,16 @@ case class ValidationFlow[F[_]: Effect](
 
     validationResult.map(
       r =>
-        Context[ValidationResult](job = context.job,
-                                  response = r,
-                                  targetMetaData = context.targetMetaData,
-                                  groundTruth = context.groundTruth)
+        Context[ValidationResult, F](job = context.job,
+                                     response = r,
+                                     targetMetaData = context.targetMetaData,
+                                     groundTruth = context.groundTruth)
     )
   }
 
   private def scoreValidationResponse(
-      context: Context[ValidationResult]
-  ): Future[Result] = {
+      context: Context[ValidationResult, F]
+  ): Future[Result[F]] = {
     import cats.syntax.list._
 
     val resultsV: Validation[NonEmptyList[JsValue]] = Validated
@@ -188,7 +180,7 @@ case class ValidationFlow[F[_]: Effect](
     )
 
     def performScoring(algorithmOutput: NonEmptyList[JsValue],
-                       groundTruth: NonEmptyList[JsValue]): Future[Result] = {
+                       groundTruth: NonEmptyList[JsValue]): Future[Result[F]] = {
 
       implicit val askTimeout: Timeout = Timeout(5 minutes)
 

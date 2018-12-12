@@ -27,9 +27,7 @@ import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Zip }
 import cats.effect.Effect
 import ch.chuv.lren.woken.config.JobsConfiguration
 import ch.chuv.lren.woken.core.features.FeaturesQuery
-import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.core.model.AlgorithmDefinition
-import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.validation.Score
@@ -45,14 +43,21 @@ import scala.language.higherKinds
 object AlgorithmWithCVFlow {
 
   case class Job[F[_]](jobId: String,
-                       inputTable: TableId,
-                       query: MiningQuery,
+                       algorithm: AlgorithmSpec,
+                       algorithmDefinition: AlgorithmDefinition,
+                       featuresTableService: FeaturesTableService[F],
+                       query: FeaturesQuery,
                        cvSplitters: List[FeaturesSplitter[F]],
-                       metadata: List[VariableMetaData],
-                       algorithmDefinition: AlgorithmDefinition) {
+                       metadata: List[VariableMetaData]) {
     // Invariants
-    assert(query.algorithm.code == algorithmDefinition.code)
-    query.targetTable.foreach(t => assert(t == inputTable.name))
+    assert(
+      query.dbTable == featuresTableService.table.table,
+      s"Expected query table ${query.dbTable} to match service table ${featuresTableService.table.table}"
+    )
+    assert(
+      algorithm.code == algorithmDefinition.code,
+      s"Expected algorithm specification ${algorithm.code} to match algorithm definition ${algorithmDefinition.code}"
+    )
 
     if (!algorithmDefinition.predictive) {
       assert(cvSplitters.isEmpty)
@@ -72,7 +77,6 @@ object AlgorithmWithCVFlow {
   */
 case class AlgorithmWithCVFlow[F[_]: Effect](
     executeJobAsync: CoordinatorActor.ExecuteJobAsync,
-    featuresTableService: FeaturesTableService[F],
     jobsConf: JobsConfiguration,
     context: ActorContext
 )(implicit materializer: Materializer, ec: ExecutionContext)
@@ -124,14 +128,13 @@ case class AlgorithmWithCVFlow[F[_]: Effect](
                                     NotUsed] =
     Flow[AlgorithmWithCVFlow.Job[F]]
       .mapAsync(1) { job =>
-        val algorithm = job.query.algorithm
+        val algorithm = job.algorithm
 
         logger.info(s"Start job for algorithm ${algorithm.code}")
 
         // Spawn a CoordinatorActor
-        val jobId         = UUID.randomUUID().toString
-        val featuresQuery = job.query.features(job.inputTable, None)
-        val subJob        = createDockerJob(job, jobId, featuresQuery)
+        val jobId  = UUID.randomUUID().toString
+        val subJob = createDockerJob(job, jobId, job.query)
 
         executeJobAsync(subJob).map(response => (job, response))
       }
@@ -141,7 +144,7 @@ case class AlgorithmWithCVFlow[F[_]: Effect](
   private def createDockerJob(job: AlgorithmWithCVFlow.Job[F],
                               jobId: String,
                               featuresQuery: FeaturesQuery): DockerJob =
-    DockerJob(jobId, featuresQuery, job.query.algorithm, job.algorithmDefinition, job.metadata)
+    DockerJob(jobId, featuresQuery, job.algorithm, job.algorithmDefinition, job.metadata)
 
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
   private def crossValidate(
@@ -150,12 +153,13 @@ case class AlgorithmWithCVFlow[F[_]: Effect](
     Flow[AlgorithmWithCVFlow.Job[F]]
       .map { job =>
         job.cvSplitters.map { splitter =>
-          val jobId = UUID.randomUUID().toString
-          val orderBy = featuresTableService.table.primaryKey match {
+          val jobId          = UUID.randomUUID().toString
+          val inputTableDesc = job.featuresTableService.table
+          val orderBy = inputTableDesc.primaryKey match {
             case pk1 :: Nil => Some(pk1.name)
             case _          => None
           }
-          val query = job.query.features(job.inputTable, orderBy)
+          val query = job.query.copy(orderBy = orderBy)
           createCrossValidationJob(job, splitter, jobId, query)
         }
       }
@@ -178,8 +182,8 @@ case class AlgorithmWithCVFlow[F[_]: Effect](
                             query,
                             job.metadata,
                             splitter,
-                            featuresTableService,
-                            job.query.algorithm,
+                            job.featuresTableService,
+                            job.algorithm,
                             job.algorithmDefinition)
 
 // TODO: keep?

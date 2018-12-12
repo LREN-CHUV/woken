@@ -17,16 +17,18 @@
 
 package ch.chuv.lren.woken.core.model.jobs
 
-import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.messages.query.MiningQuery
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
+import ch.chuv.lren.woken.service.FeaturesTableService
+
+import scala.language.higherKinds
 
 /**
   * A validation job will trigger validation of a PFA model
   */
-case class ValidationJob(
+case class ValidationJob[F[_]](
     override val jobId: String,
-    inputTable: TableId,
+    featuresTableService: FeaturesTableService[F],
     query: MiningQuery,
     metadata: List[VariableMetaData]
 ) extends Job

@@ -27,10 +27,12 @@ import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Merge, Partition, Sink,
 import cats.Monoid
 import cats.data.NonEmptyList
 import cats.data.Validated._
-import cats.effect.{ Async, Effect, Sync }
+import cats.effect.Effect
 import cats.implicits._
 import ch.chuv.lren.woken.config.JobsConfiguration
+import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.fp.runNow
+import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.core.model.AlgorithmDefinition
 import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
@@ -188,30 +190,27 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
 
               validateFolds(extendedJob, splitterDefs, extendedFeaturesTable)
                 .flatMap {
-                  validation =>
-                    validation match {
-                      case Left(err) =>
-                        val msg =
-                          s"""Invalid folding of extended features table: ${err
-                            .mkString_("", ",", "")}"""
-                        Effect[F].delay(completeWithError(job, msg, initiator, replyTo))
-                      case Right(_) =>
-                        Effect[F].defer {
-                          val experimentFlowF =
-                            executeExperimentFlow(extendedJob,
-                                                  splitters,
-                                                  extendedFeaturesTable,
-                                                  initiator)
-                          completeExperiment(job, experimentFlowF, thisActor, initiator, replyTo)
+                  case Left(err) =>
+                    val msg =
+                      s"""Invalid folding of extended features table: ${err
+                        .mkString_("", ",", "")}"""
+                    Effect[F].delay(completeWithError(job, msg, initiator, replyTo))
+                  case Right(_) =>
+                    Effect[F].defer {
+                      val experimentFlowF =
+                        executeExperimentFlow(extendedJob,
+                                              splitters,
+                                              extendedFeaturesTable,
+                                              initiator)
+                      completeExperiment(job, experimentFlowF, thisActor, initiator, replyTo)
 
-                          // Wait for the experiment flow to complete
-                          Effect[F].async { cb =>
-                            experimentFlowF.onComplete {
-                              case Success(_)     => cb(Right(()))
-                              case Failure(error) => cb(Left(error))
-                            }
-                          }
+                      // Wait for the experiment flow to complete
+                      Effect[F].async { cb =>
+                        experimentFlowF.onComplete {
+                          case Success(_)     => cb(Right(()))
+                          case Failure(error) => cb(Left(error))
                         }
+                      }
                     }
                 }
 
@@ -359,6 +358,7 @@ object ExperimentFlow {
 
 }
 
+// TODO: move featuresTableService, splitters to the job
 case class ExperimentFlow[F[_]: Effect](
     executeJobAsync: CoordinatorActor.ExecuteJobAsync,
     featuresTableService: FeaturesTableService[F],
@@ -380,7 +380,7 @@ case class ExperimentFlow[F[_]: Effect](
                                      result: JobResult)
 
   private val algorithmWithCVFlow =
-    AlgorithmWithCVFlow(executeJobAsync, featuresTableService, jobsConf, context)
+    AlgorithmWithCVFlow(executeJobAsync, jobsConf, context)
 
   @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
   def flow: Flow[ExperimentJob, Map[AlgorithmSpec, JobResult], NotUsed] =
@@ -418,9 +418,9 @@ case class ExperimentFlow[F[_]: Effect](
         jobSplitter ~> partition.in
         // Algorithm with validation
         partition
-          .out(LOCAL_PREDICTIVE_ALGORITHM) ~> prepareMiningQuery ~> localAlgorithmWithValidation ~> merge
+          .out(LOCAL_PREDICTIVE_ALGORITHM) ~> prepareAlgorithmFlow ~> localAlgorithmWithValidation ~> merge
         // Algorithm without validation
-        partition.out(OTHER_ALGORITHM) ~> prepareMiningQuery ~> algorithmOnly ~> merge
+        partition.out(OTHER_ALGORITHM) ~> prepareAlgorithmFlow ~> algorithmOnly ~> merge
         merge ~> toMap
 
         FlowShape(jobSplitter.in, toMap.out)
@@ -442,7 +442,7 @@ case class ExperimentFlow[F[_]: Effect](
       .named("split-job")
 
   @SuppressWarnings(Array("org.wartremover.warts.Throw"))
-  private def prepareMiningQuery: Flow[JobForAlgorithmPreparation, JobForAlgorithm, NotUsed] =
+  private def prepareAlgorithmFlow: Flow[JobForAlgorithmPreparation, JobForAlgorithm, NotUsed] =
     Flow[JobForAlgorithmPreparation]
       .map { a =>
         val job                 = a.job
@@ -450,8 +450,9 @@ case class ExperimentFlow[F[_]: Effect](
         val query               = job.query
         val algorithmSpec       = a.algorithmSpec
         val algorithmDefinition = a.algorithmDefinition
-        val miningQuery         = createMiningQuery(job, query, algorithmSpec)
-        val subJob              = createAlgoritmWithCVFlowJob(jobId, job, algorithmDefinition, miningQuery)
+        val featuresQuery       = query.features(job.inputTable, None)
+        val subJob =
+          createAlgoritmWithCVFlowJob(jobId, job, algorithmSpec, algorithmDefinition, featuresQuery)
         logger.info(s"Prepared mining query sub job $subJob")
         JobForAlgorithm(job, algorithmSpec, subJob)
       }
@@ -459,30 +460,16 @@ case class ExperimentFlow[F[_]: Effect](
 
   private def createAlgoritmWithCVFlowJob(jobId: String,
                                           job: ExperimentJob,
+                                          algorithmSpec: AlgorithmSpec,
                                           algorithmDefinition: AlgorithmDefinition,
-                                          miningQuery: MiningQuery) =
+                                          query: FeaturesQuery) =
     AlgorithmWithCVFlow.Job(jobId,
-                            job.inputTable,
-                            miningQuery,
+                            algorithmSpec,
+                            algorithmDefinition,
+                            featuresTableService,
+                            query,
                             splitters,
-                            job.metadata,
-                            algorithmDefinition)
-
-  private def createMiningQuery(job: ExperimentJob,
-                                query: ExperimentQuery,
-                                algorithmSpec: AlgorithmSpec) =
-    MiningQuery(
-      user = query.user,
-      variables = query.variables,
-      covariables = query.covariables,
-      covariablesMustExist = query.covariablesMustExist,
-      grouping = query.grouping,
-      filters = query.filters,
-      targetTable = Some(job.inputTable.name),
-      datasets = query.trainingDatasets,
-      algorithm = algorithmSpec,
-      executionPlan = None
-    )
+                            job.metadata)
 
   private def localAlgorithmWithValidation: Flow[JobForAlgorithm, AlgorithmResult, NotUsed] =
     Flow

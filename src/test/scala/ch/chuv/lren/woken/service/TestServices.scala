@@ -154,7 +154,7 @@ object TestServices extends JsonUtils {
     new FeaturesInMemoryRepository[IO](database, tables, tablesContent)
   )
 
-  val featuresTableId = TableId("features_db", None, "features_table")
+  val featuresTableId = TableId("features_db", None, "Sample")
 
   lazy val emptyFeaturesTableService: FeaturesTableService[IO] = new FeaturesTableServiceImpl(
     new FeaturesTableInMemoryRepository[IO](featuresTableId, Nil, None, Nil)
