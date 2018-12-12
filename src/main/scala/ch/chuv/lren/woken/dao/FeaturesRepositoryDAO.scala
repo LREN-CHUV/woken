@@ -429,7 +429,7 @@ object ExtendedFeaturesTableRepositoryDAO {
         List(pk, rndColumn)
       ) ++ fr") (SELECT " ++ frName(pk) ++
         fr", random() as " ++ frName(rndColumn) ++ fr" FROM " ++
-        frName(table) ++ frWhereFilter(filters) ++ fr" ORDER BY rnd);"
+        frName(table) ++ frWhereFilter(filters) ++ fr" ORDER BY " ++ frName(rndColumn) ++ fr");"
 
       insertRndStmt.update.run
     }
