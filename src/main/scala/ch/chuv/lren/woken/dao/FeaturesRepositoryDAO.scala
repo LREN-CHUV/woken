@@ -20,10 +20,10 @@ package ch.chuv.lren.woken.dao
 import doobie._
 import doobie.implicits._
 import spray.json._
-import cats.data.{ NonEmptyList, Validated }
-import cats.effect.{ Effect, Resource }
+import cats.data.{NonEmptyList, Validated}
+import cats.effect.{Effect, Resource}
 import cats.implicits._
-import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
+import ch.chuv.lren.woken.core.model.{FeaturesTableDescription, TableColumn}
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model
 import ch.chuv.lren.woken.core.model.database.TableId
@@ -35,6 +35,7 @@ import ch.chuv.lren.woken.messages.variables.SqlType
 import ch.chuv.lren.woken.messages.variables.SqlType.SqlType
 import doobie.enum.JdbcType
 import ch.chuv.lren.woken.core.sqlUtils._
+import doobie.util.analysis.ColumnMeta
 import doobie.util.transactor.Strategy
 
 import scala.language.higherKinds
@@ -243,26 +244,29 @@ object FeaturesTableRepositoryDAO {
 
   def apply[F[_]: Effect](xa: Transactor[F],
                           table: FeaturesTableDescription,
-                          wokenRepository: WokenRepository[F]): F[FeaturesTableRepository[F]] =
+                          wokenRepository: WokenRepository[F]): F[FeaturesTableRepository[F]] = {
+    implicit val han: LogHandler = LogHandler.jdkLogHandler
+
     HC.prepareStatement(s"SELECT * FROM ${table.quotedName}")(prepareHeaders)
-      .transact(xa)
-      .map { headers =>
-        new FeaturesTableRepositoryDAO(xa, table, headers, wokenRepository)
-      }
+    .transact(xa)
+    .map { headers =>
+      new FeaturesTableRepositoryDAO(xa, table, headers, wokenRepository)
+    }
+  }
 
   private[dao] def prepareHeaders: PreparedStatementIO[Headers] =
     HPS.getColumnJdbcMeta.map(_.map { doobieMeta =>
-      model.TableColumn(doobieMeta.name, toSql(doobieMeta.jdbcType))
+      model.TableColumn(doobieMeta.name, toSql(doobieMeta))
     })
 
   @SuppressWarnings(Array("org.wartremover.warts.Throw"))
-  private[dao] def toSql(jdbcType: JdbcType): SqlType = jdbcType match {
+  private[dao] def toSql(column: ColumnMeta): SqlType = column.jdbcType match {
     case JdbcType.Char | JdbcType.NChar                                            => SqlType.char
     case JdbcType.VarChar | JdbcType.NVarChar | JdbcType.Clob                      => SqlType.varchar
     case JdbcType.BigInt | JdbcType.Integer | JdbcType.SmallInt | JdbcType.TinyInt => SqlType.int
     case JdbcType.Decimal | JdbcType.Double | JdbcType.Float | JdbcType.Real | JdbcType.Numeric =>
       SqlType.numeric
-    case _ => throw new IllegalArgumentException(s"Unsupported type $jdbcType")
+    case _ => throw new IllegalArgumentException(s"Unsupported type ${column.jdbcType} on column ${column.name}")
   }
 
   @SuppressWarnings(Array("org.wartremover.warts.Null", "org.wartremover.warts.Throw"))

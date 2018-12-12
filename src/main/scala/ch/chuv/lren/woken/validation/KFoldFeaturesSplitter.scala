@@ -43,7 +43,8 @@ case class KFoldFeaturesSplitterDefinition(override val validation: ValidationSp
       targetTable: FeaturesTableDescription,
       rndColumn: TableColumn
   )(implicit h: LogHandler = LogHandler.nop): Update0 = {
-    val winTable = targetTable.copy(table = targetTable.table.copy(name = "win"), validateSchema = false)
+    val winTable =
+      targetTable.copy(table = targetTable.table.copy(name = "win"), validateSchema = false)
 
     val stmt = fr"""WITH "win" as (SELECT """ ++ frNames(targetTable.primaryKey) ++ fr", ntile(" ++
       frConst(numFolds) ++ fr") over (order by " ++ frName(rndColumn) ++ fr") as win FROM " ++

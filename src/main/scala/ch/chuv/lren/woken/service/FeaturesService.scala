@@ -107,7 +107,7 @@ class FeaturesServiceImpl[F[_]: Effect](repository: FeaturesRepository[F])
         runNow(repository.featuresTable(table))
           .map { featuresTable =>
             val service = new FeaturesTableServiceImpl(featuresTable)
-            featuresTableCache.put(table, service)
+            val _       = featuresTableCache.put(table, service)
             service
           }
       }

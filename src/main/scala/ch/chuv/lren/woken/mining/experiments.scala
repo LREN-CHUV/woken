@@ -27,7 +27,7 @@ import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Merge, Partition, Sink,
 import cats.Monoid
 import cats.data.NonEmptyList
 import cats.data.Validated._
-import cats.effect.Effect
+import cats.effect.{ Async, Effect, Sync }
 import cats.implicits._
 import ch.chuv.lren.woken.config.JobsConfiguration
 import ch.chuv.lren.woken.core.fp.runNow
@@ -115,9 +115,6 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
       val featuresTableServiceV =
         coordinatorConfig.featuresService.featuresTable(job.inputTable)
 
-      logger.info(s"Start new experiment job $job")
-      logger.info(s"List of algorithms: ${algorithms.mkString(",")}")
-
       val containsPredictiveAlgorithms = job.queryAlgorithms.exists {
         case (_, defn) => defn.predictive
       }
@@ -127,7 +124,10 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
           defineSplitters(job.query.validations)
         } else Nil.validNel[String]
 
-      // TODO: validate the folds
+      logger.info(
+        s"Start new experiment job $job ${if (containsPredictiveAlgorithms) "with" else "without"} predictive algorithms"
+      )
+      logger.info(s"List of algorithms: ${algorithms.mkString(",")}")
 
       ((featuresTableServiceV, splitterDefsV) mapN Tuple2.apply).fold(
         err => {
@@ -186,17 +186,35 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
                 query = job.query.copy(targetTable = Some(extTable.name))
               )
 
-              validateFolds(extendedJob, splitterDefs, extendedFeaturesTable).map {
-                case Left(err) =>
-                  val msg =
-                    s"""Invalid folding of extended features table: ${err
-                      .mkString_("", ",", "")}"""
-                  completeWithError(job, msg, initiator, replyTo)
-                case Right(_) =>
-                  val future =
-                    executeExperimentFlow(extendedJob, splitters, extendedFeaturesTable, initiator)
-                  completeExperiment(job, future, thisActor, initiator, replyTo)
-              }
+              validateFolds(extendedJob, splitterDefs, extendedFeaturesTable)
+                .flatMap {
+                  validation =>
+                    validation match {
+                      case Left(err) =>
+                        val msg =
+                          s"""Invalid folding of extended features table: ${err
+                            .mkString_("", ",", "")}"""
+                        Effect[F].delay(completeWithError(job, msg, initiator, replyTo))
+                      case Right(_) =>
+                        Effect[F].defer {
+                          val experimentFlowF =
+                            executeExperimentFlow(extendedJob,
+                                                  splitters,
+                                                  extendedFeaturesTable,
+                                                  initiator)
+                          completeExperiment(job, experimentFlowF, thisActor, initiator, replyTo)
+
+                          // Wait for the experiment flow to complete
+                          Effect[F].async { cb =>
+                            experimentFlowF.onComplete {
+                              case Success(_)     => cb(Right(()))
+                              case Failure(error) => cb(Left(error))
+                            }
+                          }
+                        }
+                    }
+                }
+
           }
           Effect[F]
             .toIO(task)
