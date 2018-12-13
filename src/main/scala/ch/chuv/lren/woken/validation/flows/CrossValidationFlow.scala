@@ -268,11 +268,17 @@ case class CrossValidationFlow[F[_]: Effect](
       tableService.features(dependentVarsFromTestDataset).map { queryResults =>
         val values = queryResults._2
             .map {
-              case JsObject(fields) => fields
+              case JsObject(fields) => {
+                 fields.values.toList match {
+                   case v :: Nil => v
+                   case _ => throw new IllegalStateException("Expected only one value for ground truth")
+                 }
+                }
+              case v: JsValue => v
             }
           .toList
           .toNel
-        Validated.fromOption(value,
+        Validated.fromOption(values,
                              NonEmptyList(s"Empty test set on fold $fold", Nil))
       }
 
