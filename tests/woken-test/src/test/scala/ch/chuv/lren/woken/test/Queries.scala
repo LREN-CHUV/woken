@@ -21,6 +21,8 @@ import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables.VariableId
 import spray.json._
 
+import java.io.File
+import java.io.PrintWriter
 import scala.io.Source
 
 trait Queries {
@@ -73,10 +75,11 @@ trait Queries {
   }
 
   def save(json: String, file: String): Unit = {
-    println(file)
-    println("-----")
-    println(json)
-    println("-----")
+    new File("target/responses").mkdirs()
+    val writer = new PrintWriter(new File("target/" + file))
+
+    writer.write(json)
+    writer.close()
   }
 
   class ApproximatePrinter(val skippedTags: List[String])

@@ -121,6 +121,7 @@ if [ $tests == 1 ]; then
     echo
     echo "Testing Akka API..."
 
+    mkdir -p target/responses
     $DOCKER_COMPOSE up wokentest | tee test.log
 
 fi

@@ -301,6 +301,9 @@ services:
       PROMETHEUS_ENABLED: "yes"
       SIGAR_SYSTEM_METRICS: "no"
       JVM_SYSTEM_METRICS: "no"
+    volumes:
+      # Store the actual responses into the target/responses directory
+      - ./target/responses/:/responses/
     depends_on:
       - woken
 

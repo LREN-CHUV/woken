@@ -1,39 +1,46 @@
 {
   "algorithm": "python-correlation-heatmap",
-  "data": [
-    {
-      "type": "heatmap",
-      "x": [
-        "cognitive_task2",
-        "score_math_course1",
-        "score_math_course2"
-      ],
-      "y": [
-        "score_math_course2",
-        "score_math_course1",
-        "cognitive_task2"
-      ],
-      "z": [
-        [
-          -0.05297,
-          0.99515,
-          1.0
+  "data": {
+    "data": [
+      {
+        "type": "heatmap",
+        "x": [
+          "cognitive_task2",
+          "score_math_course1",
+          "score_math_course2"
         ],
-        [
-          -0.06559,
-          1.0,
-          0.99515
+        "xaxis": "x1",
+        "y": [
+          "score_math_course2",
+          "score_math_course1",
+          "cognitive_task2"
         ],
-        [
-          1.0,
-          -0.06559,
-          -0.05297
-        ]
-      ],
-      "zmax": 1.0,
-      "zmin": -1.0
+        "yaxis": "y1",
+        "z": [
+          [
+            -0.05297,
+            0.99515,
+            1.0
+          ],
+          [
+            -0.06559,
+            1.0,
+            0.99515
+          ],
+          [
+            1.0,
+            -0.06559,
+            -0.05297
+          ]
+        ],
+        "zmax": 1.0,
+        "zmin": -1.0
+      }
+    ],
+    "layout": {
+      "title": "Correlation heatmap"
     }
-  ],
+  },
   "jobId": "*",
   "node": "local",
   "timestamp": 0.0,
