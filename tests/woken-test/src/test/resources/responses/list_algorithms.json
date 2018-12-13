@@ -19,8 +19,8 @@
           "real": true
         }
       },
-      "description": "Histograms...",
-      "docker_image": "hbpmip/python-histograms:0.6.1",
+      "description": "Histogram of nominal or continuous variable grouped by nominal variables in independent variables.",
+      "docker_image": "hbpmip/python-histograms:0.6.2",
       "environment": "Python",
       "label": "Histograms",
       "type": [
@@ -37,8 +37,8 @@
           "real": true
         }
       },
-      "description": "Statistics Summary...",
-      "docker_image": "hbpmip/python-summary-statistics:0.4.0",
+      "description": "Summary statistics for both nominal and continuous variables grouped by nominal variables.",
+      "docker_image": "hbpmip/python-summary-statistics:0.4.1",
       "environment": "python",
       "label": "Statistics Summary",
       "type": [
@@ -64,10 +64,10 @@
           "real": true
         }
       },
-      "description": "Standard Linear Regression (or Logistic Regression for nominal variables)...",
-      "docker_image": "hbpmip/python-linear-regression:0.3.1",
+      "description": "Standard Linear Regression (or Logistic Regression for nominal variables).",
+      "docker_image": "hbpmip/python-linear-regression:0.3.4",
       "environment": "Python",
-      "label": "Linear Regression",
+      "label": "Bayesian Linear Regression",
       "parameters": [],
       "type": [
         "statistics"
@@ -92,8 +92,8 @@
           "real": true
         }
       },
-      "description": "Linear model using Stochastic Gradient Descent...",
-      "docker_image": "hbpmip/python-sgd-linear-model:0.3.3",
+      "description": "Linear model trained with Stochastic Gradient Descent. Works with both continuous or nominal variables (logistic regression)",
+      "docker_image": "hbpmip/python-sgd-linear-model:0.3.4",
       "environment": "Python",
       "label": "SGD Linear model",
       "parameters": [
@@ -156,8 +156,8 @@
           "real": false
         }
       },
-      "description": "Naive Bayes using Stochastic Gradient Descent",
-      "docker_image": "hbpmip/python-sgd-naive-bayes:0.3.3",
+      "description": "Naive Bayes trained with Stochastic Gradient Descent that can handle both continuous and nominal covariables. Only works for classification.",
+      "docker_image": "hbpmip/python-sgd-naive-bayes:0.3.4",
       "environment": "Python",
       "label": "Naive Bayes",
       "parameters": [
@@ -203,8 +203,8 @@
           "real": true
         }
       },
-      "description": "Neural Network using Stochastic Gradient Descent...",
-      "docker_image": "hbpmip/python-sgd-neural-network:0.3.3",
+      "description": "Feedforward Neural Network trained with Stochastic Gradient Descent for both regression and classification.",
+      "docker_image": "hbpmip/python-sgd-neural-network:0.3.4",
       "environment": "Python",
       "label": "SGD Neural Network",
       "parameters": [
@@ -274,8 +274,8 @@
           "real": true
         }
       },
-      "description": "Gradient Boosting...",
-      "docker_image": "hbpmip/python-gradient-boosting:0.3.3",
+      "description": "Gradient Boosting for both regression and classification. Produces prediction model in the form of an ensemble of weak prediction models (decision trees).",
+      "docker_image": "hbpmip/python-gradient-boosting:0.3.4",
       "environment": "Python",
       "label": "Gradient Boosting",
       "parameters": [
@@ -380,7 +380,7 @@
           "real": true
         }
       },
-      "description": "ANOVA...",
+      "description": "Analysis of variance (ANOVA) for analyzing differences among group means. Supports factorial and additive design.",
       "docker_image": "hbpmip/python-anova:0.4.5",
       "environment": "Python",
       "label": "Anova",
@@ -420,7 +420,7 @@
           "real": true
         }
       },
-      "description": "K-nearest neighbors...",
+      "description": "K-nearest neighbors is a non-parametric method used for classification and regression that makes prediction based on K closest training examples.",
       "docker_image": "hbpmip/python-knn:0.4.0",
       "environment": "Python",
       "label": "K-nearest neighbors",
@@ -460,8 +460,8 @@
           "real": true
         }
       },
-      "description": "Correlation heatmap...",
-      "docker_image": "hbpmip/python-correlation-heatmap:0.5.0",
+      "description": "Correlation heatmap shows dependence between continuous random variables. For nominal variables it shows pairwise cross-tabs.",
+      "docker_image": "hbpmip/python-correlation-heatmap:0.5.1",
       "environment": "python",
       "label": "Correlation heatmap",
       "type": [
@@ -487,8 +487,8 @@
           "real": true
         }
       },
-      "description": "Principal Components Analysis...",
-      "docker_image": "hbpmip/python-distributed-pca:0.4.1",
+      "description": "Principal Components Analysis (PCA) performs dimensionality reduction on data and shows biplot of the first two principal components.",
+      "docker_image": "hbpmip/python-distributed-pca:0.5.1",
       "environment": "Python",
       "label": "PCA",
       "parameters": [],
@@ -507,16 +507,16 @@
           "max_count": 0,
           "min_count": 0
         },
-        "mixed": false,
+        "mixed": true,
         "variable": {
           "binominal": true,
-          "integer": true,
+          "integer": false,
           "polynominal": true,
-          "real": true
+          "real": false
         }
       },
       "description": "The Hedwig algorithm for subgroup discovery is a data mining algorithm designed for exploratory data analysis of a data set",
-      "docker_image": "hbpmip/python-jsi-hedwig:1.0.7",
+      "docker_image": "hbpmip/python-jsi-hedwig:1.0.9",
       "environment": "Python",
       "label": "JSI Hedwig",
       "parameters": [
@@ -567,7 +567,7 @@
         }
       },
       "description": "The HINMINE algorithm for network-based propositionalization is an algorithm for data analysis based on network analysis methods",
-      "docker_image": "hbpmip/python-jsi-hinmine:0.3.0",
+      "docker_image": "hbpmip/python-jsi-hinmine:0.3.1",
       "environment": "Python",
       "label": "JSI Hinmine",
       "parameters": [
@@ -613,9 +613,9 @@
           "real": true
         }
       },
-      "description": "tSNE...",
+      "description": "tSNE is a machine learning algorithm for nonlinear dimensionality reduction. It embeds high-dimensional data for visualization in a low-dimensional space of two or three dimensions.",
       "disable": false,
-      "docker_image": "hbpmip/python-tsne:0.4.2",
+      "docker_image": "hbpmip/python-tsne:0.4.3",
       "environment": "Python",
       "label": "tSNE",
       "parameters": [],
@@ -644,7 +644,7 @@
       },
       "description": "Parallel coordinates plot with added confidence interval bands",
       "disable": false,
-      "docker_image": "hbpmip/r-ggparci:0.2.1",
+      "docker_image": "hbpmip/r-ggparci:0.2.2",
       "environment": "R",
       "label": "TAU ggparci",
       "maturity": "experimental",
@@ -672,8 +672,8 @@
           "real": true
         }
       },
-      "description": "K-means...",
-      "docker_image": "hbpmip/python-distributed-kmeans:0.2.1",
+      "description": "K-means is a method for vector quantization used for cluster analysis.",
+      "docker_image": "hbpmip/python-distributed-kmeans:0.2.2",
       "environment": "Python",
       "label": "Distributed K-means",
       "parameters": [
