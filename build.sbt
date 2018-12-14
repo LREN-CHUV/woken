@@ -33,6 +33,8 @@ lazy val `woken` =
           library.akkaHttp,
           library.akkaHttpCors,
           library.akkaHttpJson,
+          library.akkaManagementBase,
+          library.akkaManagementClusterHttp,
           library.kamon,
           library.kamonAkka,
           library.kamonAkkaHttp,
@@ -93,6 +95,7 @@ lazy val library =
       val akkaHttp        = "10.1.5"
       val akkaHttpCors    = "0.3.1"
       val akkaHttpSwagger = "0.14.1"
+      val akkaManagement  = "0.20.0"
       val kamon           = "1.1.3"
       val kamonAkka       = "1.1.2"
       val kamonAkkaRemote = "1.1.0"
@@ -143,6 +146,9 @@ lazy val library =
     val akkaHttpJson: ModuleID = "com.typesafe.akka" %% "akka-http-spray-json" % Version.akkaHttp
     val akkaHttpCors: ModuleID = "ch.megard"         %% "akka-http-cors" % Version.akkaHttpCors
     val akkaHttpSwagger: ModuleID = "com.github.swagger-akka-http"   %% "swagger-akka-http" % Version.akkaHttpSwagger
+    val akkaManagementBase: ModuleID = "com.lightbend.akka.management" %% "akka-management" % Version.akkaManagement
+    val akkaManagementClusterHttp: ModuleID =  "com.lightbend.akka.management" %% "akka-management-cluster-http" % Version.akkaManagement
+    
 
     // Kamon
     val kamon: ModuleID        = "io.kamon" %% "kamon-core" % Version.kamon excludeAll ExclusionRules.excludeLogback
