@@ -20,31 +20,31 @@ package ch.chuv.lren.woken.validation.flows
 import java.util.UUID
 
 import akka.NotUsed
-import akka.actor.{ActorContext, ActorRef}
-import akka.cluster.pubsub.{DistributedPubSub, DistributedPubSubMediator}
+import akka.actor.{ ActorContext, ActorRef }
+import akka.cluster.pubsub.{ DistributedPubSub, DistributedPubSubMediator }
 import akka.pattern.ask
 import akka.stream.Materializer
 import akka.stream.scaladsl.Flow
 import akka.util.Timeout
-import cats.data.{NonEmptyList, Validated}
+import cats.data.{ NonEmptyList, Validated }
 import cats.effect.Effect
 import cats.implicits._
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model.AlgorithmDefinition
-import ch.chuv.lren.woken.core.model.jobs.{DockerJob, ErrorJobResult, PfaJobResult}
+import ch.chuv.lren.woken.core.model.jobs.{ DockerJob, ErrorJobResult, PfaJobResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query.AlgorithmSpec
 import ch.chuv.lren.woken.messages.validation._
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
 import ch.chuv.lren.woken.mining.CoordinatorActor
 import ch.chuv.lren.woken.service.FeaturesTableService
-import ch.chuv.lren.woken.validation.{FeaturesSplitter, PartioningQueries}
+import ch.chuv.lren.woken.validation.{ FeaturesSplitter, PartioningQueries }
 import com.typesafe.scalalogging.LazyLogging
-import spray.json.{JsObject, JsValue}
+import spray.json.{ JsObject, JsValue }
 
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
-import scala.language.{higherKinds, postfixOps}
+import scala.concurrent.{ ExecutionContext, Future }
+import scala.language.{ higherKinds, postfixOps }
 
 object CrossValidationFlow {
 
@@ -267,19 +267,19 @@ case class CrossValidationFlow[F[_]: Effect](
     val groundTruthF: F[Validation[NonEmptyList[JsValue]]] =
       tableService.features(dependentVarsFromTestDataset).map { queryResults =>
         val values = queryResults._2
-            .map {
-              case JsObject(fields) => {
-                 fields.values.toList match {
-                   case v :: Nil => v
-                   case _ => throw new IllegalStateException("Expected only one value for ground truth")
-                 }
-                }
-              case v: JsValue => v
+          .map {
+            case JsObject(fields) => {
+              fields.values.toList match {
+                case v :: Nil => v
+                case _ =>
+                  throw new IllegalStateException("Expected only one value for ground truth")
+              }
             }
+            case v: JsValue => v
+          }
           .toList
           .toNel
-        Validated.fromOption(values,
-                             NonEmptyList(s"Empty test set on fold $fold", Nil))
+        Validated.fromOption(values, NonEmptyList(s"Empty test set on fold $fold", Nil))
       }
 
     def performScoring(algorithmOutput: NonEmptyList[JsValue],
