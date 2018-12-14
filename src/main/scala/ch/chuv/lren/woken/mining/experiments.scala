@@ -324,7 +324,8 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
         case Success(response) =>
           val result = response.result.fold(identity, identity)
           val _      = runNow(coordinatorConfig.jobResultService.put(result))
-          replyTo ! response
+          // Copy the job to avoid spilling internals of extended jobs to outside world. Smelly design here
+          replyTo ! response.copy(job = job)
         case Failure(e) =>
           logger.error(s"Cannot complete experiment ${job.jobId}: ${e.getMessage}", e)
           val result = ErrorJobResult(Some(job.jobId),

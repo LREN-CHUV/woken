@@ -380,7 +380,7 @@
                 "code": "kfold",
                 "data": {
                   "average": {
-                    "Accuracy": 0.66705,
+                    "Accuracy": 0.76019,
                     "Confusion matrix": {
                       "labels": [
                         "AD",
@@ -389,63 +389,31 @@
                       ],
                       "values": [
                         [
-                          0.0,
-                          0.0,
-                          274.0
+                          37.0,
+                          24.0,
+                          77.0
                         ],
                         [
-                          0.0,
-                          0.0,
-                          298.0
+                          1.0,
+                          71.0,
+                          86.0
                         ],
                         [
-                          0.0,
-                          0.0,
-                          1146.0
+                          4.0,
+                          14.0,
+                          545.0
                         ]
                       ]
                     },
-                    "Weighted F1-score": 0.53383,
-                    "Weighted false positive rate": 0.66705,
-                    "Weighted precision": 0.44496,
-                    "Weighted recall": 0.66705,
+                    "Weighted F1-score": 0.72595,
+                    "Weighted false positive rate": 0.37201,
+                    "Weighted precision": 0.76586,
+                    "Weighted recall": 0.76019,
                     "type": "PolynomialClassificationScore"
                   },
                   "folds": {
-                    "0": {
-                      "Accuracy": 0.33411,
-                      "Confusion matrix": {
-                        "labels": [
-                          "AD",
-                          "CN",
-                          "Other"
-                        ],
-                        "values": [
-                          [
-                            0.0,
-                            0.0,
-                            274.0
-                          ],
-                          [
-                            0.0,
-                            0.0,
-                            298.0
-                          ],
-                          [
-                            0.0,
-                            0.0,
-                            287.0
-                          ]
-                        ]
-                      },
-                      "Weighted F1-score": 0.16735,
-                      "Weighted false positive rate": 0.33411,
-                      "Weighted precision": 0.11163,
-                      "Weighted recall": 0.33411,
-                      "type": "PolynomialClassificationScore"
-                    },
                     "1": {
-                      "Accuracy": 1.0,
+                      "Accuracy": 0.76019,
                       "Confusion matrix": {
                         "labels": [
                           "AD",
@@ -454,26 +422,26 @@
                         ],
                         "values": [
                           [
-                            0.0,
-                            0.0,
-                            0.0
+                            37.0,
+                            24.0,
+                            77.0
                           ],
                           [
-                            0.0,
-                            0.0,
-                            0.0
+                            1.0,
+                            71.0,
+                            86.0
                           ],
                           [
-                            0.0,
-                            0.0,
-                            859.0
+                            4.0,
+                            14.0,
+                            545.0
                           ]
                         ]
                       },
-                      "Weighted F1-score": 1.0,
-                      "Weighted false positive rate": null,
-                      "Weighted precision": 1.0,
-                      "Weighted recall": 1.0,
+                      "Weighted F1-score": 0.72595,
+                      "Weighted false positive rate": 0.37201,
+                      "Weighted precision": 0.76586,
+                      "Weighted recall": 0.76019,
                       "type": "PolynomialClassificationScore"
                     }
                   },
@@ -635,6 +603,28 @@
         "code": "lefthippocampus"
       }
     ],
+    "covariablesMustExist": true,
+    "filters": {
+      "condition": "AND",
+      "rules": [
+        {
+          "field": "alzheimerbroadcategory",
+          "id": "alzheimerbroadcategory",
+          "input": "text",
+          "operator": "is_not_null",
+          "type": "string",
+          "value": []
+        },
+        {
+          "field": "lefthippocampus",
+          "id": "lefthippocampus",
+          "input": "text",
+          "operator": "is_not_null",
+          "type": "string",
+          "value": []
+        }
+      ]
+    },
     "grouping": [],
     "targetTable": "cde_features_mixed",
     "testingDatasets": [],

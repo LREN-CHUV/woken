@@ -1245,28 +1245,20 @@
                 "code": "kfold",
                 "data": {
                   "average": {
-                    "Explained variance": 55.95716,
-                    "MAE": 13.67188,
-                    "MSE": 251.68215,
-                    "R-squared": -1.53371,
-                    "RMSE": 15.86449,
+                    "Explained variance": 15.80343,
+                    "MAE": 8.16452,
+                    "MSE": 119.5235,
+                    "R-squared": -0.13378,
+                    "RMSE": 10.93268,
                     "type": "RegressionScore"
                   },
                   "folds": {
-                    "0": {
-                      "Explained variance": 200.33604,
-                      "MAE": 13.46102,
-                      "MSE": 215.32844,
-                      "R-squared": -17.55395,
-                      "RMSE": 14.67407,
-                      "type": "RegressionScore"
-                    },
                     "1": {
-                      "Explained variance": 190.04155,
-                      "MAE": 13.88274,
-                      "MSE": 288.03585,
-                      "R-squared": -2.10001,
-                      "RMSE": 16.97162,
+                      "Explained variance": 15.80343,
+                      "MAE": 8.16452,
+                      "MSE": 119.5235,
+                      "R-squared": -0.13378,
+                      "RMSE": 10.93268,
                       "type": "RegressionScore"
                     }
                   },
@@ -1435,6 +1427,36 @@
         "code": "college_math"
       }
     ],
+    "covariablesMustExist": true,
+    "filters": {
+      "condition": "AND",
+      "rules": [
+        {
+          "field": "cognitive_task2",
+          "id": "cognitive_task2",
+          "input": "text",
+          "operator": "is_not_null",
+          "type": "string",
+          "value": []
+        },
+        {
+          "field": "score_test1",
+          "id": "score_test1",
+          "input": "text",
+          "operator": "is_not_null",
+          "type": "string",
+          "value": []
+        },
+        {
+          "field": "college_math",
+          "id": "college_math",
+          "input": "text",
+          "operator": "is_not_null",
+          "type": "string",
+          "value": []
+        }
+      ]
+    },
     "grouping": [],
     "targetTable": "sample_data",
     "testingDatasets": [],

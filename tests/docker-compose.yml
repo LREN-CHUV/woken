@@ -302,8 +302,8 @@ services:
       SIGAR_SYSTEM_METRICS: "no"
       JVM_SYSTEM_METRICS: "no"
     volumes:
-      # Store the actual responses into the target/responses directory
-      - ./target/responses/:/responses/
+      # Store the actual responses into the woken-test/target/responses directory
+      - ./woken-test/target/responses/:/responses/
     depends_on:
       - woken
 

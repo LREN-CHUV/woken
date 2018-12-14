@@ -41,10 +41,10 @@
                                       }
                                     ]
                                   },
-                                  0.0
+                                  2.91276
                                 ]
                               },
-                              1.0
+                              0.25938
                             ]
                           }
                         ]
@@ -136,19 +136,19 @@
                 "coeff": [
                   0.0
                 ],
-                "const": -1.00001
+                "const": -1.0
               },
               {
                 "coeff": [
                   0.0
                 ],
-                "const": -1.00232
+                "const": -1.00235
               },
               {
                 "coeff": [
                   0.0
                 ],
-                "const": 0.997
+                "const": 0.99736
               }
             ],
             "rollback": false,
@@ -164,7 +164,7 @@
                 "code": "kfold",
                 "data": {
                   "average": {
-                    "Accuracy": 0.66705,
+                    "Accuracy": 0.65541,
                     "Confusion matrix": {
                       "labels": [
                         "AD",
@@ -175,61 +175,29 @@
                         [
                           0.0,
                           0.0,
-                          274.0
+                          138.0
                         ],
                         [
                           0.0,
                           0.0,
-                          298.0
+                          158.0
                         ],
                         [
                           0.0,
                           0.0,
-                          1146.0
+                          563.0
                         ]
                       ]
                     },
-                    "Weighted F1-score": 0.53383,
-                    "Weighted false positive rate": 0.66705,
-                    "Weighted precision": 0.44496,
-                    "Weighted recall": 0.66705,
+                    "Weighted F1-score": 0.51898,
+                    "Weighted false positive rate": 0.65541,
+                    "Weighted precision": 0.42957,
+                    "Weighted recall": 0.65541,
                     "type": "PolynomialClassificationScore"
                   },
                   "folds": {
-                    "0": {
-                      "Accuracy": 0.33411,
-                      "Confusion matrix": {
-                        "labels": [
-                          "AD",
-                          "CN",
-                          "Other"
-                        ],
-                        "values": [
-                          [
-                            0.0,
-                            0.0,
-                            274.0
-                          ],
-                          [
-                            0.0,
-                            0.0,
-                            298.0
-                          ],
-                          [
-                            0.0,
-                            0.0,
-                            287.0
-                          ]
-                        ]
-                      },
-                      "Weighted F1-score": 0.16735,
-                      "Weighted false positive rate": 0.33411,
-                      "Weighted precision": 0.11163,
-                      "Weighted recall": 0.33411,
-                      "type": "PolynomialClassificationScore"
-                    },
                     "1": {
-                      "Accuracy": 1.0,
+                      "Accuracy": 0.65541,
                       "Confusion matrix": {
                         "labels": [
                           "AD",
@@ -240,24 +208,24 @@
                           [
                             0.0,
                             0.0,
-                            0.0
+                            138.0
                           ],
                           [
                             0.0,
                             0.0,
-                            0.0
+                            158.0
                           ],
                           [
                             0.0,
                             0.0,
-                            859.0
+                            563.0
                           ]
                         ]
                       },
-                      "Weighted F1-score": 1.0,
-                      "Weighted false positive rate": null,
-                      "Weighted precision": 1.0,
-                      "Weighted recall": 1.0,
+                      "Weighted F1-score": 0.51898,
+                      "Weighted false positive rate": 0.65541,
+                      "Weighted precision": 0.42957,
+                      "Weighted recall": 0.65541,
                       "type": "PolynomialClassificationScore"
                     }
                   },
@@ -391,9 +359,9 @@
           "type": "record"
         },
         "metadata": {
-          "X": "{\"lefthippocampus\":{\"count\":1718.0,\"mean\":2.9127631548,\"std\":0.259451083,\"min\":1.3047,\"25%\":2.8672,\"50%\":2.8672,\"75%\":2.88555,\"max\":4.4519}}",
+          "X": "{\"lefthippocampus\":{\"count\":1718.0,\"mean\":3.639566982e-16,\"std\":1.0002911632,\"min\":-6.1997481189,\"25%\":-0.1756647944,\"50%\":-0.1756647944,\"75%\":-0.1049179598,\"max\":5.934008706}}",
           "coef_": "[[0.0],[0.0],[0.0]]",
-          "intercept_": "[-1.0000108424,-1.0023222551,0.9969992024]",
+          "intercept_": "[-1.0000040932,-1.0023472692,0.9973585235]",
           "score": "0.6670547148",
           "y": "{\"count\":1718,\"unique\":3,\"top\":\"Other\",\"freq\":1146}"
         },
@@ -430,6 +398,28 @@
         "code": "lefthippocampus"
       }
     ],
+    "covariablesMustExist": true,
+    "filters": {
+      "condition": "AND",
+      "rules": [
+        {
+          "field": "alzheimerbroadcategory",
+          "id": "alzheimerbroadcategory",
+          "input": "text",
+          "operator": "is_not_null",
+          "type": "string",
+          "value": []
+        },
+        {
+          "field": "lefthippocampus",
+          "id": "lefthippocampus",
+          "input": "text",
+          "operator": "is_not_null",
+          "type": "string",
+          "value": []
+        }
+      ]
+    },
     "grouping": [],
     "targetTable": "cde_features_mixed",
     "testingDatasets": [],

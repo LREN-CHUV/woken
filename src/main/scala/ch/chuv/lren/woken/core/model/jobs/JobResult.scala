@@ -61,7 +61,7 @@ object PfaJobResult {
   * @param node Node where the algorithm is executed
   * @param timestamp Date of execution
   * @param algorithm Name of the algorithm
-  * @param rawModel PFA model, without validations that are injected dynamically. The full model can be retrived by the method `model`
+  * @param rawModel PFA model, without validations that are injected dynamically. The full model can be retrieved using the method `model`
   */
 @SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
 case class PfaJobResult(jobId: String,

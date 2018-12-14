@@ -94,6 +94,36 @@
         "code": "college_math"
       }
     ],
+    "covariablesMustExist": true,
+    "filters": {
+      "condition": "AND",
+      "rules": [
+        {
+          "field": "cognitive_task2",
+          "id": "cognitive_task2",
+          "input": "text",
+          "operator": "is_not_null",
+          "type": "string",
+          "value": []
+        },
+        {
+          "field": "score_test1",
+          "id": "score_test1",
+          "input": "text",
+          "operator": "is_not_null",
+          "type": "string",
+          "value": []
+        },
+        {
+          "field": "college_math",
+          "id": "college_math",
+          "input": "text",
+          "operator": "is_not_null",
+          "type": "string",
+          "value": []
+        }
+      ]
+    },
     "grouping": [],
     "targetTable": "sample_data",
     "testingDatasets": [],

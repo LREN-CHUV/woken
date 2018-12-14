@@ -75,8 +75,8 @@ trait Queries {
   }
 
   def save(json: String, file: String): Unit = {
-    new File("target/responses").mkdirs()
-    val writer = new PrintWriter(new File("target/" + file))
+    new File("/responses").mkdirs()
+    val writer = new PrintWriter(new File(file))
 
     writer.write(json)
     writer.close()

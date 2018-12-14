@@ -32006,7 +32006,7 @@
                 "code": "kfold",
                 "data": {
                   "average": {
-                    "Accuracy": 1.0,
+                    "Accuracy": 0.76251,
                     "Confusion matrix": {
                       "labels": [
                         "AD",
@@ -32015,31 +32015,31 @@
                       ],
                       "values": [
                         [
-                          0.0,
-                          0.0,
-                          0.0
+                          61.0,
+                          38.0,
+                          39.0
                         ],
                         [
-                          0.0,
-                          0.0,
-                          0.0
+                          44.0,
+                          78.0,
+                          36.0
                         ],
                         [
-                          0.0,
-                          0.0,
-                          859.0
+                          27.0,
+                          20.0,
+                          516.0
                         ]
                       ]
                     },
-                    "Weighted F1-score": 1.0,
-                    "Weighted false positive rate": null,
-                    "Weighted precision": 1.0,
-                    "Weighted recall": 1.0,
+                    "Weighted F1-score": 0.75631,
+                    "Weighted false positive rate": 0.19711,
+                    "Weighted precision": 0.75197,
+                    "Weighted recall": 0.76251,
                     "type": "PolynomialClassificationScore"
                   },
                   "folds": {
                     "1": {
-                      "Accuracy": 1.0,
+                      "Accuracy": 0.76251,
                       "Confusion matrix": {
                         "labels": [
                           "AD",
@@ -32048,26 +32048,26 @@
                         ],
                         "values": [
                           [
-                            0.0,
-                            0.0,
-                            0.0
+                            61.0,
+                            38.0,
+                            39.0
                           ],
                           [
-                            0.0,
-                            0.0,
-                            0.0
+                            44.0,
+                            78.0,
+                            36.0
                           ],
                           [
-                            0.0,
-                            0.0,
-                            859.0
+                            27.0,
+                            20.0,
+                            516.0
                           ]
                         ]
                       },
-                      "Weighted F1-score": 1.0,
-                      "Weighted false positive rate": null,
-                      "Weighted precision": 1.0,
-                      "Weighted recall": 1.0,
+                      "Weighted F1-score": 0.75631,
+                      "Weighted false positive rate": 0.19711,
+                      "Weighted precision": 0.75197,
+                      "Weighted recall": 0.76251,
                       "type": "PolynomialClassificationScore"
                     }
                   },
@@ -32239,6 +32239,28 @@
         "code": "lefthippocampus"
       }
     ],
+    "covariablesMustExist": true,
+    "filters": {
+      "condition": "AND",
+      "rules": [
+        {
+          "field": "alzheimerbroadcategory",
+          "id": "alzheimerbroadcategory",
+          "input": "text",
+          "operator": "is_not_null",
+          "type": "string",
+          "value": []
+        },
+        {
+          "field": "lefthippocampus",
+          "id": "lefthippocampus",
+          "input": "text",
+          "operator": "is_not_null",
+          "type": "string",
+          "value": []
+        }
+      ]
+    },
     "grouping": [],
     "targetTable": "cde_features_mixed",
     "testingDatasets": [],
