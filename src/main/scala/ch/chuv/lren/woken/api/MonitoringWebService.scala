@@ -50,7 +50,7 @@ class MonitoringWebService(cluster: Cluster, appConfig: AppConfiguration) extend
   val clusterRoutes = ClusterHttpManagementRoutes(cluster)
 
   val healthCheckRoutes = new ClusterHealthCheck(cluster.system).routes(new ManagementRouteProviderSettings {
-    override def selfBaseUri: _root_.akka.http.scaladsl.model.Uri =Uri./
+    override def selfBaseUri: Uri =Uri./
   })
 
   val routes: Route = healthRoute ~ readinessRoute ~ clusterRoutes ~ healthCheckRoutes
