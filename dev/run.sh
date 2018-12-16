@@ -49,8 +49,8 @@ if groups "$USER" | grep &>/dev/null '\bdocker\b'; then
   DOCKER="docker"
   DOCKER_COMPOSE="docker-compose"
 else
-  DOCKER="sudo docker"
-  DOCKER_COMPOSE="sudo docker-compose"
+  DOCKER="sudo -E docker"
+  DOCKER_COMPOSE="sudo -E docker-compose"
 fi
 
 trap '$DOCKER_COMPOSE rm -f' SIGINT SIGQUIT
