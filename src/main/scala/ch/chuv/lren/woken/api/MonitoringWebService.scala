@@ -18,9 +18,9 @@
 package ch.chuv.lren.woken.api
 
 import akka.cluster.Cluster
-import akka.http.scaladsl.model.{StatusCodes, Uri}
-import akka.http.scaladsl.server.{Directives, Route}
-import akka.management.cluster.{ClusterHealthCheck, ClusterHttpManagementRoutes}
+import akka.http.scaladsl.model.{ StatusCodes, Uri }
+import akka.http.scaladsl.server.{ Directives, Route }
+import akka.management.cluster.{ ClusterHealthCheck, ClusterHttpManagementRoutes }
 import akka.management.http.ManagementRouteProviderSettings
 import ch.chuv.lren.woken.config.AppConfiguration
 
@@ -47,11 +47,13 @@ class MonitoringWebService(cluster: Cluster, appConfig: AppConfiguration) extend
     }
   }
 
-  val clusterRoutes = ClusterHttpManagementRoutes(cluster)
+  val clusterRoutes: Route = ClusterHttpManagementRoutes(cluster)
 
-  val healthCheckRoutes = new ClusterHealthCheck(cluster.system).routes(new ManagementRouteProviderSettings {
-    override def selfBaseUri: Uri =Uri./
+  val healthCheckRoutes = pathPrefix("cluster") {
+    new ClusterHealthCheck(cluster.system).routes(new ManagementRouteProviderSettings {
+    override def selfBaseUri: Uri = Uri./
   })
+  }
 
   val routes: Route = healthRoute ~ readinessRoute ~ clusterRoutes ~ healthCheckRoutes
 
