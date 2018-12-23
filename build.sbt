@@ -123,7 +123,7 @@ lazy val library =
       val dockerTestKit   = "0.9.8"
       val diff            = "1.2.1"
       val acyclic         = "0.1.8"
-      val wokenMessages   = "2.8.3"
+      val wokenMessages   = "2.8.4"
     }
     object ExclusionRules {
       val excludeLogback = ExclusionRule(organization = "ch.qos.logback", name = "logback-classic")
