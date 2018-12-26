@@ -67,7 +67,7 @@ case class KFoldFeaturesSplitter[F[_]](
 
   override def splitFeatures(query: FeaturesQuery): List[PartioningQueries] =
     // ntile also starts from 1
-    Range(1, definition.numFolds).toList
+    Range(1, definition.numFolds + 1).toList
       .map { fold =>
         PartioningQueries(fold = fold,
                           trainingDatasetQuery = trainingDatasetQuery(query, fold),
