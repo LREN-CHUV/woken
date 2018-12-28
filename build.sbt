@@ -33,6 +33,8 @@ lazy val `woken` =
           library.akkaHttp,
           library.akkaHttpCors,
           library.akkaHttpJson,
+          library.akkaManagementBase,
+          library.akkaManagementClusterHttp,
           library.kamon,
           library.kamonAkka,
           library.kamonAkkaHttp,
@@ -89,10 +91,11 @@ lazy val library =
       val scalaCheck      = "1.14.0"
       val scalaTest       = "3.0.5"
       val scalaMock       = "4.1.0"
-      val akka            = "2.5.18"
+      val akka            = "2.5.19"
       val akkaHttp        = "10.1.5"
       val akkaHttpCors    = "0.3.1"
       val akkaHttpSwagger = "0.14.1"
+      val akkaManagement  = "0.20.0"
       val kamon           = "1.1.3"
       val kamonAkka       = "1.1.2"
       val kamonAkkaRemote = "1.1.0"
@@ -125,7 +128,9 @@ lazy val library =
     object ExclusionRules {
       val excludeLogback = ExclusionRule(organization = "ch.qos.logback", name = "logback-classic")
       val excludeJackson = ExclusionRule(organization = "com.fasterxml.jackson.core")
-    }
+      val excludeAkkaClusterSharding = ExclusionRule(organization = "com.typesafe.akka", name = "akka-cluster-sharding_2.11")
+      val excludeAkkaDistributedData = ExclusionRule(organization = "com.typesafe.akka", name = "akka-distributed-data")
+     }
     val scalaCheck: ModuleID   = "org.scalacheck"    %% "scalacheck"   % Version.scalaCheck
     val scalaTest: ModuleID    = "org.scalatest"     %% "scalatest"    % Version.scalaTest
     val scalaMock:ModuleID     = "org.scalamock"     %% "scalamock"    % Version.scalaMock
@@ -143,6 +148,9 @@ lazy val library =
     val akkaHttpJson: ModuleID = "com.typesafe.akka" %% "akka-http-spray-json" % Version.akkaHttp
     val akkaHttpCors: ModuleID = "ch.megard"         %% "akka-http-cors" % Version.akkaHttpCors
     val akkaHttpSwagger: ModuleID = "com.github.swagger-akka-http"   %% "swagger-akka-http" % Version.akkaHttpSwagger
+    val akkaManagementBase: ModuleID = "com.lightbend.akka.management" %% "akka-management" % Version.akkaManagement
+    val akkaManagementClusterHttp: ModuleID =  "com.lightbend.akka.management" %% "akka-management-cluster-http" % Version.akkaManagement excludeAll ExclusionRules.excludeAkkaClusterSharding
+    
 
     // Kamon
     val kamon: ModuleID        = "io.kamon" %% "kamon-core" % Version.kamon excludeAll ExclusionRules.excludeLogback
