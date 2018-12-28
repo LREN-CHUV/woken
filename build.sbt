@@ -128,7 +128,9 @@ lazy val library =
     object ExclusionRules {
       val excludeLogback = ExclusionRule(organization = "ch.qos.logback", name = "logback-classic")
       val excludeJackson = ExclusionRule(organization = "com.fasterxml.jackson.core")
-    }
+      val excludeAkkaClusterSharding = ExclusionRule(organization = "com.typesafe.akka", name = "akka-cluster-sharding_2.11")
+      val excludeAkkaDistributedData = ExclusionRule(organization = "com.typesafe.akka", name = "akka-distributed-data")
+     }
     val scalaCheck: ModuleID   = "org.scalacheck"    %% "scalacheck"   % Version.scalaCheck
     val scalaTest: ModuleID    = "org.scalatest"     %% "scalatest"    % Version.scalaTest
     val scalaMock:ModuleID     = "org.scalamock"     %% "scalamock"    % Version.scalaMock
@@ -147,7 +149,7 @@ lazy val library =
     val akkaHttpCors: ModuleID = "ch.megard"         %% "akka-http-cors" % Version.akkaHttpCors
     val akkaHttpSwagger: ModuleID = "com.github.swagger-akka-http"   %% "swagger-akka-http" % Version.akkaHttpSwagger
     val akkaManagementBase: ModuleID = "com.lightbend.akka.management" %% "akka-management" % Version.akkaManagement
-    val akkaManagementClusterHttp: ModuleID =  "com.lightbend.akka.management" %% "akka-management-cluster-http" % Version.akkaManagement
+    val akkaManagementClusterHttp: ModuleID =  "com.lightbend.akka.management" %% "akka-management-cluster-http" % Version.akkaManagement excludeAll ExclusionRules.excludeAkkaClusterSharding
     
 
     // Kamon
