@@ -17,6 +17,7 @@
 
 package ch.chuv.lren.woken.dao
 
+import cats.Id
 import doobie._
 import doobie.implicits._
 import spray.json._
@@ -37,6 +38,7 @@ import doobie.enum.JdbcType
 import ch.chuv.lren.woken.core.sqlUtils._
 import doobie.util.analysis.ColumnMeta
 import doobie.util.transactor.Strategy
+import sup.HealthCheck
 
 import scala.language.higherKinds
 
@@ -52,6 +54,9 @@ class FeaturesRepositoryDAO[F[_]: Effect] private (
       .find(_.table.same(table))
       .map(t => FeaturesTableRepositoryDAO[F](xa, t, wokenRepository))
       .sequence
+
+  override def healthCheck: HealthCheck[F, Id] = validate(xa)
+
 }
 
 object FeaturesRepositoryDAO {
@@ -238,6 +243,7 @@ class FeaturesTableRepositoryDAO[F[_]: Effect] private (
                                        prefills,
                                        wokenRepository.nextTableSeqNumber)
 
+  override def healthCheck: HealthCheck[F, Id] = validate(xa)
 }
 
 object FeaturesTableRepositoryDAO {
@@ -327,6 +333,7 @@ class ExtendedFeaturesTableRepositoryDAO[F[_]: Effect] private (
   ): Validation[Resource[F, FeaturesTableRepository[F]]] =
     "Impossible to extend an extended table".invalidNel
 
+  override def healthCheck: HealthCheck[F, Id] = validate(xa)
 }
 
 object ExtendedFeaturesTableRepositoryDAO {

@@ -23,6 +23,7 @@ import ch.chuv.lren.woken.akka.{ AkkaServer, CoreSystem }
 import ch.chuv.lren.woken.api.Api
 import ch.chuv.lren.woken.api.ssl.WokenSSLConfiguration
 import ch.chuv.lren.woken.config.WokenConfiguration
+import ch.chuv.lren.woken.service.DatabaseServices
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
@@ -32,7 +33,8 @@ import scala.language.higherKinds
 import scala.util.{ Failure, Success }
 
 class WebServer[F[_]: ConcurrentEffect: Timer](override val core: CoreSystem,
-                                               override val config: WokenConfiguration)
+                                               override val config: WokenConfiguration,
+                                               val databaseServices: DatabaseServices[F])
     extends Api
     with StaticResources
     with WokenSSLConfiguration {
@@ -52,7 +54,7 @@ class WebServer[F[_]: ConcurrentEffect: Timer](override val core: CoreSystem,
 
     // Start a new HTTP server on port 8080 with our service actor as the handler
     http.bindAndHandle(
-      routes,
+      routes(databaseServices),
       interface = app.networkInterface,
       port = app.webServicesPort
     )
@@ -102,7 +104,7 @@ object WebServer {
     // start a new HTTP server with our service actor as the handler
     Resource.make(Sync[F].delay {
       logger.info(s"Start web server on port ${config.app.webServicesPort}")
-      val server = new WebServer(akkaServer, config)
+      val server = new WebServer(akkaServer, config, akkaServer.databaseServices)
 
       server.selfChecks()
 

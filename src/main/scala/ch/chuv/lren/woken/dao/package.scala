@@ -17,8 +17,15 @@
 
 package ch.chuv.lren.woken
 
+import cats.effect.Effect
+import doobie.util.transactor.Transactor
+import sup.modules.doobie._
+import eu.timepit.refined.auto._
+
 package object dao {
 
   import acyclic.pkg
 
+  def validate[F[_]: Effect](transactor: Transactor[F]) =
+    connectionCheck(transactor)(timeoutSeconds = Some(5))
 }

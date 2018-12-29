@@ -60,6 +60,8 @@ lazy val `woken` =
           library.doobieHikari,
           library.yaml,
           library.wokenMessages,
+          library.healthSupport,
+          library.doobieHealthCheck,
           //library.scalaCache,
           library.acyclic                % Provided,
           library.scalaCheck             % Test,
@@ -124,6 +126,7 @@ lazy val library =
       val diff            = "1.2.1"
       val acyclic         = "0.1.8"
       val wokenMessages   = "2.8.4"
+      val sup             = "0.1.0"     
     }
     object ExclusionRules {
       val excludeLogback = ExclusionRule(organization = "ch.qos.logback", name = "logback-classic")
@@ -186,6 +189,10 @@ lazy val library =
     val diff: ModuleID         = "ai.x"              %% "diff"         % Version.diff
     val acyclic: ModuleID      = "com.lihaoyi"       %% "acyclic"      % Version.acyclic
     val wokenMessages: ModuleID = "ch.chuv.lren.woken" %% "woken-messages" % Version.wokenMessages
+    
+    // health check
+    val healthSupport = "com.kubukoz" %% "sup-core" % Version.sup
+    val doobieHealthCheck = "com.kubukoz" %% "sup-doobie" % Version.sup
 
   }
 

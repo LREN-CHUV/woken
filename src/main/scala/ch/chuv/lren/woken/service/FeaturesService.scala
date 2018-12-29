@@ -17,6 +17,7 @@
 
 package ch.chuv.lren.woken.service
 
+import cats.Id
 import cats.effect.{ Effect, Resource }
 import cats.syntax.validated._
 import ch.chuv.lren.woken.core.features.FeaturesQuery
@@ -32,6 +33,7 @@ import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query.filters.FilterRule
 import spray.json.JsObject
+import sup.HealthCheck
 
 import scala.collection.mutable
 import scala.language.higherKinds
@@ -44,6 +46,8 @@ object FeaturesService {
 trait FeaturesService[F[_]] {
 
   def featuresTable(table: TableId): Validation[FeaturesTableService[F]]
+
+  def healthCheck: HealthCheck[F, Id]
 
 }
 
@@ -117,7 +121,7 @@ class FeaturesServiceImpl[F[_]: Effect](repository: FeaturesRepository[F])
       ) { s: FeaturesTableService[F] =>
         s.validNel[String]
       }
-
+  override def healthCheck: HealthCheck[F, Id] = repository.healthCheck
 }
 
 class FeaturesTableServiceImpl[F[_]: Effect](repository: FeaturesTableRepository[F])

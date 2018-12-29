@@ -20,8 +20,8 @@ package ch.chuv.lren.woken.service
 import akka.NotUsed
 import akka.actor.{ ActorRef, ActorSystem }
 import akka.stream.scaladsl.Flow
-import cats.effect.{ ContextShift, Effect, IO, Timer }
-import cats.effect.internals.IOContextShift
+import cats.effect.internals.IOAppPlatform
+import cats.effect._
 import ch.chuv.lren.woken.JsonUtils
 import ch.chuv.lren.woken.akka.FakeActors
 import ch.chuv.lren.woken.config.WokenConfiguration
@@ -161,7 +161,7 @@ object TestServices extends JsonUtils {
   )
 
   implicit val ec: ExecutionContext                       = ExecutionContext.global
-  implicit lazy val defaultContextShift: ContextShift[IO] = IOContextShift.global
+  implicit lazy val defaultContextShift: ContextShift[IO] = IO.contextShift(ec)
   implicit lazy val defaultTimer: Timer[IO]               = cats.effect.IO.timer(ec)
 
   def databaseServices(config: WokenConfiguration): DatabaseServices[IO] = {

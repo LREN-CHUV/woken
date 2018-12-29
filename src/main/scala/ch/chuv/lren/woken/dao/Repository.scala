@@ -19,10 +19,13 @@ package ch.chuv.lren.woken.dao
 
 import java.time.{ OffsetDateTime, ZoneOffset }
 
+import cats.Id
+import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import doobie._
 import com.typesafe.scalalogging.LazyLogging
 import org.postgresql.util.PGobject
 import spray.json._
+import sup.HealthCheck
 
 import scala.language.higherKinds
 import scala.reflect.runtime.universe.TypeTag
@@ -31,10 +34,10 @@ import scala.util.Try
 /**
   * Data Access Layer
   */
-trait Repository extends LazyLogging {
+trait Repository[F[_]] extends LazyLogging {
 
   // TODO: add health checks
-  // def healthCheck: Validation[]
+  def healthCheck: HealthCheck[F, Id]
 
   protected implicit val JsObjectMeta: Meta[JsObject] =
     Meta.Advanced
