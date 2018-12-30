@@ -18,6 +18,7 @@
 package ch.chuv.lren.woken.api
 
 import akka.cluster.Cluster
+import akka.cluster.pubsub.DistributedPubSub
 import akka.http.scaladsl.model.{ StatusCodes, Uri }
 import akka.http.scaladsl.server.{ Directives, Route }
 import akka.http.scaladsl.model.StatusCodes._
@@ -27,6 +28,7 @@ import cats.{ Id, Reducible, Semigroup }
 import cats.data.NonEmptyList
 import cats.implicits._
 import cats.effect.Effect
+import ch.chuv.lren.woken.akka.monitoring.DistributedPubSubHealthCheck
 import ch.chuv.lren.woken.config.AppConfiguration
 import ch.chuv.lren.woken.service.DatabaseServices
 import sup.{ Health, HealthCheck, HealthReporter }
@@ -41,13 +43,16 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
       (cluster.state.leader.isEmpty,
        !appConfig.disableWorkers,
        cluster.state.members.size < 2,
-       dbChecks) match {
-        case (false, true, true, true) =>
+       dbChecks,
+       wokenValidationCheck) match {
+        case (false, true, true, true, true) =>
           complete("UP - Expected at least one worker (Woken validation server) in the cluster")
-        case (true, _, _, _) =>
+        case (true, _, _, _, _) =>
           complete((StatusCodes.InternalServerError, "No leader elected for the cluster"))
-        case (false, _, _, true) => complete("UP")
-        case (_, _, _, false)    => complete((StatusCodes.InternalServerError, "DB checks failed."))
+        case (false, _, _, true, true) => complete("UP")
+        case (_, _, _, false, _)       => complete((StatusCodes.InternalServerError, "DB checks failed."))
+        case (_, _, _, _, false) =>
+          complete((StatusCodes.InternalServerError, "Woken validation checks failed."))
       }
     }
   }
@@ -81,6 +86,18 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
 
   val routes: Route = healthRoute ~ readinessRoute ~ clusterRoutes ~ healthCheckRoutes ~ dbHealth
 
+  private def wokenValidationCheck: Boolean = {
+    val mediator = DistributedPubSub(cluster.system).mediator
+    val validationServiceCheck: HealthCheck[F, Id] =
+      DistributedPubSubHealthCheck.checkValidation(mediator)
+    val scoringServiceCheck: HealthCheck[F, Id] =
+      DistributedPubSubHealthCheck.checkScoring(mediator)
+    val reporter: HealthReporter[F, NonEmptyList, Id] =
+      HealthReporter.fromChecks(validationServiceCheck, scoringServiceCheck)
+
+    Effect[F].toIO(healthCheckResponse(reporter)).unsafeRunSync()
+  }
+
   private def dbChecks: Boolean = {
     val featuresCheck: HealthCheck[F, Id] = databaseServices.featuresService.healthCheck
     val jobsCheck                         = databaseServices.jobResultService.healthCheck
@@ -89,10 +106,10 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
     val reporter: HealthReporter[F, NonEmptyList, Id] =
       HealthReporter.fromChecks(featuresCheck, jobsCheck, variablesCheck)
 
-    Effect[F].toIO(dbHealthCheckResponse(reporter)).unsafeRunSync()
+    Effect[F].toIO(healthCheckResponse(reporter)).unsafeRunSync()
   }
 
-  private def dbHealthCheckResponse[H[_]: Reducible](
+  private def healthCheckResponse[H[_]: Reducible](
       healthCheck: HealthCheck[F, H]
   )(implicit combineHealthChecks: Semigroup[Health]) =
     healthCheck.check.flatMap { check =>

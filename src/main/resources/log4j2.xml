@@ -40,5 +40,11 @@
     <Logger name="com.zaxxer.hikari" level="WARN">
       <AppenderRef ref="Console"/>
     </Logger>
+    <Logger name="io.netty" level="ERROR">
+      <AppenderRef ref="Console"/>
+    </Logger>
+    <Logger name="org.asynchttpclient" level="ERROR">
+      <AppenderRef ref="Console"/>
+    </Logger>
   </Loggers>
 </Configuration>

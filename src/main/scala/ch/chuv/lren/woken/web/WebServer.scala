@@ -19,6 +19,7 @@ package ch.chuv.lren.woken.web
 
 import akka.http.scaladsl.Http
 import cats.effect._
+import cats.implicits._
 import ch.chuv.lren.woken.akka.{ AkkaServer, CoreSystem }
 import ch.chuv.lren.woken.api.Api
 import ch.chuv.lren.woken.api.ssl.WokenSSLConfiguration
@@ -65,10 +66,20 @@ class WebServer[F[_]: ConcurrentEffect: Timer](override val core: CoreSystem,
 
     val b = Await.result(binding, 30.seconds)
 
-    // TODO: add more self checks for Web server
-    // TODO: it should fail fast if an error is detected
+    val url =
+      s"http${if (config.app.webServicesHttps) "s" else ""}://${config.app.networkInterface}:${config.app.webServicesPort}/cluster/alive"
+    val endpointCheck = healthCheck(url)
+    val result: F[Boolean] = endpointCheck.check.flatMap { check =>
+      check.value.isHealthy.pure[F]
+    }
+    val checkResult: Boolean = Effect[F].toIO(result).unsafeRunSync()
+    if (checkResult) {
+      logger.info(s"[OK] Web server is running on ${b.localAddress}")
+    } else {
+      logger.info(s"[FAIL] Web server is not running on ${b.localAddress}")
+      Effect[F].toIO(unbind()).unsafeRunSync()
+    }
 
-    logger.info(s"[OK] Web server is running on ${b.localAddress}")
   }
 
   def unbind(): F[Unit] = {

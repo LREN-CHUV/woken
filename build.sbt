@@ -62,6 +62,8 @@ lazy val `woken` =
           library.wokenMessages,
           library.healthSupport,
           library.doobieHealthCheck,
+          library.sttpHealhCheck,
+          library.sttpBackend,
           //library.scalaCache,
           library.acyclic                % Provided,
           library.scalaCheck             % Test,
@@ -127,6 +129,7 @@ lazy val library =
       val acyclic         = "0.1.8"
       val wokenMessages   = "2.8.4"
       val sup             = "0.1.0"     
+      val sttpBackend     = "1.5.2"
     }
     object ExclusionRules {
       val excludeLogback = ExclusionRule(organization = "ch.qos.logback", name = "logback-classic")
@@ -193,6 +196,8 @@ lazy val library =
     // health check
     val healthSupport = "com.kubukoz" %% "sup-core" % Version.sup
     val doobieHealthCheck = "com.kubukoz" %% "sup-doobie" % Version.sup
+    val sttpHealhCheck = "com.kubukoz" %% "sup-sttp" % Version.sup
+    val sttpBackend = "com.softwaremill.sttp" %% "async-http-client-backend-cats" % Version.sttpBackend
 
   }
 

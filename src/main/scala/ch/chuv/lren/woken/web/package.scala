@@ -16,9 +16,15 @@
  */
 
 package ch.chuv.lren.woken
-import cats.effect.{ ConcurrentEffect, ContextShift, Resource, Timer }
+import cats.Id
+import cats.effect._
 import ch.chuv.lren.woken.akka.AkkaServer
 import ch.chuv.lren.woken.config.WokenConfiguration
+import com.softwaremill.sttp.SttpBackend
+import com.softwaremill.sttp.asynchttpclient.cats.AsyncHttpClientCatsBackend
+import sup._
+import sup.modules.sttp._
+import com.softwaremill.sttp.{ sttp => request, _ }
 
 import scala.language.higherKinds
 
@@ -32,5 +38,10 @@ package object web {
       akkaServer: AkkaServer[F],
       config: WokenConfiguration
   ): Resource[F, WebServer[F]] = WebServer.resource(akkaServer, config)
+
+  def healthCheck[F[_]: Effect](resource: String): HealthCheck[F, Id] = {
+    implicit def backend: SttpBackend[F, Nothing] = AsyncHttpClientCatsBackend[F]()
+    statusCodeHealthCheck[F, String](request.get(UriContext(StringContext(resource)).uri(resource)))
+  }
 
 }
