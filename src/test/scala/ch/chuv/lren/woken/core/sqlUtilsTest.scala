@@ -17,12 +17,15 @@
 
 package ch.chuv.lren.woken.core
 
-import ch.chuv.lren.woken.core.model.database.TableId
-import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
+import ch.chuv.lren.woken.core.model.database.{
+  FeaturesTableDescription,
+  TableColumn,
+  TableId,
+  sqlUtils
+}
 import ch.chuv.lren.woken.messages.variables.SqlType
 import ch.chuv.lren.woken.service.TestServices.database
 import org.scalatest.{ Matchers, WordSpec }
-
 import doobie.implicits._
 
 class sqlUtilsTest extends WordSpec with Matchers {

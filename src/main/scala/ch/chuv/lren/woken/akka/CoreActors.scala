@@ -44,7 +44,7 @@ trait CoreActors {
       logger.error(err.getMessage, err)
       Supervision.Resume
     case err =>
-      logger.error("Unknown error. Stopping the stream.", err)
+      logger.error("Unknown error. Stopping the actor or stream.", err)
       Supervision.Stop
   }
 

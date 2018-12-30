@@ -51,8 +51,8 @@ class MonitoringWebService(cluster: Cluster, appConfig: AppConfiguration) extend
 
   val healthCheckRoutes = pathPrefix("cluster") {
     new ClusterHealthCheck(cluster.system).routes(new ManagementRouteProviderSettings {
-    override def selfBaseUri: Uri = Uri./
-  })
+      override def selfBaseUri: Uri = Uri./
+    })
   }
 
   val routes: Route = healthRoute ~ readinessRoute ~ clusterRoutes ~ healthCheckRoutes

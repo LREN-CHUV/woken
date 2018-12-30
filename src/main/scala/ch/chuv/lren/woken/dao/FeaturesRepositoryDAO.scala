@@ -23,10 +23,9 @@ import spray.json._
 import cats.data.{ NonEmptyList, Validated }
 import cats.effect.{ Effect, Resource }
 import cats.implicits._
-import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
 import ch.chuv.lren.woken.core.features.FeaturesQuery
-import ch.chuv.lren.woken.core.model
-import ch.chuv.lren.woken.core.model.database.TableId
+import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn, TableId }
+import ch.chuv.lren.woken.core.model.database.sqlUtils._
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
 import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
@@ -34,7 +33,6 @@ import ch.chuv.lren.woken.messages.query.filters.FilterRule
 import ch.chuv.lren.woken.messages.variables.SqlType
 import ch.chuv.lren.woken.messages.variables.SqlType.SqlType
 import doobie.enum.JdbcType
-import ch.chuv.lren.woken.core.sqlUtils._
 import doobie.util.analysis.ColumnMeta
 import doobie.util.transactor.Strategy
 
@@ -256,7 +254,7 @@ object FeaturesTableRepositoryDAO {
 
   private[dao] def prepareHeaders: PreparedStatementIO[Headers] =
     HPS.getColumnJdbcMeta.map(_.map { doobieMeta =>
-      model.TableColumn(doobieMeta.name, toSql(doobieMeta))
+      TableColumn(doobieMeta.name, toSql(doobieMeta))
     })
 
   @SuppressWarnings(Array("org.wartremover.warts.Throw"))

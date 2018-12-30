@@ -34,13 +34,15 @@ object AlgorithmEngine extends Enumeration {
 
 import AlgorithmEngine.AlgorithmEngine
 
+// TODO: dockerImage specific to Docker algos
+
 /** Definition of an algorithm, including its capabilities and runtime behaviour.
   *
   * @param code Code identifying the algorithm
   * @param dockerImage Name of the Docker image, including its version number
   * @param predictive Is the algorithm predictive?
   * @param variablesCanBeNull Can the target variables be null? Useful for supervised learning type of algorithms.
-  * @param covariablesCanBeNull Can the independant variables be null?
+  * @param covariablesCanBeNull Can the independent variables be null?
   * @param engine Engine for the execution of the algorithm. Values are Docker, Validation
   * @param distributedExecutionPlan Execution plan to use when running the algorithm in a distributed mode.
   */

@@ -22,7 +22,8 @@ import doobie.implicits._
 import cats._
 import cats.implicits._
 import ch.chuv.lren.woken.messages.variables.{ GroupMetaData, variablesProtocol }
-import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, VariablesMeta }
+import ch.chuv.lren.woken.core.model.database.FeaturesTableDescription
+import ch.chuv.lren.woken.core.model.VariablesMeta
 import variablesProtocol._
 
 import scala.collection.mutable

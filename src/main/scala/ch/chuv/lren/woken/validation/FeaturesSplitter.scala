@@ -19,7 +19,7 @@ package ch.chuv.lren.woken.validation
 
 import cats.effect.Effect
 import ch.chuv.lren.woken.core.features.FeaturesQuery
-import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
+import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn }
 import ch.chuv.lren.woken.dao.PrefillExtendedFeaturesTable
 import ch.chuv.lren.woken.messages.query.ValidationSpec
 import ch.chuv.lren.woken.service.FeaturesTableService

@@ -15,17 +15,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.core
+package ch.chuv.lren.woken.core.model.database
 
-import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
 import ch.chuv.lren.woken.messages.query.filters.FilterRule
 import ch.chuv.lren.woken.messages.variables.SqlType.SqlType
 import doobie.util.fragment.Fragment
 import doobie.implicits._
 
 object sqlUtils {
-
-  import acyclic.pkg
 
   /**
     * Internal utilities

@@ -18,8 +18,8 @@
 package ch.chuv.lren.woken.mining
 
 import ch.chuv.lren.woken.core.model.jobs.Job
-import ch.chuv.lren.woken.core.model.{ AlgorithmDefinition, FeaturesTableDescription }
-import ch.chuv.lren.woken.core.model.database.TableId
+import ch.chuv.lren.woken.core.model.AlgorithmDefinition
+import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableId }
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query.{ AlgorithmSpec, ExperimentQuery }

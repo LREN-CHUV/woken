@@ -23,9 +23,8 @@ import doobie.hikari._
 import cats.implicits._
 import cats.effect._
 import cats.data.Validated._
-import ch.chuv.lren.woken.core.model.database.TableId
-import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
 import com.typesafe.config.Config
+import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn, TableId }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
 import ch.chuv.lren.woken.messages.query.UserId
 import ch.chuv.lren.woken.messages.variables.SqlType
@@ -168,7 +167,7 @@ object DatabaseConfiguration {
     // is where nonblocking operations will be executed.
     for {
       // our connect EC
-      ce <- ExecutionContexts.fixedThreadPool[F](2)
+      ce <- ExecutionContexts.fixedThreadPool[F](size = 2)
       // our transaction EC
       te <- ExecutionContexts.cachedThreadPool[F]
 
@@ -189,7 +188,6 @@ object DatabaseConfiguration {
       }
 
     } yield xa
-  // TODO: .memoize (using Monix?)
 
   def validate[F[_]: Effect: ContextShift](
       xa: HikariTransactor[F],

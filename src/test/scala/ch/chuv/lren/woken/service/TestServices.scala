@@ -18,22 +18,17 @@
 package ch.chuv.lren.woken.service
 
 import akka.NotUsed
-import akka.actor.{ ActorRef, ActorSystem }
+import akka.actor.ActorSystem
 import akka.stream.scaladsl.Flow
 import cats.effect.{ ContextShift, Effect, IO, Timer }
 import cats.effect.internals.IOContextShift
 import ch.chuv.lren.woken.JsonUtils
 import ch.chuv.lren.woken.akka.FakeActors
 import ch.chuv.lren.woken.config.WokenConfiguration
-import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn, VariablesMeta }
-import ch.chuv.lren.woken.core.model.database.TableId
+import ch.chuv.lren.woken.core.model.VariablesMeta
+import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableId }
 import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
-import ch.chuv.lren.woken.dao.{
-  FeaturesInMemoryRepository,
-  FeaturesTableInMemoryRepository,
-  MetadataInMemoryRepository,
-  WokenInMemoryRepository
-}
+import ch.chuv.lren.woken.dao._
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryResult }
 import ch.chuv.lren.woken.messages.remoting.RemoteLocation
