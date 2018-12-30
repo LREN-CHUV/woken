@@ -62,9 +62,8 @@ trait Api {
     val monitoringService =
       new MonitoringWebService(core.cluster, config.app, databaseServices)
 
-    val monitoringRoutes: Route = Effect[F].toIO(monitoringService.routes).unsafeRunSync()
     cors()(
-      SwaggerService.routes ~ miningService.routes ~ metadataService.routes ~ monitoringRoutes
+      SwaggerService.routes ~ miningService.routes ~ metadataService.routes ~ monitoringService.routes
     )
 
   }

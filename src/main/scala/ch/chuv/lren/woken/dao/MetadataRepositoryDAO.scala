@@ -83,8 +83,8 @@ class TablesCatalogRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
   override def put(table: FeaturesTableDescription): F[FeaturesTableDescription] = ???
 
   override def get(table: String): F[Option[FeaturesTableDescription]] = ???
-  // FIXME
-  override def healthCheck: HealthCheck[F, Id] = ???
+
+  override def healthCheck: HealthCheck[F, Id] = validate(xa)
 }
 
 case class MetadataRepositoryDAO[F[_]: Effect](xa: Transactor[F]) extends MetadataRepository[F] {
@@ -92,6 +92,6 @@ case class MetadataRepositoryDAO[F[_]: Effect](xa: Transactor[F]) extends Metada
   override def variablesMeta: VariablesMetaRepository[F] = new VariablesMetaRepositoryDAO[F](xa)
 
   override def tablesCatalog: TablesCatalogRepository[F] = new TablesCatalogRepositoryDAO[F](xa)
-  // FIXME
-  override def healthCheck: HealthCheck[F, Id] = ???
+
+  override def healthCheck: HealthCheck[F, Id] = validate(xa)
 }

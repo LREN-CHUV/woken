@@ -19,14 +19,14 @@ package ch.chuv.lren.woken.api
 
 import akka.cluster.Cluster
 import akka.http.scaladsl.model.{ StatusCodes, Uri }
-import akka.http.scaladsl.server.{ Directives, Route, StandardRoute }
+import akka.http.scaladsl.server.{ Directives, Route }
 import akka.http.scaladsl.model.StatusCodes._
 import akka.management.cluster.{ ClusterHealthCheck, ClusterHttpManagementRoutes }
 import akka.management.http.ManagementRouteProviderSettings
-import cats.{ Id, Monad, Reducible, Semigroup }
+import cats.{ Id, Reducible, Semigroup }
 import cats.data.NonEmptyList
 import cats.implicits._
-import cats.effect.{ Effect, IO }
+import cats.effect.Effect
 import ch.chuv.lren.woken.config.AppConfiguration
 import ch.chuv.lren.woken.service.DatabaseServices
 import sup.{ Health, HealthCheck, HealthReporter }
@@ -36,7 +36,7 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
                                          databaseServices: DatabaseServices[F])
     extends Directives {
 
-  val healthRoute: F[Route] = pathPrefix("health") {
+  val healthRoute: Route = pathPrefix("health") {
     get {
       // TODO: proper health check is required, check db connection, check cluster availability...
       if (cluster.state.leader.isEmpty)
@@ -46,26 +46,26 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
       else
         complete("UP")
     }
-  }.pure[F]
+  }
 
-  val readinessRoute: F[Route] = pathPrefix("readiness") {
+  val readinessRoute: Route = pathPrefix("readiness") {
     get {
       if (cluster.state.leader.isEmpty)
         complete((StatusCodes.InternalServerError, "No leader elected for the cluster"))
       else
         complete("READY")
     }
-  }.pure[F]
+  }
 
-  val clusterRoutes: F[Route] = ClusterHttpManagementRoutes(cluster).pure[F]
+  val clusterRoutes: Route = ClusterHttpManagementRoutes(cluster)
 
   val healthCheckRoutes = pathPrefix("cluster") {
     new ClusterHealthCheck(cluster.system).routes(new ManagementRouteProviderSettings {
       override def selfBaseUri: Uri = Uri./
     })
-  }.pure[F]
+  }
 
-  val dbHealth: F[Route] = {
+  val dbHealth: Route = {
     val featuresCheck: HealthCheck[F, Id] = databaseServices.featuresService.healthCheck
     val jobsCheck                         = databaseServices.jobResultService.healthCheck
     val variablesCheck                    = databaseServices.variablesMetaService.healthCheck
@@ -73,16 +73,10 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
     val reporter: HealthReporter[F, NonEmptyList, Id] =
       HealthReporter.fromChecks(featuresCheck, jobsCheck, variablesCheck)
 
-    dbHealthCheckResponse(reporter)
+    Effect[F].toIO(dbHealthCheckResponse(reporter)).unsafeRunSync()
   }
 
-  val routes: F[Route] = for {
-    hr  <- healthRoute
-    rr  <- readinessRoute
-    cr  <- clusterRoutes
-    hcr <- healthCheckRoutes
-    dbh <- dbHealth
-  } yield hr ~ rr ~ cr ~ hcr ~ dbh
+  val routes: Route = healthRoute ~ readinessRoute ~ clusterRoutes ~ healthCheckRoutes ~ dbHealth
 
   private def dbHealthCheckResponse[H[_]: Reducible](
       healthCheck: HealthCheck[F, H]
