@@ -38,13 +38,17 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
 
   val healthRoute: Route = pathPrefix("health") {
     get {
-      // TODO: proper health check is required, check db connection, check cluster availability...
-      if (cluster.state.leader.isEmpty)
-        complete((StatusCodes.InternalServerError, "No leader elected for the cluster"))
-      else if (!appConfig.disableWorkers && cluster.state.members.size < 2)
-        complete("UP - Expected at least one worker (Woken validation server) in the cluster")
-      else
-        complete("UP")
+      (cluster.state.leader.isEmpty,
+       !appConfig.disableWorkers,
+       cluster.state.members.size < 2,
+       dbChecks) match {
+        case (false, true, true, true) =>
+          complete("UP - Expected at least one worker (Woken validation server) in the cluster")
+        case (true, _, _, _) =>
+          complete((StatusCodes.InternalServerError, "No leader elected for the cluster"))
+        case (false, _, _, true) => complete("UP")
+        case (_, _, _, false)    => complete((StatusCodes.InternalServerError, "DB checks failed."))
+      }
     }
   }
 
@@ -65,7 +69,19 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
     })
   }
 
-  val dbHealth: Route = {
+  val dbHealth: Route = pathPrefix("db") {
+    get {
+      if (dbChecks) {
+        complete(OK)
+      } else {
+        complete((StatusCodes.InternalServerError, "DBs are not ready."))
+      }
+    }
+  }
+
+  val routes: Route = healthRoute ~ readinessRoute ~ clusterRoutes ~ healthCheckRoutes ~ dbHealth
+
+  private def dbChecks: Boolean = {
     val featuresCheck: HealthCheck[F, Id] = databaseServices.featuresService.healthCheck
     val jobsCheck                         = databaseServices.jobResultService.healthCheck
     val variablesCheck                    = databaseServices.variablesMetaService.healthCheck
@@ -76,26 +92,11 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
     Effect[F].toIO(dbHealthCheckResponse(reporter)).unsafeRunSync()
   }
 
-  val routes: Route = healthRoute ~ readinessRoute ~ clusterRoutes ~ healthCheckRoutes ~ dbHealth
-
   private def dbHealthCheckResponse[H[_]: Reducible](
       healthCheck: HealthCheck[F, H]
   )(implicit combineHealthChecks: Semigroup[Health]) =
     healthCheck.check.flatMap { check =>
-      if (check.value.reduce.isHealthy) {
-        pathPrefix("db") {
-          get {
-            complete(OK)
-          }
-        }.pure[F]
-      } else {
-        pathPrefix("db") {
-          get {
-            complete(ServiceUnavailable)
-          }
-
-        }
-      }.pure[F]
+      check.value.reduce.isHealthy.pure[F]
     }
 
 }
