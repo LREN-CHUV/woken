@@ -34,8 +34,15 @@ import scala.language.higherKinds
 import scala.util.{ Failure, Success }
 
 /**
-  * This trait implements ``Core`` by starting the required ``ActorSystem`` and registering the
-  * termination handler to stop the system when the JVM exits.
+  * This server manages the Akka system by starting the required ``ActorSystem``, registering the
+  * termination handler to stop the system when the JVM exits and starting the main actors.
+  *
+  * The main actors include:
+  *
+  * - the distributed pub sub mediator,
+  * - the main router actor, which is exposed to the cluster client receptionist to provide remote access.
+  * - Chronos http actor with throttling to prevent overflowing Chronos with burst of requests.
+  * - a monitor for dead letter messages.
   *
   * @author Ludovic Claude <ludovic.claude@chuv.ch>
   */

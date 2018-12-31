@@ -21,7 +21,7 @@ import cats.Id
 import cats.effect.{ Effect, Resource }
 import cats.syntax.validated._
 import ch.chuv.lren.woken.core.features.FeaturesQuery
-import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
+import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn }
 import ch.chuv.lren.woken.dao.{
   FeaturesRepository,
   FeaturesTableRepository,

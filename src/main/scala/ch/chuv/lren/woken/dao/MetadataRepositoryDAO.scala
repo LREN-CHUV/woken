@@ -23,8 +23,9 @@ import cats._
 import cats.effect.Effect
 import cats.implicits._
 import ch.chuv.lren.woken.messages.variables.{ GroupMetaData, variablesProtocol }
-import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, VariablesMeta }
 import sup.HealthCheck
+import ch.chuv.lren.woken.core.model.database.FeaturesTableDescription
+import ch.chuv.lren.woken.core.model.VariablesMeta
 import variablesProtocol._
 
 import scala.collection.mutable

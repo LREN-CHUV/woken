@@ -38,7 +38,7 @@ object AkkaClusterClient {
       system.actorOf(ClusterClient.props(ClusterClientSettings(system)), "client")
     val entryPoint = "/user/entrypoint"
 
-    (cluster ? ClusterClient.Send(entryPoint, query, localAffinity = true))
+    (cluster ? ClusterClient.Send(entryPoint, query, localAffinity = false))
       .mapTo[QueryResult]
   }
 

@@ -73,6 +73,7 @@ lazy val `woken` =
           library.akkaStreamTestkit      % Test,
           library.doobieScalaTest        % Test,
           library.catsScalaTest          % Test,
+          library.acolyte                % Test,
           library.dockerTestKitScalaTest % IntegrationTest,
           library.dockerTestKitSpotify   % IntegrationTest,
           library.diff                   % Test
@@ -122,6 +123,7 @@ lazy val library =
       val treelog         = "1.4.6"
       val config          = "1.3.3"
       val doobie          = "0.6.0"
+      val acolyte         = "1.0.50"
       val snakeyaml       = "1.23"
       val scalaCache      = "0.21.0"
       val dockerTestKit   = "0.9.8"
@@ -156,7 +158,7 @@ lazy val library =
     val akkaHttpSwagger: ModuleID = "com.github.swagger-akka-http"   %% "swagger-akka-http" % Version.akkaHttpSwagger
     val akkaManagementBase: ModuleID = "com.lightbend.akka.management" %% "akka-management" % Version.akkaManagement
     val akkaManagementClusterHttp: ModuleID =  "com.lightbend.akka.management" %% "akka-management-cluster-http" % Version.akkaManagement excludeAll ExclusionRules.excludeAkkaClusterSharding
-    
+
 
     // Kamon
     val kamon: ModuleID        = "io.kamon" %% "kamon-core" % Version.kamon excludeAll ExclusionRules.excludeLogback
@@ -184,7 +186,8 @@ lazy val library =
     val doobieCore: ModuleID   = "org.tpolecat"      %% "doobie-core"  % Version.doobie
     val doobiePostgres: ModuleID = "org.tpolecat"    %% "doobie-postgres" % Version.doobie
     val doobieHikari: ModuleID = "org.tpolecat"      %% "doobie-hikari" % Version.doobie
-    val doobieScalaTest: ModuleID = "org.tpolecat" %% "doobie-scalatest" % Version.doobie
+    val doobieScalaTest: ModuleID = "org.tpolecat"   %% "doobie-scalatest" % Version.doobie
+    val acolyte: ModuleID      = "org.eu.acolyte"    %% "jdbc-scala"   % Version.acolyte
     val yaml: ModuleID         = "org.yaml"           % "snakeyaml"    % Version.snakeyaml
     val scalaCache: ModuleID   = "com.github.cb372"  %% "scalacache-core" % Version.scalaCache
     val dockerTestKitScalaTest: ModuleID = "com.whisk" %% "docker-testkit-scalatest" % Version.dockerTestKit excludeAll ExclusionRules.excludeLogback

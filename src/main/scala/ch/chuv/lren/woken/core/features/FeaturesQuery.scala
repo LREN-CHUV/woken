@@ -17,8 +17,7 @@
 
 package ch.chuv.lren.woken.core.features
 
-import ch.chuv.lren.woken.core.model.TableColumn
-import ch.chuv.lren.woken.core.model.database.TableId
+import ch.chuv.lren.woken.core.model.database.{ TableColumn, TableId }
 import ch.chuv.lren.woken.messages.query.filters._
 import ch.chuv.lren.woken.messages.query.filters.FilterRule._
 import ch.chuv.lren.woken.messages.variables.SqlType

@@ -19,8 +19,8 @@ package ch.chuv.lren.woken.validation
 
 import cats.effect.Effect
 import ch.chuv.lren.woken.core.features.FeaturesQuery
-import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
-import ch.chuv.lren.woken.core.sqlUtils.{ frConst, frEqual, frName, frNames }
+import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn }
+import ch.chuv.lren.woken.core.model.database.sqlUtils.{ frConst, frEqual, frName, frNames }
 import ch.chuv.lren.woken.messages.query.ValidationSpec
 import ch.chuv.lren.woken.messages.query.filters._
 import ch.chuv.lren.woken.messages.variables.SqlType
@@ -67,7 +67,7 @@ case class KFoldFeaturesSplitter[F[_]](
 
   override def splitFeatures(query: FeaturesQuery): List[PartioningQueries] =
     // ntile also starts from 1
-    Range(1, definition.numFolds).toList
+    Range(1, definition.numFolds + 1).toList
       .map { fold =>
         PartioningQueries(fold = fold,
                           trainingDatasetQuery = trainingDatasetQuery(query, fold),

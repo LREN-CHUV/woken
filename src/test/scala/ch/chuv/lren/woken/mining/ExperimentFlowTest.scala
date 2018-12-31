@@ -32,7 +32,7 @@ import ch.chuv.lren.woken.Predefined.Algorithms.{
   knnWithK5
 }
 import ch.chuv.lren.woken.backends.woken.WokenClientService
-import ch.chuv.lren.woken.core.model.database.TableId
+import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableId }
 import ch.chuv.lren.woken.core.model.jobs.{ ErrorJobResult, JobResult, PfaJobResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.datasets.{ Dataset, DatasetId }
@@ -44,7 +44,6 @@ import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import cats.implicits._
 import cats.scalatest.{ ValidatedMatchers, ValidatedValues }
-import ch.chuv.lren.woken.core.model.FeaturesTableDescription
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._

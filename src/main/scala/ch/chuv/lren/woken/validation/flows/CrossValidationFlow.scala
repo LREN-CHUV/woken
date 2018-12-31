@@ -40,7 +40,7 @@ import ch.chuv.lren.woken.mining.CoordinatorActor
 import ch.chuv.lren.woken.service.FeaturesTableService
 import ch.chuv.lren.woken.validation.{ FeaturesSplitter, PartioningQueries }
 import com.typesafe.scalalogging.LazyLogging
-import spray.json.{ JsObject, JsValue }
+import spray.json.JsValue
 
 import scala.concurrent.duration._
 import scala.concurrent.{ ExecutionContext, Future }
@@ -267,15 +267,12 @@ case class CrossValidationFlow[F[_]: Effect](
     val groundTruthF: F[Validation[NonEmptyList[JsValue]]] =
       tableService.features(dependentVarsFromTestDataset).map { queryResults =>
         val values = queryResults._2
-          .map {
-            case JsObject(fields) => {
-              fields.values.toList match {
-                case v :: Nil => v
-                case _ =>
-                  throw new IllegalStateException("Expected only one value for ground truth")
-              }
+          .map { jsObj =>
+            jsObj.fields.values.toList match {
+              case v :: Nil => v
+              case _ =>
+                throw new IllegalStateException("Expected only one value for ground truth")
             }
-            case v: JsValue => v
           }
           .toList
           .toNel

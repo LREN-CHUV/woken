@@ -18,38 +18,32 @@
 package ch.chuv.lren.woken.service
 
 import akka.NotUsed
-import akka.actor.{ ActorRef, ActorSystem }
+import akka.actor.ActorSystem
 import akka.stream.scaladsl.Flow
 import cats.effect.internals.IOAppPlatform
 import cats.effect._
 import ch.chuv.lren.woken.JsonUtils
 import ch.chuv.lren.woken.akka.FakeActors
 import ch.chuv.lren.woken.config.WokenConfiguration
-import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn, VariablesMeta }
-import ch.chuv.lren.woken.core.model.database.TableId
+import ch.chuv.lren.woken.core.model.VariablesMeta
+import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableId }
 import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
-import ch.chuv.lren.woken.dao.{
-  FeaturesInMemoryRepository,
-  FeaturesTableInMemoryRepository,
-  MetadataInMemoryRepository,
-  WokenInMemoryRepository
-}
+import ch.chuv.lren.woken.dao._
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryResult }
 import ch.chuv.lren.woken.messages.remoting.RemoteLocation
 import ch.chuv.lren.woken.messages.variables.{
   GroupMetaData,
-  SqlType,
   VariablesForDatasetsQuery,
   VariablesForDatasetsResponse
 }
 import ch.chuv.lren.woken.messages.variables.variablesProtocol._
-import spray.json.{ JsNumber, JsObject, JsString }
+import spray.json.JsObject
 
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
-object TestServices extends JsonUtils {
+object TestServices extends JsonUtils with FeaturesTableTestSupport {
 
   lazy val jobResultService: JobResultService[IO] = JobResultService(
     new WokenInMemoryRepository[IO]().jobResults
@@ -95,54 +89,6 @@ object TestServices extends JsonUtils {
   }
 
   lazy val algorithmLibraryService: AlgorithmLibraryService = AlgorithmLibraryService()
-
-  val database = "features_db"
-  val sampleTable = FeaturesTableDescription(TableId(database, None, "Sample"),
-                                             Nil,
-                                             None,
-                                             validateSchema = false,
-                                             None,
-                                             0.67)
-  val sampleHeaders = List(
-    TableColumn("ID", SqlType.int),
-    TableColumn("stress_before_test1", SqlType.numeric),
-    TableColumn("score_test1", SqlType.numeric),
-    TableColumn("IQ", SqlType.numeric),
-    TableColumn("cognitive_task2", SqlType.numeric),
-    TableColumn("practice_task2", SqlType.numeric),
-    TableColumn("response_time_task2", SqlType.numeric),
-    TableColumn("college_math", SqlType.numeric),
-    TableColumn("score_math_course1", SqlType.numeric),
-    TableColumn("score_math_course2", SqlType.numeric)
-  )
-
-  val sampleData = List(
-    JsObject("ID"                  -> JsNumber(1),
-             "stress_before_test1" -> JsNumber(2.0),
-             "score_test1"         -> JsNumber(1.0))
-  )
-
-  val cdeTable = FeaturesTableDescription(
-    TableId(database, None, "cde_features_a"),
-    List(TableColumn("subjectcode", SqlType.varchar)),
-    Some(TableColumn("dataset", SqlType.varchar)),
-    validateSchema = false,
-    None,
-    0.67
-  )
-  val cdeHeaders = List(
-    TableColumn("subjectcode", SqlType.varchar),
-    TableColumn("apoe4", SqlType.int),
-    TableColumn("lefthippocampus", SqlType.numeric),
-    TableColumn("dataset", SqlType.varchar)
-  )
-
-  val cdeData = List(
-    JsObject("subjectcode"     -> JsString("p001"),
-             "apoe4"           -> JsNumber(2),
-             "lefthippocampus" -> JsNumber(1.37),
-             "dataset"         -> JsString("desd-synthdata"))
-  )
 
   val tables: Set[FeaturesTableDescription] = Set(sampleTable, cdeTable)
   val tablesContent: Map[TableId, (Headers, List[JsObject])] = Map(

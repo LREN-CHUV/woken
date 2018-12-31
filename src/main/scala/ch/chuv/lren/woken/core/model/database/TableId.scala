@@ -38,10 +38,10 @@ case class TableId(database: String, dbSchema: Option[String], name: String) {
 object TableId {
 
   @SuppressWarnings(Array("org.wartremover.warts.Throw"))
-  def apply(defaultDatabase: String, qualifiedTableName: String): TableId =
+  def apply(database: String, qualifiedTableName: String): TableId =
     qualifiedTableName.split("\\.").toList match {
-      case tableName :: Nil                   => TableId(defaultDatabase, None, tableName)
-      case dbSchema :: tableName :: Nil       => TableId(defaultDatabase, Some(dbSchema), tableName)
+      case tableName :: Nil                   => TableId(database, None, tableName)
+      case dbSchema :: tableName :: Nil       => TableId(database, Some(dbSchema), tableName)
       case db :: dbSchema :: tableName :: Nil => TableId(db, Some(dbSchema), tableName)
       case _                                  => throw new IllegalArgumentException(s"Invalid table name: $qualifiedTableName")
     }

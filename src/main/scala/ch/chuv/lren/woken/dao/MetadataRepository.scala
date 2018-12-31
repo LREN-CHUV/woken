@@ -19,8 +19,9 @@ package ch.chuv.lren.woken.dao
 
 import cats._
 import cats.implicits._
-import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, VariablesMeta }
 import sup.HealthCheck
+import ch.chuv.lren.woken.core.model.database.FeaturesTableDescription
+import ch.chuv.lren.woken.core.model.VariablesMeta
 
 import scala.collection.concurrent.TrieMap
 import scala.language.higherKinds

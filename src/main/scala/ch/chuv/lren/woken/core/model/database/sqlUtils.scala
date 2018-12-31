@@ -15,17 +15,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.core
+package ch.chuv.lren.woken.core.model.database
 
-import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
 import ch.chuv.lren.woken.messages.query.filters.FilterRule
 import ch.chuv.lren.woken.messages.variables.SqlType.SqlType
 import doobie.util.fragment.Fragment
 import doobie.implicits._
 
 object sqlUtils {
-
-  import acyclic.pkg
 
   /**
     * Internal utilities
@@ -35,6 +32,7 @@ object sqlUtils {
   def frType(col: TableColumn): Fragment                = Fragment.const(toSql(col.sqlType))
   def frConst(d: Int): Fragment                         = Fragment.const(d.toString)
   def frConst(d: Double): Fragment                      = Fragment.const(d.toString)
+  def frConst(s: String): Fragment                      = Fragment.const(s""""$s"""")
 
   def frNames(cols: List[TableColumn]): Fragment =
     Fragment.const(cols.map(_.quotedName).mkString(","))
@@ -79,6 +77,6 @@ object sqlUtils {
   }
 
   def frWhereFilter(filter: Option[FilterRule]): Fragment =
-    filter.fold(fr"")(f => Fragment.const(" WHERE " + f.withAdaptedFieldName.toSqlWhere))
+    filter.fold(fr"")(f => Fragment.const("WHERE " + f.withAdaptedFieldName.toSqlWhere))
 
 }

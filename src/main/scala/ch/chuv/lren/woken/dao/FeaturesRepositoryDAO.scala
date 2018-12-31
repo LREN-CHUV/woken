@@ -24,10 +24,9 @@ import spray.json._
 import cats.data.{ NonEmptyList, Validated }
 import cats.effect.{ Effect, Resource }
 import cats.implicits._
-import ch.chuv.lren.woken.core.model.{ FeaturesTableDescription, TableColumn }
 import ch.chuv.lren.woken.core.features.FeaturesQuery
-import ch.chuv.lren.woken.core.model
-import ch.chuv.lren.woken.core.model.database.TableId
+import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn, TableId }
+import ch.chuv.lren.woken.core.model.database.sqlUtils._
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
 import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
@@ -35,7 +34,6 @@ import ch.chuv.lren.woken.messages.query.filters.FilterRule
 import ch.chuv.lren.woken.messages.variables.SqlType
 import ch.chuv.lren.woken.messages.variables.SqlType.SqlType
 import doobie.enum.JdbcType
-import ch.chuv.lren.woken.core.sqlUtils._
 import doobie.util.analysis.ColumnMeta
 import doobie.util.transactor.Strategy
 import sup.HealthCheck
@@ -136,21 +134,23 @@ abstract class BaseFeaturesTableRepositoryDAO[F[_]: Effect] extends FeaturesTabl
   protected def defaultDataset: String = table.table.name
 
   override def count: F[Int] = {
-    val q: Fragment = fr"SELECT count(*) FROM " ++ frName(table)
+    val q: Fragment = fr"SELECT count(*) FROM" ++ frName(table)
     q.query[Int]
       .unique
       .transact(xa)
   }
 
-  override def count(dataset: DatasetId): F[Int] =
+  override def count(datasetId: DatasetId): F[Int] =
     table.datasetColumn.fold {
-      if (dataset.code == table.quotedName || dataset.code == defaultDataset) count
+      if (datasetId.code == table.quotedName || datasetId.code == defaultDataset) count
       else 0.pure[F]
     } { datasetColumn =>
-      val q: Fragment = sql"SELECT count(*) FROM " ++ frName(table) ++ fr"WHERE " ++ frName(
-        datasetColumn
-      ) ++ fr" = ${dataset.code}"
-      q.query[Int]
+      def countDataset(dataset: String): Fragment =
+        fr"SELECT count(*) FROM" ++ frName(table) ++ fr"WHERE" ++ frName(
+          datasetColumn
+        ) ++ fr"= $dataset"
+      countDataset(datasetId.code)
+        .query[Int]
         .unique
         .transact(xa)
     }
@@ -162,7 +162,7 @@ abstract class BaseFeaturesTableRepositoryDAO[F[_]: Effect] extends FeaturesTabl
     * @return the number of rows in the dataset matching the filters, or the total number of rows if there are no filters
     */
   override def count(filters: Option[FilterRule]): F[Int] = {
-    val q: Fragment = fr"SELECT count(*) FROM " ++ frName(table) ++ frWhereFilter(filters)
+    val q: Fragment = fr"SELECT count(*) FROM" ++ frName(table) ++ frWhereFilter(filters)
     q.query[Int]
       .unique
       .transact(xa)
@@ -175,8 +175,8 @@ abstract class BaseFeaturesTableRepositoryDAO[F[_]: Effect] extends FeaturesTabl
     */
   override def countGroupBy(groupByColumn: TableColumn,
                             filters: Option[FilterRule]): F[Map[String, Int]] = {
-    val q: Fragment = fr"SELECT " ++ frName(groupByColumn) ++ fr", count(*) FROM " ++
-      frName(table) ++ frWhereFilter(filters) ++ fr" GROUP BY " ++ frName(groupByColumn)
+    val q: Fragment = fr"SELECT" ++ frName(groupByColumn) ++ fr", count(*) FROM" ++
+      frName(table) ++ frWhereFilter(filters) ++ fr"GROUP BY" ++ frName(groupByColumn)
     q.query[(String, Int)]
       .to[List]
       .transact(xa)
@@ -223,7 +223,7 @@ abstract class BaseFeaturesTableRepositoryDAO[F[_]: Effect] extends FeaturesTabl
 
 }
 
-class FeaturesTableRepositoryDAO[F[_]: Effect] private (
+class FeaturesTableRepositoryDAO[F[_]: Effect] private[dao] (
     override val xa: Transactor[F],
     override val table: FeaturesTableDescription,
     override val columns: FeaturesTableRepository.Headers,
@@ -253,7 +253,7 @@ object FeaturesTableRepositoryDAO {
                           wokenRepository: WokenRepository[F]): F[FeaturesTableRepository[F]] = {
     implicit val han: LogHandler = LogHandler.jdkLogHandler
 
-    HC.prepareStatement(s"SELECT * FROM ${table.quotedName}")(prepareHeaders)
+    HC.prepareStatement(s"SELECT * FROM ${table.quotedName} LIMIT 1")(prepareHeaders)
       .transact(xa)
       .map { headers =>
         new FeaturesTableRepositoryDAO(xa, table, headers, wokenRepository)
@@ -262,7 +262,7 @@ object FeaturesTableRepositoryDAO {
 
   private[dao] def prepareHeaders: PreparedStatementIO[Headers] =
     HPS.getColumnJdbcMeta.map(_.map { doobieMeta =>
-      model.TableColumn(doobieMeta.name, toSql(doobieMeta))
+      TableColumn(doobieMeta.name, toSql(doobieMeta))
     })
 
   @SuppressWarnings(Array("org.wartremover.warts.Throw"))
