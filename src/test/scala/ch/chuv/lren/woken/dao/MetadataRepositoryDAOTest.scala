@@ -17,7 +17,70 @@
 
 package ch.chuv.lren.woken.dao
 
-import org.scalamock.scalatest.MockFactory
-import org.scalatest.{ Matchers, WordSpec }
+import java.sql.Connection
 
-class MetadataRepositoryDAOTest extends WordSpec with Matchers with MockFactory {}
+import org.scalamock.scalatest.MockFactory
+import org.scalatest.{ Matchers, WordSpec, fixture }
+import acolyte.jdbc.{ AcolyteDSL, QueryExecution, UpdateExecution, Driver => AcolyteDriver }
+import acolyte.jdbc.RowLists.{ rowList1, rowList3 }
+import acolyte.jdbc.Implicits._
+import cats.effect.{ Async, ContextShift, IO, Resource }
+import doobie.util.ExecutionContexts
+import doobie.util.transactor.Transactor
+import doobie.implicits._
+import cats.implicits._
+import cats.data._
+import cats._
+import cats.effect.internals.IOContextShift
+import ch.chuv.lren.woken.JsonUtils
+import ch.chuv.lren.woken.core.model.VariablesMeta
+import ch.chuv.lren.woken.messages.variables.GroupMetaData
+import ch.chuv.lren.woken.messages.variables.variablesProtocol._
+
+class MetadataRepositoryDAOTest extends WordSpec with Matchers with MockFactory with JsonUtils {
+
+  "VariablesMetaRepository" should {
+    // TODO: Acolyte should support pgObject and pgJsonb types
+    "put and get variables" ignore withVariablesMetaRepository { dao =>
+      val churnHierarchy = loadJson("/metadata/churn_variables.json").convertTo[GroupMetaData]
+      val churnVariablesMeta =
+        VariablesMeta(1, "churn", churnHierarchy, "CHURN", List("state", "custserv_calls", "churn"))
+
+      val updated = dao.put(churnVariablesMeta).unsafeRunSync()
+
+      updated shouldBe churnVariablesMeta
+
+      val retrieved = dao.get("CHURN").unsafeRunSync()
+
+      retrieved shouldBe churnVariablesMeta
+    }
+  }
+
+  def withVariablesMetaRepository(testCode: VariablesMetaRepositoryDAO[IO] => Any): Unit = {
+
+    val handlerA = AcolyteDSL.handleQuery { q =>
+      println(q.sql)
+
+      1
+
+    }
+
+    val conn: Connection              = AcolyteDSL.connection(handlerA)
+    implicit val cs: ContextShift[IO] = IOContextShift.global
+
+    // Resource yielding a Transactor[IO] wrapping the given `Connection`
+    def transactor(c: Connection): Resource[IO, Transactor[IO]] =
+      ExecutionContexts.cachedThreadPool[IO].flatMap { te =>
+        val t: Transactor[IO] = Transactor.fromConnection[IO](c, te)
+        Resource.liftF(t.configure(_ => IO.pure(t)))
+      }
+
+    transactor(conn)
+      .use { tr =>
+        val dao = new VariablesMetaRepositoryDAO[IO](tr)
+        IO.delay(testCode(dao))
+      }
+      .unsafeRunSync()
+  }
+
+}

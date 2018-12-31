@@ -32,6 +32,7 @@ object sqlUtils {
   def frType(col: TableColumn): Fragment                = Fragment.const(toSql(col.sqlType))
   def frConst(d: Int): Fragment                         = Fragment.const(d.toString)
   def frConst(d: Double): Fragment                      = Fragment.const(d.toString)
+  def frConst(s: String): Fragment                      = Fragment.const(s""""$s"""")
 
   def frNames(cols: List[TableColumn]): Fragment =
     Fragment.const(cols.map(_.quotedName).mkString(","))
@@ -76,6 +77,6 @@ object sqlUtils {
   }
 
   def frWhereFilter(filter: Option[FilterRule]): Fragment =
-    filter.fold(fr"")(f => Fragment.const(" WHERE " + f.withAdaptedFieldName.toSqlWhere))
+    filter.fold(fr"")(f => Fragment.const("WHERE " + f.withAdaptedFieldName.toSqlWhere))
 
 }
