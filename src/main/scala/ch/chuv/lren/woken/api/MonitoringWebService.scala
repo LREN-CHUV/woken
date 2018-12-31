@@ -29,12 +29,13 @@ import cats.data.NonEmptyList
 import cats.implicits._
 import cats.effect.Effect
 import ch.chuv.lren.woken.akka.monitoring.DistributedPubSubHealthCheck
-import ch.chuv.lren.woken.config.AppConfiguration
+import ch.chuv.lren.woken.config.{ AppConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.service.DatabaseServices
 import sup.{ Health, HealthCheck, HealthReporter }
 
 class MonitoringWebService[F[_]: Effect](cluster: Cluster,
                                          appConfig: AppConfiguration,
+                                         jobsConfig: JobsConfiguration,
                                          databaseServices: DatabaseServices[F])
     extends Directives {
 
@@ -44,15 +45,19 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
        !appConfig.disableWorkers,
        cluster.state.members.size < 2,
        dbChecks,
-       wokenValidationCheck) match {
-        case (false, true, true, true, true) =>
+       wokenValidationCheck,
+       chronosServiceCheck) match {
+        case (false, true, true, true, true, true) =>
           complete("UP - Expected at least one worker (Woken validation server) in the cluster")
-        case (true, _, _, _, _) =>
+        case (true, _, _, _, _, _) =>
           complete((StatusCodes.InternalServerError, "No leader elected for the cluster"))
-        case (false, _, _, true, true) => complete("UP")
-        case (_, _, _, false, _)       => complete((StatusCodes.InternalServerError, "DB checks failed."))
-        case (_, _, _, _, false) =>
+        case (false, _, _, true, true, true) => complete("UP")
+        case (_, _, _, false, _, _) =>
+          complete((StatusCodes.InternalServerError, "DB checks failed."))
+        case (_, _, _, _, false, _) =>
           complete((StatusCodes.InternalServerError, "Woken validation checks failed."))
+        case (false, _, _, _, _, false) =>
+          complete((StatusCodes.InternalServerError, "Chronos service checks failed."))
       }
     }
   }
@@ -96,6 +101,18 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
       HealthReporter.fromChecks(validationServiceCheck, scoringServiceCheck)
 
     Effect[F].toIO(healthCheckResponse(reporter)).unsafeRunSync()
+  }
+
+  private def chronosServiceCheck: Boolean = {
+    val chronosUrl = jobsConfig.chronosServerUrl
+    val url        = s"$chronosUrl/v1/scheduler/jobs"
+
+    val chronosCheck: HealthCheck[F, Id] = healthCheck(url)
+    val checkResult = chronosCheck.check.flatMap { check =>
+      check.value.isHealthy.pure[F]
+    }
+
+    Effect[F].toIO(checkResult).unsafeRunSync()
   }
 
   private def dbChecks: Boolean = {

@@ -60,7 +60,7 @@ trait Api {
       )
 
     val monitoringService =
-      new MonitoringWebService(core.cluster, config.app, databaseServices)
+      new MonitoringWebService(core.cluster, config.app, config.jobs, databaseServices)
 
     cors()(
       SwaggerService.routes ~ miningService.routes ~ metadataService.routes ~ monitoringService.routes

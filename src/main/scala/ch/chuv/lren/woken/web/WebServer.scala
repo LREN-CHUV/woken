@@ -21,7 +21,7 @@ import akka.http.scaladsl.Http
 import cats.effect._
 import cats.implicits._
 import ch.chuv.lren.woken.akka.{ AkkaServer, CoreSystem }
-import ch.chuv.lren.woken.api.Api
+import ch.chuv.lren.woken.api._
 import ch.chuv.lren.woken.api.ssl.WokenSSLConfiguration
 import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.service.DatabaseServices
