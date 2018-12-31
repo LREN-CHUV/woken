@@ -20,18 +20,12 @@ package ch.chuv.lren.woken.dao
 import java.sql.Connection
 
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{ Matchers, WordSpec, fixture }
-import acolyte.jdbc.{ AcolyteDSL, QueryExecution, UpdateExecution, Driver => AcolyteDriver }
-import acolyte.jdbc.RowLists.{ rowList1, rowList3 }
+import org.scalatest.{ Matchers, WordSpec }
+import acolyte.jdbc.AcolyteDSL
 import acolyte.jdbc.Implicits._
-import cats.effect.{ Async, ContextShift, IO, Resource }
+import cats.effect.{ ContextShift, IO, Resource }
 import doobie.util.ExecutionContexts
 import doobie.util.transactor.Transactor
-import doobie.implicits._
-import cats.implicits._
-import cats.data._
-import cats._
-import cats.effect.internals.IOContextShift
 import ch.chuv.lren.woken.JsonUtils
 import ch.chuv.lren.woken.core.model.VariablesMeta
 import ch.chuv.lren.woken.messages.variables.GroupMetaData
@@ -65,8 +59,9 @@ class MetadataRepositoryDAOTest extends WordSpec with Matchers with MockFactory 
 
     }
 
-    val conn: Connection              = AcolyteDSL.connection(handlerA)
-    implicit val cs: ContextShift[IO] = IOContextShift.global
+    val conn: Connection = AcolyteDSL.connection(handlerA)
+    implicit val cs: ContextShift[IO] =
+      IO.contextShift(scala.concurrent.ExecutionContext.Implicits.global)
 
     // Resource yielding a Transactor[IO] wrapping the given `Connection`
     def transactor(c: Connection): Resource[IO, Transactor[IO]] =
