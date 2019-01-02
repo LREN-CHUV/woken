@@ -35,6 +35,7 @@ package object api {
   def healthCheck[F[_]: Effect](resource: String): HealthCheck[F, Id] = {
     implicit def backend: SttpBackend[F, Nothing] = AsyncHttpClientCatsBackend[F]()
     statusCodeHealthCheck[F, String](request.get(UriContext(StringContext(resource)).uri(resource)))
+      .through(mods.recoverToSick)
   }
 
 }
