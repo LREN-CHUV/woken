@@ -30,7 +30,7 @@ import org.scalatest.{ Matchers, WordSpec }
 class FeaturesTableRepositoryDAOTest
     extends WordSpec
     with Matchers
-    with DAOTest[FeaturesTableRepositoryDAO[IO]]
+    with DAOTest
     with FeaturesTableTestSupport {
 
   val wokenRepository = new WokenInMemoryRepository[IO]()
@@ -75,14 +75,16 @@ class FeaturesTableRepositoryDAOTest
 
   "FeaturesTableRepositoryDAO" should {
 
-    "count all records in the table" in withRepository(
+    "count all records in the table" in withRepository[FeaturesTableRepositoryDAO[IO]](
       sampleTableHandler,
       xa => new FeaturesTableRepositoryDAO[IO](xa, sampleTable, sampleHeaders, wokenRepository)
     ) { dao =>
       dao.count.unsafeRunSync() shouldBe 99
     }
 
-    "count all records matching a dataset for a table without a dataset column" in withRepository(
+    "count all records matching a dataset for a table without a dataset column" in withRepository[
+      FeaturesTableRepositoryDAO[IO]
+    ](
       sampleTableHandler,
       xa => new FeaturesTableRepositoryDAO[IO](xa, sampleTable, sampleHeaders, wokenRepository)
     ) { dao =>
@@ -90,14 +92,16 @@ class FeaturesTableRepositoryDAOTest
       dao.count(DatasetId("other")).unsafeRunSync() shouldBe 0
     }
 
-    "count all records matching a dataset for a table with a dataset column" in withRepository(
+    "count all records matching a dataset for a table with a dataset column" in withRepository[
+      FeaturesTableRepositoryDAO[IO]
+    ](
       cdeTableHandler,
       xa => new FeaturesTableRepositoryDAO[IO](xa, cdeTable, cdeHeaders, wokenRepository)
     ) { dao =>
       dao.count(DatasetId("datasetA")).unsafeRunSync() shouldBe 5
     }
 
-    "count all records matching a filter" in withRepository(
+    "count all records matching a filter" in withRepository[FeaturesTableRepositoryDAO[IO]](
       sampleTableHandler,
       xa => new FeaturesTableRepositoryDAO[IO](xa, sampleTable, sampleHeaders, wokenRepository)
     ) { dao =>
@@ -122,7 +126,7 @@ class FeaturesTableRepositoryDAOTest
       dao.count(Some(filter)).unsafeRunSync() shouldBe 5
     }
 
-    "count records grouped by a field" in withRepository(
+    "count records grouped by a field" in withRepository[FeaturesTableRepositoryDAO[IO]](
       sampleTableHandler,
       xa => new FeaturesTableRepositoryDAO[IO](xa, sampleTable, sampleHeaders, wokenRepository)
     ) { dao =>

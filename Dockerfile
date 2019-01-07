@@ -13,6 +13,7 @@ RUN sbt -mem 1500 compile
 COPY src/ /build/src/
 COPY docker/ /build/docker/
 COPY .git/ /build/.git/
+COPY .github/ /build/.github/
 COPY .circleci/ /build/.circleci/
 COPY tests/ /build/tests/
 COPY docs/ /build/docs/
