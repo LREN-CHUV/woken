@@ -17,7 +17,7 @@
 
 package ch.chuv.lren.woken.dao
 
-import cats.Applicative
+import cats.{ Applicative, Id }
 import cats.effect.Resource
 import cats.implicits._
 import ch.chuv.lren.woken.core.features.FeaturesQuery
@@ -30,6 +30,7 @@ import spray.json.DefaultJsonProtocol._
 import ch.chuv.lren.woken.messages.query.filters._
 import doobie.util.log.LogHandler
 import doobie.util.update.Update0
+import sup.HealthCheck
 
 import scala.collection.concurrent.TrieMap
 import scala.language.higherKinds
@@ -39,7 +40,7 @@ import scala.language.higherKinds
   *
   * @tparam F The monad wrapping the connection to the database
   */
-trait FeaturesRepository[F[_]] extends Repository {
+trait FeaturesRepository[F[_]] extends Repository[F] {
 
   /**
     * @return the name of the database as defined in the configuration
@@ -76,7 +77,7 @@ trait PrefillExtendedFeaturesTable {
   *
   * @tparam F The monad wrapping the connection to the database
   */
-trait FeaturesTableRepository[F[_]] extends Repository {
+trait FeaturesTableRepository[F[_]] extends Repository[F] {
 
   import FeaturesTableRepository.Headers
 
@@ -166,6 +167,8 @@ class FeaturesInMemoryRepository[F[_]: Applicative](
     }
   }.pure[F]
 
+  override def healthCheck: HealthCheck[F, Id] = HealthCheck.liftFBoolean(true.pure[F])
+
 }
 
 class FeaturesTableInMemoryRepository[F[_]: Applicative](val tableId: TableId,
@@ -238,4 +241,7 @@ class FeaturesTableInMemoryRepository[F[_]: Applicative](val tableId: TableId,
       otherColumns: List[TableColumn],
       prefills: List[PrefillExtendedFeaturesTable]
   ): Validation[Resource[F, FeaturesTableRepository[F]]] = "not implemented".invalidNel
+
+  override def healthCheck: HealthCheck[F, Id] = HealthCheck.liftFBoolean(true.pure[F])
+
 }

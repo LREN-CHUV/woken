@@ -16,7 +16,7 @@
  */
 
 package ch.chuv.lren.woken
-import cats.effect.{ ConcurrentEffect, ContextShift, Resource, Timer }
+import cats.effect._
 import ch.chuv.lren.woken.akka.AkkaServer
 import ch.chuv.lren.woken.config.WokenConfiguration
 

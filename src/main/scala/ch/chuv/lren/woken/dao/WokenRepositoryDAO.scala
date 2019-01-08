@@ -23,17 +23,19 @@ import java.util.{ Base64, UUID }
 import doobie._
 import doobie.implicits._
 import cats._
+import cats.effect.Effect
 import com.typesafe.scalalogging.LazyLogging
 import ch.chuv.lren.woken.messages.query.Shapes.{ error => errorShape, _ }
 import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.core.json.yaml
 import ch.chuv.lren.woken.core.json.yaml.Yaml
 import spray.json._
+import sup.HealthCheck
 
 import scala.language.higherKinds
 import scala.util.Try
 
-case class WokenRepositoryDAO[F[_]: Monad](xa: Transactor[F]) extends WokenRepository[F] {
+case class WokenRepositoryDAO[F[_]: Effect](xa: Transactor[F]) extends WokenRepository[F] {
 
   private val genTableNum = sql"""
       SELECT nextval('gen_features_table_seq');
@@ -43,12 +45,13 @@ case class WokenRepositoryDAO[F[_]: Monad](xa: Transactor[F]) extends WokenRepos
 
   override val jobResults: JobResultRepositoryDAO[F] = new JobResultRepositoryDAO[F](xa)
 
+  override def healthCheck: HealthCheck[F, Id] = validate(xa)
 }
 
 /**
   * Interpreter based on Doobie that provides the operations of the algebra
   */
-class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
+class JobResultRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
     extends JobResultRepository[F]
     with LazyLogging {
 
@@ -196,4 +199,5 @@ class JobResultRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
       .transact(xa)
   }
 
+  override def healthCheck: HealthCheck[F, Id] = validate(xa)
 }

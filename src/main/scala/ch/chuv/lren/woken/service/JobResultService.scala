@@ -17,9 +17,11 @@
 
 package ch.chuv.lren.woken.service
 
+import cats.Id
 import cats.effect.Effect
 import ch.chuv.lren.woken.core.model.jobs.JobResult
 import ch.chuv.lren.woken.dao.JobResultRepository
+import sup.HealthCheck
 
 import scala.language.higherKinds
 
@@ -35,6 +37,8 @@ class JobResultService[F[_]: Effect](repository: JobResultRepository[F]) {
   def put(result: JobResult): F[JobResult] = repository.put(result)
 
   def get(jobId: String): F[Option[JobResult]] = repository.get(jobId)
+
+  def healthCheck: HealthCheck[F, Id] = repository.healthCheck
 
 }
 

@@ -37,19 +37,19 @@ import java.util.concurrent.Executor
 
 import acolyte.jdbc.{ AbstractCompositeHandler, AcolyteDSL }
 import cats.effect.{ ContextShift, IO, Resource }
-import cats.effect.internals.IOContextShift
 import doobie.util.ExecutionContexts
 import doobie.util.transactor.Transactor
 
 trait DAOTest {
 
-  def withRepository[DAO <: Repository](
+  def withRepository[DAO <: Repository[IO]](
       sqlHandler: AbstractCompositeHandler[_],
       mkDAO: Transactor[IO] => DAO
   )(testCode: DAO => Any): Unit = {
 
-    val conn: Connection              = AcolyteDSL.connection(sqlHandler)
-    implicit val cs: ContextShift[IO] = IOContextShift.global
+    val conn: Connection = AcolyteDSL.connection(sqlHandler)
+    implicit val cs: ContextShift[IO] =
+      IO.contextShift(scala.concurrent.ExecutionContext.Implicits.global)
 
     // Resource yielding a Transactor[IO] wrapping the given `Connection`
     def transactor(c: Connection): Resource[IO, Transactor[IO]] =
@@ -66,7 +66,7 @@ trait DAOTest {
       .unsafeRunSync()
   }
 
-  def withRepositoryResource[DAO <: Repository](
+  def withRepositoryResource[DAO <: Repository[IO]](
       sqlHandler: AbstractCompositeHandler[_],
       mkDAOResource: Transactor[IO] => Resource[IO, DAO]
   )(testCode: DAO => Any): Unit = {
@@ -143,7 +143,8 @@ trait DAOTest {
       override def unwrap[T](aClass: Class[T]): T          = conn.unwrap(aClass)
       override def isWrapperFor(aClass: Class[_]): Boolean = conn.isWrapperFor(aClass)
     }
-    implicit val cs: ContextShift[IO] = IOContextShift.global
+    implicit val cs: ContextShift[IO] =
+      IO.contextShift(scala.concurrent.ExecutionContext.Implicits.global)
 
     // Resource yielding a Transactor[IO] wrapping the given `Connection`
     def transactor(c: Connection): Resource[IO, Transactor[IO]] =

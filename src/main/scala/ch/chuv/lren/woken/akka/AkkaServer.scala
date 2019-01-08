@@ -100,10 +100,11 @@ class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
   def selfChecks(): Unit = {
     logger.info("Self checks...")
 
-    // TODO: add self checks for Akka
-    // TODO: it should fail fast if the network configuration is incorrect and the cluster cannot be created
-
-    logger.info("[OK] Akka server is running")
+    if (cluster.state.leader.isEmpty) {
+      logger.info("[FAIL] Akka server is not running")
+      Effect[F].toIO(unbind()).unsafeRunSync()
+    } else
+      logger.info("[OK] Akka server joined the cluster.")
   }
 
   def unbind(): F[Unit] =

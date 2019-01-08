@@ -20,8 +20,10 @@ package ch.chuv.lren.woken.dao
 import doobie._
 import doobie.implicits._
 import cats._
+import cats.effect.Effect
 import cats.implicits._
 import ch.chuv.lren.woken.messages.variables.{ GroupMetaData, variablesProtocol }
+import sup.HealthCheck
 import ch.chuv.lren.woken.core.model.database.FeaturesTableDescription
 import ch.chuv.lren.woken.core.model.VariablesMeta
 import variablesProtocol._
@@ -29,7 +31,7 @@ import variablesProtocol._
 import scala.collection.mutable
 import scala.language.higherKinds
 
-class VariablesMetaRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
+class VariablesMetaRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
     extends VariablesMetaRepository[F] {
 
   implicit val groupMetaDataMeta: Meta[GroupMetaData] = codecMeta[GroupMetaData]
@@ -72,21 +74,25 @@ class VariablesMetaRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
     )(Option(_).pure[F])
 
   }
+
+  override def healthCheck: HealthCheck[F, Id] = validate(xa)
 }
 
-class TablesCatalogRepositoryDAO[F[_]: Monad](val xa: Transactor[F])
+class TablesCatalogRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
     extends TablesCatalogRepository[F] {
 
   override def put(table: FeaturesTableDescription): F[FeaturesTableDescription] = ???
 
   override def get(table: String): F[Option[FeaturesTableDescription]] = ???
 
+  override def healthCheck: HealthCheck[F, Id] = validate(xa)
 }
 
-case class MetadataRepositoryDAO[F[_]: Monad](xa: Transactor[F]) extends MetadataRepository[F] {
+case class MetadataRepositoryDAO[F[_]: Effect](xa: Transactor[F]) extends MetadataRepository[F] {
 
   override def variablesMeta: VariablesMetaRepository[F] = new VariablesMetaRepositoryDAO[F](xa)
 
   override def tablesCatalog: TablesCatalogRepository[F] = new TablesCatalogRepositoryDAO[F](xa)
 
+  override def healthCheck: HealthCheck[F, Id] = validate(xa)
 }
