@@ -41,6 +41,7 @@ import eu.timepit.refined.auto._
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.language.higherKinds
 import scala.reflect.ClassTag
 
 object DistributedPubSubHealthCheck {
@@ -52,7 +53,7 @@ object DistributedPubSubHealthCheck {
       path: String,
       request: A
   )(timeoutSeconds: Option[PosInt])(implicit classTag: ClassTag[B]): HealthCheck[F, Id] = {
-    implicit val askTimeout: Timeout = Timeout(timeoutSeconds.fold(0)(_.value) seconds)
+    implicit val askTimeout: Timeout = Timeout(timeoutSeconds.fold(0)(_.value).seconds)
     val topicsFuture: Future[B] =
       (mediator ? DistributedPubSubMediator.Send(path, request, localAffinity = false)).mapTo[B]
     val responseIO: IO[B] = IO.fromFuture(IO.pure(topicsFuture))
