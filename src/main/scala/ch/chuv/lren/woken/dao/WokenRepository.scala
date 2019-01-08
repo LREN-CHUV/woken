@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import cats._
 import cats.implicits._
 import ch.chuv.lren.woken.core.model.jobs.JobResult
+import sup.HealthCheck
 
 import scala.collection.concurrent.TrieMap
 import scala.language.higherKinds
@@ -31,7 +32,7 @@ import scala.language.higherKinds
   *
   * This database contains internal tables and functions
   */
-trait WokenRepository[F[_]] extends Repository {
+trait WokenRepository[F[_]] extends Repository[F] {
 
   /**
     * Generate a new sequence number used when generating table names
@@ -45,7 +46,7 @@ trait WokenRepository[F[_]] extends Repository {
 /**
   * Algebra for persistence of JobResult
   */
-trait JobResultRepository[F[_]] extends Repository {
+trait JobResultRepository[F[_]] extends Repository[F] {
 
   def put(result: JobResult): F[JobResult]
 
@@ -74,6 +75,8 @@ class WokenInMemoryRepository[F[_]: Applicative] extends WokenRepository[F] {
     override def get(jobId: String): F[Option[JobResult]] =
       cache.get(jobId).pure[F]
 
+    override def healthCheck: HealthCheck[F, Id] = HealthCheck.liftFBoolean(true.pure[F])
   }
 
+  override def healthCheck: HealthCheck[F, Id] = HealthCheck.liftFBoolean(true.pure[F])
 }

@@ -19,10 +19,12 @@ package ch.chuv.lren.woken.web
 
 import akka.http.scaladsl.Http
 import cats.effect._
+import cats.implicits._
 import ch.chuv.lren.woken.akka.{ AkkaServer, CoreSystem }
-import ch.chuv.lren.woken.api.Api
+import ch.chuv.lren.woken.api._
 import ch.chuv.lren.woken.api.ssl.WokenSSLConfiguration
 import ch.chuv.lren.woken.config.WokenConfiguration
+import ch.chuv.lren.woken.service.DatabaseServices
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
@@ -32,7 +34,8 @@ import scala.language.higherKinds
 import scala.util.{ Failure, Success }
 
 class WebServer[F[_]: ConcurrentEffect: Timer](override val core: CoreSystem,
-                                               override val config: WokenConfiguration)
+                                               override val config: WokenConfiguration,
+                                               val databaseServices: DatabaseServices[F])
     extends Api
     with StaticResources
     with WokenSSLConfiguration {
@@ -52,7 +55,7 @@ class WebServer[F[_]: ConcurrentEffect: Timer](override val core: CoreSystem,
 
     // Start a new HTTP server on port 8080 with our service actor as the handler
     http.bindAndHandle(
-      routes,
+      routes(databaseServices),
       interface = app.networkInterface,
       port = app.webServicesPort
     )
@@ -63,10 +66,20 @@ class WebServer[F[_]: ConcurrentEffect: Timer](override val core: CoreSystem,
 
     val b = Await.result(binding, 30.seconds)
 
-    // TODO: add more self checks for Web server
-    // TODO: it should fail fast if an error is detected
+    val url =
+      s"http${if (config.app.webServicesHttps) "s" else ""}://${config.app.networkInterface}:${config.app.webServicesPort}/cluster/alive"
+    val endpointCheck = healthCheck(url)
+    val result: F[Boolean] = endpointCheck.check.flatMap { check =>
+      check.value.isHealthy.pure[F]
+    }
+    val checkResult: Boolean = Effect[F].toIO(result).unsafeRunSync()
+    if (checkResult) {
+      logger.info(s"[OK] Web server is running on ${b.localAddress}")
+    } else {
+      logger.info(s"[FAIL] Web server is not running on ${b.localAddress}")
+      Effect[F].toIO(unbind()).unsafeRunSync()
+    }
 
-    logger.info(s"[OK] Web server is running on ${b.localAddress}")
   }
 
   def unbind(): F[Unit] = {
@@ -102,7 +115,7 @@ object WebServer {
     // start a new HTTP server with our service actor as the handler
     Resource.make(Sync[F].delay {
       logger.info(s"Start web server on port ${config.app.webServicesPort}")
-      val server = new WebServer(akkaServer, config)
+      val server = new WebServer(akkaServer, config, akkaServer.databaseServices)
 
       server.selfChecks()
 

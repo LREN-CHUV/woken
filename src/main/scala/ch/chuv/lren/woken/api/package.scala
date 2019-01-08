@@ -16,6 +16,13 @@
  */
 
 package ch.chuv.lren.woken
+import cats.Id
+import cats.effect.Effect
+import com.softwaremill.sttp.SttpBackend
+import com.softwaremill.sttp.asynchttpclient.cats.AsyncHttpClientCatsBackend
+import sup._
+import sup.modules.sttp._
+import com.softwaremill.sttp.{ sttp => request, _ }
 
 /**
   * Remote APIs for Woken.
@@ -23,4 +30,12 @@ package ch.chuv.lren.woken
   * This package contains the various APIs that can be used to drive Woken, including
   * Akka API, HTTP and Web sockets API.
   */
-package object api {}
+package object api {
+
+  def healthCheck[F[_]: Effect](resource: String): HealthCheck[F, Id] = {
+    implicit def backend: SttpBackend[F, Nothing] = AsyncHttpClientCatsBackend[F]()
+    statusCodeHealthCheck[F, String](request.get(UriContext(StringContext(resource)).uri(resource)))
+      .through(mods.recoverToSick)
+  }
+
+}

@@ -19,6 +19,7 @@ package ch.chuv.lren.woken.dao
 
 import cats._
 import cats.implicits._
+import sup.HealthCheck
 import ch.chuv.lren.woken.core.model.database.FeaturesTableDescription
 import ch.chuv.lren.woken.core.model.VariablesMeta
 
@@ -28,7 +29,7 @@ import scala.language.higherKinds
 /**
   * The interface to Metadata database
   */
-trait MetadataRepository[F[_]] extends Repository {
+trait MetadataRepository[F[_]] extends Repository[F] {
 
   def variablesMeta: VariablesMetaRepository[F]
 
@@ -37,7 +38,7 @@ trait MetadataRepository[F[_]] extends Repository {
 
 }
 
-trait VariablesMetaRepository[F[_]] extends Repository {
+trait VariablesMetaRepository[F[_]] extends Repository[F] {
 
   def put(variablesMeta: VariablesMeta): F[VariablesMeta]
 
@@ -45,7 +46,7 @@ trait VariablesMetaRepository[F[_]] extends Repository {
 
 }
 
-trait TablesCatalogRepository[F[_]] extends Repository {
+trait TablesCatalogRepository[F[_]] extends Repository[F] {
 
   def put(table: FeaturesTableDescription): F[FeaturesTableDescription]
 
@@ -67,6 +68,7 @@ class MetadataInMemoryRepository[F[_]: Applicative] extends MetadataRepository[F
     override def get(targetFeaturesTable: String): F[Option[VariablesMeta]] =
       cache.get(targetFeaturesTable.toUpperCase).pure[F]
 
+    override def healthCheck: HealthCheck[F, Id] = HealthCheck.liftFBoolean(true.pure[F])
   }
 
   override val tablesCatalog: TablesCatalogRepository[F] = new TablesCatalogRepository[F] {
@@ -81,6 +83,8 @@ class MetadataInMemoryRepository[F[_]: Applicative] extends MetadataRepository[F
     override def get(table: String): F[Option[FeaturesTableDescription]] =
       cache.get(table).pure[F]
 
+    override def healthCheck: HealthCheck[F, Id] = HealthCheck.liftFBoolean(true.pure[F])
   }
 
+  override def healthCheck: HealthCheck[F, Id] = HealthCheck.liftFBoolean(true.pure[F])
 }

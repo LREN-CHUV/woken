@@ -18,19 +18,19 @@
 package ch.chuv.lren.woken.dao
 import java.sql.Connection
 
-import acolyte.jdbc.{ AbstractCompositeHandler, AcolyteDSL, ConnectionHandler }
+import acolyte.jdbc.{ AbstractCompositeHandler, AcolyteDSL }
 import cats.effect.{ ContextShift, IO, Resource }
-import cats.effect.internals.IOContextShift
 import doobie.util.ExecutionContexts
 import doobie.util.transactor.Transactor
 
-trait DAOTest[DAO <: Repository] {
+trait DAOTest[DAO <: Repository[IO]] {
 
   def withRepository(sqlHandler: AbstractCompositeHandler[_],
                      mkDAO: Transactor[IO] => DAO)(testCode: DAO => Any): Unit = {
 
-    val conn: Connection              = AcolyteDSL.connection(sqlHandler)
-    implicit val cs: ContextShift[IO] = IOContextShift.global
+    val conn: Connection = AcolyteDSL.connection(sqlHandler)
+    implicit val cs: ContextShift[IO] =
+      IO.contextShift(scala.concurrent.ExecutionContext.Implicits.global)
 
     // Resource yielding a Transactor[IO] wrapping the given `Connection`
     def transactor(c: Connection): Resource[IO, Transactor[IO]] =

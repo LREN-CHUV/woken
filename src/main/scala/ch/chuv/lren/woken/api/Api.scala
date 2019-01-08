@@ -21,9 +21,11 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
+import cats.effect.Effect
 import ch.chuv.lren.woken.akka.CoreSystem
 import ch.chuv.lren.woken.api.swagger.SwaggerService
 import ch.chuv.lren.woken.config.WokenConfiguration
+import ch.chuv.lren.woken.service.DatabaseServices
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 
 /**
@@ -39,7 +41,7 @@ trait Api {
   def core: CoreSystem
   def config: WokenConfiguration
 
-  def routes: Route = {
+  def routes[F[_]: Effect](databaseServices: DatabaseServices[F]): Route = {
     implicit val system: ActorSystem             = core.system
     implicit val materializer: ActorMaterializer = core.actorMaterializer
 
@@ -57,11 +59,13 @@ trait Api {
         config.jobs
       )
 
-    val monitoringService = new MonitoringWebService(core.cluster, config.app)
+    val monitoringService =
+      new MonitoringWebService(core.cluster, config.app, config.jobs, databaseServices)
 
     cors()(
       SwaggerService.routes ~ miningService.routes ~ metadataService.routes ~ monitoringService.routes
     )
+
   }
 
 }

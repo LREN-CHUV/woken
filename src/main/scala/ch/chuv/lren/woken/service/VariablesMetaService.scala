@@ -17,9 +17,11 @@
 
 package ch.chuv.lren.woken.service
 
+import cats.Id
 import cats.effect.Effect
 import ch.chuv.lren.woken.core.model.VariablesMeta
 import ch.chuv.lren.woken.dao.VariablesMetaRepository
+import sup.HealthCheck
 
 import scala.language.higherKinds
 
@@ -36,6 +38,8 @@ class VariablesMetaService[F[_]: Effect](repository: VariablesMetaRepository[F])
 
   def get(targetFeaturesTable: String): F[Option[VariablesMeta]] =
     repository.get(targetFeaturesTable)
+
+  def healthCheck: HealthCheck[F, Id] = repository.healthCheck
 
 }
 
