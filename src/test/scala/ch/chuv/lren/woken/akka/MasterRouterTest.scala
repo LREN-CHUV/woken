@@ -96,7 +96,7 @@ class MasterRouterTest
   class MasterRouterUnderTest[F[_]: Effect](
       config: WokenConfiguration,
       databaseServices: DatabaseServices[F],
-      backendServices: BackendServices
+      backendServices: BackendServices[F]
   ) extends MasterRouter(config, databaseServices, backendServices) {
 
 //    override def newExperimentActor: ActorRef =
@@ -109,7 +109,7 @@ class MasterRouterTest
 
   class RouterWithProbeCoordinator[F[_]: Effect](config: WokenConfiguration,
                                                  databaseServices: DatabaseServices[F],
-                                                 backendServices: BackendServices)
+                                                 backendServices: BackendServices[F])
       extends MasterRouterUnderTest(config, databaseServices, backendServices) {
 
     //override def newCoordinatorActor: ActorRef = coordinatorActor

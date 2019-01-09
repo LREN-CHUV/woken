@@ -17,33 +17,25 @@
 
 package ch.chuv.lren.woken.service
 
-import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.stream.scaladsl.Flow
-import cats.effect.internals.IOAppPlatform
 import cats.effect._
 import ch.chuv.lren.woken.JsonUtils
 import ch.chuv.lren.woken.akka.FakeActors
+import ch.chuv.lren.woken.backends.worker.WokenWorker
 import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.core.model.VariablesMeta
 import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableId }
 import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
 import ch.chuv.lren.woken.dao._
-import ch.chuv.lren.woken.messages.datasets.DatasetId
-import ch.chuv.lren.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryResult }
-import ch.chuv.lren.woken.messages.remoting.RemoteLocation
-import ch.chuv.lren.woken.messages.variables.{
-  GroupMetaData,
-  VariablesForDatasetsQuery,
-  VariablesForDatasetsResponse
-}
+import ch.chuv.lren.woken.messages.variables.GroupMetaData
 import ch.chuv.lren.woken.messages.variables.variablesProtocol._
+import org.scalamock.scalatest.MockFactory
 import spray.json.JsObject
 
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
-object TestServices extends JsonUtils with FeaturesTableTestSupport {
+object TestServices extends JsonUtils with FeaturesTableTestSupport with MockFactory {
 
   lazy val jobResultService: JobResultService[IO] = JobResultService(
     new WokenInMemoryRepository[IO]().jobResults
@@ -127,23 +119,11 @@ object TestServices extends JsonUtils with FeaturesTableTestSupport {
     )
   }
 
-  lazy val dispatcherService: DispatcherService = new DispatcherService {
-    override def localDatasets: Set[DatasetId]                                        = ???
-    override def dispatchTo(dataset: DatasetId): Option[RemoteLocation]               = ???
-    override def dispatchTo(datasets: Set[DatasetId]): (Set[RemoteLocation], Boolean) = ???
-    override def dispatchRemoteMiningFlow
-      : Flow[MiningQuery, (RemoteLocation, QueryResult), NotUsed] = ???
-    override def dispatchRemoteExperimentFlow
-      : Flow[ExperimentQuery, (RemoteLocation, QueryResult), NotUsed] = ???
-    override def dispatchVariablesQueryFlow[F[_]: Effect](
-        datasetService: DatasetService,
-        variablesMetaService: VariablesMetaService[F]
-    ): Flow[VariablesForDatasetsQuery,
-            (VariablesForDatasetsQuery, VariablesForDatasetsResponse),
-            NotUsed] = ???
-  }
+  lazy val dispatcherService: DispatcherService = mock[DispatcherService]
+  lazy val wokenWorker: WokenWorker[IO]         = mock[WokenWorker[IO]]
 
-  def backendServices(system: ActorSystem): BackendServices =
+  def backendServices(system: ActorSystem): BackendServices[IO] =
     BackendServices(dispatcherService = dispatcherService,
-                    chronosHttp = system.actorOf(FakeActors.echoActorProps))
+                    chronosHttp = system.actorOf(FakeActors.echoActorProps),
+                    wokenWorker = wokenWorker)
 }

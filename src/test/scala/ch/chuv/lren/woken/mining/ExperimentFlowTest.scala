@@ -38,7 +38,7 @@ import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.datasets.{ Dataset, DatasetId }
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables.VariableId
-import ch.chuv.lren.woken.service.DispatcherService
+import ch.chuv.lren.woken.service.{ DispatcherService, TestServices }
 import com.typesafe.config.{ Config, ConfigFactory }
 import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
@@ -285,7 +285,7 @@ class ExperimentFlowTest
       coordinatorConfig.jobsConf,
       dispatcherService,
       Nil,
-      context
+      TestServices.wokenWorker
     )
 
     override def receive: Receive = {
