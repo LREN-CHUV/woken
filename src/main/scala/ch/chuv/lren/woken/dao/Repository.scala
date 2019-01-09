@@ -20,7 +20,6 @@ package ch.chuv.lren.woken.dao
 import java.time.{ OffsetDateTime, ZoneOffset }
 
 import cats.Id
-import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import doobie._
 import com.typesafe.scalalogging.LazyLogging
 import org.postgresql.util.PGobject
@@ -36,7 +35,6 @@ import scala.util.Try
   */
 trait Repository[F[_]] extends LazyLogging {
 
-  // TODO: add health checks
   def healthCheck: HealthCheck[F, Id]
 
   protected implicit val JsObjectMeta: Meta[JsObject] =

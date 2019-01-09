@@ -21,10 +21,10 @@ import java.time.OffsetDateTime
 import java.util.UUID
 
 import akka.NotUsed
-import akka.actor.ActorContext
 import akka.stream._
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Zip }
 import cats.effect.Effect
+import ch.chuv.lren.woken.backends.worker.WokenWorker
 import ch.chuv.lren.woken.config.JobsConfiguration
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model.AlgorithmDefinition
@@ -78,14 +78,14 @@ object AlgorithmWithCVFlow {
 case class AlgorithmWithCVFlow[F[_]: Effect](
     executeJobAsync: CoordinatorActor.ExecuteJobAsync,
     jobsConf: JobsConfiguration,
-    context: ActorContext
+    wokenWorker: WokenWorker[F]
 )(implicit materializer: Materializer, ec: ExecutionContext)
     extends LazyLogging {
 
   import AlgorithmWithCVFlow._
 
   private val crossValidationFlow =
-    CrossValidationFlow(executeJobAsync, context)
+    CrossValidationFlow(executeJobAsync, wokenWorker)
 
   /**
     * Run a predictive and local algorithm and perform its validation procedure.

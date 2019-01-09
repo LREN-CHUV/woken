@@ -18,27 +18,31 @@
 package ch.chuv.lren.woken.api
 
 import akka.cluster.Cluster
-import akka.cluster.pubsub.DistributedPubSub
 import akka.http.scaladsl.model.{ StatusCodes, Uri }
 import akka.http.scaladsl.server.{ Directives, Route }
 import akka.http.scaladsl.model.StatusCodes._
 import akka.management.cluster.{ ClusterHealthCheck, ClusterHttpManagementRoutes }
 import akka.management.http.ManagementRouteProviderSettings
 import cats.{ Id, Reducible, Semigroup }
-import cats.data.NonEmptyList
 import cats.implicits._
 import cats.effect.Effect
-import ch.chuv.lren.woken.akka.monitoring.DistributedPubSubHealthCheck
 import ch.chuv.lren.woken.config.{ AppConfiguration, JobsConfiguration }
-import ch.chuv.lren.woken.service.DatabaseServices
-import sup.{ Health, HealthCheck, HealthReporter }
+import ch.chuv.lren.woken.service.{ BackendServices, DatabaseServices }
+import ch.chuv.lren.woken.core.fp.runNow
+import sup.{ Health, HealthCheck }
+import sup.data.Report._
+import sup.data.Tagged
+
+import scala.language.higherKinds
 
 class MonitoringWebService[F[_]: Effect](cluster: Cluster,
                                          appConfig: AppConfiguration,
                                          jobsConfig: JobsConfiguration,
-                                         databaseServices: DatabaseServices[F])
+                                         databaseServices: DatabaseServices[F],
+                                         backendServices: BackendServices[F])
     extends Directives {
 
+  // TODO: Use Show to build the report string from HealthCheck
   val healthRoute: Route = pathPrefix("health") {
     get {
       (cluster.state.leader.isEmpty,
@@ -53,7 +57,10 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
           complete((StatusCodes.InternalServerError, "No leader elected for the cluster"))
         case (false, _, _, true, true, true) => complete("UP")
         case (_, _, _, false, _, _) =>
-          complete((StatusCodes.InternalServerError, "DB checks failed."))
+          complete(
+            (StatusCodes.InternalServerError,
+             runNow(databaseServices.healthChecks.check.map(_.value.show)))
+          )
         case (_, _, _, _, false, _) =>
           complete((StatusCodes.InternalServerError, "Woken validation checks failed."))
         case (false, _, _, _, _, false) =>
@@ -73,7 +80,7 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
 
   val clusterRoutes: Route = ClusterHttpManagementRoutes(cluster)
 
-  val healthCheckRoutes = pathPrefix("cluster") {
+  val healthCheckRoutes: Route = pathPrefix("cluster") {
     new ClusterHealthCheck(cluster.system).routes(new ManagementRouteProviderSettings {
       override def selfBaseUri: Uri = Uri./
     })
@@ -84,23 +91,24 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
       if (dbChecks) {
         complete(OK)
       } else {
-        complete((StatusCodes.InternalServerError, "DBs are not ready."))
+        complete(
+          (StatusCodes.InternalServerError,
+           runNow(databaseServices.healthChecks.check.map(_.value.show)))
+        )
       }
     }
   }
 
   val routes: Route = healthRoute ~ readinessRoute ~ clusterRoutes ~ healthCheckRoutes ~ dbHealth
 
-  private def wokenValidationCheck: Boolean = {
-    val mediator = DistributedPubSub(cluster.system).mediator
-    val validationServiceCheck: HealthCheck[F, Id] =
-      DistributedPubSubHealthCheck.checkValidation(mediator)
-    val scoringServiceCheck: HealthCheck[F, Id] =
-      DistributedPubSubHealthCheck.checkScoring(mediator)
-    val reporter: HealthReporter[F, NonEmptyList, Id] =
-      HealthReporter.fromChecks(validationServiceCheck, scoringServiceCheck)
+  type TaggedS[H] = Tagged[String, H]
 
-    Effect[F].toIO(healthCheckResponse(reporter)).unsafeRunSync()
+  private def wokenValidationCheck: Boolean = {
+    val checks =
+      backendServices.wokenWorker.healthChecks.check
+        .flatMap(check => check.value.health.isHealthy.pure[F])
+
+    Effect[F].toIO(checks).unsafeRunSync()
   }
 
   private def chronosServiceCheck: Boolean = {
@@ -116,14 +124,10 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
   }
 
   private def dbChecks: Boolean = {
-    val featuresCheck: HealthCheck[F, Id] = databaseServices.featuresService.healthCheck
-    val jobsCheck                         = databaseServices.jobResultService.healthCheck
-    val variablesCheck                    = databaseServices.variablesMetaService.healthCheck
+    val checks =
+      databaseServices.healthChecks.check.flatMap(check => check.value.health.isHealthy.pure[F])
 
-    val reporter: HealthReporter[F, NonEmptyList, Id] =
-      HealthReporter.fromChecks(featuresCheck, jobsCheck, variablesCheck)
-
-    Effect[F].toIO(healthCheckResponse(reporter)).unsafeRunSync()
+    Effect[F].toIO(checks).unsafeRunSync()
   }
 
   private def healthCheckResponse[H[_]: Reducible](

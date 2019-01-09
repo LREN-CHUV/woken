@@ -46,14 +46,14 @@ object ExperimentQueriesActor extends LazyLogging {
   def props[F[_]: Effect](
       config: WokenConfiguration,
       databaseServices: DatabaseServices[F],
-      backendServices: BackendServices
+      backendServices: BackendServices[F]
   ): Props =
     Props(new ExperimentQueriesActor(config, databaseServices, backendServices))
 
   def roundRobinPoolProps[F[_]: Effect](
       config: WokenConfiguration,
       databaseServices: DatabaseServices[F],
-      backendServices: BackendServices
+      backendServices: BackendServices[F]
   ): Props = {
 
     val resizer = OptimalSizeExploringResizer(
@@ -84,7 +84,7 @@ object ExperimentQueriesActor extends LazyLogging {
 class ExperimentQueriesActor[F[_]: Effect](
     override val config: WokenConfiguration,
     override val databaseServices: DatabaseServices[F],
-    override val backendServices: BackendServices
+    override val backendServices: BackendServices[F]
 ) extends QueriesActor[ExperimentQuery, F] {
 
   import ExperimentQueriesActor.Experiment
@@ -265,7 +265,9 @@ class ExperimentQueriesActor[F[_]: Effect](
   }
 
   private[dispatch] def newExperimentActor: ActorRef =
-    context.actorOf(ExperimentActor.props(coordinatorConfig, dispatcherService))
+    context.actorOf(
+      ExperimentActor.props(coordinatorConfig, dispatcherService, backendServices.wokenWorker)
+    )
 
   private[dispatch] def reduceUsingJobs(query: ExperimentQuery,
                                         jobIds: List[String]): ExperimentQuery =

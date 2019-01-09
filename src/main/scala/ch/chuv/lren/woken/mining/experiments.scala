@@ -21,7 +21,7 @@ import java.time.OffsetDateTime
 import java.util.UUID
 
 import akka.NotUsed
-import akka.actor.{ Actor, ActorContext, ActorRef, Props }
+import akka.actor.{ Actor, ActorRef, Props }
 import akka.stream._
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Merge, Partition, Sink, Source, ZipWith }
 import cats.Monoid
@@ -29,6 +29,7 @@ import cats.data.NonEmptyList
 import cats.data.Validated._
 import cats.effect.Effect
 import cats.implicits._
+import ch.chuv.lren.woken.backends.worker.WokenWorker
 import ch.chuv.lren.woken.config.JobsConfiguration
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.fp.runNow
@@ -68,8 +69,9 @@ object ExperimentActor {
                       initiator: ActorRef)
 
   def props[F[_]: Effect](coordinatorConfig: CoordinatorConfig[F],
-                          dispatcherService: DispatcherService): Props =
-    Props(new ExperimentActor(coordinatorConfig, dispatcherService))
+                          dispatcherService: DispatcherService,
+                          wokenWorker: WokenWorker[F]): Props =
+    Props(new ExperimentActor(coordinatorConfig, dispatcherService, wokenWorker))
 
 }
 
@@ -81,7 +83,8 @@ object ExperimentActor {
   *
   */
 class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
-                                    val dispatcherService: DispatcherService)
+                                    val dispatcherService: DispatcherService,
+                                    val wokenWorker: WokenWorker[F])
     extends Actor
     with LazyLogging {
 
@@ -276,7 +279,7 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
         coordinatorConfig.jobsConf,
         dispatcherService,
         splitters,
-        context
+        wokenWorker
       ).flow
 
     Source
@@ -366,7 +369,7 @@ case class ExperimentFlow[F[_]: Effect](
     jobsConf: JobsConfiguration,
     dispatcherService: DispatcherService,
     splitters: List[FeaturesSplitter[F]],
-    context: ActorContext
+    wokenWorker: WokenWorker[F]
 )(implicit materializer: Materializer, ec: ExecutionContext)
     extends LazyLogging {
 
@@ -381,7 +384,7 @@ case class ExperimentFlow[F[_]: Effect](
                                      result: JobResult)
 
   private val algorithmWithCVFlow =
-    AlgorithmWithCVFlow(executeJobAsync, jobsConf, context)
+    AlgorithmWithCVFlow(executeJobAsync, jobsConf, wokenWorker)
 
   @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
   def flow: Flow[ExperimentJob, Map[AlgorithmSpec, JobResult], NotUsed] =

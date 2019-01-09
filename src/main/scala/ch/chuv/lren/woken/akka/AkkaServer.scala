@@ -24,6 +24,7 @@ import akka.cluster.pubsub.{ DistributedPubSub, DistributedPubSubMediator }
 import akka.pattern.{ Backoff, BackoffSupervisor }
 import cats.effect._
 import ch.chuv.lren.woken.backends.woken.WokenClientService
+import ch.chuv.lren.woken.backends.worker.WokenWorker
 import ch.chuv.lren.woken.config.{ DatasetsConfiguration, WokenConfiguration }
 import ch.chuv.lren.woken.service._
 import com.typesafe.scalalogging.Logger
@@ -57,13 +58,15 @@ class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
 
   override protected def logger: Logger = AkkaServer.logger
 
-  private def mainRouterSupervisorProps = {
-
+  val backendServices = {
     val wokenService: WokenClientService = WokenClientService(config.jobs.node)
     val dispatcherService: DispatcherService =
       DispatcherService(DatasetsConfiguration.datasets(config.config), wokenService)
-    val backendServices = BackendServices(dispatcherService, chronosHttp)
+    val wokenWorker = WokenWorker[F](system)
+    BackendServices(dispatcherService, chronosHttp, wokenWorker)
+  }
 
+  private def mainRouterSupervisorProps =
     BackoffSupervisor.props(
       Backoff.onFailure(
         MasterRouter.props(
@@ -77,7 +80,6 @@ class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
         randomFactor = 0.2
       )
     )
-  }
 
   /**
     * Create and start actor that acts as akka entry-point

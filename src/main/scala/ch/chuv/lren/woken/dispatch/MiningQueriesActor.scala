@@ -49,14 +49,14 @@ object MiningQueriesActor extends LazyLogging {
 
   def props[F[_]: Effect](config: WokenConfiguration,
                           databaseServices: DatabaseServices[F],
-                          backendServices: BackendServices): Props =
+                          backendServices: BackendServices[F]): Props =
     Props(
       new MiningQueriesActor(config, databaseServices, backendServices)
     )
 
   def roundRobinPoolProps[F[_]: Effect](config: WokenConfiguration,
                                         databaseServices: DatabaseServices[F],
-                                        backendServices: BackendServices): Props = {
+                                        backendServices: BackendServices[F]): Props = {
 
     val resizer = OptimalSizeExploringResizer(
       config.config
@@ -86,7 +86,7 @@ object MiningQueriesActor extends LazyLogging {
 class MiningQueriesActor[F[_]: Effect](
     override val config: WokenConfiguration,
     override val databaseServices: DatabaseServices[F],
-    override val backendServices: BackendServices
+    override val backendServices: BackendServices[F]
 ) extends QueriesActor[MiningQuery, F] {
 
   import MiningQueriesActor.Mine

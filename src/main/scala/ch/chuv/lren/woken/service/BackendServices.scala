@@ -18,5 +18,11 @@
 package ch.chuv.lren.woken.service
 
 import akka.actor.ActorRef
+import cats.effect.Effect
+import ch.chuv.lren.woken.backends.worker.WokenWorker
 
-case class BackendServices(dispatcherService: DispatcherService, chronosHttp: ActorRef)
+import scala.language.higherKinds
+
+case class BackendServices[F[_]: Effect](dispatcherService: DispatcherService,
+                                         chronosHttp: ActorRef,
+                                         wokenWorker: WokenWorker[F])
