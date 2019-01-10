@@ -28,6 +28,8 @@ services:
   mesos_master:
     image: axelspringer/mesos-master:1.4.1
     hostname: mesosmaster
+    ports:
+      - '5050:5050'
     volumes:
       - ./log/mesos/master:/var/log/mesos/master:rw
       - ./tmp/mesos/master:/var/tmp/mesos:rw
