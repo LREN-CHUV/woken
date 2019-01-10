@@ -121,6 +121,7 @@ class FeaturesServiceImpl[F[_]: Effect](repository: FeaturesRepository[F])
       ) { s: FeaturesTableService[F] =>
         s.validNel[String]
       }
+
   override def healthCheck: HealthCheck[F, Id] = repository.healthCheck
 }
 

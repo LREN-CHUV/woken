@@ -15,15 +15,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.akka.monitoring
+package ch.chuv.lren.woken.backends.worker
 
 import akka.actor.ActorRef
-import akka.pattern.ask
 import akka.cluster.pubsub.DistributedPubSubMediator
+import akka.pattern.ask
 import akka.util.Timeout
-import cats.effect.{ Effect, IO }
 import cats.Id
 import cats.data.NonEmptyList
+import cats.effect.{ Effect, IO }
 import cats.implicits._
 import ch.chuv.lren.woken.messages.validation.{
   ScoringQuery,
@@ -34,15 +34,17 @@ import ch.chuv.lren.woken.messages.validation.{
 import ch.chuv.lren.woken.messages.variables.{ VariableMetaData, VariableType }
 import com.typesafe.scalalogging.Logger
 import eu.timepit.refined.types.numeric.PosInt
+import eu.timepit.refined.auto._
 import org.slf4j.LoggerFactory
 import spray.json.{ JsObject, JsString }
 import sup.HealthCheck
-import eu.timepit.refined.auto._
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.language.higherKinds
 import scala.reflect.ClassTag
 
+// TODO: Pubsub checks should use a simple Ping message
 object DistributedPubSubHealthCheck {
 
   private val logger: Logger = Logger(LoggerFactory.getLogger("woken.DistributedPubSubHealthCheck"))
@@ -52,7 +54,7 @@ object DistributedPubSubHealthCheck {
       path: String,
       request: A
   )(timeoutSeconds: Option[PosInt])(implicit classTag: ClassTag[B]): HealthCheck[F, Id] = {
-    implicit val askTimeout: Timeout = Timeout(timeoutSeconds.fold(0)(_.value) seconds)
+    implicit val askTimeout: Timeout = Timeout(timeoutSeconds.fold(0)(_.value).seconds)
     val topicsFuture: Future[B] =
       (mediator ? DistributedPubSubMediator.Send(path, request, localAffinity = false)).mapTo[B]
     val responseIO: IO[B] = IO.fromFuture(IO.pure(topicsFuture))

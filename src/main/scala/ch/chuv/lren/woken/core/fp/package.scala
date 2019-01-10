@@ -19,12 +19,14 @@ package ch.chuv.lren.woken.core
 
 import cats.effect.Effect
 
+import scala.concurrent.Future
 import scala.language.higherKinds
 
 package object fp {
 
   import acyclic.pkg
 
-  def runNow[F[_]: Effect, M](m: F[M]): M = Effect[F].toIO(m).unsafeRunSync()
+  def runNow[F[_]: Effect, M](m: F[M]): M           = Effect[F].toIO(m).unsafeRunSync()
+  def runLater[F[_]: Effect, M](m: F[M]): Future[M] = Effect[F].toIO(m).unsafeToFuture()
 
 }

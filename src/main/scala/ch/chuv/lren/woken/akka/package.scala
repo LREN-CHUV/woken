@@ -16,6 +16,7 @@
  */
 
 package ch.chuv.lren.woken
+
 import cats.effect.{ ConcurrentEffect, ContextShift, Resource, Timer }
 import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.service.DatabaseServices

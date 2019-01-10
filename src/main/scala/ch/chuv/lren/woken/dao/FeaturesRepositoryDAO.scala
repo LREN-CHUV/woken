@@ -27,6 +27,7 @@ import cats.implicits._
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn, TableId }
 import ch.chuv.lren.woken.core.model.database.sqlUtils._
+import ch.chuv.lren.woken.core.fp.runNow
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
 import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
@@ -50,7 +51,11 @@ class FeaturesRepositoryDAO[F[_]: Effect] private (
   override def featuresTable(table: TableId): F[Option[FeaturesTableRepository[F]]] =
     tables
       .find(_.table.same(table))
-      .map(t => FeaturesTableRepositoryDAO[F](xa, t, wokenRepository))
+      .map(
+        t =>
+          FeaturesTableRepositoryDAO[F](xa, t, wokenRepository)
+            .map(r => r: FeaturesTableRepository[F])
+      )
       .sequence
 
   override def healthCheck: HealthCheck[F, Id] = validate(xa)
@@ -242,6 +247,7 @@ class FeaturesTableRepositoryDAO[F[_]: Effect] private[dao] (
                                        otherColumns,
                                        prefills,
                                        wokenRepository.nextTableSeqNumber)
+      .map(r => r.map[FeaturesTableRepository[F]](t => t))
 
   override def healthCheck: HealthCheck[F, Id] = validate(xa)
 }
@@ -250,7 +256,7 @@ object FeaturesTableRepositoryDAO {
 
   def apply[F[_]: Effect](xa: Transactor[F],
                           table: FeaturesTableDescription,
-                          wokenRepository: WokenRepository[F]): F[FeaturesTableRepository[F]] = {
+                          wokenRepository: WokenRepository[F]): F[FeaturesTableRepositoryDAO[F]] = {
     implicit val han: LogHandler = LogHandler.jdkLogHandler
 
     HC.prepareStatement(s"SELECT * FROM ${table.quotedName} LIMIT 1")(prepareHeaders)
@@ -316,8 +322,8 @@ class ExtendedFeaturesTableRepositoryDAO[F[_]: Effect] private (
   override protected def defaultDataset: String = sourceTable.table.table.name
 
   def close(): F[Unit] = {
-    val rmView     = fr"DROP VIEW IF EXISTS " ++ frName(view)
-    val rmDynTable = fr"DROP TABLE IF EXISTS " ++ frName(extTable)
+    val rmView     = fr"DROP VIEW IF EXISTS" ++ frName(view)
+    val rmDynTable = fr"DROP TABLE IF EXISTS" ++ frName(extTable)
 
     for {
       _ <- rmView.update.run.transact(xa)
@@ -338,6 +344,8 @@ class ExtendedFeaturesTableRepositoryDAO[F[_]: Effect] private (
 
 object ExtendedFeaturesTableRepositoryDAO {
 
+  implicit val han: LogHandler = LogHandler.jdkLogHandler
+
   def apply[F[_]: Effect](
       sourceTable: FeaturesTableRepositoryDAO[F],
       filters: Option[FilterRule],
@@ -345,15 +353,16 @@ object ExtendedFeaturesTableRepositoryDAO {
       otherColumns: List[TableColumn],
       prefills: List[PrefillExtendedFeaturesTable],
       nextTableSeqNumber: () => F[Int]
-  ): Validation[Resource[F, FeaturesTableRepository[F]]] = {
+  ): Validation[Resource[F, ExtendedFeaturesTableRepositoryDAO[F]]] = {
 
-    implicit val han: LogHandler = LogHandler.jdkLogHandler
-    val xa                       = sourceTable.xa
+    val xa       = sourceTable.xa
+    val setSeed  = fr"SELECT setseed(" ++ frConst(sourceTable.table.seed) ++ fr");"
+    val seededXa = Transactor.strategy.set(xa, Strategy.default.copy(before = setSeed.query.unique))
     val extractPk: Validation[TableColumn] = sourceTable.table.primaryKey match {
       case pk :: Nil => pk.validNel[String]
       case _ =>
         val sourceTableName = sourceTable.table.table.name
-        s"Dynamic features table expects a primary key of one column for table $sourceTableName"
+        s"Extended features table expects a primary key of one column for table $sourceTableName"
           .invalidNel[TableColumn]
     }
 
@@ -361,70 +370,55 @@ object ExtendedFeaturesTableRepositoryDAO {
     val newColumns = newFeatures ++ otherColumns
 
     val validatedDao = extractPk.map { pk =>
-      // Work in context F
-      val extTableF = createExtendedTable(xa,
-                                          sourceTable.table,
+      val extendedTableNumber = runNow(nextTableSeqNumber())
+      val daoC = for {
+        extTable <- createExtendedTable(sourceTable.table,
+                                        pk,
+                                        filters,
+                                        rndColumn,
+                                        newColumns,
+                                        extendedTableNumber)
+        _ <- prefills
+          .map(_.prefillExtendedTableSql(sourceTable.table, extTable, rndColumn).run)
+          .sequence
+        extViewCols <- createExtendedView(sourceTable.table,
                                           pk,
+                                          sourceTable.columns,
                                           filters,
+                                          extTable,
                                           rndColumn,
-                                          newColumns,
-                                          nextTableSeqNumber)
-      extTableF.flatMap { extTable =>
-        val extTableUpdates =
-          prefills.map(_.prefillExtendedTableSql(sourceTable.table, extTable, rndColumn))
-
-        extTableUpdates
-          .map(_.run.transact(xa))
-          .sequence[F, Int]
-          .flatMap { _ =>
-            createExtendedView(xa,
-                               sourceTable.table,
-                               pk,
-                               sourceTable.columns,
-                               filters,
-                               extTable,
-                               rndColumn,
-                               newColumns)
-              .map {
-                case (extView, extColumns) =>
-                  new ExtendedFeaturesTableRepositoryDAO(sourceTable,
-                                                         extView,
-                                                         extColumns,
-                                                         extTable,
-                                                         newColumns,
-                                                         rndColumn)
-              }
-          }
-      }
+                                          newColumns)
+      } yield
+        new ExtendedFeaturesTableRepositoryDAO(sourceTable,
+                                               extViewCols._1,
+                                               extViewCols._2,
+                                               extTable,
+                                               newColumns,
+                                               rndColumn)
+      daoC.transact(seededXa)
     }
 
     validatedDao.map { dao =>
       Resource.make(dao)(_.close()).flatMap { f: ExtendedFeaturesTableRepositoryDAO[F] =>
         {
-          val repo: FeaturesTableRepository[F] = f
-          Resource.make(Effect[F].delay(repo))(_ => Effect[F].delay(()))
+          Resource.make(Effect[F].delay(f))(_ => Effect[F].delay(()))
         }
       }
     }
   }
 
   private def createExtendedTable[F[_]: Effect](
-      xa: Transactor[F],
       table: FeaturesTableDescription,
       pk: TableColumn,
       filters: Option[FilterRule],
       rndColumn: TableColumn,
       newFeatures: List[TableColumn],
-      nextTableSeqNumber: () => F[Int]
-  ): F[FeaturesTableDescription] = {
-
-    implicit val han: LogHandler = LogHandler.jdkLogHandler
-    val setSeed                  = fr"SELECT setseed(" ++ frConst(table.seed) ++ fr");"
-    val seededXa                 = Transactor.strategy.set(xa, Strategy.default.copy(before = setSeed.query.unique))
+      tableNum: Int
+  ): ConnectionIO[FeaturesTableDescription] = {
 
     def createAdditionalFeaturesTable(extTable: FeaturesTableDescription,
                                       pk: TableColumn): ConnectionIO[Int] = {
-      val stmt = fr"CREATE TABLE " ++ frName(extTable) ++ fr"(" ++ frName(pk) ++ frType(pk) ++ fr"PRIMARY KEY," ++
+      val stmt = fr"CREATE TABLE" ++ frName(extTable) ++ fr"(" ++ frName(pk) ++ frType(pk) ++ fr"PRIMARY KEY," ++
         frNameType(newFeatures :+ rndColumn) ++ fr"""
        )
        WITH (
@@ -444,25 +438,23 @@ object ExtendedFeaturesTableRepositoryDAO {
 
       val insertRndStmt = fr"INSERT INTO" ++ frName(extTable) ++ fr"(" ++ frNames(
         List(pk, rndColumn)
-      ) ++ fr") (SELECT " ++ frName(pk) ++
-        fr", random() as " ++ frName(rndColumn) ++ fr" FROM " ++
-        frName(table) ++ frWhereFilter(filters) ++ fr" ORDER BY " ++ frName(rndColumn) ++ fr");"
+      ) ++ fr") (SELECT" ++ frName(pk) ++
+        fr", random() as" ++ frName(rndColumn) ++ fr"FROM" ++
+        frName(table) ++ frWhereFilter(filters) ++ fr"ORDER BY" ++ frName(rndColumn) ++ fr");"
 
       insertRndStmt.update.run
     }
 
+    val extTable = table.copy(table = table.table.copy(name = s"${table.table.name}__$tableNum"),
+                              validateSchema = false)
     for {
-      tableNum <- nextTableSeqNumber()
-      extTable = table.copy(table = table.table.copy(name = s"${table.table.name}__$tableNum"),
-                            validateSchema = false)
-      _ <- createAdditionalFeaturesTable(extTable, pk).transact(seededXa)
-      _ <- fillAdditionalFeaturesTable(extTable, pk).transact(seededXa)
+      _ <- createAdditionalFeaturesTable(extTable, pk)
+      _ <- fillAdditionalFeaturesTable(extTable, pk)
     } yield extTable
 
   }
 
   private def createExtendedView[F[_]: Effect](
-      xa: Transactor[F],
       table: FeaturesTableDescription,
       pk: TableColumn,
       tableColumns: List[TableColumn],
@@ -470,9 +462,7 @@ object ExtendedFeaturesTableRepositoryDAO {
       extTable: FeaturesTableDescription,
       rndColumn: TableColumn,
       newFeatures: List[TableColumn]
-  ): F[(FeaturesTableDescription, Headers)] = {
-
-    implicit val han: LogHandler = LogHandler.jdkLogHandler
+  ): ConnectionIO[(FeaturesTableDescription, Headers)] = {
 
     def createFeaturesView(table: FeaturesTableDescription,
                            pk: TableColumn,
@@ -482,11 +472,11 @@ object ExtendedFeaturesTableRepositoryDAO {
                            extView: FeaturesTableDescription,
                            extViewColumns: Headers): ConnectionIO[Int] = {
 
-      val stmt = fr"CREATE OR REPLACE VIEW " ++ frName(extView) ++
+      val stmt = fr"CREATE OR REPLACE VIEW" ++ frName(extView) ++
         fr"(" ++ frNames(extViewColumns) ++ fr") AS SELECT" ++
         frQualifiedNames(table, tableColumns) ++ fr"," ++
-        frQualifiedNames(extTable, extTableColumns.filter(_ != pk)) ++ fr" FROM " ++
-        frName(table) ++ fr" LEFT OUTER JOIN " ++ frName(extTable) ++ fr" ON " ++
+        frQualifiedNames(extTable, extTableColumns.filter(_ != pk)) ++ fr"FROM" ++
+        frName(table) ++ fr"INNER JOIN" ++ frName(extTable) ++ fr"ON" ++
         frEqual(table, List(pk), extTable, List(pk))
 
       stmt.update.run
@@ -504,7 +494,7 @@ object ExtendedFeaturesTableRepositoryDAO {
                               extTable,
                               extTableColumns,
                               extViewDescription,
-                              extViewColumns).transact(xa)
+                              extViewColumns)
     } yield (extViewDescription, extViewColumns)
 
   }

@@ -40,7 +40,7 @@ object MasterRouter {
 
   def props[F[_]: Effect](config: WokenConfiguration,
                           databaseServices: DatabaseServices[F],
-                          backendServices: BackendServices): Props =
+                          backendServices: BackendServices[F]): Props =
     Props(
       new MasterRouter(config, databaseServices, backendServices)
     )
@@ -50,7 +50,7 @@ object MasterRouter {
 class MasterRouter[F[_]: Effect](
     val config: WokenConfiguration,
     val databaseServices: DatabaseServices[F],
-    val backendServices: BackendServices
+    val backendServices: BackendServices[F]
 ) extends Actor
     with LazyLogging {
 

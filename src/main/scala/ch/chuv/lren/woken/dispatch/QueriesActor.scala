@@ -48,7 +48,7 @@ trait QueriesActor[Q <: Query, F[_]] extends Actor with LazyLogging {
 
   def config: WokenConfiguration
   def databaseServices: DatabaseServices[F]
-  def backendServices: BackendServices
+  def backendServices: BackendServices[F]
 
   protected def queryToJobService: QueryToJobService[F] = databaseServices.queryToJobService
   protected def dispatcherService: DispatcherService    = backendServices.dispatcherService

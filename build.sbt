@@ -130,7 +130,7 @@ lazy val library =
       val diff            = "1.2.1"
       val acyclic         = "0.1.8"
       val wokenMessages   = "2.8.4"
-      val sup             = "0.1.0"     
+      val sup             = "0.2.0"
       val sttpBackend     = "1.5.2"
     }
     object ExclusionRules {
@@ -138,13 +138,14 @@ lazy val library =
       val excludeJackson = ExclusionRule(organization = "com.fasterxml.jackson.core")
       val excludeAkkaClusterSharding = ExclusionRule(organization = "com.typesafe.akka", name = "akka-cluster-sharding_2.11")
       val excludeAkkaDistributedData = ExclusionRule(organization = "com.typesafe.akka", name = "akka-distributed-data")
+      val excludeNetty = ExclusionRule(organization = "io.netty", name = "netty")
      }
     val scalaCheck: ModuleID   = "org.scalacheck"    %% "scalacheck"   % Version.scalaCheck
     val scalaTest: ModuleID    = "org.scalatest"     %% "scalatest"    % Version.scalaTest
     val scalaMock:ModuleID     = "org.scalamock"     %% "scalamock"    % Version.scalaMock
     val akkaActor: ModuleID    = "com.typesafe.akka" %% "akka-actor"   % Version.akka
     val akkaActorTyped: ModuleID = "com.typesafe.akka" %% "akka-actor-typed" % Version.akka
-    val akkaRemote: ModuleID   = "com.typesafe.akka" %% "akka-remote"  % Version.akka
+    val akkaRemote: ModuleID   = "com.typesafe.akka" %% "akka-remote"  % Version.akka excludeAll ExclusionRules.excludeNetty
     val akkaCluster: ModuleID  = "com.typesafe.akka" %% "akka-cluster" % Version.akka
     val akkaClusterTools: ModuleID = "com.typesafe.akka" %% "akka-cluster-tools" % Version.akka
     val akkaStream: ModuleID   = "com.typesafe.akka" %% "akka-stream"  % Version.akka
@@ -195,7 +196,7 @@ lazy val library =
     val diff: ModuleID         = "ai.x"              %% "diff"         % Version.diff
     val acyclic: ModuleID      = "com.lihaoyi"       %% "acyclic"      % Version.acyclic
     val wokenMessages: ModuleID = "ch.chuv.lren.woken" %% "woken-messages" % Version.wokenMessages
-    
+
     // health check
     val healthSupport = "com.kubukoz" %% "sup-core" % Version.sup
     val doobieHealthCheck = "com.kubukoz" %% "sup-doobie" % Version.sup
@@ -295,6 +296,8 @@ val aopMerge: MergeStrategy = new MergeStrategy {
 val customMergeStrategy: String => MergeStrategy = {
   case PathList("META-INF", "aop.xml") =>
     aopMerge
+  case PathList("META-INF", "io.netty.versions.properties") =>
+    MergeStrategy.first
   case s =>
     MergeStrategy.defaultMergeStrategy(s)
 }

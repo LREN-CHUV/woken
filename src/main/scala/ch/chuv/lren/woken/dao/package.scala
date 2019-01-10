@@ -17,17 +17,20 @@
 
 package ch.chuv.lren.woken
 
+import cats.Id
 import cats.effect.Effect
 import doobie.util.transactor.Transactor
 import sup.modules.doobie._
 import eu.timepit.refined.auto._
-import sup.mods
+import sup.{ HealthCheck, mods }
+
+import scala.language.higherKinds
 
 package object dao {
 
   import acyclic.pkg
 
-  def validate[F[_]: Effect](transactor: Transactor[F]) =
+  def validate[F[_]: Effect](transactor: Transactor[F]): HealthCheck[F, Id] =
     connectionCheck(transactor)(timeoutSeconds = Some(5)).through(mods.recoverToSick)
 
 }
