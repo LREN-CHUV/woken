@@ -29,8 +29,8 @@ import cats.data.NonEmptyList
 import cats.data.Validated._
 import cats.effect.Effect
 import cats.implicits._
+import ch.chuv.lren.woken.backends.faas.{ AlgorithmExecutor, AlgorithmResults }
 import ch.chuv.lren.woken.backends.worker.WokenWorker
-import ch.chuv.lren.woken.config.JobsConfiguration
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.fp.runNow
 import ch.chuv.lren.woken.core.features.Queries._
@@ -38,7 +38,12 @@ import ch.chuv.lren.woken.core.model.AlgorithmDefinition
 import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query._
-import ch.chuv.lren.woken.service.{ DispatcherService, FeaturesTableService }
+import ch.chuv.lren.woken.service.{
+  DispatcherService,
+  FeaturesService,
+  FeaturesTableService,
+  JobResultService
+}
 import ch.chuv.lren.woken.validation.flows.AlgorithmWithCVFlow
 import ch.chuv.lren.woken.validation.{
   FeaturesSplitter,
@@ -60,6 +65,16 @@ object ExperimentActor {
   // Incoming messages
   type Job = ExperimentJob
 
+  /**
+    * Start a new experiment job.
+    *
+    * @param job - experiment job
+    * @param replyTo Actor to reply to. Can be Actor.noSender when the ask pattern is used. This information is added in preparation for Akka Typed
+    * @param initiator The initiator of the request, this information will be returned by CoordinatorActor.Response#initiator.
+    *                  It can also have the value Actor.noSender
+    */
+  case class StartExperimentJob(job: ExperimentJob, replyTo: ActorRef, initiator: ActorRef)
+
   case object Done
 
   // Output messages: JobResult containing the experiment PFA
@@ -68,10 +83,18 @@ object ExperimentActor {
                       result: Either[ErrorJobResult, ExperimentJobResult],
                       initiator: ActorRef)
 
-  def props[F[_]: Effect](coordinatorConfig: CoordinatorConfig[F],
+  def props[F[_]: Effect](algorithmExecutor: AlgorithmExecutor[F],
                           dispatcherService: DispatcherService,
+                          featuresService: FeaturesService[F],
+                          jobResultService: JobResultService[F],
                           wokenWorker: WokenWorker[F]): Props =
-    Props(new ExperimentActor(coordinatorConfig, dispatcherService, wokenWorker))
+    Props(
+      new ExperimentActor(algorithmExecutor,
+                          dispatcherService,
+                          featuresService,
+                          jobResultService,
+                          wokenWorker)
+    )
 
 }
 
@@ -82,8 +105,10 @@ object ExperimentActor {
   * the results before responding
   *
   */
-class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
+class ExperimentActor[F[_]: Effect](val algorithmExecutor: AlgorithmExecutor[F],
                                     val dispatcherService: DispatcherService,
+                                    val featuresService: FeaturesService[F],
+                                    val jobResultService: JobResultService[F],
                                     val wokenWorker: WokenWorker[F])
     extends Actor
     with LazyLogging {
@@ -118,7 +143,7 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
       val thisActor  = self
       val algorithms = job.query.algorithms
       val featuresTableServiceV =
-        coordinatorConfig.featuresService.featuresTable(job.inputTable)
+        featuresService.featuresTable(job.inputTable)
 
       val containsPredictiveAlgorithms = job.queryAlgorithms.exists {
         case (_, defn) => defn.predictive
@@ -274,11 +299,10 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
     val algorithms = job.query.algorithms
     val experimentFlow: Flow[Job, Map[AlgorithmSpec, JobResult], NotUsed] =
       ExperimentFlow(
-        CoordinatorActor.executeJobAsync(coordinatorConfig, context),
         featuresTableService,
-        coordinatorConfig.jobsConf,
         dispatcherService,
         splitters,
+        algorithmExecutor,
         wokenWorker
       ).flow
 
@@ -294,9 +318,8 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
         assert(results.keySet equals algorithms.toSet,
                "Algorithms defined in the results should match the incoming list of algorithms")
 
-        val pfa = ExperimentJobResult(jobId = job.jobId,
-                                      node = coordinatorConfig.jobsConf.node,
-                                      results = results)
+        val pfa =
+          ExperimentJobResult(jobId = job.jobId, node = algorithmExecutor.node, results = results)
 
         Response(job, Right(pfa), initiator)
       }
@@ -307,12 +330,9 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
                                 msg: String,
                                 initiator: ActorRef,
                                 replyTo: ActorRef): Unit = {
-    val result = ErrorJobResult(Some(job.jobId),
-                                coordinatorConfig.jobsConf.node,
-                                OffsetDateTime.now(),
-                                None,
-                                msg)
-    val _ = runNow(coordinatorConfig.jobResultService.put(result))
+    val result =
+      ErrorJobResult(Some(job.jobId), algorithmExecutor.node, OffsetDateTime.now(), None, msg)
+    val _ = runNow(jobResultService.put(result))
     replyTo ! Response(job, Left(result), initiator)
     context stop self
   }
@@ -326,18 +346,18 @@ class ExperimentActor[F[_]: Effect](val coordinatorConfig: CoordinatorConfig[F],
       .andThen {
         case Success(response) =>
           val result = response.result.fold(identity, identity)
-          val _      = runNow(coordinatorConfig.jobResultService.put(result))
+          val _      = runNow(jobResultService.put(result))
           // Copy the job to avoid spilling internals of extended jobs to outside world. Smelly design here
           replyTo ! response.copy(job = job)
         case Failure(e) =>
           logger.error(s"Cannot complete experiment ${job.jobId}: ${e.getMessage}", e)
           val result = ErrorJobResult(Some(job.jobId),
-                                      coordinatorConfig.jobsConf.node,
+                                      algorithmExecutor.node,
                                       OffsetDateTime.now(),
                                       None,
                                       e.toString)
           val response = Response(job, Left(result), initiator)
-          val _        = runNow(coordinatorConfig.jobResultService.put(result))
+          val _        = runNow(jobResultService.put(result))
           replyTo ! response
       }
       .onComplete { _ =>
@@ -364,11 +384,10 @@ object ExperimentFlow {
 
 // TODO: move featuresTableService, splitters to the job
 case class ExperimentFlow[F[_]: Effect](
-    executeJobAsync: CoordinatorActor.ExecuteJobAsync,
     featuresTableService: FeaturesTableService[F],
-    jobsConf: JobsConfiguration,
     dispatcherService: DispatcherService,
     splitters: List[FeaturesSplitter[F]],
+    algorithmExecutor: AlgorithmExecutor[F],
     wokenWorker: WokenWorker[F]
 )(implicit materializer: Materializer, ec: ExecutionContext)
     extends LazyLogging {
@@ -379,12 +398,12 @@ case class ExperimentFlow[F[_]: Effect](
                                      algorithmSpec: AlgorithmSpec,
                                      subJob: AlgorithmWithCVFlow.Job[F])
 
-  private case class AlgorithmResult(job: ExperimentJob,
-                                     algorithmSpec: AlgorithmSpec,
-                                     result: JobResult)
+  private case class ExperimentJobResult(job: ExperimentJob,
+                                         algorithmSpec: AlgorithmSpec,
+                                         result: JobResult)
 
   private val algorithmWithCVFlow =
-    AlgorithmWithCVFlow(executeJobAsync, jobsConf, wokenWorker)
+    AlgorithmWithCVFlow(algorithmExecutor, wokenWorker)
 
   @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
   def flow: Flow[ExperimentJob, Map[AlgorithmSpec, JobResult], NotUsed] =
@@ -412,10 +431,11 @@ case class ExperimentFlow[F[_]: Effect](
         val partition =
           builder
             .add(Partition[JobForAlgorithmPreparation](outputPorts = 2, partitionAlgorithmByType))
-        val merge = builder.add(Merge[AlgorithmResult](inputPorts = 2))
+        val merge = builder.add(Merge[ExperimentJobResult](inputPorts = 2))
         val toMap =
-          builder.add(Flow[AlgorithmResult].fold[Map[AlgorithmSpec, JobResult]](Map()) { (m, r) =>
-            m + (r.algorithmSpec -> r.result)
+          builder.add(Flow[ExperimentJobResult].fold[Map[AlgorithmSpec, JobResult]](Map()) {
+            (m, r) =>
+              m + (r.algorithmSpec -> r.result)
           })
 
         // connect the graph
@@ -475,7 +495,7 @@ case class ExperimentFlow[F[_]: Effect](
                             splitters,
                             job.metadata)
 
-  private def localAlgorithmWithValidation: Flow[JobForAlgorithm, AlgorithmResult, NotUsed] =
+  private def localAlgorithmWithValidation: Flow[JobForAlgorithm, ExperimentJobResult, NotUsed] =
     Flow
       .fromGraph(GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
         import GraphDSL.Implicits._
@@ -483,7 +503,7 @@ case class ExperimentFlow[F[_]: Effect](
         val broadcast = builder.add(Broadcast[JobForAlgorithm](outputPorts = 3))
         val runAlgorithmAndValidate =
           algorithmWithCVFlow.runLocalAlgorithmAndValidate(parallelism = 4)
-        val zip = builder.add(ZipWith(AlgorithmResult))
+        val zip = builder.add(ZipWith(ExperimentJobResult))
 
         broadcast.out(0).map(_.job) ~> zip.in0
         broadcast.out(1).map(_.algorithmSpec) ~> zip.in1
@@ -494,15 +514,15 @@ case class ExperimentFlow[F[_]: Effect](
       })
       .named("algorithm-with-validation")
 
-  private def algorithmOnly: Flow[JobForAlgorithm, AlgorithmResult, NotUsed] =
+  private def algorithmOnly: Flow[JobForAlgorithm, ExperimentJobResult, NotUsed] =
     Flow
       .fromGraph(GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
         import GraphDSL.Implicits._
 
         val broadcast    = builder.add(Broadcast[JobForAlgorithm](outputPorts = 3))
         val runAlgorithm = algorithmWithCVFlow.runAlgorithmOnLocalData
-        val takeModel    = Flow[CoordinatorActor.Response].map(extractResult)
-        val zip          = builder.add(ZipWith(AlgorithmResult))
+        val takeModel    = Flow[AlgorithmResults].map(extractResult)
+        val zip          = builder.add(ZipWith(ExperimentJobResult))
 
         broadcast.out(0).map(_.job) ~> zip.in0
         broadcast.out(1).map(_.algorithmSpec) ~> zip.in1
@@ -512,14 +532,14 @@ case class ExperimentFlow[F[_]: Effect](
       })
       .named("algorithm-only")
 
-  private def extractResult(response: CoordinatorActor.Response): JobResult = {
+  private def extractResult(response: AlgorithmResults): JobResult = {
     val algorithm = response.job.algorithmSpec
     logger.info(s"Extract result from response: ${response.results}")
     response.results.headOption match {
       case Some(model) => model
       case None =>
         ErrorJobResult(Some(response.job.jobId),
-                       node = jobsConf.node,
+                       node = algorithmExecutor.node,
                        OffsetDateTime.now(),
                        Some(algorithm.code),
                        "No results")

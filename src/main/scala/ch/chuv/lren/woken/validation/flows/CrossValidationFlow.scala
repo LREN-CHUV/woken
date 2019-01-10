@@ -20,12 +20,14 @@ package ch.chuv.lren.woken.validation.flows
 import java.util.UUID
 
 import akka.NotUsed
+import akka.actor.Actor
 import akka.stream.Materializer
 import akka.stream.scaladsl.Flow
 import akka.util.Timeout
 import cats.data.{ NonEmptyList, Validated }
 import cats.effect.Effect
 import cats.implicits._
+import ch.chuv.lren.woken.backends.faas.{ AlgorithmExecutor, AlgorithmResults }
 import ch.chuv.lren.woken.backends.worker.WokenWorker
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.fp.runLater
@@ -35,14 +37,13 @@ import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query.AlgorithmSpec
 import ch.chuv.lren.woken.messages.validation._
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
-import ch.chuv.lren.woken.mining.CoordinatorActor
 import ch.chuv.lren.woken.service.FeaturesTableService
 import ch.chuv.lren.woken.validation.{ FeaturesSplitter, PartioningQueries }
 import com.typesafe.scalalogging.LazyLogging
 import spray.json.JsValue
 
 import scala.concurrent.duration._
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.ExecutionContext
 import scala.language.{ higherKinds, postfixOps }
 
 object CrossValidationFlow {
@@ -88,7 +89,7 @@ object CrossValidationFlow {
 }
 
 case class CrossValidationFlow[F[_]: Effect](
-    executeJobAsync: CoordinatorActor.ExecuteJobAsync,
+    algorithmExecutor: AlgorithmExecutor[F],
     wokenWorker: WokenWorker[F]
 )(implicit materializer: Materializer, ec: ExecutionContext)
     extends LazyLogging {
@@ -107,7 +108,7 @@ case class CrossValidationFlow[F[_]: Effect](
       .mapConcat(identity)
       .mapAsyncUnordered(parallelism) { f =>
         val (job, partition) = f
-        localJobForFold(job, partition)
+        runLater(localJobForFold(job, partition))
       }
       .mapAsync(parallelism)(r => runLater(handleFoldJobResponse(r)))
       .mapAsync(parallelism)(r => runLater(validateFold(r)))
@@ -160,7 +161,7 @@ case class CrossValidationFlow[F[_]: Effect](
   private def localJobForFold(
       job: Job[F],
       partition: PartioningQueries
-  ): Future[FoldContext[CoordinatorActor.Response, F]] = {
+  ): F[FoldContext[AlgorithmResults, F]] = {
 
     // Spawn a LocalCoordinatorActor for that one particular fold
     val jobId = UUID.randomUUID().toString
@@ -173,20 +174,22 @@ case class CrossValidationFlow[F[_]: Effect](
       metadata = job.metadata
     )
 
-    executeJobAsync(subJob).map(
-      response =>
-        FoldContext[CoordinatorActor.Response, F](job = job,
-                                                  response = response,
-                                                  partition = partition,
-                                                  targetMetaData = targetMetadata(job))
-    )
+    algorithmExecutor
+      .execute(subJob, Actor.noSender)
+      .map(
+        response =>
+          FoldContext[AlgorithmResults, F](job = job,
+                                           response = response,
+                                           partition = partition,
+                                           targetMetaData = targetMetadata(job))
+      )
   }
 
   private def handleFoldJobResponse(
-      context: FoldContext[CoordinatorActor.Response, F]
+      context: FoldContext[AlgorithmResults, F]
   ): F[FoldContext[ValidationQuery, F]] = {
     val queryF: F[ValidationQuery] = context.response match {
-      case CoordinatorActor.Response(_, List(pfa: PfaJobResult), _) =>
+      case AlgorithmResults(_, List(pfa: PfaJobResult), _) =>
         // Prepare the results for validation
         logger.info("Received result from local method.")
         // Take the raw model, as model contains runtime-inserted validations which are not yet compliant with PFA / Avro spec
@@ -204,7 +207,7 @@ case class CrossValidationFlow[F[_]: Effect](
           ValidationQuery(partition.fold, model, queryResults._2.toList, context.targetMetaData)
         }
 
-      case CoordinatorActor.Response(_, List(error: ErrorJobResult), _) =>
+      case AlgorithmResults(_, List(error: ErrorJobResult), _) =>
         val message =
           s"Error on cross validation job ${error.jobId} during fold ${context.partition.fold}" +
             s" on variable ${context.targetMetaData.code}: ${error.error}"
@@ -212,7 +215,7 @@ case class CrossValidationFlow[F[_]: Effect](
         // On training fold fails, we notify supervisor and we stop
         Effect[F].raiseError(new IllegalStateException(message))
 
-      case CoordinatorActor.Response(_, unhandled, _) =>
+      case AlgorithmResults(_, unhandled, _) =>
         val message =
           s"Error on cross validation job ${context.job.jobId} during fold ${context.partition.fold}" +
             s" on variable ${context.targetMetaData.code}: Unhandled response from CoordinatorActor: $unhandled"

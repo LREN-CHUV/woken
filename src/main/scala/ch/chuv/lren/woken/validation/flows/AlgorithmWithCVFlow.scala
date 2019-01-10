@@ -21,18 +21,20 @@ import java.time.OffsetDateTime
 import java.util.UUID
 
 import akka.NotUsed
+import akka.actor.Actor
 import akka.stream._
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Zip }
 import cats.effect.Effect
+import cats.implicits._
+import ch.chuv.lren.woken.backends.faas.{ AlgorithmExecutor, AlgorithmResults }
 import ch.chuv.lren.woken.backends.worker.WokenWorker
-import ch.chuv.lren.woken.config.JobsConfiguration
 import ch.chuv.lren.woken.core.features.FeaturesQuery
+import ch.chuv.lren.woken.core.fp.runLater
 import ch.chuv.lren.woken.core.model.AlgorithmDefinition
 import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.validation.Score
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
-import ch.chuv.lren.woken.mining.CoordinatorActor
 import ch.chuv.lren.woken.service.FeaturesTableService
 import ch.chuv.lren.woken.validation.FeaturesSplitter
 import com.typesafe.scalalogging.LazyLogging
@@ -76,8 +78,7 @@ object AlgorithmWithCVFlow {
   * @tparam F Monadic effect
   */
 case class AlgorithmWithCVFlow[F[_]: Effect](
-    executeJobAsync: CoordinatorActor.ExecuteJobAsync,
-    jobsConf: JobsConfiguration,
+    algorithmExecutor: AlgorithmExecutor[F],
     wokenWorker: WokenWorker[F]
 )(implicit materializer: Materializer, ec: ExecutionContext)
     extends LazyLogging {
@@ -85,7 +86,7 @@ case class AlgorithmWithCVFlow[F[_]: Effect](
   import AlgorithmWithCVFlow._
 
   private val crossValidationFlow =
-    CrossValidationFlow(executeJobAsync, wokenWorker)
+    CrossValidationFlow(algorithmExecutor, wokenWorker)
 
   /**
     * Run a predictive and local algorithm and perform its validation procedure.
@@ -105,7 +106,7 @@ case class AlgorithmWithCVFlow[F[_]: Effect](
 
         // prepare graph elements
         val broadcast = builder.add(Broadcast[AlgorithmWithCVFlow.Job[F]](outputPorts = 2))
-        val zip       = builder.add(Zip[CoordinatorActor.Response, ValidationResults]())
+        val zip       = builder.add(Zip[AlgorithmResults, ValidationResults]())
         val response  = builder.add(buildResponse)
 
         // connect the graph
@@ -123,9 +124,8 @@ case class AlgorithmWithCVFlow[F[_]: Effect](
     * @return
     */
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
-  def runAlgorithmOnLocalData: Flow[AlgorithmWithCVFlow.Job[F],
-                                    (AlgorithmWithCVFlow.Job[F], CoordinatorActor.Response),
-                                    NotUsed] =
+  def runAlgorithmOnLocalData
+    : Flow[AlgorithmWithCVFlow.Job[F], (AlgorithmWithCVFlow.Job[F], AlgorithmResults), NotUsed] =
     Flow[AlgorithmWithCVFlow.Job[F]]
       .mapAsync(1) { job =>
         val algorithm = job.algorithm
@@ -136,7 +136,7 @@ case class AlgorithmWithCVFlow[F[_]: Effect](
         val jobId  = UUID.randomUUID().toString
         val subJob = createDockerJob(job, jobId, job.query)
 
-        executeJobAsync(subJob).map(response => (job, response))
+        runLater(algorithmExecutor.execute(subJob, Actor.noSender).map(response => (job, response)))
       }
       .log("Learned from available local data")
       .named("learn-from-available-local-data")
@@ -191,9 +191,8 @@ case class AlgorithmWithCVFlow[F[_]: Effect](
     spec.parameters.find(_.code == "node").map(_.value)
 
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
-  private def buildResponse
-    : Flow[(CoordinatorActor.Response, ValidationResults), ResultResponse, NotUsed] =
-    Flow[(CoordinatorActor.Response, ValidationResults)]
+  private def buildResponse: Flow[(AlgorithmResults, ValidationResults), ResultResponse, NotUsed] =
+    Flow[(AlgorithmResults, ValidationResults)]
       .map {
         case (response, validations) =>
           val algorithm = response.job.algorithmSpec
@@ -206,15 +205,17 @@ case class AlgorithmWithCVFlow[F[_]: Effect](
                 s"Expected a PfaJobResult, got $model. All results and validations are discarded"
               )
               val jobResult =
-                ErrorJobResult(Some(response.job.jobId),
-                               node = jobsConf.node,
-                               OffsetDateTime.now(),
-                               Some(algorithm.code),
-                               s"Expected a PfaJobResult, got ${model.getClass.getName}")
+                ErrorJobResult(
+                  Some(response.job.jobId),
+                  node = algorithmExecutor.node,
+                  OffsetDateTime.now(),
+                  Some(algorithm.code),
+                  s"Expected a PfaJobResult, got ${model.getClass.getName}"
+                )
               ResultResponse(algorithm, Left(jobResult))
             case None =>
               val jobResult = ErrorJobResult(Some(response.job.jobId),
-                                             node = jobsConf.node,
+                                             node = algorithmExecutor.node,
                                              OffsetDateTime.now(),
                                              Some(algorithm.code),
                                              "No results")

@@ -24,13 +24,13 @@ import akka.routing.{ OptimalSizeExploringResizer, RoundRobinPool }
 import akka.stream.scaladsl.{ Flow, Sink, Source }
 import cats.effect.Effect
 import ch.chuv.lren.woken.config.WokenConfiguration
-import ch.chuv.lren.woken.mining._
 import ch.chuv.lren.woken.core.model.{ AlgorithmDefinition, UserFeedbacks }
 import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.validation.flows.RemoteValidationFlow.ValidationContext
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query.{ ExecutionStyle, _ }
 import ch.chuv.lren.woken.mining.ExperimentActor
+import ch.chuv.lren.woken.mining.ExperimentActor.StartExperimentJob
 import ch.chuv.lren.woken.service.{ BackendServices, DatabaseServices }
 import ch.chuv.lren.woken.validation.flows.RemoteValidationFlow
 import com.typesafe.scalalogging.LazyLogging
@@ -266,7 +266,11 @@ class ExperimentQueriesActor[F[_]: Effect](
 
   private[dispatch] def newExperimentActor: ActorRef =
     context.actorOf(
-      ExperimentActor.props(coordinatorConfig, dispatcherService, backendServices.wokenWorker)
+      ExperimentActor.props(backendServices.algorithmExecutor,
+                            dispatcherService,
+                            databaseServices.featuresService,
+                            databaseServices.jobResultService,
+                            backendServices.wokenWorker)
     )
 
   private[dispatch] def reduceUsingJobs(query: ExperimentQuery,

@@ -23,6 +23,7 @@ import cats.implicits._
 import ch.chuv.lren.woken.akka.{ AkkaServer, CoreSystem }
 import ch.chuv.lren.woken.api._
 import ch.chuv.lren.woken.api.ssl.WokenSSLConfiguration
+import ch.chuv.lren.woken.backends.HttpClient.checkHealth
 import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.service.{ BackendServices, DatabaseServices }
 import com.typesafe.scalalogging.Logger
@@ -69,7 +70,7 @@ class WebServer[F[_]: ConcurrentEffect: Timer](override val core: CoreSystem,
 
     val url =
       s"http${if (config.app.webServicesHttps) "s" else ""}://${config.app.networkInterface}:${config.app.webServicesPort}/cluster/alive"
-    val endpointCheck = healthCheck(url)
+    val endpointCheck = checkHealth(url)
     val result: F[Boolean] = endpointCheck.check.flatMap { check =>
       check.value.isHealthy.pure[F]
     }

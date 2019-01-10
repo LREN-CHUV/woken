@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.mining
+package ch.chuv.lren.woken.backends.faas.chronos
 
 import java.time.OffsetDateTime
 
@@ -26,14 +26,18 @@ import akka.util.Timeout
 import cats.effect.Effect
 
 import scala.concurrent.{ ExecutionContext, Future }
+import ch.chuv.lren.woken.backends.HttpClient.checkHealth
 import ch.chuv.lren.woken.backends.chronos.ChronosService
 import ch.chuv.lren.woken.backends.chronos.{ ChronosJob, JobToChronos }
+import ch.chuv.lren.woken.backends.faas.AlgorithmExecutor.TaggedS
+import ch.chuv.lren.woken.backends.faas.{ AlgorithmExecutor, AlgorithmResults }
 import ch.chuv.lren.woken.config.{ DatabaseConfiguration, JobsConfiguration }
-import ch.chuv.lren.woken.core.model.jobs.{ DockerJob, ErrorJobResult, JobResult }
+import ch.chuv.lren.woken.core.model.jobs.{ DockerJob, ErrorJobResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
-import ch.chuv.lren.woken.core.fp.runNow
-import ch.chuv.lren.woken.service.{ FeaturesService, JobResultService }
+import ch.chuv.lren.woken.core.fp.{ fromFuture, runNow }
+import ch.chuv.lren.woken.service.JobResultService
 import com.typesafe.scalalogging.LazyLogging
+import sup.{ HealthCheck, mods }
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -41,10 +45,49 @@ import scala.language.higherKinds
 
 // TODO: replace with Akka streams, similar example can be found at https://softwaremill.com/replacing-akka-actors-with-akka-streams/
 
-// TODO: featuresDatabase needed by CrossValidationActor, not by CoordinatorActor
+case class ChronosExecutor[F[_]: Effect](system: ActorSystem,
+                                         chronosService: ActorRef,
+                                         dockerBridgeNetwork: Option[String],
+                                         jobResultService: JobResultService[F],
+                                         jobsConf: JobsConfiguration,
+                                         jdbcConfF: String => Validation[DatabaseConfiguration])
+    extends AlgorithmExecutor[F] {
+
+  private val jobAsync = CoordinatorActor.executeJobAsync(
+    CoordinatorConfig(chronosService, dockerBridgeNetwork, jobResultService, jobsConf, jdbcConfF),
+    system
+  )
+
+  /**
+    * Name of the current node (or cluster) where Docker containers are executed
+    */
+  override def node: String = jobsConf.node
+
+  override def execute(job: DockerJob, initiator: ActorRef): F[AlgorithmResults] =
+    fromFuture[F, AlgorithmResults](jobAsync(job, initiator))
+
+  override def healthCheck: HealthCheck[F, TaggedS] = {
+    val chronosUrl = jobsConf.chronosServerUrl
+    val url        = s"$chronosUrl/v1/scheduler/jobs"
+
+    checkHealth(url)
+      .through[F, TaggedS](mods.tagWith("Woken scoring worker(s)"))
+  }
+
+}
+
+/**
+  * Start mining command.
+  *
+  * @param job - docker job
+  * @param replyTo Actor to reply to. Can be Actor.noSender when the ask pattern is used. This information is added in preparation for Akka Typed
+  * @param initiator The initiator of the request, this information will be returned by CoordinatorActor.Response#initiator.
+  *                  It can also have the value Actor.noSender
+  */
+case class StartCoordinatorJob(job: DockerJob, replyTo: ActorRef, initiator: ActorRef)
+
 case class CoordinatorConfig[F[_]](chronosService: ActorRef,
                                    dockerBridgeNetwork: Option[String],
-                                   featuresService: FeaturesService[F],
                                    jobResultService: JobResultService[F],
                                    jobsConf: JobsConfiguration,
                                    jdbcConfF: String => Validation[DatabaseConfiguration])
@@ -62,7 +105,6 @@ object CoordinatorActor {
   // Responses
 
   // TODO: we can return only one JobResult at the moment
-  case class Response(job: DockerJob, results: List[JobResult], initiator: ActorRef)
 
   def props[F[_]: Effect](coordinatorConfig: CoordinatorConfig[F]): Props =
     Props(
@@ -74,29 +116,30 @@ object CoordinatorActor {
 
   private[this] def future[F[_]: Effect](
       coordinatorConfig: CoordinatorConfig[F],
-      context: ActorContext
-  )(job: DockerJob): Future[Response] = {
-    val worker = context.actorOf(
-      CoordinatorActor.props(coordinatorConfig)
+      system: ActorSystem
+  )(job: DockerJob, initiator: ActorRef): Future[AlgorithmResults] = {
+    val worker = system.actorOf(
+      CoordinatorActor.props(coordinatorConfig),
+      actorName(job)
     )
 
     implicit val askTimeout: Timeout = Timeout(1 day)
 
-    (worker ? StartCoordinatorJob(job, Actor.noSender, Actor.noSender))
-      .mapTo[CoordinatorActor.Response]
+    (worker ? StartCoordinatorJob(job, Actor.noSender, initiator))
+      .mapTo[AlgorithmResults]
 
   }
 
-  type ExecuteJobAsync = DockerJob => Future[Response]
+  type ExecuteJobAsync = (DockerJob, ActorRef) => Future[AlgorithmResults]
 
   def executeJobAsync[F[_]: Effect](coordinatorConfig: CoordinatorConfig[F],
-                                    context: ActorContext): ExecuteJobAsync =
-    future(coordinatorConfig, context)
+                                    system: ActorSystem): ExecuteJobAsync =
+    future(coordinatorConfig, system)
 
 }
 
 /** FSM States and internal data */
-private[mining] object CoordinatorStates {
+private[chronos] object CoordinatorStates {
 
   // FSM States
 
@@ -253,7 +296,7 @@ class CoordinatorActor[F[_]: Effect](coordinatorConfig: CoordinatorConfig[F])
       val results = runNow(coordinatorConfig.jobResultService.get(data.job.jobId))
       if (results.nonEmpty) {
         logger.info(s"Received results for job ${data.job.jobId}")
-        data.replyTo ! Response(data.job, results.toList, data.initiator)
+        data.replyTo ! AlgorithmResults(data.job, results.toList, data.initiator)
         logger.info("Stopping...")
         stop(Normal)
       } else {
@@ -278,7 +321,7 @@ class CoordinatorActor[F[_]: Effect](coordinatorConfig: CoordinatorConfig[F])
       val results = runNow(coordinatorConfig.jobResultService.get(data.job.jobId))
       if (results.nonEmpty) {
         logger.info(s"Received results for job ${data.job.jobId}")
-        data.replyTo ! Response(data.job, results.toList, data.initiator)
+        data.replyTo ! AlgorithmResults(data.job, results.toList, data.initiator)
 
         val reportedSuccess = !results.exists { case _: ErrorJobResult => true; case _ => false }
         if (reportedSuccess != success) {
@@ -375,7 +418,7 @@ class CoordinatorActor[F[_]: Effect](coordinatorConfig: CoordinatorConfig[F])
       val results = runNow(coordinatorConfig.jobResultService.get(data.job.jobId))
       if (results.nonEmpty) {
         logger.info(s"Received results for job ${data.job.jobId}")
-        data.replyTo ! Response(data.job, results.toList, data.initiator)
+        data.replyTo ! AlgorithmResults(data.job, results.toList, data.initiator)
         logger.info("Stopping...")
         stop(Normal)
       } else {
@@ -418,14 +461,14 @@ class CoordinatorActor[F[_]: Effect](coordinatorConfig: CoordinatorConfig[F])
   initialize()
 
   private def errorResponse(job: DockerJob, msg: String, initiator: ActorRef) =
-    Response(job,
-             List(
-               ErrorJobResult(Some(job.jobId),
-                              coordinatorConfig.jobsConf.node,
-                              OffsetDateTime.now(),
-                              Some(job.algorithmSpec.code),
-                              msg)
-             ),
-             initiator)
+    AlgorithmResults(job,
+                     List(
+                       ErrorJobResult(Some(job.jobId),
+                                      coordinatorConfig.jobsConf.node,
+                                      OffsetDateTime.now(),
+                                      Some(job.algorithmSpec.code),
+                                      msg)
+                     ),
+                     initiator)
 
 }

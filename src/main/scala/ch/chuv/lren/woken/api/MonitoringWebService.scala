@@ -23,15 +23,13 @@ import akka.http.scaladsl.server.{ Directives, Route }
 import akka.http.scaladsl.model.StatusCodes._
 import akka.management.cluster.{ ClusterHealthCheck, ClusterHttpManagementRoutes }
 import akka.management.http.ManagementRouteProviderSettings
-import cats.{ Id, Reducible, Semigroup }
 import cats.implicits._
 import cats.effect.Effect
 import ch.chuv.lren.woken.config.{ AppConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.service.{ BackendServices, DatabaseServices }
 import ch.chuv.lren.woken.core.fp.runNow
-import sup.{ Health, HealthCheck }
 import sup.data.Report._
-import sup.data.Tagged
+import sup.data.{ HealthReporter, Tagged }
 
 import scala.language.higherKinds
 
@@ -42,29 +40,24 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
                                          backendServices: BackendServices[F])
     extends Directives {
 
+  private val allChecks =
+    HealthReporter.fromChecks(databaseServices.healthChecks, backendServices.healthChecks)
+
   // TODO: Use Show to build the report string from HealthCheck
   val healthRoute: Route = pathPrefix("health") {
     get {
-      (cluster.state.leader.isEmpty,
-       !appConfig.disableWorkers,
-       cluster.state.members.size < 2,
-       dbChecks,
-       wokenValidationCheck,
-       chronosServiceCheck) match {
-        case (false, true, true, true, true, true) =>
+      val up = runNow(allChecks.check).value.health.isHealthy
+      (cluster.state.leader.nonEmpty, !appConfig.disableWorkers, cluster.state.members.size < 2, up) match {
+        case (true, true, true, true) =>
           complete("UP - Expected at least one worker (Woken validation server) in the cluster")
-        case (true, _, _, _, _, _) =>
+        case (true, _, _, true) => complete("UP")
+        case (false, _, _, _) =>
           complete((StatusCodes.InternalServerError, "No leader elected for the cluster"))
-        case (false, _, _, true, true, true) => complete("UP")
-        case (_, _, _, false, _, _) =>
+        case (_, _, _, false) =>
           complete(
             (StatusCodes.InternalServerError,
              runNow(databaseServices.healthChecks.check.map(_.value.show)))
           )
-        case (_, _, _, _, false, _) =>
-          complete((StatusCodes.InternalServerError, "Woken validation checks failed."))
-        case (false, _, _, _, _, false) =>
-          complete((StatusCodes.InternalServerError, "Chronos service checks failed."))
       }
     }
   }
@@ -88,7 +81,7 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
 
   val dbHealth: Route = pathPrefix("db") {
     get {
-      if (dbChecks) {
+      if (runNow(databaseServices.healthChecks.check).value.health.isHealthy) {
         complete(OK)
       } else {
         complete(
@@ -102,39 +95,5 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
   val routes: Route = healthRoute ~ readinessRoute ~ clusterRoutes ~ healthCheckRoutes ~ dbHealth
 
   type TaggedS[H] = Tagged[String, H]
-
-  private def wokenValidationCheck: Boolean = {
-    val checks =
-      backendServices.wokenWorker.healthChecks.check
-        .flatMap(check => check.value.health.isHealthy.pure[F])
-
-    Effect[F].toIO(checks).unsafeRunSync()
-  }
-
-  private def chronosServiceCheck: Boolean = {
-    val chronosUrl = jobsConfig.chronosServerUrl
-    val url        = s"$chronosUrl/v1/scheduler/jobs"
-
-    val chronosCheck: HealthCheck[F, Id] = healthCheck(url)
-    val checkResult = chronosCheck.check.flatMap { check =>
-      check.value.isHealthy.pure[F]
-    }
-
-    Effect[F].toIO(checkResult).unsafeRunSync()
-  }
-
-  private def dbChecks: Boolean = {
-    val checks =
-      databaseServices.healthChecks.check.flatMap(check => check.value.health.isHealthy.pure[F])
-
-    Effect[F].toIO(checks).unsafeRunSync()
-  }
-
-  private def healthCheckResponse[H[_]: Reducible](
-      healthCheck: HealthCheck[F, H]
-  )(implicit combineHealthChecks: Semigroup[Health]) =
-    healthCheck.check.flatMap { check =>
-      check.value.reduce.isHealthy.pure[F]
-    }
 
 }

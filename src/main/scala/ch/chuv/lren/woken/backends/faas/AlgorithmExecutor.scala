@@ -15,26 +15,30 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.service
+package ch.chuv.lren.woken.backends.faas
 
-import cats.data.NonEmptyList
-import cats.effect._
-import ch.chuv.lren.woken.backends.faas.AlgorithmExecutor
-import ch.chuv.lren.woken.backends.worker.WokenWorker
-import sup.HealthReporter
+import akka.actor.ActorRef
+import ch.chuv.lren.woken.core.model.jobs.{ DockerJob, JobResult }
+import sup.HealthCheck
 import sup.data.Tagged
-import sup.data.Tagged._
 
 import scala.language.higherKinds
 
-case class BackendServices[F[_]: Effect](dispatcherService: DispatcherService,
-                                         algorithmExecutor: AlgorithmExecutor[F],
-                                         wokenWorker: WokenWorker[F]) {
+case class AlgorithmResults(job: DockerJob, results: List[JobResult], initiator: ActorRef)
 
+object AlgorithmExecutor {
   type TaggedS[H] = Tagged[String, H]
-  lazy val healthChecks: HealthReporter[F, NonEmptyList, TaggedS] =
-    HealthReporter.fromChecks(algorithmExecutor.healthCheck,
-                              wokenWorker.scoringServiceHealthCheck,
-                              wokenWorker.validationServiceHealthCheck)
+}
+
+import AlgorithmExecutor.TaggedS
+
+trait AlgorithmExecutor[F[_]] {
+
+  /**
+    * Name of the current node (or cluster) where Docker containers are executed
+    */
+  def node: String
+  def execute(job: DockerJob, initiator: ActorRef): F[AlgorithmResults]
+  def healthCheck: HealthCheck[F, TaggedS]
 
 }
