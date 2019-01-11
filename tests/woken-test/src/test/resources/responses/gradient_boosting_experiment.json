@@ -32006,7 +32006,7 @@
                 "code": "kfold",
                 "data": {
                   "average": {
-                    "Accuracy": 0.76251,
+                    "Accuracy": 0.76601,
                     "Confusion matrix": {
                       "labels": [
                         "AD",
@@ -32015,26 +32015,26 @@
                       ],
                       "values": [
                         [
-                          61.0,
-                          38.0,
-                          39.0
+                          117.0,
+                          91.0,
+                          66.0
                         ],
                         [
-                          44.0,
-                          78.0,
-                          36.0
+                          81.0,
+                          170.0,
+                          47.0
                         ],
                         [
-                          27.0,
-                          20.0,
-                          516.0
+                          59.0,
+                          58.0,
+                          1029.0
                         ]
                       ]
                     },
-                    "Weighted F1-score": 0.75631,
-                    "Weighted false positive rate": 0.19711,
-                    "Weighted precision": 0.75197,
-                    "Weighted recall": 0.76251,
+                    "Weighted F1-score": 0.76587,
+                    "Weighted false positive rate": 0.16544,
+                    "Weighted precision": 0.7661,
+                    "Weighted recall": 0.76601,
                     "type": "PolynomialClassificationScore"
                   },
                   "folds": {
@@ -32068,6 +32068,38 @@
                       "Weighted false positive rate": 0.19711,
                       "Weighted precision": 0.75197,
                       "Weighted recall": 0.76251,
+                      "type": "PolynomialClassificationScore"
+                    },
+                    "2": {
+                      "Accuracy": 0.7695,
+                      "Confusion matrix": {
+                        "labels": [
+                          "AD",
+                          "CN",
+                          "Other"
+                        ],
+                        "values": [
+                          [
+                            56.0,
+                            53.0,
+                            27.0
+                          ],
+                          [
+                            37.0,
+                            92.0,
+                            11.0
+                          ],
+                          [
+                            32.0,
+                            38.0,
+                            513.0
+                          ]
+                        ]
+                      },
+                      "Weighted F1-score": 0.77484,
+                      "Weighted false positive rate": 0.12918,
+                      "Weighted precision": 0.78475,
+                      "Weighted recall": 0.7695,
                       "type": "PolynomialClassificationScore"
                     }
                   },
