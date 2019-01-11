@@ -136,19 +136,19 @@
                 "coeff": [
                   0.0
                 ],
-                "const": -1.0
+                "const": -1.00214
               },
               {
                 "coeff": [
                   0.0
                 ],
-                "const": -1.00235
+                "const": -1.00232
               },
               {
                 "coeff": [
                   0.0
                 ],
-                "const": 0.99736
+                "const": 0.99922
               }
             ],
             "rollback": false,
@@ -164,7 +164,7 @@
                 "code": "kfold",
                 "data": {
                   "average": {
-                    "Accuracy": 0.65541,
+                    "Accuracy": 0.66705,
                     "Confusion matrix": {
                       "labels": [
                         "AD",
@@ -175,24 +175,24 @@
                         [
                           0.0,
                           0.0,
-                          138.0
+                          274.0
                         ],
                         [
                           0.0,
                           0.0,
-                          158.0
+                          298.0
                         ],
                         [
                           0.0,
                           0.0,
-                          563.0
+                          1146.0
                         ]
                       ]
                     },
-                    "Weighted F1-score": 0.51898,
-                    "Weighted false positive rate": 0.65541,
-                    "Weighted precision": 0.42957,
-                    "Weighted recall": 0.65541,
+                    "Weighted F1-score": 0.53383,
+                    "Weighted false positive rate": 0.66705,
+                    "Weighted precision": 0.44496,
+                    "Weighted recall": 0.66705,
                     "type": "PolynomialClassificationScore"
                   },
                   "folds": {
@@ -226,6 +226,38 @@
                       "Weighted false positive rate": 0.65541,
                       "Weighted precision": 0.42957,
                       "Weighted recall": 0.65541,
+                      "type": "PolynomialClassificationScore"
+                    },
+                    "2": {
+                      "Accuracy": 0.6787,
+                      "Confusion matrix": {
+                        "labels": [
+                          "AD",
+                          "CN",
+                          "Other"
+                        ],
+                        "values": [
+                          [
+                            0.0,
+                            0.0,
+                            136.0
+                          ],
+                          [
+                            0.0,
+                            0.0,
+                            140.0
+                          ],
+                          [
+                            0.0,
+                            0.0,
+                            583.0
+                          ]
+                        ]
+                      },
+                      "Weighted F1-score": 0.54879,
+                      "Weighted false positive rate": 0.6787,
+                      "Weighted precision": 0.46063,
+                      "Weighted recall": 0.6787,
                       "type": "PolynomialClassificationScore"
                     }
                   },
@@ -361,7 +393,7 @@
         "metadata": {
           "X": "{\"lefthippocampus\":{\"count\":1718.0,\"mean\":3.639566982e-16,\"std\":1.0002911632,\"min\":-6.1997481189,\"25%\":-0.1756647944,\"50%\":-0.1756647944,\"75%\":-0.1049179598,\"max\":5.934008706}}",
           "coef_": "[[0.0],[0.0],[0.0]]",
-          "intercept_": "[-1.0000040932,-1.0023472692,0.9973585235]",
+          "intercept_": "[-1.0021365075,-1.0023240542,0.9992195516]",
           "score": "0.6670547148",
           "y": "{\"count\":1718,\"unique\":3,\"top\":\"Other\",\"freq\":1146}"
         },
