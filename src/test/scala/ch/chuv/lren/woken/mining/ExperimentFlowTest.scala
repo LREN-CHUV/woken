@@ -24,6 +24,7 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Source
 import akka.stream.testkit.scaladsl.TestSink
 import akka.testkit.{ TestKit, TestProbe }
+import cats.effect.IO
 import ch.chuv.lren.woken.JsonUtils
 import ch.chuv.lren.woken.Predefined.Algorithms.{
   anovaDefinition,
@@ -44,8 +45,9 @@ import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import cats.implicits._
 import cats.scalatest.{ ValidatedMatchers, ValidatedValues }
+import ch.chuv.lren.woken.backends.faas.AlgorithmExecutor
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -244,15 +246,17 @@ class ExperimentFlowTest
 
   }
 
+  import ch.chuv.lren.woken.backends.faas.AlgorithmExecutorInstances._
   object ExperimentFlowWrapper {
 
     def propsFailingAlgorithm(errorMsg: String): Props =
-      props("", Some(FakeCoordinatorActor.executeFailingJobAsync(errorMsg)))
+      props(algorithmFailingWithError(errorMsg))
 
-    def propsSuccessfulAlgorithm(expectedAlgo: String): Props = props(expectedAlgo, None)
+    def propsSuccessfulAlgorithm(expectedAlgo: String): Props =
+      props(expectedAlgorithm(expectedAlgo))
 
-    def props(expectedAlgorithm: String, executeJob: Option[CoordinatorActor.ExecuteJobAsync]) =
-      Props(new ExperimentFlowWrapper(expectedAlgorithm, executeJob))
+    def props(algorithmExecutor: AlgorithmExecutor[IO]) =
+      Props(new ExperimentFlowWrapper(algorithmExecutor))
 
     case class ExperimentResponse(result: Map[AlgorithmSpec, JobResult])
 
@@ -265,26 +269,18 @@ class ExperimentFlowTest
   /**
     * This actor provides the environment for executing experimentFlow
     */
-  class ExperimentFlowWrapper(expectedAlgorithm: String,
-                              executeJob: Option[CoordinatorActor.ExecuteJobAsync])
-      extends Actor {
+  class ExperimentFlowWrapper(executeAlgorithm: AlgorithmExecutor[IO]) extends Actor {
 
-    private val coordinatorActor =
-      context.actorOf(FakeCoordinatorActor.props(expectedAlgorithm, None))
-    private val coordinatorConfig  = FakeCoordinatorConfig.coordinatorConfig(coordinatorActor)
-    private val wokenClientService = WokenClientService("test")
+    private implicit val ec: ExecutionContextExecutor = scala.concurrent.ExecutionContext.global
+    private val wokenClientService                    = WokenClientService("test")
     private val dispatcherService =
       DispatcherService(Map[DatasetId, Dataset]().validNel[String], wokenClientService)
 
     val experimentFlow = ExperimentFlow(
-      executeJob.getOrElse(
-        FakeCoordinatorActor.executeJobAsync(FakeCoordinatorActor.props(expectedAlgorithm, None),
-                                             context)
-      ),
-      FakeCoordinatorConfig.fakeFeaturesTableService,
-      coordinatorConfig.jobsConf,
+      TestServices.emptyFeaturesTableService,
       dispatcherService,
       Nil,
+      executeAlgorithm,
       TestServices.wokenWorker
     )
 

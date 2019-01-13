@@ -24,16 +24,11 @@ import akka.stream.ActorMaterializer
 import akka.testkit.{ ImplicitSender, TestKit }
 import com.typesafe.config.{ Config, ConfigFactory }
 import ch.chuv.lren.woken.config._
-import ch.chuv.lren.woken.mining.{
-  CoordinatorConfig,
-  ExperimentActor,
-  ExperimentJob,
-  FakeCoordinatorActor
-}
+import ch.chuv.lren.woken.config.ConfigurationInstances._
+import ch.chuv.lren.woken.mining.{ ExperimentActor, ExperimentJob }
 import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.core.features.Queries._
-import ch.chuv.lren.woken.mining.FakeCoordinatorConfig._
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.service._
 import ch.chuv.lren.woken.messages.datasets.{ Dataset, DatasetId, DatasetsQuery, DatasetsResponse }
@@ -130,15 +125,6 @@ class MasterRouterTest
   val jdbcConfigs: String => Validation[DatabaseConfiguration] = _ => Valid(noDbConfig)
 
   val config: WokenConfiguration = WokenConfiguration(tsConfig)
-
-  val coordinatorConfig: CoordinatorConfig[IO] = CoordinatorConfig(
-    system.actorOf(FakeActors.echoActorProps),
-    None,
-    fakeFeaturesService,
-    jobResultService,
-    noJobsConf,
-    jdbcConfigs.apply
-  )
 
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
@@ -277,9 +263,6 @@ class MasterRouterTest
     "fail starting a new mining job" ignore {
 
       val errorMessage = "Fake error message"
-
-      val testCoordinatorActor =
-        system.actorOf(FakeCoordinatorActor.propsForFailingWithMsg(errorMessage))
 
       val miningRouter = system.actorOf(
         Props(

@@ -23,6 +23,7 @@ import akka.cluster.client.ClusterClientReceptionist
 import akka.cluster.pubsub.{ DistributedPubSub, DistributedPubSubMediator }
 import akka.pattern.{ Backoff, BackoffSupervisor }
 import cats.effect._
+import ch.chuv.lren.woken.backends.faas.chronos.ChronosExecutor
 import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.backends.worker.WokenWorker
 import ch.chuv.lren.woken.config.{ DatasetsConfiguration, WokenConfiguration }
@@ -58,12 +59,18 @@ class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
 
   override protected def logger: Logger = AkkaServer.logger
 
-  val backendServices = {
+  val backendServices: BackendServices[F] = {
     val wokenService: WokenClientService = WokenClientService(config.jobs.node)
     val dispatcherService: DispatcherService =
       DispatcherService(DatasetsConfiguration.datasets(config.config), wokenService)
     val wokenWorker = WokenWorker[F](system)
-    BackendServices(dispatcherService, chronosHttp, wokenWorker)
+    val algorithmExecutor = ChronosExecutor(system,
+                                            chronosHttp,
+                                            config.app.dockerBridgeNetwork,
+                                            databaseServices.jobResultService,
+                                            config.jobs,
+                                            config.databaseConfig)
+    BackendServices(dispatcherService, algorithmExecutor, wokenWorker)
   }
 
   private def mainRouterSupervisorProps =

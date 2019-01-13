@@ -17,7 +17,7 @@
 
 package ch.chuv.lren.woken.core
 
-import cats.effect.Effect
+import cats.effect.{ Effect, IO, LiftIO }
 
 import scala.concurrent.Future
 import scala.language.higherKinds
@@ -29,4 +29,7 @@ package object fp {
   def runNow[F[_]: Effect, M](m: F[M]): M           = Effect[F].toIO(m).unsafeRunSync()
   def runLater[F[_]: Effect, M](m: F[M]): Future[M] = Effect[F].toIO(m).unsafeToFuture()
 
+  def fromFuture[F[_]: Effect, R](f: => Future[R]): F[R] = implicitly[LiftIO[F]].liftIO(
+    IO.fromFuture(IO(f))
+  )
 }

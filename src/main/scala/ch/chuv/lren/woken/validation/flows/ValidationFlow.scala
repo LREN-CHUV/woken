@@ -18,28 +18,25 @@
 package ch.chuv.lren.woken.validation.flows
 
 import akka.NotUsed
-import akka.actor.{ ActorContext, ActorRef }
-import akka.cluster.pubsub.{ DistributedPubSub, DistributedPubSubMediator }
-import akka.pattern.ask
 import akka.stream.Materializer
 import akka.stream.scaladsl.Flow
 import akka.util.Timeout
 import cats.data.{ NonEmptyList, Validated }
 import cats.effect.Effect
 import cats.implicits._
+import ch.chuv.lren.woken.backends.worker.WokenWorker
 import ch.chuv.lren.woken.core.features.Queries._
-import ch.chuv.lren.woken.core.fp.runNow
+import ch.chuv.lren.woken.core.fp.{ runLater, runNow }
 import ch.chuv.lren.woken.core.model.jobs.ValidationJob
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query.AlgorithmSpec
 import ch.chuv.lren.woken.messages.validation._
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
-import ch.chuv.lren.woken.mining.CoordinatorActor
 import com.typesafe.scalalogging.LazyLogging
 import spray.json._
 
 import scala.concurrent.duration._
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.ExecutionContext
 import scala.language.{ higherKinds, postfixOps }
 
 object ValidationFlow {
@@ -68,13 +65,10 @@ object ValidationFlow {
 
 }
 
-case class ValidationFlow[F[_]: Effect](
-    executeJobAsync: CoordinatorActor.ExecuteJobAsync,
-    context: ActorContext
-)(implicit materializer: Materializer, ec: ExecutionContext)
-    extends LazyLogging {
-
-  private lazy val mediator: ActorRef = DistributedPubSub(context.system).mediator
+case class ValidationFlow[F[_]: Effect](wokenWorker: WokenWorker[F])(
+    implicit materializer: Materializer,
+    ec: ExecutionContext
+) extends LazyLogging {
 
   import ValidationFlow.{ Context, Result }
 
@@ -124,8 +118,8 @@ case class ValidationFlow[F[_]: Effect](
 
         Context(job, validationQuery, validationQuery.varInfo, groundTruth)
       }
-      .mapAsync(1)(executeValidation)
-      .mapAsync(1)(scoreValidationResponse)
+      .mapAsync(1)(r => runLater(executeValidation(r)))
+      .mapAsync(1)(r => runLater(scoreValidationResponse(r)))
       .map { validationResult =>
         (validationResult.job, validationResult.scores.result)
       }
@@ -149,11 +143,11 @@ case class ValidationFlow[F[_]: Effect](
 
   private def executeValidation(
       context: Context[ValidationQuery, F]
-  ): Future[Context[ValidationResult, F]] = {
+  ): F[Context[ValidationResult, F]] = {
 
     implicit val askTimeout: Timeout = Timeout(5 minutes)
     val validationQuery              = context.response
-    val validationResult             = remoteValidate(validationQuery)
+    val validationResult             = wokenWorker.validate(validationQuery)
 
     validationResult.map(
       r =>
@@ -166,7 +160,7 @@ case class ValidationFlow[F[_]: Effect](
 
   private def scoreValidationResponse(
       context: Context[ValidationResult, F]
-  ): Future[Result[F]] = {
+  ): F[Result[F]] = {
     import cats.syntax.list._
 
     val resultsV: Validation[NonEmptyList[JsValue]] = Validated
@@ -180,14 +174,15 @@ case class ValidationFlow[F[_]: Effect](
     )
 
     def performScoring(algorithmOutput: NonEmptyList[JsValue],
-                       groundTruth: NonEmptyList[JsValue]): Future[Result[F]] = {
+                       groundTruth: NonEmptyList[JsValue]): F[Result[F]] = {
 
       implicit val askTimeout: Timeout = Timeout(5 minutes)
 
       val scoringQuery = ScoringQuery(algorithmOutput, groundTruth, context.targetMetaData)
 
       logger.info(s"scoringQuery: $scoringQuery")
-      remoteScore(scoringQuery)
+      wokenWorker
+        .score(scoringQuery)
         .map(
           s =>
             Result(
@@ -205,25 +200,8 @@ case class ValidationFlow[F[_]: Effect](
     foldResultV.valueOr(e => {
       val errorMsg = e.toList.mkString(",")
       logger.error(s"Cannot perform scoring on $context: $errorMsg")
-      Future.failed(new Exception(errorMsg))
+      Effect[F].raiseError(new Exception(errorMsg))
     })
   }
 
-  private def remoteValidate(validationQuery: ValidationQuery): Future[ValidationResult] = {
-    implicit val askTimeout: Timeout = Timeout(5 minutes)
-    logger.debug(s"validationQuery: $validationQuery")
-    val future = mediator ? DistributedPubSubMediator.Send("/user/validation",
-                                                           validationQuery,
-                                                           localAffinity = false)
-    future.mapTo[ValidationResult]
-  }
-
-  private def remoteScore(scoringQuery: ScoringQuery): Future[ScoringResult] = {
-    implicit val askTimeout: Timeout = Timeout(5 minutes)
-    logger.debug(s"scoringQuery: $scoringQuery")
-    val future = mediator ? DistributedPubSubMediator.Send("/user/scoring",
-                                                           scoringQuery,
-                                                           localAffinity = false)
-    future.mapTo[ScoringResult]
-  }
 }

@@ -25,14 +25,22 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.{ Authorization, BasicHttpCredentials, Host }
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
+import cats.Id
+import cats.effect.Effect
 import spray.json.DefaultJsonProtocol
 import ch.chuv.lren.woken.backends.chronos.{ ChronosJob, ChronosJobLiveliness }
 import ch.chuv.lren.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryResult }
 import ch.chuv.lren.woken.messages.query.queryProtocol._
 import ch.chuv.lren.woken.messages.remoting.RemoteLocation
+import com.softwaremill.sttp.SttpBackend
+import com.softwaremill.sttp.asynchttpclient.cats.AsyncHttpClientCatsBackend
 import com.typesafe.scalalogging.LazyLogging
+import sup.{ HealthCheck, mods }
+import sup.modules.sttp._
+import com.softwaremill.sttp.{ sttp => request, Uri => _, _ }
 
 import scala.concurrent.{ ExecutionContextExecutor, Future }
+import scala.language.higherKinds
 
 object HttpClient extends DefaultJsonProtocol with SprayJsonSupport with LazyLogging {
 
@@ -119,4 +127,11 @@ object HttpClient extends DefaultJsonProtocol with SprayJsonSupport with LazyLog
     implicit val materializer: ActorMaterializer = ActorMaterializer()
     Unmarshal(entity).to[QueryResult]
   }
+
+  def checkHealth[F[_]: Effect](uri: String): HealthCheck[F, Id] = {
+    implicit def backend: SttpBackend[F, Nothing] = AsyncHttpClientCatsBackend[F]()
+    statusCodeHealthCheck[F, String](request.get(UriContext(StringContext(uri)).uri(uri)))
+      .through(mods.recoverToSick)
+  }
+
 }

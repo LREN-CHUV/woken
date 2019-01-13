@@ -15,17 +15,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.mining
-import akka.actor.ActorRef
-import cats.data.Validated.Valid
-import cats.effect.IO
-import ch.chuv.lren.woken.config.{ DatabaseConfiguration, JobsConfiguration }
-import ch.chuv.lren.woken.cromwell.core.ConfigUtil
-import ch.chuv.lren.woken.service.TestServices.jobResultService
-import ch.chuv.lren.woken.service.{ FeaturesService, FeaturesTableService, TestServices }
+package ch.chuv.lren.woken.config
 
-object FakeCoordinatorConfig {
-
+object ConfigurationInstances {
   val noDbConfig =
     DatabaseConfiguration(dbiDriver = "DBI",
                           dbApiDriver = "DBAPI",
@@ -49,20 +41,5 @@ object FakeCoordinatorConfig {
                       "meta",
                       0.5,
                       512)
-
-  val fakeFeaturesService: FeaturesService[IO]           = TestServices.featuresService
-  val fakeFeaturesTableService: FeaturesTableService[IO] = TestServices.emptyFeaturesTableService
-
-  val jdbcConfigs: String => ConfigUtil.Validation[DatabaseConfiguration] = _ => Valid(noDbConfig)
-
-  def coordinatorConfig(chronosService: ActorRef): CoordinatorConfig[IO] =
-    CoordinatorConfig(
-      chronosService,
-      None,
-      fakeFeaturesService,
-      jobResultService,
-      noJobsConf,
-      jdbcConfigs.apply
-    )
 
 }

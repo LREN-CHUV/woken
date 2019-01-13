@@ -22,11 +22,13 @@ import java.time.OffsetDateTime
 import akka.NotUsed
 import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{ Actor, ActorRef, OneForOneStrategy, Props }
+import akka.pattern.pipe
 import akka.routing.{ OptimalSizeExploringResizer, RoundRobinPool }
 import akka.stream.scaladsl.{ Flow, Sink, Source }
 import cats.effect.Effect
+import ch.chuv.lren.woken.backends.faas.AlgorithmResults
+import ch.chuv.lren.woken.core.fp._
 import ch.chuv.lren.woken.config.WokenConfiguration
-import ch.chuv.lren.woken.mining._
 import ch.chuv.lren.woken.core.model.UserFeedbacks
 import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
@@ -93,10 +95,7 @@ class MiningQueriesActor[F[_]: Effect](
 
   private val validationFlow
     : Flow[ValidationJob[F], (ValidationJob[F], Either[String, Score]), NotUsed] =
-    ValidationFlow(
-      CoordinatorActor.executeJobAsync(coordinatorConfig, context),
-      context
-    ).validate()
+    ValidationFlow(backendServices.wokenWorker).validate()
 
   @SuppressWarnings(
     Array("org.wartremover.warts.Any",
@@ -112,12 +111,12 @@ class MiningQueriesActor[F[_]: Effect](
 
       runNow(jobValidatedF)(processJob(initiator, query))
 
-    case CoordinatorActor.Response(job, List(errorJob: ErrorJobResult), initiator) =>
+    case AlgorithmResults(job, List(errorJob: ErrorJobResult), initiator) =>
       logger.warn(s"Received error while mining ${job.query}: ${errorJob.toString}")
       // TODO: we lost track of the original query here
       initiator ! errorJob.asQueryResult(None)
 
-    case CoordinatorActor.Response(job, results, initiator) =>
+    case AlgorithmResults(job, results, initiator) =>
       // TODO: we can only handle one result from the Coordinator handling a mining query.
       // Containerised algorithms that can produce more than one result (e.g. PFA model + images) are ignored
       logger.info(
@@ -161,6 +160,9 @@ class MiningQueriesActor[F[_]: Effect](
         }
       )
   }
+
+  private def startMiningJob(job: DockerJob, initiator: ActorRef): Unit =
+    runLater(backendServices.algorithmExecutor.execute(job, initiator)) pipeTo self
 
   private def runMiningJob(query: MiningQuery, initiator: ActorRef, job: DockerJob): Unit = {
 
@@ -230,14 +232,6 @@ class MiningQueriesActor[F[_]: Effect](
         _ :+ _._2
       }
 
-  private def startMiningJob(job: DockerJob, initiator: ActorRef): Unit = {
-    val miningActorRef = newCoordinatorActor
-    miningActorRef ! StartCoordinatorJob(job, self, initiator)
-  }
-
-  private[dispatch] def newCoordinatorActor: ActorRef =
-    context.actorOf(CoordinatorActor.props(coordinatorConfig))
-
   private def runValidationJob(initiator: ActorRef, job: ValidationJob[F]): Unit =
     dispatcherService.dispatchTo(job.query.datasets) match {
       case (_, true) =>
@@ -249,7 +243,7 @@ class MiningQueriesActor[F[_]: Effect](
             case Success((job: ValidationJob[F], Right(score))) =>
               initiator ! QueryResult(
                 Some(job.jobId),
-                coordinatorConfig.jobsConf.node,
+                config.jobs.node,
                 OffsetDateTime.now(),
                 Shapes.score,
                 Some(ValidationJob.algorithmCode),
@@ -260,7 +254,7 @@ class MiningQueriesActor[F[_]: Effect](
             case Success((job: ValidationJob[F], Left(error))) =>
               initiator ! QueryResult(
                 Some(job.jobId),
-                coordinatorConfig.jobsConf.node,
+                config.jobs.node,
                 OffsetDateTime.now(),
                 Shapes.error,
                 Some(ValidationJob.algorithmCode),
@@ -271,7 +265,7 @@ class MiningQueriesActor[F[_]: Effect](
             case Failure(t) =>
               initiator ! QueryResult(
                 Some(job.jobId),
-                coordinatorConfig.jobsConf.node,
+                config.jobs.node,
                 OffsetDateTime.now(),
                 Shapes.error,
                 Some(ValidationJob.algorithmCode),
@@ -289,7 +283,7 @@ class MiningQueriesActor[F[_]: Effect](
         // No local datasets match the query, return an empty result
         initiator ! QueryResult(
           Some(job.jobId),
-          coordinatorConfig.jobsConf.node,
+          config.jobs.node,
           OffsetDateTime.now(),
           Shapes.score,
           Some(ValidationJob.algorithmCode),

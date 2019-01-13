@@ -20,7 +20,7 @@ package ch.chuv.lren.woken.service
 import akka.actor.ActorSystem
 import cats.effect._
 import ch.chuv.lren.woken.JsonUtils
-import ch.chuv.lren.woken.akka.FakeActors
+import ch.chuv.lren.woken.backends.faas.AlgorithmExecutor
 import ch.chuv.lren.woken.backends.worker.WokenWorker
 import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.core.model.VariablesMeta
@@ -119,11 +119,12 @@ object TestServices extends JsonUtils with FeaturesTableTestSupport with MockFac
     )
   }
 
-  lazy val dispatcherService: DispatcherService = mock[DispatcherService]
-  lazy val wokenWorker: WokenWorker[IO]         = mock[WokenWorker[IO]]
+  lazy val dispatcherService: DispatcherService     = mock[DispatcherService]
+  lazy val wokenWorker: WokenWorker[IO]             = mock[WokenWorker[IO]]
+  lazy val algorithmExecutor: AlgorithmExecutor[IO] = mock[AlgorithmExecutor[IO]]
 
   def backendServices(system: ActorSystem): BackendServices[IO] =
     BackendServices(dispatcherService = dispatcherService,
-                    chronosHttp = system.actorOf(FakeActors.echoActorProps),
+                    algorithmExecutor = algorithmExecutor,
                     wokenWorker = wokenWorker)
 }
