@@ -24,6 +24,7 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Source
 import akka.stream.testkit.scaladsl.TestSink
 import akka.testkit.{ TestKit, TestProbe }
+import cats.data.ValidatedNel
 import cats.effect.IO
 import ch.chuv.lren.woken.JsonUtils
 import ch.chuv.lren.woken.Predefined.Algorithms.{
@@ -46,6 +47,7 @@ import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import cats.implicits._
 import cats.scalatest.{ ValidatedMatchers, ValidatedValues }
 import ch.chuv.lren.woken.backends.faas.AlgorithmExecutor
+import ch.chuv.lren.woken.core.model.AlgorithmDefinition
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
@@ -87,6 +89,23 @@ class ExperimentFlowTest
       filters = None,
       targetTable = Some("Sample"),
       algorithms = List(AlgorithmSpec(algorithm, parameters, None)),
+      validations = List(ValidationSpec("kfold", List(CodeValue("k", "2")))),
+      trainingDatasets = Set(),
+      testingDatasets = Set(),
+      validationDatasets = Set(),
+      executionPlan = None
+    )
+
+  def experimentQuery(algorithms: List[AlgorithmSpec]) =
+    ExperimentQuery(
+      user = UserId("test1"),
+      variables = List(VariableId("cognitive_task2")),
+      covariables = List(VariableId("score_test1"), VariableId("college_math")),
+      covariablesMustExist = false,
+      grouping = Nil,
+      filters = None,
+      targetTable = Some("Sample"),
+      algorithms = algorithms,
       validations = List(ValidationSpec("kfold", List(CodeValue("k", "2")))),
       trainingDatasets = Set(),
       testingDatasets = Set(),
@@ -146,19 +165,19 @@ class ExperimentFlowTest
       experimentJob.invalidValue.size shouldBe 1
     }
 
-    "complete with an error response in case of a query containing a failing algorithm" ignore {
+    "complete with an error response in case of a query containing a failing algorithm" in {
       val experimentWrapper =
         system.actorOf(ExperimentFlowWrapper.propsFailingAlgorithm("Algorithm execution failed"))
-      val experiment    = experimentQuery("knn", Nil)
+      val experiment    = experimentQuery("knn", List(CodeValue("k", "5")))
       val experimentJob = experimentQuery2job(experiment)
       experimentJob.isValid shouldBe true
       val testProbe = TestProbe()
       testProbe.send(experimentWrapper, experimentJob.toOption.get)
       testProbe.expectMsgPF(20 seconds, "error") {
         case response: ExperimentResponse =>
-          print(response)
+          print("Failed: " + response)
           response.result.nonEmpty shouldBe true
-          response.result.head._1 shouldBe AlgorithmSpec("knn", Nil, None)
+          response.result.head._1 shouldBe AlgorithmSpec("knn", List(CodeValue("k", "5")), None)
           response.result.head._2 match {
             case ejr: ErrorJobResult => ejr.error shouldBe "Algorithm execution failed"
             case _                   => fail("Response should be of type ErrorJobResponse")
@@ -194,7 +213,7 @@ class ExperimentFlowTest
       }
     }
 
-    "complete with success in case of a valid query on k-NN algorithm (predictive)" ignore {
+    "complete with success in case of a valid query on k-NN algorithm (predictive)" in {
       val experimentWrapper =
         system.actorOf(ExperimentFlowWrapper.propsSuccessfulAlgorithm("knn"))
 
@@ -210,30 +229,21 @@ class ExperimentFlowTest
           response.result.head._1 shouldBe AlgorithmSpec("knn", List(CodeValue("k", "5")), None)
           response.result.head._2 match {
             case ejr: ErrorJobResult => ejr.error.nonEmpty shouldBe true
-            case _                   => fail("Response should be of type ErrorJobResponse")
+            case pfa: PfaJobResult =>
+              pfa.algorithm shouldBe "knn"
+              pfa.node shouldBe "testNode"
+              pfa.model.compactPrint.nonEmpty shouldBe true
+            case _ => fail("Response should be of type ErrorJobResponse")
           }
       }
     }
 
-    /* TODO
-    "split flow should return validation failed" ignore {
+    //FIXME: when split flow will fail ???
+    "split flow should return validation failed" in {
       val experimentWrapper =
-        system.actorOf(ExperimentFlowWrapper.props, "SplitFlowProbeActor")
-      val experimentQuery = ExperimentQuery(
-        user = user,
-        variables = Nil,
-        covariables = Nil,
-        grouping = Nil,
-        filters = None,
-        targetTable = None,
-        trainingDatasets = Set(),
-        testingDatasets = Set(),
-        validationDatasets = Set(),
-        algorithms = Nil,
-        validations = Nil,
-        executionPlan = None
-      )
-      val experimentJob = experimentQuery2job(experimentQuery)
+        system.actorOf(ExperimentFlowWrapper.propsSuccessfulAlgorithm("knn"), "SplitFlowProbeActor")
+      val experiment    = experimentQuery("knn", List(CodeValue("k", "5")))
+      val experimentJob = experimentQuery2job(experiment)
       experimentJob.isValid shouldBe true
       val testProbe = TestProbe()
       testProbe.send(experimentWrapper, SplitFlowCommand(experimentJob.toOption.get))
@@ -242,7 +252,38 @@ class ExperimentFlowTest
           response.algorithmMaybe.isDefined shouldBe true
       }
     }
-   */
+
+
+    // TODO: continue the implementation. The aproach doesn't seems right
+    "complete with success in case of valid algorithms" in {
+      val experimentWrapper =
+        system.actorOf(ExperimentFlowWrapper.propsSuccessfulAlgorithm("knn"))
+      val experiment = experimentQuery(
+        List(
+          AlgorithmSpec("knn", List(CodeValue("k", "5")), None),
+          AlgorithmSpec("anova", List(CodeValue("design", "factorial")), None)
+        )
+      )
+      val experimentJob = experimentQuery2job(experiment)
+      experimentJob.isValid shouldBe true
+      val testProbe = TestProbe()
+      testProbe.send(experimentWrapper, experimentJob.toOption.get)
+      testProbe.expectMsgPF(20 seconds, "error") {
+        case response: ExperimentResponse =>
+          response.result.nonEmpty shouldBe true
+          println("MULTI: " + response)
+          response.result.head._1 shouldBe AlgorithmSpec("knn", List(CodeValue("k", "5")), None)
+          response.result.head._2 match {
+            case ejr: ErrorJobResult => ejr.error.nonEmpty shouldBe true
+            case pfa: PfaJobResult =>
+              pfa.algorithm shouldBe "knn"
+              pfa.node shouldBe "testNode"
+              pfa.model.compactPrint.nonEmpty shouldBe true
+            case _ => fail("Response should be of type ErrorJobResponse")
+          }
+      }
+
+    }
 
   }
 

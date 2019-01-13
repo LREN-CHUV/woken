@@ -200,6 +200,8 @@ case class AlgorithmWithCVFlow[F[_]: Effect](
             case Some(pfa: PfaJobResult) =>
               val model = pfa.copy(validations = pfa.validations ++ validations)
               ResultResponse(algorithm, Right(model))
+            case Some(errJobResult: ErrorJobResult) =>
+              ResultResponse(algorithm, Left(errJobResult))
             case Some(model) =>
               logger.warn(
                 s"Expected a PfaJobResult, got $model. All results and validations are discarded"
