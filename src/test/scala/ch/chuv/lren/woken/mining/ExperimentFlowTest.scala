@@ -17,29 +17,18 @@
 
 package ch.chuv.lren.woken.mining
 
-import java.util.UUID
-
 import akka.actor.{ Actor, ActorSystem, Props }
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Source
 import akka.stream.testkit.scaladsl.TestSink
 import akka.testkit.{ TestKit, TestProbe }
-import cats.data.ValidatedNel
 import cats.effect.IO
 import ch.chuv.lren.woken.JsonUtils
-import ch.chuv.lren.woken.Predefined.Algorithms.{
-  anovaDefinition,
-  anovaFactorial,
-  knnDefinition,
-  knnWithK5
-}
+
 import ch.chuv.lren.woken.backends.woken.WokenClientService
-import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableId }
 import ch.chuv.lren.woken.core.model.jobs.{ ErrorJobResult, JobResult, PfaJobResult }
-import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.datasets.{ Dataset, DatasetId }
 import ch.chuv.lren.woken.messages.query._
-import ch.chuv.lren.woken.messages.variables.VariableId
 import ch.chuv.lren.woken.service.{ DispatcherService, TestServices }
 import com.typesafe.config.{ Config, ConfigFactory }
 import com.typesafe.scalalogging.LazyLogging
@@ -47,11 +36,12 @@ import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import cats.implicits._
 import cats.scalatest.{ ValidatedMatchers, ValidatedValues }
 import ch.chuv.lren.woken.backends.faas.AlgorithmExecutor
-import ch.chuv.lren.woken.core.model.AlgorithmDefinition
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
 import scala.language.postfixOps
+
+import ExperimentQuerySupport._
 
 /**
   * Experiment flow should always complete with success, but the error is reported inside the response.
@@ -78,58 +68,6 @@ class ExperimentFlowTest
   override def afterAll {
     TestKit.shutdownActorSystem(system)
   }
-
-  def experimentQuery(algorithm: String, parameters: List[CodeValue]) =
-    ExperimentQuery(
-      user = UserId("test1"),
-      variables = List(VariableId("cognitive_task2")),
-      covariables = List(VariableId("score_test1"), VariableId("college_math")),
-      covariablesMustExist = false,
-      grouping = Nil,
-      filters = None,
-      targetTable = Some("Sample"),
-      algorithms = List(AlgorithmSpec(algorithm, parameters, None)),
-      validations = List(ValidationSpec("kfold", List(CodeValue("k", "2")))),
-      trainingDatasets = Set(),
-      testingDatasets = Set(),
-      validationDatasets = Set(),
-      executionPlan = None
-    )
-
-  def experimentQuery(algorithms: List[AlgorithmSpec]) =
-    ExperimentQuery(
-      user = UserId("test1"),
-      variables = List(VariableId("cognitive_task2")),
-      covariables = List(VariableId("score_test1"), VariableId("college_math")),
-      covariablesMustExist = false,
-      grouping = Nil,
-      filters = None,
-      targetTable = Some("Sample"),
-      algorithms = algorithms,
-      validations = List(ValidationSpec("kfold", List(CodeValue("k", "2")))),
-      trainingDatasets = Set(),
-      testingDatasets = Set(),
-      validationDatasets = Set(),
-      executionPlan = None
-    )
-
-  def experimentQuery2job(query: ExperimentQuery): Validation[ExperimentActor.Job] =
-    ExperimentJob.mkValid(
-      UUID.randomUUID().toString,
-      query,
-      FeaturesTableDescription(TableId("features_db", None, query.targetTable.getOrElse("Sample")),
-                               Nil,
-                               None,
-                               validateSchema = false,
-                               None,
-                               0.67),
-      Nil, { spec =>
-        Map(knnWithK5 -> knnDefinition, anovaFactorial -> anovaDefinition)
-          .get(spec)
-          .toRight("Missing algorithm")
-          .toValidatedNel[String]
-      }
-    )
 
   import ExperimentFlowWrapper._
 
@@ -252,7 +190,6 @@ class ExperimentFlowTest
           response.algorithmMaybe.isDefined shouldBe true
       }
     }
-
 
     // TODO: continue the implementation. The aproach doesn't seems right
     "complete with success in case of valid algorithms" in {

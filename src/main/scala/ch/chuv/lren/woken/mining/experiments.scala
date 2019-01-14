@@ -139,9 +139,9 @@ class ExperimentActor[F[_]: Effect](val algorithmExecutor: AlgorithmExecutor[F],
       completeWithError(job, msg, initiator, replyTo)
 
     case StartExperimentJob(job, requestedReplyTo, initiator) if job.query.algorithms.nonEmpty =>
-      val replyTo    = if (requestedReplyTo == Actor.noSender) sender() else requestedReplyTo
-      val thisActor  = self
-      val algorithms = job.query.algorithms
+      val replyTo                         = if (requestedReplyTo == Actor.noSender) sender() else requestedReplyTo
+      val thisActor                       = self
+      val algorithms: List[AlgorithmSpec] = job.query.algorithms
       val featuresTableServiceV =
         featuresService.featuresTable(job.inputTable)
 
