@@ -191,7 +191,6 @@ class ExperimentFlowTest
       }
     }
 
-    // TODO: continue the implementation. The aproach doesn't seems right
     "complete with success in case of valid algorithms" in {
       val experimentWrapper =
         system.actorOf(ExperimentFlowWrapper.propsSuccessfulAlgorithm("knn"))
@@ -208,8 +207,9 @@ class ExperimentFlowTest
       testProbe.expectMsgPF(20 seconds, "error") {
         case response: ExperimentResponse =>
           response.result.nonEmpty shouldBe true
-          println("MULTI: " + response)
-          response.result.head._1 shouldBe AlgorithmSpec("knn", List(CodeValue("k", "5")), None)
+          response.result.head._1 shouldBe AlgorithmSpec("anova",
+                                                         List(CodeValue("design", "factorial")),
+                                                         None)
           response.result.head._2 match {
             case ejr: ErrorJobResult => ejr.error.nonEmpty shouldBe true
             case pfa: PfaJobResult =>
