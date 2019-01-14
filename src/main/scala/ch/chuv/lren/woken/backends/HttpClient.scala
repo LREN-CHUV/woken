@@ -27,8 +27,9 @@ import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import cats.Id
 import cats.effect.Effect
+import ch.chuv.lren.woken.backends.faas.chronos.ChronosJobLiveliness
 import spray.json.DefaultJsonProtocol
-import ch.chuv.lren.woken.backends.chronos.{ ChronosJob, ChronosJobLiveliness }
+import ch.chuv.lren.woken.backends.faas.chronos.ChronosJob
 import ch.chuv.lren.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryResult }
 import ch.chuv.lren.woken.messages.query.queryProtocol._
 import ch.chuv.lren.woken.messages.remoting.RemoteLocation

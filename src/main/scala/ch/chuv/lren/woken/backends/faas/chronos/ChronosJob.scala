@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.backends.chronos
+package ch.chuv.lren.woken.backends.faas.chronos
 
 import spray.json.{
   DefaultJsonProtocol,
@@ -55,10 +55,10 @@ object ProtocolType extends Enumeration {
   val IPv4, IPv6 = Value
 }
 
-import ch.chuv.lren.woken.backends.chronos.VolumeMode.VolumeMode
-import ch.chuv.lren.woken.backends.chronos.NetworkMode.NetworkMode
-import ch.chuv.lren.woken.backends.chronos.ContainerType.ContainerType
-import ch.chuv.lren.woken.backends.chronos.ProtocolType.ProtocolType
+import ch.chuv.lren.woken.backends.faas.chronos.VolumeMode.VolumeMode
+import ch.chuv.lren.woken.backends.faas.chronos.NetworkMode.NetworkMode
+import ch.chuv.lren.woken.backends.faas.chronos.ContainerType.ContainerType
+import ch.chuv.lren.woken.backends.faas.chronos.ProtocolType.ProtocolType
 
 /**
   * Represents an environment variable definition for the job

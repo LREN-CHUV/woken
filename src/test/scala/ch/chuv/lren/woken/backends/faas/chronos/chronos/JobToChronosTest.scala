@@ -15,19 +15,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.backends.chronos
+package ch.chuv.lren.woken.backends.faas.chronos.chronos
 
-import ch.chuv.lren.woken.config.{ DatabaseConfiguration, JobsConfiguration }
+import ch.chuv.lren.woken.config.{DatabaseConfiguration, JobsConfiguration}
 import ch.chuv.lren.woken.messages.query._
-import ch.chuv.lren.woken.messages.query.filters.{ InputType, Operator, SingleFilterRule }
-import ch.chuv.lren.woken.messages.variables.{ VariableId, VariableMetaData, VariableType }
+import ch.chuv.lren.woken.messages.query.filters.{InputType, Operator, SingleFilterRule}
+import ch.chuv.lren.woken.messages.variables.{VariableId, VariableMetaData, VariableType}
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.core.model.jobs.DockerJob
-import org.scalatest.{ FlatSpec, Matchers }
+import org.scalatest.{FlatSpec, Matchers}
 import cats.data.ValidatedNel
 import cats.syntax.validated._
-import ch.chuv.lren.woken.Predefined.Algorithms.{ knnDefinition, knnWithK5 }
+import ch.chuv.lren.woken.Predefined.Algorithms.{knnDefinition, knnWithK5}
+import ch.chuv.lren.woken.backends.faas.chronos.JobToChronos
 import ch.chuv.lren.woken.core.model.database.TableId
 
 class JobToChronosTest extends FlatSpec with Matchers {
@@ -256,8 +257,8 @@ class JobToChronosTest extends FlatSpec with Matchers {
     import ai.x.diff.DiffShow
     import ai.x.diff.conversions._
     import ai.x.diff.{ Different, Identical }
-    import ch.chuv.lren.woken.backends.chronos.ContainerType.ContainerType
-    import ch.chuv.lren.woken.backends.chronos.NetworkMode.NetworkMode
+    import ch.chuv.lren.woken.backends.faas.chronos.chronos.ContainerType.ContainerType
+    import ch.chuv.lren.woken.backends.faas.chronos.chronos.NetworkMode.NetworkMode
 
     implicit def ContainerTypeDiffShow: DiffShow[ContainerType] = new DiffShow[ContainerType] {
       def show(t: ContainerType) = "\"" ++ t.toString ++ "\""

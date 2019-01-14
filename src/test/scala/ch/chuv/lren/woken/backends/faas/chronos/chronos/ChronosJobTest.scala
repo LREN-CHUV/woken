@@ -15,10 +15,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.backends.chronos
+package ch.chuv.lren.woken.backends.faas.chronos.chronos
 
 import ch.chuv.lren.woken.JsonUtils
-import ch.chuv.lren.woken.backends.chronos.{ EnvironmentVariable => EV, Parameter => P }
+import ch.chuv.lren.woken.backends.faas.chronos.chronos.{ EnvironmentVariable => EV, Parameter => P }
 import org.scalatest._
 
 class ChronosJobTest extends FlatSpec with Matchers with JsonUtils {

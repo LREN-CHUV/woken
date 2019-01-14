@@ -27,8 +27,6 @@ import cats.effect.Effect
 
 import scala.concurrent.{ ExecutionContext, Future }
 import ch.chuv.lren.woken.backends.HttpClient.checkHealth
-import ch.chuv.lren.woken.backends.chronos.ChronosService
-import ch.chuv.lren.woken.backends.chronos.{ ChronosJob, JobToChronos }
 import ch.chuv.lren.woken.backends.faas.AlgorithmExecutor.TaggedS
 import ch.chuv.lren.woken.backends.faas.{ AlgorithmExecutor, AlgorithmResults }
 import ch.chuv.lren.woken.config.{ DatabaseConfiguration, JobsConfiguration }

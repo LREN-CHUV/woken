@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.backends.chronos
+package ch.chuv.lren.woken.backends.faas.chronos.chronos
 
 import akka.Done
 import akka.actor.{ ActorRef, ActorSystem }
@@ -24,9 +24,9 @@ import akka.http.scaladsl.server.{ Directives, HttpApp, Route }
 import akka.http.scaladsl.settings.ServerSettings
 import akka.testkit.{ ImplicitSender, TestKit, TestKitBase }
 import com.typesafe.config.ConfigFactory
-import ch.chuv.lren.woken.backends.chronos.ChronosService.Ok
+import ch.chuv.lren.woken.backends.faas.chronos.chronos.ChronosService.Ok
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpec, WordSpecLike }
-import ch.chuv.lren.woken.backends.chronos.{ EnvironmentVariable => EV, Parameter => P }
+import ch.chuv.lren.woken.backends.faas.chronos.chronos.{ EnvironmentVariable => EV, Parameter => P }
 
 import scala.concurrent.{ Await, ExecutionContext, Future, Promise }
 import scala.concurrent.duration._

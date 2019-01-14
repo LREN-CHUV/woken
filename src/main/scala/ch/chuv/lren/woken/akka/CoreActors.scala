@@ -21,7 +21,7 @@ import akka.actor.{ ActorRef, DeadLetter }
 import akka.pattern.{ Backoff, BackoffSupervisor }
 import akka.stream.{ ActorMaterializer, ActorMaterializerSettings, Supervision }
 import ch.chuv.lren.woken.akka.monitoring.DeadLetterMonitorActor
-import ch.chuv.lren.woken.backends.chronos.ChronosThrottler
+import ch.chuv.lren.woken.backends.faas.chronos.ChronosThrottler
 import ch.chuv.lren.woken.config.WokenConfiguration
 import com.typesafe.scalalogging.Logger
 
