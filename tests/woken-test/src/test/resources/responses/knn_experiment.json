@@ -1407,12 +1407,16 @@
         "name": "kNN",
         "output": "double"
       },
+      "datasets": [],
+      "feedback": [],
       "jobId": "*",
       "node": "local",
       "timestamp": 0.0,
       "type": "application/pfa+json"
     }
   ],
+  "datasets": [],
+  "feedback": [],
   "jobId": "*",
   "node": "local",
   "query": {

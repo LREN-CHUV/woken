@@ -136,19 +136,19 @@
                 "coeff": [
                   0.0
                 ],
-                "const": -1.00214
+                "const": -1.0
               },
               {
                 "coeff": [
                   0.0
                 ],
-                "const": -1.00232
+                "const": -1.0
               },
               {
                 "coeff": [
                   0.0
                 ],
-                "const": 0.99922
+                "const": 1.00009
               }
             ],
             "rollback": false,
@@ -393,7 +393,7 @@
         "metadata": {
           "X": "{\"lefthippocampus\":{\"count\":1718.0,\"mean\":3.639566982e-16,\"std\":1.0002911632,\"min\":-6.1997481189,\"25%\":-0.1756647944,\"50%\":-0.1756647944,\"75%\":-0.1049179598,\"max\":5.934008706}}",
           "coef_": "[[0.0],[0.0],[0.0]]",
-          "intercept_": "[-1.0021365075,-1.0023240542,0.9992195516]",
+          "intercept_": "[-1.0000032262,-0.99999949,1.0000896329]",
           "score": "0.6670547148",
           "y": "{\"count\":1718,\"unique\":3,\"top\":\"Other\",\"freq\":1146}"
         },
@@ -401,12 +401,16 @@
         "name": "linear_model",
         "output": "string"
       },
+      "datasets": [],
+      "feedback": [],
       "jobId": "*",
       "node": "local",
       "timestamp": 0.0,
       "type": "application/pfa+json"
     }
   ],
+  "datasets": [],
+  "feedback": [],
   "jobId": "*",
   "node": "local",
   "query": {
