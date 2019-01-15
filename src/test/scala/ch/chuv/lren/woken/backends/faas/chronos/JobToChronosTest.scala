@@ -15,21 +15,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.backends.faas.chronos.chronos
+package ch.chuv.lren.woken.backends.faas.chronos
 
-import ch.chuv.lren.woken.config.{DatabaseConfiguration, JobsConfiguration}
-import ch.chuv.lren.woken.messages.query._
-import ch.chuv.lren.woken.messages.query.filters.{InputType, Operator, SingleFilterRule}
-import ch.chuv.lren.woken.messages.variables.{VariableId, VariableMetaData, VariableType}
-import ch.chuv.lren.woken.core.features.FeaturesQuery
-import ch.chuv.lren.woken.core.features.Queries._
-import ch.chuv.lren.woken.core.model.jobs.DockerJob
-import org.scalatest.{FlatSpec, Matchers}
 import cats.data.ValidatedNel
 import cats.syntax.validated._
-import ch.chuv.lren.woken.Predefined.Algorithms.{knnDefinition, knnWithK5}
-import ch.chuv.lren.woken.backends.faas.chronos.JobToChronos
+import ch.chuv.lren.woken.Predefined.Algorithms.{ knnDefinition, knnWithK5 }
+import ch.chuv.lren.woken.config.{ DatabaseConfiguration, JobsConfiguration }
+import ch.chuv.lren.woken.core.features.FeaturesQuery
+import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.core.model.database.TableId
+import ch.chuv.lren.woken.core.model.jobs.DockerJob
+import ch.chuv.lren.woken.messages.query._
+import ch.chuv.lren.woken.messages.query.filters.{ InputType, Operator, SingleFilterRule }
+import ch.chuv.lren.woken.messages.variables.{ VariableId, VariableMetaData, VariableType }
+import org.scalatest.{ FlatSpec, Matchers }
 
 class JobToChronosTest extends FlatSpec with Matchers {
 
