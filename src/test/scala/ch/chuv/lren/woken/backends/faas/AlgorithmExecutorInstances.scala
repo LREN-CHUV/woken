@@ -56,7 +56,12 @@ object AlgorithmExecutorInstances {
           AlgorithmResults(
             job,
             List(
-              PfaJobResult(job.jobId, "testNode", OffsetDateTime.now(), job.algorithmSpec.code, pfa)
+              PfaJobResult(job.jobId,
+                           "testNode",
+                           Set(),
+                           OffsetDateTime.now(),
+                           job.algorithmSpec.code,
+                           pfa)
             ),
             initiator
           ).pure[IO]
@@ -73,6 +78,7 @@ object AlgorithmExecutorInstances {
       List(
         ErrorJobResult(Some(job.jobId),
                        "testNode",
+                       Set(),
                        OffsetDateTime.now(),
                        Some(job.algorithmSpec.code),
                        msg)

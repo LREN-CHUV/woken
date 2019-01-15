@@ -37,6 +37,7 @@ import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.core.model.AlgorithmDefinition
 import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
+import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.service.{
   DispatcherService,
@@ -166,8 +167,9 @@ class ExperimentActor[F[_]: Effect](val algorithmExecutor: AlgorithmExecutor[F],
         }, {
           case (featuresTableService, splitterDefs) =>
             if (splitterDefs.isEmpty) {
-              val future = executeExperimentFlow(job, Nil, featuresTableService, initiator)
-              completeExperiment(job, future, thisActor, initiator, replyTo)
+              val future   = executeExperimentFlow(job, Nil, featuresTableService, initiator)
+              val datasets = runNow(featuresTableService.datasets(job.query.filters))
+              completeExperiment(job, future, datasets, thisActor, initiator, replyTo)
             } else
               executeExtendedExperimentFlow(job,
                                             splitterDefs,
@@ -230,7 +232,13 @@ class ExperimentActor[F[_]: Effect](val algorithmExecutor: AlgorithmExecutor[F],
                                               splitters,
                                               extendedFeaturesTable,
                                               initiator)
-                      completeExperiment(job, experimentFlowF, thisActor, initiator, replyTo)
+                      val datasets = runNow(featuresTableService.datasets(job.query.filters))
+                      completeExperiment(job,
+                                         experimentFlowF,
+                                         datasets,
+                                         thisActor,
+                                         initiator,
+                                         replyTo)
 
                       // Wait for the experiment flow to complete
                       Effect[F].async { cb =>
@@ -312,14 +320,18 @@ class ExperimentActor[F[_]: Effect](val algorithmExecutor: AlgorithmExecutor[F],
       .map { results =>
         logger.info("Experiment - build final response")
         logger.info(s"Algorithms: $algorithms")
-        logger.info(s"Results: $results")
+        logger.debug(s"Results: $results")
 
         assert(results.size == algorithms.size, "There should be as many results as algorithms")
         assert(results.keySet equals algorithms.toSet,
                "Algorithms defined in the results should match the incoming list of algorithms")
 
+        // Datasets will be filled later
         val pfa =
-          ExperimentJobResult(jobId = job.jobId, node = algorithmExecutor.node, results = results)
+          ExperimentJobResult(jobId = job.jobId,
+                              node = algorithmExecutor.node,
+                              datasets = Set(),
+                              results = results)
 
         Response(job, Right(pfa), initiator)
       }
@@ -331,7 +343,12 @@ class ExperimentActor[F[_]: Effect](val algorithmExecutor: AlgorithmExecutor[F],
                                 initiator: ActorRef,
                                 replyTo: ActorRef): Unit = {
     val result =
-      ErrorJobResult(Some(job.jobId), algorithmExecutor.node, OffsetDateTime.now(), None, msg)
+      ErrorJobResult(Some(job.jobId),
+                     algorithmExecutor.node,
+                     Set(),
+                     OffsetDateTime.now(),
+                     None,
+                     msg)
     val _ = runNow(jobResultService.put(result))
     replyTo ! Response(job, Left(result), initiator)
     context stop self
@@ -339,6 +356,7 @@ class ExperimentActor[F[_]: Effect](val algorithmExecutor: AlgorithmExecutor[F],
 
   private def completeExperiment(job: ExperimentJob,
                                  responseF: Future[Response],
+                                 datasets: Set[DatasetId],
                                  thisActor: ActorRef,
                                  initiator: ActorRef,
                                  replyTo: ActorRef): Unit =
@@ -353,6 +371,7 @@ class ExperimentActor[F[_]: Effect](val algorithmExecutor: AlgorithmExecutor[F],
           logger.error(s"Cannot complete experiment ${job.jobId}: ${e.getMessage}", e)
           val result = ErrorJobResult(Some(job.jobId),
                                       algorithmExecutor.node,
+                                      datasets,
                                       OffsetDateTime.now(),
                                       None,
                                       e.toString)
@@ -539,7 +558,8 @@ case class ExperimentFlow[F[_]: Effect](
       case Some(model) => model
       case None =>
         ErrorJobResult(Some(response.job.jobId),
-                       node = algorithmExecutor.node,
+                       algorithmExecutor.node,
+                       Set(),
                        OffsetDateTime.now(),
                        Some(algorithm.code),
                        "No results")

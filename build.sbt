@@ -1,3 +1,4 @@
+import javax.xml.parsers.SAXParserFactory
 import sbt.ExclusionRule
 import sbtassembly.MergeStrategy
 
@@ -129,7 +130,7 @@ lazy val library =
       val dockerTestKit   = "0.9.8"
       val diff            = "1.2.1"
       val acyclic         = "0.1.8"
-      val wokenMessages   = "2.8.4"
+      val wokenMessages   = "2.9.0"
       val sup             = "0.2.0"
       val sttpBackend     = "1.5.2"
     }
@@ -159,7 +160,6 @@ lazy val library =
     val akkaHttpSwagger: ModuleID = "com.github.swagger-akka-http"   %% "swagger-akka-http" % Version.akkaHttpSwagger
     val akkaManagementBase: ModuleID = "com.lightbend.akka.management" %% "akka-management" % Version.akkaManagement
     val akkaManagementClusterHttp: ModuleID =  "com.lightbend.akka.management" %% "akka-management-cluster-http" % Version.akkaManagement excludeAll ExclusionRules.excludeAkkaClusterSharding
-
 
     // Kamon
     val kamon: ModuleID        = "io.kamon" %% "kamon-core" % Version.kamon excludeAll ExclusionRules.excludeLogback
@@ -274,10 +274,17 @@ val aopMerge: MergeStrategy = new MergeStrategy {
   import scala.xml._
   import scala.xml.dtd._
 
+  def loadXmlFile(file: File): Elem = {
+    val spf = SAXParserFactory.newInstance()
+    spf.setFeature("http://xml.org/sax/features/external-general-entities", false)
+    val saxParser = spf.newSAXParser()
+    XML.withSAXParser(saxParser).loadFile(file)
+  }
+
   def apply(tempDir: File, path: String, files: Seq[File]): Either[String, Seq[(File, String)]] = {
     val dt = DocType("aspectj", PublicID("-//AspectJ//DTD//EN", "http://www.eclipse.org/aspectj/dtd/aspectj.dtd"), Nil)
     val file = MergeStrategy.createMergeTarget(tempDir, path)
-    val xmls: Seq[Elem] = files.map(XML.loadFile)
+    val xmls: Seq[Elem] = files.map(loadXmlFile)
     val aspectsChildren: Seq[Node] = xmls.flatMap(_ \\ "aspectj" \ "aspects" \ "_")
     val weaverChildren: Seq[Node] = xmls.flatMap(_ \\ "aspectj" \ "weaver" \ "_")
     val options: String = xmls.map(x => (x \\ "aspectj" \ "weaver" \ "@options").text).mkString(" ").trim

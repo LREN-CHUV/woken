@@ -106,12 +106,14 @@ case class RemoteValidationFlow(
       }
       .map { l: List[QueryResult] =>
         l.map {
-            case QueryResult(_, node, _, shape, _, Some(data), None, _) if shape == Shapes.score =>
+            case QueryResult(_, node, _, _, _, shape, _, Some(data), None, _)
+                if shape == Shapes.score =>
               // Rebuild the spec from the results
               val spec  = ValidationSpec("remote-validation", List(CodeValue("node", node)))
               val score = Right[String, Score](data.convertTo[Score])
               (spec, score)
-            case QueryResult(_, node, _, shape, _, None, Some(error), _) if shape == Shapes.error =>
+            case QueryResult(_, node, _, _, _, shape, _, None, Some(error), _)
+                if shape == Shapes.error =>
               val spec = ValidationSpec("remote-validation", List(CodeValue("node", node)))
               (spec, Left[String, Score](error))
             case otherResult =>

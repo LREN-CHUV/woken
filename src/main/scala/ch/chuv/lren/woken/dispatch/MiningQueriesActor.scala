@@ -244,6 +244,8 @@ class MiningQueriesActor[F[_]: Effect](
               initiator ! QueryResult(
                 Some(job.jobId),
                 config.jobs.node,
+                job.query.datasets,
+                Nil,
                 OffsetDateTime.now(),
                 Shapes.score,
                 Some(ValidationJob.algorithmCode),
@@ -255,6 +257,8 @@ class MiningQueriesActor[F[_]: Effect](
               initiator ! QueryResult(
                 Some(job.jobId),
                 config.jobs.node,
+                job.query.datasets,
+                Nil,
                 OffsetDateTime.now(),
                 Shapes.error,
                 Some(ValidationJob.algorithmCode),
@@ -266,6 +270,8 @@ class MiningQueriesActor[F[_]: Effect](
               initiator ! QueryResult(
                 Some(job.jobId),
                 config.jobs.node,
+                job.query.datasets,
+                Nil,
                 OffsetDateTime.now(),
                 Shapes.error,
                 Some(ValidationJob.algorithmCode),
@@ -284,6 +290,8 @@ class MiningQueriesActor[F[_]: Effect](
         initiator ! QueryResult(
           Some(job.jobId),
           config.jobs.node,
+          Set(),
+          Nil,
           OffsetDateTime.now(),
           Shapes.score,
           Some(ValidationJob.algorithmCode),

@@ -123,6 +123,14 @@ trait FeaturesTableRepository[F[_]] extends Repository[F] {
     */
   def columns: Headers
 
+  /**
+    * Returns the list of datasets effectively used by a query
+    *
+    * @param filters The filters used to filter rows
+    * @return a set of dataset ids
+    */
+  def datasets(filters: Option[FilterRule]): F[Set[DatasetId]]
+
   def features(query: FeaturesQuery): F[(Headers, Stream[JsObject])]
 
   /**
@@ -231,6 +239,14 @@ class FeaturesTableInMemoryRepository[F[_]: Applicative](val tableId: TableId,
             .foldRight(data)((filtered, curr) => curr.union(filtered.diff(curr)))
       }
   }
+
+  override def datasets(filters: Option[FilterRule]): F[Set[DatasetId]] =
+    datasetColumn.fold(
+      count(filters).map(n => if (n == 0) Set[DatasetId]() else Set(DatasetId(tableId.name)))
+    ) { _ =>
+      val datasets: Set[DatasetId] = Set()
+      datasets.pure[F]
+    }
 
   override def features(query: FeaturesQuery): F[(Headers, Stream[JsObject])] =
     (columns, dataFeatures.toStream).pure[F]

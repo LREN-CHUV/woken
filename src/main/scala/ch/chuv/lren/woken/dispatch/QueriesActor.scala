@@ -134,6 +134,8 @@ trait QueriesActor[Q <: Query, F[_]] extends Actor with LazyLogging {
           QueryResult(
             jobId = None,
             node = config.jobs.node,
+            datasets = results.toSet[QueryResult].flatMap(_.datasets),
+            feedback = results.flatMap(_.feedback),
             timestamp = OffsetDateTime.now(),
             `type` = Shapes.compound,
             algorithm = None,
@@ -146,7 +148,7 @@ trait QueriesActor[Q <: Query, F[_]] extends Actor with LazyLogging {
   }
 
   private[dispatch] def noResult(initialQuery: Q): QueryResult =
-    ErrorJobResult(None, config.jobs.node, OffsetDateTime.now(), None, "No results")
+    ErrorJobResult(None, config.jobs.node, Set(), OffsetDateTime.now(), None, "No results")
       .asQueryResult(Some(initialQuery))
 
   private[dispatch] def reportResult(initiator: ActorRef)(queryResult: QueryResult): QueryResult = {
@@ -158,7 +160,7 @@ trait QueriesActor[Q <: Query, F[_]] extends Actor with LazyLogging {
                                     initiator: ActorRef)(e: Throwable): QueryResult = {
     logger.error(s"Cannot complete query because of ${e.getMessage}", e)
     val error =
-      ErrorJobResult(None, config.jobs.node, OffsetDateTime.now(), None, e.toString)
+      ErrorJobResult(None, config.jobs.node, Set(), OffsetDateTime.now(), None, e.toString)
         .asQueryResult(Some(initialQuery))
     initiator ! error
     error
@@ -168,7 +170,7 @@ trait QueriesActor[Q <: Query, F[_]] extends Actor with LazyLogging {
                                            initiator: ActorRef)(errorMessage: String): Unit = {
     logger.error(s"Cannot complete query $initialQuery, cause $errorMessage")
     val error =
-      ErrorJobResult(None, config.jobs.node, OffsetDateTime.now(), None, errorMessage)
+      ErrorJobResult(None, config.jobs.node, Set(), OffsetDateTime.now(), None, errorMessage)
     initiator ! error.asQueryResult(Some(initialQuery))
   }
 

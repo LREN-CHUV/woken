@@ -30,7 +30,7 @@ class FakeExperimentActor() extends Actor {
       val replyTo = if (requestedReplyTo == Actor.noSender) sender() else requestedReplyTo
       replyTo ! Response(
         job,
-        Right(ExperimentJobResult(job.jobId, "testNode", Map(), OffsetDateTime.now())),
+        Right(ExperimentJobResult(job.jobId, "testNode", Set(), Map(), OffsetDateTime.now())),
         initiator
       )
       self ! PoisonPill

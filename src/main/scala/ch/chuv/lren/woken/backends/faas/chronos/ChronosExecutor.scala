@@ -463,6 +463,7 @@ class CoordinatorActor[F[_]: Effect](coordinatorConfig: CoordinatorConfig[F])
                      List(
                        ErrorJobResult(Some(job.jobId),
                                       coordinatorConfig.jobsConf.node,
+                                      Set(),
                                       OffsetDateTime.now(),
                                       Some(job.algorithmSpec.code),
                                       msg)
