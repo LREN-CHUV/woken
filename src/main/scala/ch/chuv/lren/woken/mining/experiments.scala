@@ -21,15 +21,15 @@ import java.time.OffsetDateTime
 import java.util.UUID
 
 import akka.NotUsed
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{ Actor, ActorRef, Props }
 import akka.stream._
-import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Merge, Partition, Sink, Source, ZipWith}
+import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Merge, Partition, Sink, Source, ZipWith }
 import cats.Monoid
 import cats.data.NonEmptyList
 import cats.data.Validated._
-import cats.effect.{Effect, Resource}
+import cats.effect.{ Effect, Resource }
 import cats.implicits._
-import ch.chuv.lren.woken.backends.faas.{AlgorithmExecutor, AlgorithmResults}
+import ch.chuv.lren.woken.backends.faas.{ AlgorithmExecutor, AlgorithmResults }
 import ch.chuv.lren.woken.backends.worker.WokenWorker
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.fp.runNow
@@ -38,15 +38,24 @@ import ch.chuv.lren.woken.core.model.AlgorithmDefinition
 import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query._
-import ch.chuv.lren.woken.service.{DispatcherService, FeaturesService, FeaturesTableService, JobResultService}
+import ch.chuv.lren.woken.service.{
+  DispatcherService,
+  FeaturesService,
+  FeaturesTableService,
+  JobResultService
+}
 import ch.chuv.lren.woken.validation.flows.AlgorithmWithCVFlow
-import ch.chuv.lren.woken.validation.{FeaturesSplitter, FeaturesSplitterDefinition, defineSplitters}
+import ch.chuv.lren.woken.validation.{
+  FeaturesSplitter,
+  FeaturesSplitterDefinition,
+  defineSplitters
+}
 import com.typesafe.scalalogging.LazyLogging
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 import scala.language.higherKinds
 import scala.util.control.NonFatal
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 /**
   * We use the companion object to hold all the messages that the ``ExperimentActor`` receives.

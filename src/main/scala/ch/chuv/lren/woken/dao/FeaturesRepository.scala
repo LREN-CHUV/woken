@@ -17,8 +17,8 @@
 
 package ch.chuv.lren.woken.dao
 
-import cats.{ Applicative, Id }
-import cats.effect.Resource
+import cats.Id
+import cats.effect.{ Effect, Resource }
 import cats.implicits._
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn, TableId }
@@ -147,7 +147,7 @@ object FeaturesTableRepository {
 
 }
 
-class FeaturesInMemoryRepository[F[_]: Applicative](
+class FeaturesInMemoryRepository[F[_]: Effect](
     override val database: String,
     override val tables: Set[FeaturesTableDescription],
     val tablesContent: Map[TableId, (Headers, List[JsObject])]
@@ -171,10 +171,10 @@ class FeaturesInMemoryRepository[F[_]: Applicative](
 
 }
 
-class FeaturesTableInMemoryRepository[F[_]: Applicative](val tableId: TableId,
-                                                         override val columns: List[TableColumn],
-                                                         val datasetColumn: Option[TableColumn],
-                                                         val dataFeatures: List[JsObject])
+class FeaturesTableInMemoryRepository[F[_]: Effect](val tableId: TableId,
+                                                    override val columns: List[TableColumn],
+                                                    val datasetColumn: Option[TableColumn],
+                                                    val dataFeatures: List[JsObject])
     extends FeaturesTableRepository[F] {
 
   import FeaturesTableRepository.Headers
@@ -235,15 +235,122 @@ class FeaturesTableInMemoryRepository[F[_]: Applicative](val tableId: TableId,
   override def features(query: FeaturesQuery): F[(Headers, Stream[JsObject])] =
     (columns, dataFeatures.toStream).pure[F]
 
-
   override def createExtendedFeaturesTable(
-                                            filters: Option[FilterRule],
-                                            newFeatures: List[TableColumn],
-                                            otherColumns: List[TableColumn],
-                                            prefills: List[PrefillExtendedFeaturesTable]
-                                          ): Validation[Resource[F, FeaturesTableRepository[F]]] = "not implemented".invalidNel
-
+      filters: Option[FilterRule],
+      newFeatures: List[TableColumn],
+      otherColumns: List[TableColumn],
+      prefills: List[PrefillExtendedFeaturesTable]
+  ): Validation[Resource[F, FeaturesTableRepository[F]]] =
+    ExtendedFeaturesTableInMemoryRepository
+      .apply(
+        this,
+        filters,
+        newFeatures,
+        otherColumns,
+        prefills,
+        ???
+      )
+      .map(r => r.map[FeaturesTableRepository[F]](t => t))
 
   override def healthCheck: HealthCheck[F, Id] = HealthCheck.liftFBoolean(true.pure[F])
 
+}
+
+object ExtendedFeaturesTableInMemoryRepository {
+
+  def apply[F[_]: Effect](
+      sourceTable: FeaturesTableInMemoryRepository[F],
+      filters: Option[FilterRule],
+      newFeatures: List[TableColumn],
+      otherColumns: List[TableColumn],
+      prefills: List[PrefillExtendedFeaturesTable],
+      nextTableSeqNumber: () => F[Int]
+  ): Validation[Resource[F, ExtendedFeaturesTableInMemoryRepository[F]]] = {
+    val respository = new ExtendedFeaturesTableInMemoryRepository[F](
+      sourceTable,
+      ???,
+      ???,
+      ???,
+      newFeatures,
+      ???
+    )
+
+    Resource.make(Effect[F].delay(respository))(_ => Effect[F].delay(())).valid
+  }
+
+}
+
+class ExtendedFeaturesTableInMemoryRepository[F[_]: Effect] private (
+    val sourceTable: FeaturesTableInMemoryRepository[F],
+    val view: FeaturesTableDescription,
+    val viewColumns: List[TableColumn],
+    val extTable: FeaturesTableDescription,
+    val newFeatures: List[TableColumn],
+    val rndColumn: TableColumn
+) extends FeaturesTableRepository[F] {
+
+  /**
+    * Description of the table
+    *
+    * @return the description
+    */
+  override def table: FeaturesTableDescription = view
+
+  /**
+    * Total number of rows in the table
+    *
+    * @return number of rows
+    */
+  override def count: F[Int] = sourceTable.count
+
+  /**
+    * Number of rows belonging to the dataset.
+    *
+    * @param dataset The dataset used to filter rows
+    * @return the number of rows in the dataset, 0 if dataset is not associated with the table
+    */
+  override def count(dataset: DatasetId): F[Int] = sourceTable.count(dataset)
+
+  /**
+    * Number of rows matching the filters.
+    *
+    * @param filters The filters used to filter rows
+    * @return the number of rows in the dataset matching the filters, or the total number of rows if there are no filters
+    */
+  override def count(filters: Option[FilterRule]): F[Int] = sourceTable.count(filters)
+
+  /**
+    * Number of rows grouped by a reference column
+    *
+    * @return a map containing the number of rows for each value of the group by column
+    */
+  override def countGroupBy(groupByColumn: TableColumn,
+                            filters: Option[FilterRule]): F[Map[String, Int]] =
+    sourceTable.countGroupBy(groupByColumn, filters)
+
+  /**
+    * @return all headers of the table
+    */
+  override def columns: Headers = viewColumns
+
+  override def features(query: FeaturesQuery): F[(Headers, Stream[JsObject])] =
+    sourceTable.features(query)
+
+  /**
+    *
+    * @param filters      Filters always applied on the queries
+    * @param newFeatures  New features to create, can be used in machine learning tasks
+    * @param otherColumns Other columns to create, present to support some internal functionalities like cross-validation
+    * @param prefills     List of generators for update statements used to pre-fill the extended features table with data.
+    * @return
+    */
+  override def createExtendedFeaturesTable(
+      filters: Option[FilterRule],
+      newFeatures: List[TableColumn],
+      otherColumns: List[TableColumn],
+      prefills: List[PrefillExtendedFeaturesTable]
+  ): Validation[Resource[F, FeaturesTableRepository[F]]] =
+    "Impossible to extend an extended table".invalidNel
+
+  override def healthCheck: HealthCheck[F, Id] = HealthCheck.liftFBoolean(true.pure[F])
 }
