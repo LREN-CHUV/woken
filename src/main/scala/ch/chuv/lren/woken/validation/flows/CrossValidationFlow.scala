@@ -20,7 +20,6 @@ package ch.chuv.lren.woken.validation.flows
 import java.util.UUID
 
 import akka.NotUsed
-import akka.actor.Actor
 import akka.stream.Materializer
 import akka.stream.scaladsl.Flow
 import akka.util.Timeout
@@ -175,7 +174,7 @@ case class CrossValidationFlow[F[_]: Effect](
     )
 
     algorithmExecutor
-      .execute(subJob, Actor.noSender)
+      .execute(subJob)
       .map(
         response =>
           FoldContext[AlgorithmResults, F](job = job,
@@ -189,7 +188,7 @@ case class CrossValidationFlow[F[_]: Effect](
       context: FoldContext[AlgorithmResults, F]
   ): F[FoldContext[ValidationQuery, F]] = {
     val queryF: F[ValidationQuery] = context.response match {
-      case AlgorithmResults(_, List(pfa: PfaJobResult), _) =>
+      case AlgorithmResults(_, List(pfa: PfaJobResult)) =>
         // Prepare the results for validation
         logger.info("Received result from local method.")
         // Take the raw model, as model contains runtime-inserted validations which are not yet compliant with PFA / Avro spec
@@ -207,7 +206,7 @@ case class CrossValidationFlow[F[_]: Effect](
           ValidationQuery(partition.fold, model, queryResults._2.toList, context.targetMetaData)
         }
 
-      case AlgorithmResults(_, List(error: ErrorJobResult), _) =>
+      case AlgorithmResults(_, List(error: ErrorJobResult)) =>
         val message =
           s"Error on cross validation job ${error.jobId} during fold ${context.partition.fold}" +
             s" on variable ${context.targetMetaData.code}: ${error.error}"
@@ -215,7 +214,7 @@ case class CrossValidationFlow[F[_]: Effect](
         // On training fold fails, we notify supervisor and we stop
         Effect[F].raiseError(new IllegalStateException(message))
 
-      case AlgorithmResults(_, unhandled, _) =>
+      case AlgorithmResults(_, unhandled) =>
         val message =
           s"Error on cross validation job ${context.job.jobId} during fold ${context.partition.fold}" +
             s" on variable ${context.targetMetaData.code}: Unhandled response from CoordinatorActor: $unhandled"

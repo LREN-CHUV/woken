@@ -29,15 +29,20 @@ import ch.chuv.lren.woken.core.features.Queries
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.core.model._
 import ch.chuv.lren.woken.core.model.database.TableId
-import ch.chuv.lren.woken.core.model.jobs._
+import ch.chuv.lren.woken.core.model.jobs.{ ExperimentJob, _ }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
-import ch.chuv.lren.woken.mining.ExperimentJob
 import com.typesafe.scalalogging.LazyLogging
 import shapeless.{ ::, HNil }
 
 import scala.language.higherKinds
+
+private[service] case class JobStarting[Q <: Query, J <: Job[Q], F[_]](
+    job: J,
+    tableService: FeaturesTableService[F],
+    feedback: UserFeedbacks
+)
 
 /**
   * Transform incoming mining and experiment queries into jobs
@@ -46,9 +51,23 @@ import scala.language.higherKinds
   */
 trait QueryToJobService[F[_]] {
 
-  def miningQuery2Job(query: MiningQuery): F[Validation[(Job, UserFeedbacks)]]
+  /**
+    * Generate a job defining the execution of a mining query
+    *
+    * @param query the data mining query
+    * @return a validated job, with local data provenance
+    */
+  def miningQuery2Job(query: MiningQuery): F[Validation[MiningJobInProgress]]
 
-  def experimentQuery2Job(query: ExperimentQuery): F[Validation[(Job, UserFeedbacks)]]
+  /**
+    * Generate a job defining the execution of a query for an experiment
+    *
+    * @param query the query for an experiment
+    * @return a validated job, with local data provenance
+    */
+  def experimentQuery2Job(
+      query: ExperimentQuery
+  ): F[Validation[ExperimentJobInProgress]]
 
 }
 
@@ -83,41 +102,54 @@ class QueryToJobServiceImpl[F[_]: Effect](
 
   import QueryToJobService._
 
-  override def miningQuery2Job(query: MiningQuery): F[Validation[(Job, UserFeedbacks)]] =
+  override def miningQuery2Job(
+      query: MiningQuery
+  ): F[Validation[MiningJobInProgress]] =
     for {
       preparedQuery <- prepareQuery(variablesMetaService, jobsConfiguration, query)
       validatedQuery <- preparedQuery.fold(
         toInvalidF[PreparedQuery[MiningQuery]],
         pq => validateQuery(pq, featuresService)
       )
-    } yield validatedQuery.andThen(q => createValidationOrMiningJob(q, algorithmLookup))
+      annotatedJob <- validatedQuery
+        .andThen(
+          q =>
+            createValidationOrMiningJob(q, algorithmLookup)
+              .andThen(addLocalDataProvenance)
+        )
+        .fold(
+          err => err.invalid[MiningJobInProgress].pure[F],
+          fa => fa.map(_.validNel[String])
+        )
+    } yield annotatedJob
 
   private[this] def createValidationOrMiningJob(
       preparedQuery: PreparedQuery[MiningQuery],
       algorithmLookup: String => Validation[AlgorithmDefinition]
-  ): Validation[(Job, UserFeedbacks)] = {
+  ): Validation[JobStarting[MiningQuery, Job[MiningQuery], F]] = {
     val jobId :: featuresTable :: metadata :: query :: feedback :: HNil =
       preparedQuery
 
     def createMiningJob(mt: List[VariableMetaData],
                         q: MiningQuery,
-                        ad: AlgorithmDefinition): DockerJob = {
+                        ad: AlgorithmDefinition): MiningJob = {
       val featuresQuery = q
         .filterNulls(ad.variablesCanBeNull, ad.covariablesCanBeNull)
         .features(featuresTable, None)
 
-      DockerJob(jobId, featuresQuery, q.algorithm, ad, metadata = mt)
+      val dockerJob = DockerJob(jobId, featuresQuery, q.algorithm, ad, metadata = mt)
+      MiningJob(q, dockerJob)
     }
 
     featuresService.featuresTable(featuresTable).andThen { fts =>
       val featuresTableDescription = fts.table
 
-      val job: Validation[Job] = query.algorithm.code match {
+      val job: Validation[Job[MiningQuery]] = query.algorithm.code match {
         case ValidationJob.algorithmCode =>
-          ValidationJob(jobId = jobId,
-                        featuresTableService = fts,
-                        query = query,
-                        metadata = metadata)
+          ValidationJob[F](jobId = jobId,
+                           featuresTableService = fts,
+                           query = query,
+                           metadata = metadata)
             .validNel[String]
 
         case code =>
@@ -126,26 +158,44 @@ class QueryToJobServiceImpl[F[_]: Effect](
             .map(algorithm => createMiningJob(metadata, queryForDatasets, algorithm))
       }
 
-      job.map(_ -> feedback)
-
+      job.map(j => JobStarting[MiningQuery, Job[MiningQuery], F](j, fts, feedback))
     }
 
   }
 
-  override def experimentQuery2Job(query: ExperimentQuery): F[Validation[(Job, UserFeedbacks)]] =
+  override def experimentQuery2Job(
+      query: ExperimentQuery
+  ): F[Validation[ExperimentJobInProgress]] =
     for {
       preparedQuery <- prepareQuery(variablesMetaService, jobsConfiguration, query)
       validatedQuery <- preparedQuery.fold(
         toInvalidF[PreparedQuery[ExperimentQuery]],
         pq => validateQuery(pq, featuresService)
       )
-      job = validatedQuery.andThen(q => createExperimentJob(q, algorithmLookup))
-    } yield job
+      annotatedJob <- validatedQuery
+        .andThen(
+          q =>
+            createExperimentJob(q, algorithmLookup)
+              .andThen(addLocalDataProvenance)
+        )
+        .fold(
+          err => err.invalid[ExperimentJobInProgress].pure[F],
+          fa => fa.map(_.validNel[String])
+        )
+    } yield annotatedJob
+
+  private[this] def addLocalDataProvenance[Q <: Query, J <: Job[Q]](
+      r: JobStarting[Q, J, F]
+  ): Validation[F[JobInProgress[Q, J]]] =
+    r.tableService
+      .datasets(r.job.filters)
+      .map(ds => JobInProgress[Q, J](r.job, ds, r.feedback))
+      .validNel[String]
 
   private[this] def createExperimentJob(
       preparedQuery: PreparedQuery[ExperimentQuery],
       algorithmLookup: String => Validation[AlgorithmDefinition]
-  ): Validation[(Job, UserFeedbacks)] = {
+  ): Validation[JobStarting[ExperimentQuery, ExperimentJob, F]] = {
 
     val jobId :: featuresTable :: metadata :: query :: feedback :: HNil =
       preparedQuery
@@ -154,13 +204,12 @@ class QueryToJobServiceImpl[F[_]: Effect](
       .featuresTable(featuresTable)
       .andThen { fts =>
         val featuresTableDescription = fts.table
-        ExperimentJob.mkValid(jobId, query, featuresTableDescription, metadata, {
-          a: AlgorithmSpec =>
+        ExperimentJob
+          .mkValid(jobId, query, featuresTableDescription, metadata, { a: AlgorithmSpec =>
             algorithmLookup(a.code)
-        })
+          })
+          .map(job => JobStarting(job, fts, feedback))
       }
-      .map(job => job -> feedback)
-
   }
 
   private def prepareQuery[Q <: Query](

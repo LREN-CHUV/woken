@@ -15,25 +15,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.mining
+package ch.chuv.lren.woken.core.model.jobs
 
-import java.time.OffsetDateTime
+import ch.chuv.lren.woken.messages.query.MiningQuery
 
-import akka.actor.{ Actor, PoisonPill }
-import ch.chuv.lren.woken.core.model.jobs.ExperimentJobResult
-import ch.chuv.lren.woken.mining.ExperimentActor._
-
-class FakeExperimentActor() extends Actor {
-
-  override def receive: PartialFunction[Any, Unit] = {
-    case StartExperimentJob(job, requestedReplyTo, initiator) =>
-      val replyTo = if (requestedReplyTo == Actor.noSender) sender() else requestedReplyTo
-      replyTo ! Response(
-        job,
-        Right(ExperimentJobResult(job.jobId, "testNode", Map(), OffsetDateTime.now())),
-        Set(),
-        initiator
-      )
-      self ! PoisonPill
-  }
+case class MiningJob(override val query: MiningQuery, dockerJob: DockerJob)
+    extends Job[MiningQuery] {
+  override def jobId: String = dockerJob.jobId
 }

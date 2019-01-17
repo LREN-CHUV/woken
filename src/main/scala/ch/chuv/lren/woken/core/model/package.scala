@@ -17,6 +17,7 @@
 
 package ch.chuv.lren.woken.core
 
+import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.messages.query.UserFeedback
 import ch.chuv.lren.woken.messages.variables.FeatureIdentifier
 
@@ -27,5 +28,7 @@ package object model {
   type UserFeedbacks = List[UserFeedback]
 
   type FeatureIdentifiers = List[FeatureIdentifier]
+
+  type DataProvenance = Set[DatasetId]
 
 }

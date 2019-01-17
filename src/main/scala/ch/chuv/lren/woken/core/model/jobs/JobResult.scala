@@ -40,9 +40,6 @@ sealed trait JobResult extends Product with Serializable {
   /** Node where the algorithm is executed */
   def node: String
 
-  /** Datasets used during the production of the main result of the algorithm, for example training of a ML algorithm */
-  def datasets: Set[DatasetId]
-
   /** Date of execution */
   def timestamp: OffsetDateTime
 
@@ -63,7 +60,6 @@ object PfaJobResult {
   *
   * @param jobId Id of the job
   * @param node Node where the algorithm is executed
-  * @param datasets Datasets used during the production of the main result of the algorithm, for example training of a ML algorithm
   * @param timestamp Date of execution
   * @param algorithm Name of the algorithm
   * @param rawModel PFA model, without validations that are injected dynamically. The full model can be retrieved using the method `model`
@@ -71,7 +67,6 @@ object PfaJobResult {
 @SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
 case class PfaJobResult(jobId: String,
                         node: String,
-                        datasets: Set[DatasetId],
                         timestamp: OffsetDateTime,
                         algorithm: String,
                         rawModel: JsObject,
@@ -141,14 +136,13 @@ case class PfaJobResult(jobId: String,
   *
   * @param jobId Id of the job
   * @param node Node where the algorithm is executed
-  * @param datasets Datasets used during the production of the main result of the algorithm, for example training of a ML algorithm
   * @param timestamp Date of execution
   * @param results List of models produced by the experiment
   */
 @SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
+// TODO: results should be of type QueryResult, to be able to store the whole provenance and remove the clumsy conversion
 case class ExperimentJobResult(jobId: String,
                                node: String,
-                               datasets: Set[DatasetId],
                                results: Map[AlgorithmSpec, JobResult],
                                timestamp: OffsetDateTime = OffsetDateTime.now())
     extends JobResult {
@@ -169,7 +163,7 @@ case class ExperimentJobResult(jobId: String,
     // Concatenate results
     JsArray(
       results.map { r =>
-        val obj = r._2.asQueryResult(None).toJson.asJsObject
+        val obj = r._2.asQueryResult(None, Set(), List()).toJson.asJsObject
         JsObject(obj.fields + ("algorithmSpec" -> r._1.toJson))
       }.toVector
     )
@@ -182,14 +176,12 @@ case class ExperimentJobResult(jobId: String,
   *
   * @param jobId Id of the job
   * @param node Node where the algorithm is executed
-  * @param datasets Datasets used during the production of the main result of the algorithm, for example training of a ML algorithm
   * @param timestamp Date of execution
   * @param algorithm Name of the algorithm
   * @param error Error to report
   */
 case class ErrorJobResult(jobId: Option[String],
                           node: String,
-                          datasets: Set[DatasetId],
                           timestamp: OffsetDateTime,
                           algorithm: Option[String],
                           error: String)
@@ -213,7 +205,6 @@ sealed trait VisualisationJobResult extends JobResult
   *
   * @param jobId Id of the job
   * @param node Node where the algorithm is executed
-  * @param datasets Datasets used during the production of the main result of the algorithm, for example when creating a visualisation of some datasets
   * @param timestamp Date of execution
   * @param shape Shape of the data (mime type)
   * @param algorithm Name of the algorithm
@@ -221,7 +212,6 @@ sealed trait VisualisationJobResult extends JobResult
   */
 case class JsonDataJobResult(jobId: String,
                              node: String,
-                             datasets: Set[DatasetId],
                              timestamp: OffsetDateTime,
                              shape: Shape,
                              algorithm: String,
@@ -241,7 +231,6 @@ case class JsonDataJobResult(jobId: String,
   *
   * @param jobId Id of the job
   * @param node Node where the algorithm is executed
-  * @param datasets Datasets used during the production of the main result of the algorithm, for example when creating a visualisation of some datasets
   * @param timestamp Date of execution
   * @param shape Shape of the data (mime type)
   * @param algorithm Name of the algorithm
@@ -249,7 +238,6 @@ case class JsonDataJobResult(jobId: String,
   */
 case class OtherDataJobResult(jobId: String,
                               node: String,
-                              datasets: Set[DatasetId],
                               timestamp: OffsetDateTime,
                               shape: Shape,
                               algorithm: String,
@@ -269,7 +257,6 @@ case class OtherDataJobResult(jobId: String,
   *
   * @param jobId Id of the job
   * @param node Node where the algorithm is executed
-  * @param datasets Datasets used during the production of the main result of the algorithm, for example training of a ML algorithm
   * @param timestamp Date of execution
   * @param shape Shape of the data (mime type)
   * @param algorithm Name of the algorithm
@@ -277,7 +264,6 @@ case class OtherDataJobResult(jobId: String,
   */
 case class SerializedModelJobResult(jobId: String,
                                     node: String,
-                                    datasets: Set[DatasetId],
                                     timestamp: OffsetDateTime,
                                     shape: Shape,
                                     algorithm: String,
@@ -294,14 +280,17 @@ case class SerializedModelJobResult(jobId: String,
 
 object JobResult {
 
-  def asQueryResult(jobResult: JobResult, query: Option[Query]): QueryResult =
+  def asQueryResult(jobResult: JobResult,
+                    query: Option[Query],
+                    datasets: Set[DatasetId],
+                    feedback: List[UserFeedback]): QueryResult =
     jobResult match {
       case pfa: PfaJobResult =>
         QueryResult(
           jobId = Some(pfa.jobId),
           node = pfa.node,
-          datasets = pfa.datasets,
-          feedback = Nil,
+          datasets = datasets,
+          feedback = feedback,
           timestamp = pfa.timestamp,
           `type` = pfaShape,
           algorithm = Some(pfa.algorithm),
@@ -313,8 +302,8 @@ object JobResult {
         QueryResult(
           jobId = Some(pfa.jobId),
           node = pfa.node,
-          datasets = pfa.datasets,
-          feedback = Nil,
+          datasets = datasets,
+          feedback = feedback,
           timestamp = pfa.timestamp,
           `type` = pfaExperiment,
           algorithm = None,
@@ -326,8 +315,8 @@ object JobResult {
         QueryResult(
           jobId = Some(v.jobId),
           node = v.node,
-          datasets = v.datasets,
-          feedback = Nil,
+          datasets = datasets,
+          feedback = feedback,
           timestamp = v.timestamp,
           `type` = v.shape,
           algorithm = Some(v.algorithm),
@@ -339,8 +328,8 @@ object JobResult {
         QueryResult(
           jobId = Some(v.jobId),
           node = v.node,
-          datasets = v.datasets,
-          feedback = Nil,
+          datasets = datasets,
+          feedback = feedback,
           timestamp = v.timestamp,
           `type` = v.shape,
           algorithm = Some(v.algorithm),
@@ -352,8 +341,8 @@ object JobResult {
         QueryResult(
           jobId = Some(v.jobId),
           node = v.node,
-          datasets = v.datasets,
-          feedback = Nil,
+          datasets = datasets,
+          feedback = feedback,
           timestamp = v.timestamp,
           `type` = v.shape,
           algorithm = Some(v.algorithm),
@@ -365,8 +354,8 @@ object JobResult {
         QueryResult(
           jobId = e.jobId,
           node = e.node,
-          datasets = e.datasets,
-          feedback = Nil,
+          datasets = datasets,
+          feedback = feedback,
           timestamp = e.timestamp,
           `type` = error,
           algorithm = e.algorithm,
@@ -377,7 +366,10 @@ object JobResult {
     }
 
   implicit class ToQueryResult(val jobResult: JobResult) extends AnyVal {
-    def asQueryResult(query: Option[Query]): QueryResult = JobResult.asQueryResult(jobResult, query)
+    def asQueryResult(query: Option[Query],
+                      datasets: Set[DatasetId],
+                      feedback: List[UserFeedback]): QueryResult =
+      JobResult.asQueryResult(jobResult, query, datasets, feedback)
   }
 
   def fromQueryResult(queryResult: QueryResult): JobResult =
@@ -394,7 +386,6 @@ object JobResult {
         PfaJobResult(
           jobId = queryResult.jobId.getOrElse(""),
           node = queryResult.node,
-          datasets = queryResult.datasets,
           timestamp = queryResult.timestamp,
           algorithm = queryResult.algorithm.getOrElse(""),
           rawModel = rawModel,
@@ -409,7 +400,6 @@ object JobResult {
         ExperimentJobResult(
           jobId = queryResult.jobId.getOrElse(""),
           node = queryResult.node,
-          datasets = queryResult.datasets,
           timestamp = queryResult.timestamp,
           results = results
         )
@@ -417,7 +407,6 @@ object JobResult {
         ErrorJobResult(
           jobId = queryResult.jobId,
           node = queryResult.node,
-          datasets = queryResult.datasets,
           timestamp = queryResult.timestamp,
           algorithm = queryResult.algorithm,
           error = queryResult.error.getOrElse("")
@@ -427,7 +416,6 @@ object JobResult {
         JsonDataJobResult(
           jobId = queryResult.jobId.getOrElse(""),
           node = queryResult.node,
-          datasets = queryResult.datasets,
           timestamp = queryResult.timestamp,
           algorithm = queryResult.algorithm.getOrElse(""),
           shape = shape,
@@ -438,7 +426,6 @@ object JobResult {
         OtherDataJobResult(
           jobId = queryResult.jobId.getOrElse(""),
           node = queryResult.node,
-          datasets = queryResult.datasets,
           timestamp = queryResult.timestamp,
           algorithm = queryResult.algorithm.getOrElse(""),
           shape = shape,

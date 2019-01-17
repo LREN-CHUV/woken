@@ -26,6 +26,7 @@ import akka.util.Timeout
 import cats.effect.{ Effect, IO }
 import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.core.model.jobs.{ ErrorJobResult, ExperimentJobResult, JobResult }
+import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.service.{
   BackendServices,
@@ -128,7 +129,7 @@ trait QueriesActor[Q <: Query, F[_]] extends Actor with LazyLogging {
           }
       }
       .map {
-        case Nil          => noResult(initialQuery)
+        case Nil          => noResult(initialQuery, Set(), List())
         case List(result) => result.copy(query = Some(initialQuery))
         case results =>
           QueryResult(
@@ -147,31 +148,39 @@ trait QueriesActor[Q <: Query, F[_]] extends Actor with LazyLogging {
 
   }
 
-  private[dispatch] def noResult(initialQuery: Q): QueryResult =
-    ErrorJobResult(None, config.jobs.node, Set(), OffsetDateTime.now(), None, "No results")
-      .asQueryResult(Some(initialQuery))
+  private[dispatch] def noResult(initialQuery: Q,
+                                 datasets: Set[DatasetId],
+                                 feedback: List[UserFeedback]): QueryResult =
+    ErrorJobResult(None, config.jobs.node, OffsetDateTime.now(), None, "No results")
+      .asQueryResult(Some(initialQuery), datasets, feedback)
 
-  private[dispatch] def reportResult(initiator: ActorRef)(queryResult: QueryResult): QueryResult = {
-    initiator ! queryResult
-    queryResult
+  private[dispatch] def reportResult(initiator: ActorRef)(
+      queryResult: QueryResult,
+      datasets: Set[DatasetId],
+      feedback: List[UserFeedback]
+  ): QueryResult = {
+    val resultWithProv = queryResult.copy(datasets = queryResult.datasets ++ datasets,
+                                          feedback = queryResult.feedback ++ feedback)
+    initiator ! resultWithProv
+    resultWithProv
   }
 
-  private[dispatch] def reportError(initialQuery: Q,
-                                    initiator: ActorRef)(e: Throwable): QueryResult = {
+  private[dispatch] def errorResult(initialQuery: Q,
+                                    e: Throwable,
+                                    datasets: Set[DatasetId],
+                                    feedback: List[UserFeedback]): QueryResult = {
     logger.error(s"Cannot complete query because of ${e.getMessage}", e)
-    val error =
-      ErrorJobResult(None, config.jobs.node, Set(), OffsetDateTime.now(), None, e.toString)
-        .asQueryResult(Some(initialQuery))
-    initiator ! error
-    error
+    ErrorJobResult(None, config.jobs.node, OffsetDateTime.now(), None, e.toString)
+      .asQueryResult(Some(initialQuery), datasets, feedback)
   }
 
-  private[dispatch] def reportErrorMessage(initialQuery: Q,
-                                           initiator: ActorRef)(errorMessage: String): Unit = {
+  private[dispatch] def errorMsgResult(initialQuery: Q,
+                                       errorMessage: String,
+                                       datasets: Set[DatasetId],
+                                       feedback: List[UserFeedback]): QueryResult = {
     logger.error(s"Cannot complete query $initialQuery, cause $errorMessage")
-    val error =
-      ErrorJobResult(None, config.jobs.node, Set(), OffsetDateTime.now(), None, errorMessage)
-    initiator ! error.asQueryResult(Some(initialQuery))
+    ErrorJobResult(None, config.jobs.node, OffsetDateTime.now(), None, errorMessage)
+      .asQueryResult(Some(initialQuery), datasets, feedback)
   }
 
   private[dispatch] def algorithmsOfQuery(query: Query): List[AlgorithmSpec] = query match {

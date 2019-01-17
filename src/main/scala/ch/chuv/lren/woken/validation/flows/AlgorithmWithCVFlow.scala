@@ -21,7 +21,6 @@ import java.time.OffsetDateTime
 import java.util.UUID
 
 import akka.NotUsed
-import akka.actor.Actor
 import akka.stream._
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Zip }
 import cats.effect.Effect
@@ -136,7 +135,7 @@ case class AlgorithmWithCVFlow[F[_]: Effect](
         val jobId  = UUID.randomUUID().toString
         val subJob = createDockerJob(job, jobId, job.query)
 
-        runLater(algorithmExecutor.execute(subJob, Actor.noSender).map(response => (job, response)))
+        runLater(algorithmExecutor.execute(subJob).map(response => (job, response)))
       }
       .log("Learned from available local data")
       .named("learn-from-available-local-data")
@@ -208,7 +207,6 @@ case class AlgorithmWithCVFlow[F[_]: Effect](
                 ErrorJobResult(
                   Some(response.job.jobId),
                   node = algorithmExecutor.node,
-                  model.datasets,
                   OffsetDateTime.now(),
                   Some(algorithm.code),
                   s"Expected a PfaJobResult, got ${model.getClass.getName}"
@@ -217,7 +215,6 @@ case class AlgorithmWithCVFlow[F[_]: Effect](
             case None =>
               val jobResult = ErrorJobResult(Some(response.job.jobId),
                                              node = algorithmExecutor.node,
-                                             Set(),
                                              OffsetDateTime.now(),
                                              Some(algorithm.code),
                                              "No results")

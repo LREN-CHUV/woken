@@ -23,11 +23,10 @@ import ch.chuv.lren.woken.messages.query.{ AlgorithmSpec, Compute, ExecutionStep
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
 import ch.chuv.lren.woken.messages.variables.variablesProtocol._
 import com.typesafe.scalalogging.LazyLogging
-
 import spray.json._
 
 /**
-  * Definition of a computation using an algorithm packaged as a Docker container.
+  * Lowl level definition of a computation using an algorithm packaged as a Docker container.
   *
   * @param jobId Id of the job. Must be unique
   * @param query A representation of the query selecting features
@@ -36,13 +35,12 @@ import spray.json._
   * @param metadata Metadata associated with each field used in the query
   */
 case class DockerJob(
-    override val jobId: String,
+    jobId: String,
     query: FeaturesQuery,
     algorithmSpec: AlgorithmSpec,
     algorithmDefinition: AlgorithmDefinition,
     metadata: List[VariableMetaData]
-) extends Job
-    with LazyLogging {
+) extends LazyLogging {
 
   def jobName: String =
     (algorithmDefinition.dockerImage.replaceAll("^.*?/", "").takeWhile(_ != ':') + "_" + jobId)

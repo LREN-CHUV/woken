@@ -25,7 +25,7 @@ import akka.testkit.{ ImplicitSender, TestKit }
 import com.typesafe.config.{ Config, ConfigFactory }
 import ch.chuv.lren.woken.config._
 import ch.chuv.lren.woken.config.ConfigurationInstances._
-import ch.chuv.lren.woken.mining.{ ExperimentActor, ExperimentJob }
+import ch.chuv.lren.woken.mining.ExperimentActor
 import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.core.features.Queries._
@@ -39,9 +39,8 @@ import org.scalatest.tagobjects.Slow
 import cats.data.Validated._
 import cats.effect.{ Effect, IO }
 import cats.syntax.validated._
-
 import ch.chuv.lren.woken.core.model.database.TableId
-import ch.chuv.lren.woken.core.model.jobs.DockerJob
+import ch.chuv.lren.woken.core.model.jobs.{ DockerJob, ExperimentJob }
 import ch.chuv.lren.woken.messages.remoting.RemoteLocation
 
 import scala.concurrent.duration._

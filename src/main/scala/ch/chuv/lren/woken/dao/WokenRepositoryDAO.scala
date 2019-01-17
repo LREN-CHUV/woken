@@ -67,42 +67,32 @@ class JobResultRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
 
   private val unsafeFromColumns: JobResultColumns => JobResult = {
     case (jobId, node, timestamp, shape, function, _, Some(errorMessage)) if shape == errorShape =>
-      ErrorJobResult(Some(jobId), node, Set(), timestamp, function, errorMessage)
+      ErrorJobResult(Some(jobId), node, timestamp, function, errorMessage)
     case (jobId, node, timestamp, _, function, data, Some(errorMessage))
         if data.isEmpty && errorMessage.trim.nonEmpty =>
-      ErrorJobResult(Some(jobId), node, Set(), timestamp, function, errorMessage)
+      ErrorJobResult(Some(jobId), node, timestamp, function, errorMessage)
     case (jobId, node, timestamp, shape, function, Some(data), None | Some("")) if shape == pfa =>
       Try(
-        PfaJobResult(jobId,
-                     node,
-                     Set(),
-                     timestamp,
-                     function.getOrElse(""),
-                     data.parseJson.asJsObject)
+        PfaJobResult(jobId, node, timestamp, function.getOrElse(""), data.parseJson.asJsObject)
       ).recover {
         case t: Throwable =>
           val msg = s"Data for job $jobId produced by $function is not a valid Json object"
           logger.warn(msg, t)
-          ErrorJobResult(Some(jobId), node, Set(), timestamp, function, s"$msg : $t")
+          ErrorJobResult(Some(jobId), node, timestamp, function, s"$msg : $t")
       }.get
     case (jobId, node, timestamp, shape, _, Some(data), None) if pfaExperiment == shape =>
       Try(
-        ExperimentJobResult(jobId,
-                            node,
-                            Set(),
-                            JobResult.toExperimentResults(data.parseJson),
-                            timestamp)
+        ExperimentJobResult(jobId, node, JobResult.toExperimentResults(data.parseJson), timestamp)
       ).recover {
         case t: Throwable =>
           val msg = s"Data for job $jobId for a PFA experiment is not a valid Json array"
           logger.warn(msg, t)
-          ErrorJobResult(Some(jobId), node, Set(), timestamp, None, s"$msg : $t")
+          ErrorJobResult(Some(jobId), node, timestamp, None, s"$msg : $t")
       }.get
     case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
         if pfaYaml == shape =>
       PfaJobResult(jobId,
                    node,
-                   Set(),
                    timestamp,
                    function.getOrElse(""),
                    yaml.yaml2Json(Yaml(data)).asJsObject)
@@ -110,24 +100,23 @@ class JobResultRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
         if visualisationJsonResults.contains(shape) =>
       Try {
         val json = data.parseJson
-        JsonDataJobResult(jobId, node, Set(), timestamp, shape, function.getOrElse(""), Some(json))
+        JsonDataJobResult(jobId, node, timestamp, shape, function.getOrElse(""), Some(json))
       }.recover {
         case t: Throwable =>
           val msg = s"Data for job $jobId produced by $function is not a valid Json object"
           logger.warn(msg, t)
-          ErrorJobResult(Some(jobId), node, Set(), timestamp, function, s"$msg : $t")
+          ErrorJobResult(Some(jobId), node, timestamp, function, s"$msg : $t")
       }.get
     case (jobId, node, timestamp, shape, function, None, None | Some(""))
         if visualisationJsonResults.contains(shape) =>
-      JsonDataJobResult(jobId, node, Set(), timestamp, shape, function.getOrElse(""), None)
+      JsonDataJobResult(jobId, node, timestamp, shape, function.getOrElse(""), None)
     case (jobId, node, timestamp, shape, function, data, None | Some(""))
         if visualisationOtherResults.contains(shape) =>
-      OtherDataJobResult(jobId, node, Set(), timestamp, shape, function.getOrElse(""), data)
+      OtherDataJobResult(jobId, node, timestamp, shape, function.getOrElse(""), data)
     case (jobId, node, timestamp, shape, function, Some(data), None | Some(""))
         if serializedModelsResults.contains(shape) =>
       SerializedModelJobResult(jobId,
                                node,
-                               Set(),
                                timestamp,
                                shape,
                                function.getOrElse(""),
@@ -136,7 +125,7 @@ class JobResultRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
       val msg =
         s"Cannot handle job results of shape $shape produced by function $function with data $data, error $error"
       logger.warn(msg)
-      ErrorJobResult(Some(jobId), node, Set(), timestamp, function, msg)
+      ErrorJobResult(Some(jobId), node, timestamp, function, msg)
   }
 
   private val jobResultToColumns: JobResult => JobResultColumns = {

@@ -15,25 +15,23 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.mining
+package ch.chuv.lren.woken.core.model.jobs
 
-import ch.chuv.lren.woken.core.model.jobs.Job
+import cats.implicits._
+import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.core.model.AlgorithmDefinition
 import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableId }
-import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query.{ AlgorithmSpec, ExperimentQuery }
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
 
-import cats.implicits._
-
 case class ExperimentJob(
     override val jobId: String,
     inputTable: TableId,
-    query: ExperimentQuery,
+    override val query: ExperimentQuery,
     queryAlgorithms: Map[AlgorithmSpec, AlgorithmDefinition],
     metadata: List[VariableMetaData]
-) extends Job
+) extends Job[ExperimentQuery]
 
 object ExperimentJob {
 

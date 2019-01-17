@@ -18,6 +18,7 @@
 package ch.chuv.lren.woken.core.model.jobs
 
 import ch.chuv.lren.woken.messages.query.MiningQuery
+import ch.chuv.lren.woken.messages.query.filters.FilterRule
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
 import ch.chuv.lren.woken.service.FeaturesTableService
 
@@ -31,7 +32,11 @@ case class ValidationJob[F[_]](
     featuresTableService: FeaturesTableService[F],
     query: MiningQuery,
     metadata: List[VariableMetaData]
-) extends Job
+) extends Job[MiningQuery] {
+
+  override def filters: Option[FilterRule] = query.filters
+
+}
 
 object ValidationJob {
   val algorithmCode = "_validation_"

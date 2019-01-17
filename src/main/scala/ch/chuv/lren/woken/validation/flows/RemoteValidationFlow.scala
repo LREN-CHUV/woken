@@ -21,7 +21,7 @@ import akka.NotUsed
 import akka.actor.ActorContext
 import akka.stream._
 import akka.stream.scaladsl.{ Flow, Sink, Source }
-import ch.chuv.lren.woken.core.model.AlgorithmDefinition
+import ch.chuv.lren.woken.core.model.{ AlgorithmDefinition, DataProvenance, UserFeedbacks }
 import ch.chuv.lren.woken.core.model.jobs.{ ExperimentJobResult, PfaJobResult, ValidationJob }
 import ch.chuv.lren.woken.messages.APIJsonProtocol._
 import ch.chuv.lren.woken.messages.query._
@@ -35,7 +35,9 @@ object RemoteValidationFlow {
 
   case class ValidationContext(query: ExperimentQuery,
                                algorithms: Map[AlgorithmSpec, AlgorithmDefinition],
-                               experimentResult: ExperimentJobResult)
+                               experimentResult: ExperimentJobResult,
+                               dataProvenance: DataProvenance,
+                               feedback: UserFeedbacks)
   case class PartialValidation(query: ExperimentQuery,
                                experimentResult: ExperimentJobResult,
                                algorithmSpec: AlgorithmSpec,
