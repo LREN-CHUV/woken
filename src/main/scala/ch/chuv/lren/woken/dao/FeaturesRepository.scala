@@ -235,12 +235,14 @@ class FeaturesTableInMemoryRepository[F[_]: Applicative](val tableId: TableId,
   override def features(query: FeaturesQuery): F[(Headers, Stream[JsObject])] =
     (columns, dataFeatures.toStream).pure[F]
 
+
   override def createExtendedFeaturesTable(
-      filters: Option[FilterRule],
-      newFeatures: List[TableColumn],
-      otherColumns: List[TableColumn],
-      prefills: List[PrefillExtendedFeaturesTable]
-  ): Validation[Resource[F, FeaturesTableRepository[F]]] = "not implemented".invalidNel
+                                            filters: Option[FilterRule],
+                                            newFeatures: List[TableColumn],
+                                            otherColumns: List[TableColumn],
+                                            prefills: List[PrefillExtendedFeaturesTable]
+                                          ): Validation[Resource[F, FeaturesTableRepository[F]]] = "not implemented".invalidNel
+
 
   override def healthCheck: HealthCheck[F, Id] = HealthCheck.liftFBoolean(true.pure[F])
 

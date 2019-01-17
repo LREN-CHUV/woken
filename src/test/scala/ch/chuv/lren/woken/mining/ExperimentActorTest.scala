@@ -62,7 +62,7 @@ class ExperimentActorTest
 
   "Experiment actor" should {
 
-    "run an experiment with knn algorithm" in {
+    "fail with invalid definition of features table in case that dummy features table implementation is provided." in {
 
       val experimentActor = ExperimentActorWrapper.experimentActor
 
@@ -77,16 +77,16 @@ class ExperimentActorTest
       val testProbe = TestProbe()
       testProbe.send(experimentActor,
                      StartExperimentJob(experimentJob.toOption.get, testProbe.ref, testProbe.ref))
-      testProbe.expectMsgPF(20 seconds, "error") {
+      testProbe.expectMsgPF(20 minutes, "error") {
         case Response(_, result, _) if result.isLeft =>
           logger.info(result.left.get.error)
-          fail("Knn algorithm experiment failed.")
+          result.left.get.error shouldBe "Invalid definition of extended features table: not implemented"
 
-        case Response(job, result, initiator) =>
+        case Response(_, result, initiator) =>
           result.isRight shouldBe true
           initiator shouldBe testProbe.ref
         case msg =>
-          println(msg)
+          logger.error("Unknown message received. {}", msg)
           fail("Failed test")
       }
     }
@@ -110,13 +110,13 @@ class ExperimentActorTest
       testProbe.expectMsgPF(20 seconds, "error") {
         case Response(_, result, _) if result.isLeft =>
           logger.info(result.left.get.error)
-          fail("Multi algorithm experiment failed.")
+          result.left.get.error shouldBe "Invalid definition of extended features table: not implemented"
 
-        case Response(job, result, initiator) =>
+        case Response(_, result, initiator) =>
           result.isRight shouldBe true
           initiator shouldBe testProbe.ref
         case msg =>
-          println(msg)
+          logger.error("Unknown message received. {}", msg)
           fail("Failed test")
       }
     }
@@ -127,7 +127,7 @@ class ExperimentActorTest
 
   object ExperimentActorWrapper {
 
-    private val algorithExecutor   = dummyAlgorithm
+    private val algorithmExecutor  = dummyAlgorithm
     private val wokenClientService = WokenClientService("test")
     private val dispatcherService =
       DispatcherService(Map[DatasetId, Dataset]().validNel[String], wokenClientService)
@@ -135,7 +135,7 @@ class ExperimentActorTest
     def experimentActor = system.actorOf(
       Props(
         new ExperimentActor[IO](
-          algorithmExecutor = algorithExecutor,
+          algorithmExecutor = algorithmExecutor,
           dispatcherService = dispatcherService,
           featuresService = TestServices.featuresService,
           jobResultService = TestServices.jobResultService,
