@@ -369,4 +369,12 @@ class ExtendedFeaturesTableInMemoryRepository[F[_]: Effect] private (
     "Impossible to extend an extended table".invalidNel
 
   override def healthCheck: HealthCheck[F, Id] = HealthCheck.liftFBoolean(true.pure[F])
+
+  /**
+    * Returns the list of datasets effectively used by a query
+    *
+    * @param filters The filters used to filter rows
+    * @return a set of dataset ids
+    */
+  override def datasets(filters: Option[FilterRule]): F[Set[DatasetId]] = ???
 }
