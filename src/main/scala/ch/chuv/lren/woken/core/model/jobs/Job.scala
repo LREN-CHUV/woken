@@ -16,14 +16,25 @@
  */
 
 package ch.chuv.lren.woken.core.model.jobs
+import ch.chuv.lren.woken.core.model.{ DataProvenance, UserFeedbacks }
+import ch.chuv.lren.woken.messages.query.Query
+import ch.chuv.lren.woken.messages.query.filters.FilterRule
 
 /**
   * Some job to complete in Woken.
   *
   * Jobs are issued by an external command, either a user action or another Woken process calling this server.
   */
-trait Job {
+trait Job[Q <: Query] {
+
+  def query: Q
 
   def jobId: String
 
+  def filters: Option[FilterRule] = query.filters
+
 }
+
+case class JobInProgress[Q <: Query, J <: Job[Q]](job: J,
+                                                  dataProvenance: DataProvenance,
+                                                  feedback: UserFeedbacks)

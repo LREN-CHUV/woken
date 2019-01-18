@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.backends.chronos
+package ch.chuv.lren.woken.backends.faas.chronos
 
 import akka.NotUsed
 import akka.actor.{ Actor, ActorRef, Props, Terminated }

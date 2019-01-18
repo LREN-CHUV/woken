@@ -32,4 +32,8 @@ package object fp {
   def fromFuture[F[_]: Effect, R](f: => Future[R]): F[R] = implicitly[LiftIO[F]].liftIO(
     IO.fromFuture(IO(f))
   )
+
+  implicit class FutureExtended[R](val f: Future[R]) {
+    def fromFuture[F[_]: Effect]: F[R] = fp.fromFuture(f)
+  }
 }

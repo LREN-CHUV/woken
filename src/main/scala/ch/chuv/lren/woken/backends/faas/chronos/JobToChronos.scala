@@ -15,15 +15,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.backends.chronos
+package ch.chuv.lren.woken.backends.faas.chronos
 
 import ch.chuv.lren.woken.config.{ DatabaseConfiguration, JobsConfiguration }
-import ch.chuv.lren.woken.backends.chronos.{ EnvironmentVariable => EV }
-import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.core.model.jobs.DockerJob
+import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import cats.implicits._
 
 object JobToChronos {
+  type EV = EnvironmentVariable
+  val EV: EnvironmentVariable.type = EnvironmentVariable
 
   @SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
   private[this] def dbEnvironment(conf: DatabaseConfiguration,

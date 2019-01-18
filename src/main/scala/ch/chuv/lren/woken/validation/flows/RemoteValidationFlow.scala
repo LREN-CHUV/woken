@@ -21,7 +21,7 @@ import akka.NotUsed
 import akka.actor.ActorContext
 import akka.stream._
 import akka.stream.scaladsl.{ Flow, Sink, Source }
-import ch.chuv.lren.woken.core.model.AlgorithmDefinition
+import ch.chuv.lren.woken.core.model.{ AlgorithmDefinition, DataProvenance, UserFeedbacks }
 import ch.chuv.lren.woken.core.model.jobs.{ ExperimentJobResult, PfaJobResult, ValidationJob }
 import ch.chuv.lren.woken.messages.APIJsonProtocol._
 import ch.chuv.lren.woken.messages.query._
@@ -35,7 +35,9 @@ object RemoteValidationFlow {
 
   case class ValidationContext(query: ExperimentQuery,
                                algorithms: Map[AlgorithmSpec, AlgorithmDefinition],
-                               experimentResult: ExperimentJobResult)
+                               experimentResult: ExperimentJobResult,
+                               dataProvenance: DataProvenance,
+                               feedback: UserFeedbacks)
   case class PartialValidation(query: ExperimentQuery,
                                experimentResult: ExperimentJobResult,
                                algorithmSpec: AlgorithmSpec,
@@ -106,12 +108,14 @@ case class RemoteValidationFlow(
       }
       .map { l: List[QueryResult] =>
         l.map {
-            case QueryResult(_, node, _, shape, _, Some(data), None, _) if shape == Shapes.score =>
+            case QueryResult(_, node, _, _, _, shape, _, Some(data), None, _)
+                if shape == Shapes.score =>
               // Rebuild the spec from the results
               val spec  = ValidationSpec("remote-validation", List(CodeValue("node", node)))
               val score = Right[String, Score](data.convertTo[Score])
               (spec, score)
-            case QueryResult(_, node, _, shape, _, None, Some(error), _) if shape == Shapes.error =>
+            case QueryResult(_, node, _, _, _, shape, _, None, Some(error), _)
+                if shape == Shapes.error =>
               val spec = ValidationSpec("remote-validation", List(CodeValue("node", node)))
               (spec, Left[String, Score](error))
             case otherResult =>

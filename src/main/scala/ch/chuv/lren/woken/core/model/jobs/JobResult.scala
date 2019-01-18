@@ -27,6 +27,7 @@ import ch.chuv.lren.woken.messages.validation.Score
 import ch.chuv.lren.woken.messages.APIJsonProtocol
 import spray.json._
 import APIJsonProtocol._
+import ch.chuv.lren.woken.messages.datasets.DatasetId
 
 /**
   * Result produced during the execution of an algorithm
@@ -139,6 +140,7 @@ case class PfaJobResult(jobId: String,
   * @param results List of models produced by the experiment
   */
 @SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
+// TODO: results should be of type QueryResult, to be able to store the whole provenance and remove the clumsy conversion
 case class ExperimentJobResult(jobId: String,
                                node: String,
                                results: Map[AlgorithmSpec, JobResult],
@@ -161,7 +163,7 @@ case class ExperimentJobResult(jobId: String,
     // Concatenate results
     JsArray(
       results.map { r =>
-        val obj = r._2.asQueryResult(None).toJson.asJsObject
+        val obj = r._2.asQueryResult(None, Set(), List()).toJson.asJsObject
         JsObject(obj.fields + ("algorithmSpec" -> r._1.toJson))
       }.toVector
     )
@@ -278,12 +280,17 @@ case class SerializedModelJobResult(jobId: String,
 
 object JobResult {
 
-  def asQueryResult(jobResult: JobResult, query: Option[Query]): QueryResult =
+  def asQueryResult(jobResult: JobResult,
+                    query: Option[Query],
+                    datasets: Set[DatasetId],
+                    feedback: List[UserFeedback]): QueryResult =
     jobResult match {
       case pfa: PfaJobResult =>
         QueryResult(
           jobId = Some(pfa.jobId),
           node = pfa.node,
+          datasets = datasets,
+          feedback = feedback,
           timestamp = pfa.timestamp,
           `type` = pfaShape,
           algorithm = Some(pfa.algorithm),
@@ -295,6 +302,8 @@ object JobResult {
         QueryResult(
           jobId = Some(pfa.jobId),
           node = pfa.node,
+          datasets = datasets,
+          feedback = feedback,
           timestamp = pfa.timestamp,
           `type` = pfaExperiment,
           algorithm = None,
@@ -306,6 +315,8 @@ object JobResult {
         QueryResult(
           jobId = Some(v.jobId),
           node = v.node,
+          datasets = datasets,
+          feedback = feedback,
           timestamp = v.timestamp,
           `type` = v.shape,
           algorithm = Some(v.algorithm),
@@ -317,6 +328,8 @@ object JobResult {
         QueryResult(
           jobId = Some(v.jobId),
           node = v.node,
+          datasets = datasets,
+          feedback = feedback,
           timestamp = v.timestamp,
           `type` = v.shape,
           algorithm = Some(v.algorithm),
@@ -328,6 +341,8 @@ object JobResult {
         QueryResult(
           jobId = Some(v.jobId),
           node = v.node,
+          datasets = datasets,
+          feedback = feedback,
           timestamp = v.timestamp,
           `type` = v.shape,
           algorithm = Some(v.algorithm),
@@ -339,6 +354,8 @@ object JobResult {
         QueryResult(
           jobId = e.jobId,
           node = e.node,
+          datasets = datasets,
+          feedback = feedback,
           timestamp = e.timestamp,
           `type` = error,
           algorithm = e.algorithm,
@@ -349,7 +366,10 @@ object JobResult {
     }
 
   implicit class ToQueryResult(val jobResult: JobResult) extends AnyVal {
-    def asQueryResult(query: Option[Query]): QueryResult = JobResult.asQueryResult(jobResult, query)
+    def asQueryResult(query: Option[Query],
+                      datasets: Set[DatasetId],
+                      feedback: List[UserFeedback]): QueryResult =
+      JobResult.asQueryResult(jobResult, query, datasets, feedback)
   }
 
   def fromQueryResult(queryResult: QueryResult): JobResult =
@@ -384,11 +404,13 @@ object JobResult {
           results = results
         )
       case Shapes.error =>
-        ErrorJobResult(jobId = queryResult.jobId,
-                       node = queryResult.node,
-                       timestamp = queryResult.timestamp,
-                       algorithm = queryResult.algorithm,
-                       error = queryResult.error.getOrElse(""))
+        ErrorJobResult(
+          jobId = queryResult.jobId,
+          node = queryResult.node,
+          timestamp = queryResult.timestamp,
+          algorithm = queryResult.algorithm,
+          error = queryResult.error.getOrElse("")
+        )
 
       case shape if Shapes.visualisationJsonResults.contains(shape) =>
         JsonDataJobResult(

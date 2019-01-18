@@ -15,29 +15,28 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.backends.chronos
+package ch.chuv.lren.woken.backends.faas.chronos
 
 import akka.Done
 import akka.actor.{ ActorRef, ActorSystem }
+import akka.cluster.Cluster
 import akka.http.scaladsl.Http.ServerBinding
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.server.{ Directives, HttpApp, Route }
 import akka.http.scaladsl.settings.ServerSettings
 import akka.testkit.{ ImplicitSender, TestKit, TestKitBase }
-import com.typesafe.config.ConfigFactory
-import ch.chuv.lren.woken.backends.chronos.ChronosService.Ok
-import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpec, WordSpecLike }
-import ch.chuv.lren.woken.backends.chronos.{ EnvironmentVariable => EV, Parameter => P }
-
-import scala.concurrent.{ Await, ExecutionContext, Future, Promise }
-import scala.concurrent.duration._
-import scala.language.postfixOps
-import ChronosJob._
-import akka.cluster.Cluster
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import ch.chuv.lren.woken.akka.{ CoreActors, CoreSystem, FakeActors }
+import ch.chuv.lren.woken.backends.faas.chronos.ChronosJob._
+import ch.chuv.lren.woken.backends.faas.chronos.ChronosService.Ok
 import ch.chuv.lren.woken.config.WokenConfiguration
+import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
+import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpec, WordSpecLike }
 import spray.json.DefaultJsonProtocol
+
+import scala.concurrent.duration._
+import scala.concurrent.{ Await, ExecutionContext, Future, Promise }
+import scala.language.postfixOps
 
 class ChronosServiceTest
     extends WordSpec
@@ -51,6 +50,9 @@ class ChronosServiceTest
     with DefaultJsonProtocol
     with SprayJsonSupport
     with LazyLogging {
+
+  type EV = EnvironmentVariable
+  val EV: EnvironmentVariable.type = EnvironmentVariable
 
   override protected lazy val config: WokenConfiguration = WokenConfiguration(
     ConfigFactory.load("test.conf")
@@ -118,7 +120,7 @@ class ChronosServiceTest
     val container = Container(`type` = ContainerType.DOCKER,
                               image = "hbpmip/somealgo",
                               network = NetworkMode.BRIDGE,
-                              parameters = List(P("network", "bridge1")))
+                              parameters = List(Parameter("network", "bridge1")))
 
     val environmentVariables: List[EV] =
       List(EV("JOB_ID", "12345"), EV("NODE", "local"), EV("DOCKER_IMAGE", "hbpmip/somealgo"))

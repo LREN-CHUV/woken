@@ -23,7 +23,7 @@ import ch.chuv.lren.woken.config.{ AlgorithmsConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.core.model._
-import ch.chuv.lren.woken.core.model.jobs.{ DockerJob, Job, ValidationJob }
+import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.messages.query._
@@ -213,10 +213,10 @@ class QueryToJobServiceTest
       val maybeJob = queryToJobService.miningQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe valid
-      maybeJob.value._1 shouldBe a[DockerJob]
+      maybeJob.value.job shouldBe a[MiningJob]
 
-      val job: DockerJob = maybeJob.value._1.asInstanceOf[DockerJob]
-      val feedback       = maybeJob.value._2
+      val job: DockerJob = maybeJob.value.job.asInstanceOf[MiningJob].dockerJob
+      val feedback       = maybeJob.value.feedback
       val table          = TableId("features_db", None, "Sample")
 
       job.jobId should not be empty
@@ -265,10 +265,10 @@ class QueryToJobServiceTest
       val maybeJob = queryToJobService.miningQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe valid
-      maybeJob.value._1 shouldBe a[DockerJob]
+      maybeJob.value.job shouldBe a[MiningJob]
 
-      val job: DockerJob = maybeJob.value._1.asInstanceOf[DockerJob]
-      val feedback       = maybeJob.value._2
+      val job: DockerJob = maybeJob.value.job.asInstanceOf[MiningJob].dockerJob
+      val feedback       = maybeJob.value.feedback
       val table          = TableId("features_db", None, "cde_features_a")
 
       job.jobId should not be empty
@@ -313,10 +313,10 @@ class QueryToJobServiceTest
       val maybeJob = queryToJobService.miningQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe valid
-      maybeJob.value._1 shouldBe a[DockerJob]
+      maybeJob.value.job shouldBe a[MiningJob]
 
-      val job: DockerJob = maybeJob.value._1.asInstanceOf[DockerJob]
-      val feedback       = maybeJob.value._2
+      val job: DockerJob = maybeJob.value.job.asInstanceOf[MiningJob].dockerJob
+      val feedback       = maybeJob.value.feedback
       val table          = TableId("features_db", None, "cde_features_a")
 
       job.jobId should not be empty
@@ -362,10 +362,10 @@ class QueryToJobServiceTest
       val maybeJob = queryToJobService.miningQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe valid
-      maybeJob.value._1 shouldBe a[ValidationJob[IO]]
+      maybeJob.value.job shouldBe a[ValidationJob[IO]]
 
-      val job: ValidationJob[IO] = maybeJob.value._1.asInstanceOf[ValidationJob[IO]]
-      val feedback               = maybeJob.value._2
+      val job: ValidationJob[IO] = maybeJob.value.job.asInstanceOf[ValidationJob[IO]]
+      val feedback               = maybeJob.value.feedback
 
       job.jobId should not be empty
       job should have(
@@ -502,7 +502,7 @@ class QueryToJobServiceTest
 
       maybeJob shouldBe valid
 
-      val job: Job = maybeJob.value._1
+      val job: ExperimentJob = maybeJob.value.job
 
       job.jobId should not be empty
       job should have(
@@ -537,7 +537,7 @@ class QueryToJobServiceTest
 
       maybeJob shouldBe valid
 
-      val job = maybeJob.value._1
+      val job = maybeJob.value.job
 
       job.jobId should not be empty
       job should have(

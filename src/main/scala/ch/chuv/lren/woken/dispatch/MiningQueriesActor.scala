@@ -22,16 +22,13 @@ import java.time.OffsetDateTime
 import akka.NotUsed
 import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{ Actor, ActorRef, OneForOneStrategy, Props }
-import akka.pattern.pipe
 import akka.routing.{ OptimalSizeExploringResizer, RoundRobinPool }
 import akka.stream.scaladsl.{ Flow, Sink, Source }
 import cats.effect.Effect
-import ch.chuv.lren.woken.backends.faas.AlgorithmResults
+import cats.implicits._
 import ch.chuv.lren.woken.core.fp._
 import ch.chuv.lren.woken.config.WokenConfiguration
-import ch.chuv.lren.woken.core.model.UserFeedbacks
 import ch.chuv.lren.woken.core.model.jobs._
-import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.validation.Score
 import ch.chuv.lren.woken.messages.validation.validationProtocol._
@@ -42,7 +39,6 @@ import com.typesafe.scalalogging.LazyLogging
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.{ higherKinds, postfixOps }
-import scala.util.{ Failure, Success }
 import spray.json._
 
 object MiningQueriesActor extends LazyLogging {
@@ -108,94 +104,84 @@ class MiningQueriesActor[F[_]: Effect](
       val initiator     = if (mine.replyTo == Actor.noSender) sender() else mine.replyTo
       val query         = mine.query
       val jobValidatedF = queryToJobService.miningQuery2Job(query)
+      val doIt: F[QueryResult] = jobValidatedF.flatMap { jv =>
+        jv.fold(
+          errList => {
+            val errors = errList.mkString_("", ", ", "")
+            val msg    = s"Mining for $query failed with error: $errors"
+            errorMsgResult(query, msg, Set(), List()).pure[F]
+          },
+          j => processJob(query, j)
+        )
+      }
 
-      runNow(jobValidatedF)(processJob(initiator, query))
-
-    case AlgorithmResults(job, List(errorJob: ErrorJobResult), initiator) =>
-      logger.warn(s"Received error while mining ${job.query}: ${errorJob.toString}")
-      // TODO: we lost track of the original query here
-      initiator ! errorJob.asQueryResult(None)
-
-    case AlgorithmResults(job, results, initiator) =>
-      // TODO: we can only handle one result from the Coordinator handling a mining query.
-      // Containerised algorithms that can produce more than one result (e.g. PFA model + images) are ignored
-      logger.info(
-        s"Send back results for mining ${job.query}: ${results.toString.take(50)} to $initiator"
-      )
-      val jobResult = results.head
-      // TODO: we lost track of the original query here
-      initiator ! jobResult.asQueryResult(None)
+      runNow(doIt) {
+        case Left(e) =>
+          val msg = s"Mining for $query failed with error: ${e.toString}"
+          logger.error(msg, e)
+          initiator ! errorMsgResult(query, msg, Set(), List())
+        case Right(results) =>
+          results.error.foreach(
+            error => logger.error(s"Mining for $query failed with error: $error")
+          )
+          val feedbackMsg =
+            if (results.feedback.nonEmpty) "with feedback " + results.feedback.mkString(", ")
+            else ""
+          results.data.foreach(_ => logger.info(s"Mining for $query complete $feedbackMsg"))
+          initiator ! results
+      }
 
     case e =>
       logger.warn(s"Received unhandled request $e of type ${e.getClass}")
 
   }
 
-  private def processJob(initiator: ActorRef, query: MiningQuery)(
-      cb: Either[Throwable, Validation[(Job, UserFeedbacks)]]
-  ): Unit = cb match {
-    case Left(e) =>
-      logger.error("", e)
-      reportErrorMessage(query, initiator)(
-        s"Mining for $query failed with error: ${e.toString}"
-      )
-    case Right(jobValidated) =>
-      jobValidated.fold(
-        errorMsg => {
-          reportErrorMessage(query, initiator)(
-            s"Mining for $query failed with message: " + errorMsg.reduceLeft(_ + ", " + _)
-          )
-        }, {
-          // TODO: report feedback to user
-          case (job: DockerJob, feedback) =>
-            if (feedback.nonEmpty) logger.info(s"Feedback: ${feedback.mkString(", ")}")
-            runMiningJob(query, initiator, job)
-          case (job: ValidationJob[F], feedback) =>
-            if (feedback.nonEmpty) logger.info(s"Feedback: ${feedback.mkString(", ")}")
-            runValidationJob(initiator, job)
-          case (job, _) =>
-            reportErrorMessage(query, initiator)(
-              s"Unsupported job $job. Was expecting a job of type DockerJob or ValidationJob"
-            )
-        }
-      )
+  private def processJob(query: MiningQuery, jobInProgress: MiningJobInProgress): F[QueryResult] = {
+    val feedback = jobInProgress.feedback
+
+    if (feedback.nonEmpty) logger.info(s"Feedback: ${feedback.mkString(", ")}")
+    jobInProgress.job match {
+      case job: MiningJob =>
+        runMiningJob(jobInProgress, job.dockerJob)
+      case job: ValidationJob[F] =>
+        runValidationJob(jobInProgress, job)
+      case job =>
+        val msg = s"Unsupported job $job. Was expecting a job of type DockerJob or ValidationJob"
+        errorMsgResult(query, msg, Set(), feedback).pure[F]
+    }
   }
 
-  private def startMiningJob(job: DockerJob, initiator: ActorRef): Unit =
-    runLater(backendServices.algorithmExecutor.execute(job, initiator)) pipeTo self
+  private def runMiningJob(jobInProgress: MiningJobInProgress, job: DockerJob): F[QueryResult] = {
 
-  private def runMiningJob(query: MiningQuery, initiator: ActorRef, job: DockerJob): Unit = {
-
+    val query = jobInProgress.job.query
     // Detection of histograms in federation mode
     val forceLocal = query.algorithm.code == "histograms"
 
     if (forceLocal) {
       logger.info(s"Local data mining for query $query")
-      startMiningJob(job, initiator)
+      startLocalMiningJob(jobInProgress, job)
     } else
       dispatcherService.dispatchTo(query.datasets) match {
 
         // Local mining on a worker node or a standalone node
         case (_, true) =>
           logger.info(s"Local data mining for query $query")
-          startMiningJob(job, initiator)
+          startLocalMiningJob(jobInProgress, job)
 
         // Mining from the central server using one remote node
         case (remoteLocations, false) if remoteLocations.size == 1 =>
           logger.info(s"Remote data mining on a single node $remoteLocations for query $query")
           mapFlow(query)
-            .mapAsync(1) {
-              case List()        => Future(noResult(query))
+            .mapAsync(parallelism = 1) {
+              case List()        => Future(noResult(query, Set(), Nil))
               case List(result)  => Future(result.copy(query = Some(query)))
               case listOfResults => gatherAndReduce(query, listOfResults, None)
             }
-            .map(reportResult(initiator))
             .log("Result of experiment")
             .runWith(Sink.last)
-            .failed
-            .foreach(reportError(query, initiator))
+            .fromFuture
 
-        // Execution of the experiment from the central server in a distributed mode
+        // Execution of the algorithm from the central server in a distributed mode
         case (remoteLocations, _) =>
           logger.info(s"Remote data mining on nodes $remoteLocations for query $query")
           val algorithm           = job.algorithmSpec
@@ -212,17 +198,34 @@ class MiningQueriesActor[F[_]: Effect](
             queriesByStepExecution.get(ExecutionStyle.reduce).map(_.copy(datasets = Set()))
 
           mapFlow(mapQuery)
-            .mapAsync(1) {
-              case List()       => Future(noResult(query))
+            .mapAsync(parallelism = 1) {
               case List(result) => Future(result.copy(query = Some(query)))
               case mapResults   => gatherAndReduce(query, mapResults, reduceQuery)
             }
-            .map(reportResult(initiator))
             .runWith(Sink.last)
-            .failed
-            .foreach(reportError(query, initiator))
+            .fromFuture
       }
   }
+
+  private def startLocalMiningJob(jobInProgress: MiningJobInProgress,
+                                  job: DockerJob): F[QueryResult] =
+    backendServices.algorithmExecutor.execute(job).map { r =>
+      val query    = jobInProgress.job.query
+      val prov     = jobInProgress.dataProvenance
+      val feedback = jobInProgress.feedback
+
+      // TODO: we can only handle one result from the Coordinator handling a mining query.
+      // Containerised algorithms that can produce more than one result (e.g. PFA model + images) are ignored
+      r.results match {
+        case List()       => noResult(query, Set(), feedback)
+        case List(result) => result.asQueryResult(Some(query), prov, feedback)
+        case result :: _ =>
+          val msg =
+            s"Discarded additional results returned by algorithm ${job.algorithmDefinition.code}"
+          logger.warn(msg)
+          result.asQueryResult(Some(query), prov, feedback :+ UserWarning(msg))
+      }
+    }
 
   private def mapFlow(mapQuery: MiningQuery) =
     Source
@@ -232,66 +235,67 @@ class MiningQueriesActor[F[_]: Effect](
         _ :+ _._2
       }
 
-  private def runValidationJob(initiator: ActorRef, job: ValidationJob[F]): Unit =
+  private def runValidationJob(jobInProgress: MiningJobInProgress,
+                               job: ValidationJob[F]): F[QueryResult] = {
+    val query    = jobInProgress.job.query
+    val prov     = jobInProgress.dataProvenance
+    val feedback = jobInProgress.feedback
+
     dispatcherService.dispatchTo(job.query.datasets) match {
       case (_, true) =>
         Source
           .single(job)
           .via(validationFlow)
           .runWith(Sink.last)
-          .andThen {
-            case Success((job: ValidationJob[F], Right(score))) =>
-              initiator ! QueryResult(
+          .map {
+            case (job: ValidationJob[F], Right(score)) =>
+              QueryResult(
                 Some(job.jobId),
                 config.jobs.node,
+                prov,
+                feedback,
                 OffsetDateTime.now(),
                 Shapes.score,
                 Some(ValidationJob.algorithmCode),
                 Some(score.toJson),
                 None,
-                Some(job.query)
+                Some(query)
               )
-            case Success((job: ValidationJob[F], Left(error))) =>
-              initiator ! QueryResult(
+            case (job: ValidationJob[F], Left(error)) =>
+              QueryResult(
                 Some(job.jobId),
                 config.jobs.node,
+                prov,
+                feedback,
                 OffsetDateTime.now(),
                 Shapes.error,
                 Some(ValidationJob.algorithmCode),
                 None,
                 Some(error),
-                Some(job.query)
+                Some(query)
               )
-            case Failure(t) =>
-              initiator ! QueryResult(
-                Some(job.jobId),
-                config.jobs.node,
-                OffsetDateTime.now(),
-                Shapes.error,
-                Some(ValidationJob.algorithmCode),
-                None,
-                Some(t.toString),
-                Some(job.query)
-              )
-
           }
+          .fromFuture
 
       case _ =>
         logger.info(
           s"No local datasets match the validation query, asking for datasets ${job.query.datasets.mkString(",")}"
         )
         // No local datasets match the query, return an empty result
-        initiator ! QueryResult(
+        QueryResult(
           Some(job.jobId),
           config.jobs.node,
+          prov,
+          feedback,
           OffsetDateTime.now(),
           Shapes.score,
           Some(ValidationJob.algorithmCode),
           None,
           None,
-          Some(job.query)
-        )
+          Some(query)
+        ).pure[F]
     }
+  }
 
   private[dispatch] def reduceUsingJobs(query: MiningQuery, jobIds: List[String]): MiningQuery =
     query.copy(algorithm = addJobIds(query.algorithm, jobIds))

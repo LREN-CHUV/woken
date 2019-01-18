@@ -15,10 +15,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ch.chuv.lren.woken.core.model
+package ch.chuv.lren.woken.core.model.jobs
 
-sealed trait UserFeedback
+import ch.chuv.lren.woken.messages.query.MiningQuery
 
-case class UserInfo(msg: String) extends UserFeedback
-
-case class UserWarning(warn: String) extends UserFeedback
+case class MiningJob(override val query: MiningQuery, dockerJob: DockerJob)
+    extends Job[MiningQuery] {
+  override def jobId: String = dockerJob.jobId
+}

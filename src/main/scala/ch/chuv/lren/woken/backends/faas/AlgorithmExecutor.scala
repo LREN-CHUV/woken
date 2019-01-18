@@ -17,14 +17,13 @@
 
 package ch.chuv.lren.woken.backends.faas
 
-import akka.actor.ActorRef
 import ch.chuv.lren.woken.core.model.jobs.{ DockerJob, JobResult }
 import sup.HealthCheck
 import sup.data.Tagged
 
 import scala.language.higherKinds
 
-case class AlgorithmResults(job: DockerJob, results: List[JobResult], initiator: ActorRef)
+case class AlgorithmResults(job: DockerJob, results: List[JobResult])
 
 object AlgorithmExecutor {
   type TaggedS[H] = Tagged[String, H]
@@ -38,7 +37,7 @@ trait AlgorithmExecutor[F[_]] {
     * Name of the current node (or cluster) where Docker containers are executed
     */
   def node: String
-  def execute(job: DockerJob, initiator: ActorRef): F[AlgorithmResults]
+  def execute(job: DockerJob): F[AlgorithmResults]
   def healthCheck: HealthCheck[F, TaggedS]
 
 }

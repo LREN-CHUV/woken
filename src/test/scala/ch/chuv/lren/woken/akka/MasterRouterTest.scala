@@ -25,7 +25,7 @@ import akka.testkit.{ ImplicitSender, TestKit }
 import com.typesafe.config.{ Config, ConfigFactory }
 import ch.chuv.lren.woken.config._
 import ch.chuv.lren.woken.config.ConfigurationInstances._
-import ch.chuv.lren.woken.mining.{ ExperimentActor, ExperimentJob }
+import ch.chuv.lren.woken.mining.ExperimentActor
 import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.core.features.Queries._
@@ -39,9 +39,8 @@ import org.scalatest.tagobjects.Slow
 import cats.data.Validated._
 import cats.effect.{ Effect, IO }
 import cats.syntax.validated._
-
 import ch.chuv.lren.woken.core.model.database.TableId
-import ch.chuv.lren.woken.core.model.jobs.DockerJob
+import ch.chuv.lren.woken.core.model.jobs.{ DockerJob, ExperimentJob }
 import ch.chuv.lren.woken.messages.remoting.RemoteLocation
 
 import scala.concurrent.duration._
@@ -212,8 +211,8 @@ class MasterRouterTest
 
         (1 to overflow).foreach { i =>
           expectMsgPF[Unit](5 seconds) {
-            case QueryResult(_, _, _, _, _, Some(_), None, _) => successfulStarts += 1
-            case QueryResult(_, _, _, _, _, None, Some(_), _) => failures += 1
+            case QueryResult(_, _, _, _, _, _, _, Some(_), None, _) => successfulStarts += 1
+            case QueryResult(_, _, _, _, _, _, _, None, Some(_), _) => failures += 1
           }
         }
 
@@ -285,7 +284,7 @@ class MasterRouterTest
       )
 
       expectMsgPF(10 seconds, "error message") {
-        case QueryResult(_, _, _, _, _, _, Some(error), _) =>
+        case QueryResult(_, _, _, _, _, _, _, _, Some(error), _) =>
           error shouldBe errorMessage
         case msg =>
           fail(s"received unexpected message $msg")

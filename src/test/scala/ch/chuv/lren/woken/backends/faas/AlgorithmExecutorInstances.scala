@@ -19,7 +19,6 @@ package ch.chuv.lren.woken.backends.faas
 
 import java.time.OffsetDateTime
 
-import akka.actor.ActorRef
 import cats.Id
 import cats.effect.IO
 import cats.implicits._
@@ -33,8 +32,8 @@ object AlgorithmExecutorInstances {
   def algorithmFailingWithError(errorMessage: String): AlgorithmExecutor[IO] =
     new AlgorithmExecutor[IO] {
       override def node: String = "TestNode"
-      override def execute(job: DockerJob, initiator: ActorRef): IO[AlgorithmResults] =
-        errorResponse(job, errorMessage, initiator).pure[IO]
+      override def execute(job: DockerJob): IO[AlgorithmResults] =
+        errorResponse(job, errorMessage).pure[IO]
       override def healthCheck: HealthCheck[IO, TaggedS] =
         HealthCheck.const[IO, Id](Health.healthy).through(mods.tagWith("Health of mock executor"))
     }
@@ -51,21 +50,21 @@ object AlgorithmExecutorInstances {
              "cells": {}
            }
         """.stripMargin.parseJson.asJsObject
-      override def execute(job: DockerJob, initiator: ActorRef): IO[AlgorithmResults] =
+      override def execute(job: DockerJob): IO[AlgorithmResults] =
         if (job.algorithmSpec.code == expectedAlgorithm) {
           AlgorithmResults(
             job,
             List(
               PfaJobResult(job.jobId, "testNode", OffsetDateTime.now(), job.algorithmSpec.code, pfa)
-            ),
-            initiator
+            )
           ).pure[IO]
         } else
-          errorResponse(job, s"Unexpected algorithm: ${job.algorithmSpec.code}", initiator).pure[IO]
+          errorResponse(job, s"Unexpected algorithm: ${job.algorithmSpec.code}").pure[IO]
 
       override def healthCheck: HealthCheck[IO, TaggedS] =
         HealthCheck.const[IO, Id](Health.healthy).through(mods.tagWith("Health of mock executor"))
     }
+
 
   def dummyAlgorithm: AlgorithmExecutor[IO] =
     new AlgorithmExecutor[IO] {
@@ -85,19 +84,18 @@ object AlgorithmExecutorInstances {
            }
         """.stripMargin.parseJson.asJsObject
 
-      override def execute(job: DockerJob, initiator: ActorRef): IO[AlgorithmResults] =
+      override def execute(job: DockerJob): IO[AlgorithmResults] =
         AlgorithmResults(
           job,
           List(
             PfaJobResult(job.jobId, "testNode", OffsetDateTime.now(), job.algorithmSpec.code, pfa)
-          ),
-          initiator
+          )
         ).pure[IO]
 
       override def healthCheck: HealthCheck[IO, TaggedS] = ???
     }
 
-  private def errorResponse(job: DockerJob, msg: String, initiator: ActorRef) =
+  private def errorResponse(job: DockerJob, msg: String) =
     AlgorithmResults(
       job,
       List(
@@ -106,8 +104,7 @@ object AlgorithmExecutorInstances {
                        OffsetDateTime.now(),
                        Some(job.algorithmSpec.code),
                        msg)
-      ),
-      initiator
+      )
     )
 
 }

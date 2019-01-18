@@ -43,7 +43,6 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
   private val allChecks =
     HealthReporter.fromChecks(databaseServices.healthChecks, backendServices.healthChecks)
 
-  // TODO: Use Show to build the report string from HealthCheck
   val healthRoute: Route = pathPrefix("health") {
     get {
       val up = runNow(allChecks.check).value.health.isHealthy

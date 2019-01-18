@@ -85,6 +85,14 @@ trait FeaturesTableService[F[_]] {
     */
   def countGroupBy(groupByColumn: TableColumn, filters: Option[FilterRule]): F[Map[String, Int]]
 
+  /**
+    * Returns the list of datasets effectively used by a query
+    *
+    * @param filters The filters used to filter rows
+    * @return a set of dataset ids
+    */
+  def datasets(filters: Option[FilterRule]): F[Set[DatasetId]]
+
   type Headers = List[TableColumn]
 
   def features(query: FeaturesQuery): F[(Headers, Stream[JsObject])]
@@ -146,6 +154,9 @@ class FeaturesTableServiceImpl[F[_]: Effect](repository: FeaturesTableRepository
     repository.countGroupBy(groupByColumn, filters)
 
   def features(query: FeaturesQuery): F[(Headers, Stream[JsObject])] = repository.features(query)
+
+  override def datasets(filters: Option[FilterRule]): F[Set[DatasetId]] =
+    repository.datasets(filters)
 
   override def createExtendedFeaturesTable(
       filters: Option[FilterRule],

@@ -136,7 +136,7 @@ abstract class BaseFeaturesTableRepositoryDAO[F[_]: Effect] extends FeaturesTabl
 
   implicit val han: LogHandler = LogHandler.jdkLogHandler
 
-  protected def defaultDataset: String = table.table.name
+  protected lazy val defaultDataset: DatasetId = DatasetId(table.table.name)
 
   override def count: F[Int] = {
     val q: Fragment = fr"SELECT count(*) FROM" ++ frName(table)
@@ -147,7 +147,7 @@ abstract class BaseFeaturesTableRepositoryDAO[F[_]: Effect] extends FeaturesTabl
 
   override def count(datasetId: DatasetId): F[Int] =
     table.datasetColumn.fold {
-      if (datasetId.code == table.quotedName || datasetId.code == defaultDataset) count
+      if (datasetId.code == table.quotedName || datasetId.code == defaultDataset.code) count
       else 0.pure[F]
     } { datasetColumn =>
       def countDataset(dataset: String): Fragment =
@@ -187,6 +187,16 @@ abstract class BaseFeaturesTableRepositoryDAO[F[_]: Effect] extends FeaturesTabl
       .transact(xa)
       .map(_.toMap)
   }
+
+  override def datasets(filters: Option[FilterRule]): F[Set[DatasetId]] =
+    table.datasetColumn.fold(
+      count(filters).map(n => if (n == 0) Set[DatasetId]() else Set(defaultDataset))
+    ) { dsCol =>
+      val q = fr"SELECT" ++ frName(dsCol) ++ fr"as code FROM" ++ frName(table)
+      q.query[DatasetId]
+        .to[Set]
+        .transact(xa)
+    }
 
   import FeaturesTableRepositoryDAO.{ prepareHeaders, toJsValue }
 
@@ -235,6 +245,7 @@ class FeaturesTableRepositoryDAO[F[_]: Effect] private[dao] (
     val wokenRepository: WokenRepository[F]
 ) extends BaseFeaturesTableRepositoryDAO[F] {
 
+  @SuppressWarnings(Array("org.wartremover.warts.Any"))
   override def createExtendedFeaturesTable(
       filters: Option[FilterRule],
       newFeatures: List[TableColumn],
@@ -316,10 +327,11 @@ class ExtendedFeaturesTableRepositoryDAO[F[_]: Effect] private (
     val rndColumn: TableColumn
 ) extends BaseFeaturesTableRepositoryDAO[F] {
 
-  override val xa: Transactor[F]                = sourceTable.xa
-  override val table: FeaturesTableDescription  = view
-  override val columns: List[TableColumn]       = viewColumns
-  override protected def defaultDataset: String = sourceTable.table.table.name
+  override val xa: Transactor[F]               = sourceTable.xa
+  override val table: FeaturesTableDescription = view
+  override val columns: List[TableColumn]      = viewColumns
+
+  override protected lazy val defaultDataset: DatasetId = DatasetId(sourceTable.table.table.name)
 
   def close(): F[Unit] = {
     val rmView     = fr"DROP VIEW IF EXISTS" ++ frName(view)

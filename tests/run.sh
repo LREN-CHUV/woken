@@ -9,7 +9,9 @@
 #   --no-frontend: do not start the frontend
 #
 
-set -e
+set -o pipefail  # trace ERR through pipes
+set -o errtrace  # trace ERR through 'time command' and other functions
+set -o errexit   ## set -e : exit the script if any statement returns a non-true return value
 
 get_script_dir () {
      SOURCE="${BASH_SOURCE[0]}"
@@ -49,8 +51,9 @@ if pgrep -lf sshuttle > /dev/null ; then
   exit 1
 fi
 
-if groups "$USER" | grep &>/dev/null '\bdocker\b'; then
-  DOCKER="docker"
+if [[ $NO_SUDO || -n "$CIRCLECI" ]]; then
+  DOCKER_COMPOSE="docker-compose"
+elif groups "$USER" | grep &>/dev/null '\bdocker\b'; then
   DOCKER_COMPOSE="docker-compose"
 else
   DOCKER="sudo docker"
