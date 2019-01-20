@@ -192,7 +192,9 @@ abstract class BaseFeaturesTableRepositoryDAO[F[_]: Effect] extends FeaturesTabl
     table.datasetColumn.fold(
       count(filters).map(n => if (n == 0) Set[DatasetId]() else Set(defaultDataset))
     ) { dsCol =>
-      val q = fr"SELECT" ++ frName(dsCol) ++ fr"as code FROM" ++ frName(table)
+      val q = fr"SELECT DISTINCT" ++ frName(dsCol) ++ fr"as code FROM" ++ frName(table) ++ frWhereFilter(
+        filters
+      )
       q.query[DatasetId]
         .to[Set]
         .transact(xa)

@@ -21,9 +21,7 @@ import akka.NotUsed
 import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{ Actor, ActorRef, OneForOneStrategy, Props }
 import akka.routing.{ OptimalSizeExploringResizer, RoundRobinPool }
-import akka.stream.FlowShape
-import akka.stream.scaladsl.{ Flow, GraphDSL, Merge, Sink, Source }
-import akka.util.Timeout
+import akka.stream.scaladsl.{ Flow, Sink, Source }
 import cats.effect.Effect
 import cats.implicits._
 import ch.chuv.lren.woken.core.fp._
@@ -32,7 +30,7 @@ import ch.chuv.lren.woken.core.model.{ AlgorithmDefinition, DataProvenance, User
 import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.validation.flows.RemoteValidationFlow.ValidationContext
 import ch.chuv.lren.woken.messages.query.{ ExecutionStyle, _ }
-import ch.chuv.lren.woken.mining.ExperimentActor
+import ch.chuv.lren.woken.mining.LocalExperimentService
 import ch.chuv.lren.woken.service.{ BackendServices, DatabaseServices }
 import ch.chuv.lren.woken.validation.flows.RemoteValidationFlow
 import com.typesafe.scalalogging.LazyLogging
@@ -91,6 +89,14 @@ class ExperimentQueriesActor[F[_]: Effect](
 
   import ExperimentQueriesActor.Experiment
 
+  val localExperimentService = LocalExperimentService(
+    backendServices.algorithmExecutor,
+    backendServices.wokenWorker,
+    databaseServices.featuresService,
+    databaseServices.jobResultService,
+    context.system
+  )
+
   val remoteValidationFlow: Flow[ValidationContext, ValidationContext, NotUsed] =
     RemoteValidationFlow(dispatcherService, context).remoteValidate
 
@@ -144,7 +150,7 @@ class ExperimentQueriesActor[F[_]: Effect](
       // Local execution of the experiment on a worker node or a standalone node
       case (_, true) =>
         logger.info(s"Local experiment for query $query")
-        startLocalExperimentJob(job, prov, feedback).fromFuture
+        startLocalExperimentJob(jobInProgress)
 
       // Offload execution of the experiment from the central server to a remote worker node
       case (remoteLocations, false) if remoteLocations.size == 1 =>
@@ -202,7 +208,7 @@ class ExperimentQueriesActor[F[_]: Effect](
   private def mapFlow(mapQuery: ExperimentQuery,
                       algorithms: Map[AlgorithmSpec, AlgorithmDefinition],
                       prov: DataProvenance,
-                      feedback: UserFeedbacks) =
+                      feedback: UserFeedbacks): Source[List[QueryResult], NotUsed] =
     Source
       .single(mapQuery)
       .via(dispatcherService.dispatchRemoteExperimentFlow)
@@ -241,89 +247,32 @@ class ExperimentQueriesActor[F[_]: Effect](
         _ :+ _
       }
 
-  case class ExpResp(job: ExperimentJob,
-                     result: ExperimentJobResult,
-                     dataProvenance: DataProvenance,
-                     feedback: UserFeedbacks) {
-    def toQueryResult: QueryResult =
-      result.asQueryResult(Some(job.query), dataProvenance, feedback)
-  }
-  case class ErrResp(job: ExperimentJob,
-                     result: ErrorJobResult,
-                     dataProvenance: DataProvenance,
-                     feedback: UserFeedbacks) {
-    def toQueryResult: QueryResult =
-      result.asQueryResult(Some(job.query), dataProvenance, feedback)
-  }
+  private def startLocalExperimentJob(job: ExperimentJobInProgress): F[QueryResult] =
+    localExperimentService
+      .runExperiment(job)
+      .flatMap { r =>
+        r.result match {
+          case Right(experimentJobResult) =>
+            val vc = ValidationContext(r.jobInProgress.job.query,
+                                       r.jobInProgress.job.queryAlgorithms,
+                                       experimentJobResult,
+                                       r.jobInProgress.dataProvenance,
+                                       r.jobInProgress.feedback)
+            // TODO: experiment flow should return a result + warnings when the remote validation failed partially or totally
+            Source
+              .single(vc)
+              .via(remoteValidationFlow)
+              .map[QueryResult] { r =>
+                r.experimentResult.asQueryResult(Some(r.query), r.dataProvenance, r.feedback)
+              }
+              .log("Final result of experiment")
+              .runWith(Sink.last)
+              .fromFuture
 
-  private def startLocalExperimentJob(
-      job: ExperimentActor.Job,
-      localProv: DataProvenance,
-      feedback: UserFeedbacks
-  ): Future[QueryResult] = {
-    import akka.pattern.ask
+          case _ => r.toQueryResult.pure[F]
+        }
 
-    implicit val timeout: Timeout                   = 1.day
-    val experimentActorRef                          = newExperimentActor
-    val responseF: Future[ExperimentActor.Response] = (experimentActorRef ? job).mapTo
-
-    Source
-      .fromFuture(responseF)
-      .log(s"Response for experiment on ${job.query}")
-      .via(GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
-        import GraphDSL.Implicits._
-        import GraphUtils._
-
-        val R = ExperimentActor.Response
-
-        // Prepare graph elements
-        val mapEither = builder.add(Flow[ExperimentActor.Response].map[Either[ErrResp, ExpResp]] {
-          case R(j, Left(errorResponse), datasets, _) =>
-            Left(ErrResp(j, errorResponse, datasets, feedback))
-          case R(j, Right(response), datasets, _) =>
-            Right(ExpResp(j, response, datasets, feedback))
-        })
-        val E     = builder.add(splitEither[ErrResp, ExpResp])
-        val merge = builder.add(Merge[QueryResult](inputPorts = 2))
-
-        // Connect the graph
-        mapEither.out ~> E.in
-        E.left ~> errResult ~> merge.in(0)
-        E.right ~> addRemoteValidation ~> merge.in(1)
-
-        FlowShape(mapEither.in, merge.out)
-      })
-      .runWith(Sink.last[QueryResult])
-  }
-
-  private def errResult: Flow[ErrResp, QueryResult, NotUsed] =
-    Flow[ErrResp].map(_.toQueryResult)
-
-  // TODO: experiment flow should return a result + warnings when the remote validation failed partially or totally
-  private def addRemoteValidation: Flow[ExpResp, QueryResult, NotUsed] =
-    Flow[ExpResp]
-      .map(
-        r =>
-          ValidationContext(r.job.query,
-                            r.job.queryAlgorithms,
-                            r.result,
-                            r.dataProvenance,
-                            r.feedback)
-      )
-      .via(remoteValidationFlow)
-      .map[QueryResult] { r =>
-        r.experimentResult.asQueryResult(Some(r.query), r.dataProvenance, r.feedback)
       }
-      .log("Final result of experiment")
-
-  private[dispatch] def newExperimentActor: ActorRef =
-    context.actorOf(
-      ExperimentActor.props(backendServices.algorithmExecutor,
-                            dispatcherService,
-                            databaseServices.featuresService,
-                            databaseServices.jobResultService,
-                            backendServices.wokenWorker)
-    )
 
   private[dispatch] def reduceUsingJobs(query: ExperimentQuery,
                                         jobIds: List[String]): ExperimentQuery =

@@ -25,7 +25,6 @@ import akka.testkit.{ ImplicitSender, TestKit }
 import com.typesafe.config.{ Config, ConfigFactory }
 import ch.chuv.lren.woken.config._
 import ch.chuv.lren.woken.config.ConfigurationInstances._
-import ch.chuv.lren.woken.mining.ExperimentActor
 import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.core.features.Queries._
@@ -62,7 +61,7 @@ class MasterRouterTest
 
   val tableId = TableId("test_db", None, "features_table")
 
-  def experimentQuery2job(query: ExperimentQuery): Validation[ExperimentActor.Job] =
+  def experimentQuery2job(query: ExperimentQuery): Validation[ExperimentJob] =
     ExperimentJob(
       jobId = UUID.randomUUID().toString,
       inputTable = tableId,

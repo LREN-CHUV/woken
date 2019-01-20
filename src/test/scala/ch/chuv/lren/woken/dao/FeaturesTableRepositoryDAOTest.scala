@@ -46,6 +46,9 @@ class FeaturesTableRepositoryDAOTest
         case """SELECT count(*) FROM "Sample" WHERE "score_test1" >= 2 AND "cognitive_task2" < 9""" =>
           rowList1(classOf[Int]) :+ 5
 
+        case """SELECT count(*) FROM "Sample" WHERE "score_test1" < 0""" =>
+          rowList1(classOf[Int]) :+ 0
+
         case """SELECT "college_math" , count(*) FROM "Sample"  GROUP BY "college_math"""" =>
           (rowList2(classOf[String], classOf[Int])
             :+ ("0", 47) // tuple as row
@@ -68,6 +71,9 @@ class FeaturesTableRepositoryDAOTest
         case """SELECT count(*) FROM "cde_features_a" WHERE "dataset" = ?"""
             if e.parameters == List(DefinedParameter("datasetA", ParameterMetaData.Str)) =>
           rowList1(classOf[Int]) :+ 5
+
+        case """SELECT DISTINCT "dataset" as code FROM "cde_features_a" WHERE "apoe4" = 1""" =>
+          rowList1(classOf[String]) :+ "datasetA"
 
         case _ => throw new IllegalArgumentException(s"Unhandled $e")
       }
@@ -145,6 +151,36 @@ class FeaturesTableRepositoryDAOTest
       dao
         .countGroupBy(TableColumn("college_math", SqlType.int), Some(filter))
         .unsafeRunSync() shouldBe Map("0" -> 12, "1" -> 22)
+    }
+
+    "return the default dataset for a table without a dataset column" in withRepository[
+      FeaturesTableRepositoryDAO[IO]
+    ](
+      sampleTableHandler,
+      xa => new FeaturesTableRepositoryDAO[IO](xa, sampleTable, sampleHeaders, wokenRepository)
+    ) { dao =>
+      dao.datasets(None).unsafeRunSync() shouldBe Set(DatasetId(sampleTable.table.name))
+
+      val filterAll = SingleFilterRule("score_test1",
+                                       "score_test1",
+                                       "number",
+                                       InputType.number,
+                                       Operator.less,
+                                       List("0"))
+
+      dao.datasets(Some(filterAll)).unsafeRunSync() shouldBe Set()
+    }
+
+    "return the datasets really used for a table with a dataset column" in withRepository[
+      FeaturesTableRepositoryDAO[IO]
+    ](
+      cdeTableHandler,
+      xa => new FeaturesTableRepositoryDAO[IO](xa, cdeTable, cdeHeaders, wokenRepository)
+    ) { dao =>
+      val filter =
+        SingleFilterRule("apoe4", "apoe4", "number", InputType.number, Operator.equal, List("1"))
+
+      dao.datasets(Some(filter)).unsafeRunSync() shouldBe Set(DatasetId("datasetA"))
     }
 
   }

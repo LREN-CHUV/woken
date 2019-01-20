@@ -36,10 +36,9 @@ import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableId }
 import ch.chuv.lren.woken.core.model.jobs.{ ErrorJobResult, ExperimentJob, JobResult, PfaJobResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
-import ch.chuv.lren.woken.messages.datasets.{ Dataset, DatasetId }
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables.VariableId
-import ch.chuv.lren.woken.service.{ DispatcherService, TestServices }
+import ch.chuv.lren.woken.service.TestServices
 import com.typesafe.config.{ Config, ConfigFactory }
 import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
@@ -47,14 +46,14 @@ import cats.implicits._
 import cats.scalatest.{ ValidatedMatchers, ValidatedValues }
 import ch.chuv.lren.woken.backends.faas.AlgorithmExecutor
 
-import scala.concurrent.ExecutionContextExecutor
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
 /**
   * Experiment flow should always complete with success, but the error is reported inside the response.
   */
-class ExperimentFlowTest
+class LocalExperimentServiceTest
     extends TestKit(ActorSystem("ExperimentFlowTest"))
     with WordSpecLike
     with Matchers
@@ -71,7 +70,11 @@ class ExperimentFlowTest
       .resolve()
 
   implicit val materializer: ActorMaterializer = ActorMaterializer()
-  val user: UserId                             = UserId("test")
+  implicit val ec: ExecutionContext            = ExecutionContext.global
+
+  val user: UserId = UserId("test")
+
+  lazy val service = LocalExperimentService[IO](???, ???, ???, ???, system)
 
   override def afterAll {
     TestKit.shutdownActorSystem(system)
@@ -94,7 +97,7 @@ class ExperimentFlowTest
       executionPlan = None
     )
 
-  def experimentQuery2job(query: ExperimentQuery): Validation[ExperimentActor.Job] =
+  private def experimentQuery2job(query: ExperimentQuery): Validation[ExperimentJob] =
     ExperimentJob.mkValid(
       UUID.randomUUID().toString,
       query,
@@ -112,10 +115,8 @@ class ExperimentFlowTest
       }
     )
 
-  import ExperimentFlowWrapper._
-
   "Experiment flow" should {
-
+    /*
     "fail in case of a query with no algorithms" in {
       val experimentQuery = ExperimentQuery(
         user = user,
@@ -132,7 +133,8 @@ class ExperimentFlowTest
         validations = Nil,
         executionPlan = None
       )
-      val experimentJob = experimentQuery2job(experimentQuery)
+      val job = Exp
+      val experimentJob = service.runExperiment(experimentQuery)
       experimentJob.isValid shouldBe false
       experimentJob.invalidValue.head shouldBe "No algorithm defined"
       experimentJob.invalidValue.size shouldBe 1
@@ -214,7 +216,7 @@ class ExperimentFlowTest
           }
       }
     }
-
+     */
     /* TODO
     "split flow should return validation failed" ignore {
       val experimentWrapper =
@@ -244,71 +246,6 @@ class ExperimentFlowTest
     }
    */
 
-  }
-
-  import ch.chuv.lren.woken.backends.faas.AlgorithmExecutorInstances._
-  object ExperimentFlowWrapper {
-
-    def propsFailingAlgorithm(errorMsg: String): Props =
-      props(algorithmFailingWithError(errorMsg))
-
-    def propsSuccessfulAlgorithm(expectedAlgo: String): Props =
-      props(expectedAlgorithm(expectedAlgo))
-
-    def props(algorithmExecutor: AlgorithmExecutor[IO]) =
-      Props(new ExperimentFlowWrapper(algorithmExecutor))
-
-    case class ExperimentResponse(result: Map[AlgorithmSpec, JobResult])
-
-    case class SplitFlowCommand(job: ExperimentActor.Job)
-
-    case class SplitFlowResponse(algorithmMaybe: Option[ExperimentFlow.JobForAlgorithmPreparation])
-
-  }
-
-  /**
-    * This actor provides the environment for executing experimentFlow
-    */
-  class ExperimentFlowWrapper(executeAlgorithm: AlgorithmExecutor[IO]) extends Actor {
-
-    private implicit val ec: ExecutionContextExecutor = scala.concurrent.ExecutionContext.global
-    private val wokenClientService                    = WokenClientService("test")
-    private val dispatcherService =
-      DispatcherService(Map[DatasetId, Dataset]().validNel[String], wokenClientService)
-
-    val experimentFlow = ExperimentFlow(
-      TestServices.emptyFeaturesTableService,
-      dispatcherService,
-      Nil,
-      executeAlgorithm,
-      TestServices.wokenWorker
-    )
-
-    override def receive: Receive = {
-      case job: ExperimentActor.Job =>
-        val originator = sender()
-        val result = Source
-          .single(job)
-          .via(experimentFlow.flow)
-          .runWith(TestSink.probe[Map[AlgorithmSpec, JobResult]])
-          .request(1)
-          .receiveWithin(10 seconds, 1)
-        //.runWith(TestSink.probe[Map[AlgorithmSpec, JobResult]])
-        //request(1)
-        //.receiveWithin(10 seconds, 1)
-
-        originator ! ExperimentResponse(result.headOption.getOrElse(Map.empty))
-
-      case SplitFlowCommand(job) =>
-        val originator = sender()
-        val result = Source
-          .single(job)
-          .via(experimentFlow.splitJob)
-          .runWith(TestSink.probe[ExperimentFlow.JobForAlgorithmPreparation])
-          .request(1)
-          .receiveWithin(10 seconds, 1)
-        originator ! SplitFlowResponse(result.headOption)
-    }
   }
 
 }
