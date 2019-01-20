@@ -267,6 +267,10 @@ case class LocalExperimentService[F[_]: Effect](
                   case Right(_) =>
                     executeExperimentFlow(extendedJobInProgress, splitters, extendedFeaturesTable)
                 }
+                .map { r =>
+                  // Restore the original job in the response
+                  r.copy(jobInProgress = job)
+                }
 
           }
         }

@@ -77,7 +77,11 @@
       "type": "application/json"
     }
   ],
-  "datasets": [],
+  "datasets": [
+    {
+      "code": "sample_data"
+    }
+  ],
   "feedback": [],
   "jobId": "*",
   "node": "local",

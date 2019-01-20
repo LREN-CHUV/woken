@@ -623,7 +623,14 @@
       "type": "application/pfa+json"
     }
   ],
-  "datasets": [],
+  "datasets": [
+    {
+      "code": "desd-synthdata"
+    },
+    {
+      "code": "qqni-synthdata"
+    }
+  ],
   "feedback": [],
   "jobId": "*",
   "node": "local",
