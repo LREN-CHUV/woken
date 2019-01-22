@@ -28,6 +28,7 @@ import cats.effect.Effect
 import ch.chuv.lren.woken.config.{ AppConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.service.{ BackendServices, DatabaseServices }
 import ch.chuv.lren.woken.core.fp.runNow
+import com.typesafe.scalalogging.LazyLogging
 import sup.data.Report._
 import sup.data.{ HealthReporter, Tagged }
 
@@ -38,7 +39,8 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
                                          jobsConfig: JobsConfiguration,
                                          databaseServices: DatabaseServices[F],
                                          backendServices: BackendServices[F])
-    extends Directives {
+    extends Directives
+    with LazyLogging {
 
   private val allChecks =
     HealthReporter.fromChecks(databaseServices.healthChecks, backendServices.healthChecks)
@@ -51,12 +53,13 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
           complete("UP - Expected at least one worker (Woken validation server) in the cluster")
         case (true, _, _, true) => complete("UP")
         case (false, _, _, _) =>
-          complete((StatusCodes.InternalServerError, "No leader elected for the cluster"))
+          val msg = "No leader elected for the cluster"
+          logger.warn(msg)
+          complete((StatusCodes.InternalServerError, msg))
         case (_, _, _, false) =>
-          complete(
-            (StatusCodes.InternalServerError,
-             runNow(databaseServices.healthChecks.check.map(_.value.show)))
-          )
+          val msg = runNow(databaseServices.healthChecks.check.map(_.value.show))
+          logger.warn(msg)
+          complete((StatusCodes.InternalServerError, msg))
       }
     }
   }
