@@ -2,7 +2,7 @@
 # Changelog
 
 
-## 2.9.0 - 2019-01-12
+## 2.9.0 - 2019-01-22
 
 * Update algorithms
    * hbpmip/python-anova:0.4.5
@@ -20,7 +20,7 @@
    * hbpmip/r-ggparci:0.2.2
    * hbpmip/python-jsi-hinmine:0.3.1
    * hbpmip/python-jsi-hedwig:1.0.9
-* Update Woken-validation to 2.5.9
+* Update Woken-validation to 2.6.0
 * API: /cluster - expose Akka management checks
 * SPI: Describe tables in the configutation
 * Do not always require covariables to exist for distributed queries
@@ -34,21 +34,21 @@
 * Monitoring: use sup library for functional-oriented definition of health checks.
 * Monitoring: Add health checks for cluster status, database status, execution of Docker algorithms with Chronos/Mesos, delegation of computations to Woken validation workers
 * Self checks for Akka server and web server
-* [dev] Remove cyclic dependencies in code and add tests against cyclic dependencies
-* [dev] Refactoring database access to features
-* [dev] Heavy refactoring of internal services, wrap them into Resource to ensure orderly startup and cleanup of the services
-* [dev] Reorganisation of packages
-* [dev] Reify several concepts: TableId, FeaturesTableDescription, backends for WokenWorker and AlgorithmExecutor
-* [dev] Use gen_features_table_seq defined in Woken db
-* [dev] Update many library dependencies, including Akka 2.5.19, Cats 1.5.0
-* [dev] Update woken-messages to 2.8.4
-* [test] Test mining queries
-* [test] Update and fix integration tests
-* [test] Add unit tests for FeaturesTableRepositoryDAO and ExtendedFeaturesTableRepositoryDAO
-* [fix] Fix validation of tables at startup
-* [fix] Fix startup of services
-* [fix] Refactor and fix cross-validation: use a temporary table in Postgres to create the random k-folds
-* [fix] Fix filtering queries
+* __dev__ Remove cyclic dependencies in code and add tests against cyclic dependencies
+* __dev__ Refactoring database access to features
+* __dev__ Heavy refactoring of internal services, wrap them into Resource to ensure orderly startup and cleanup of the services
+* __dev__ Reorganisation of packages
+* __dev__ Reify several concepts: TableId, FeaturesTableDescription, backends for WokenWorker and AlgorithmExecutor
+* __dev__ Use gen_features_table_seq defined in Woken db
+* __dev__ Update many library dependencies, including Akka 2.5.19, Cats 1.5.0
+* __dev__ Update woken-messages to 2.9.1
+* __test__ Test mining queries
+* __test__ Update and fix integration tests
+* __test__ Add unit tests for FeaturesTableRepositoryDAO and ExtendedFeaturesTableRepositoryDAO
+* __fix__ Fix validation of tables at startup
+* __fix__ Fix startup of services
+* __fix__ Refactor and fix cross-validation: use a temporary table in Postgres to create the random k-folds
+* __fix__ Fix filtering queries
 
 ## 2.8.0 - 2018-05-23
 
@@ -75,16 +75,16 @@
 * Monitoring: trace actions in actors
 * Select only covariables and groupings known locally
 * Exchange large messages between Woken nodes using streaming messages over websockets
-* [dev] Introduce distributedExecutionPlan
-* [dev] Update woken-messages to 2.8.1
-* [test] Integration tests for HinMine and Heatmaply
-* [test] Integration tests for distributed algorithms in a federation
-* [fix] Report errors on websockets, queries
-* [fix] Improve execution of remote validations in an experiment
-* [fix] Fix more http connection leaks on Chronos client
-* [fix] Hedwig should work for nominal and numerical covariables
-* [fix] improve shuffling during K-fold cross validation
-* [fix] Fix query for cross validation
+* __dev__ Introduce distributedExecutionPlan
+* __dev__ Update woken-messages to 2.8.1
+* __test__ Integration tests for HinMine and Heatmaply
+* __test__ Integration tests for distributed algorithms in a federation
+* __fix__ Report errors on websockets, queries
+* __fix__ Improve execution of remote validations in an experiment
+* __fix__ Fix more http connection leaks on Chronos client
+* __fix__ Hedwig should work for nominal and numerical covariables
+* __fix__ improve shuffling during K-fold cross validation
+* __fix__ Fix query for cross validation
 
 2.7.0 - 2018-05-15
 
@@ -107,12 +107,12 @@
 * Handle remote validation requests in an experiment
 * Stabilisation: Use DistPubSub to communicate with Woken validation
 * Update Linear regression algo to support logistic regression on nominal variables
-* [dev] Update Woken-messages to 2.7.5
-* [fix] Fix type in algo spec
-* [fix] Improve labels and parameters for algorithms
-* [fix] Remove HinMine as it crashes Woken
-* [fix] Change type for algo ggparci to features_extraction
-* [fix] Naive Bayes: configure only for classification
+* __dev__ Update Woken-messages to 2.7.5
+* __fix__ Fix type in algo spec
+* __fix__ Improve labels and parameters for algorithms
+* __fix__ Remove HinMine as it crashes Woken
+* __fix__ Change type for algo ggparci to features_extraction
+* __fix__ Naive Bayes: configure only for classification
 
 ## 2.6.0 - 2018-05-01
 
@@ -143,17 +143,17 @@
 * Align config with Woken validation
 * Improve reporting of invalid queries
 * Akka: configure Coordinated shutdown
-* [dev] Replace ActorLogging by LazyLogging
-* [dev] Register the mainRouter as a distributed pubsub destination actor
-* [dev] Add Metadata query actor, pool it to limit concurrent use
-* [dev] Define algorithm engine to be able to switch engines
-* [dev] Update woken-messages to 2.7.4
-* [test] test many more algorithms
-* [test] Add unit test for metadata queries actor
-* [fix] Fix http connection leak on Chronos client
-* [fix] Stabilise Chronos
-* [fix] Increase size of payloads for messages exchanged between Woken and the portal or validation workers
-* [fix] Metadata queries: support exhaustive argument
+* __dev__ Replace ActorLogging by LazyLogging
+* __dev__ Register the mainRouter as a distributed pubsub destination actor
+* __dev__ Add Metadata query actor, pool it to limit concurrent use
+* __dev__ Define algorithm engine to be able to switch engines
+* __dev__ Update woken-messages to 2.7.4
+* __test__ test many more algorithms
+* __test__ Add unit test for metadata queries actor
+* __fix__ Fix http connection leak on Chronos client
+* __fix__ Stabilise Chronos
+* __fix__ Increase size of payloads for messages exchanged between Woken and the portal or validation workers
+* __fix__ Metadata queries: support exhaustive argument
 
 ## 2.5.0 - 2018-04-19
 
@@ -180,16 +180,16 @@
 * Check that the datasets exist in the features database on startup
 * Support non predictive algorithms in experiments
 * Improve self checks
-* [dev] Update woken-messages to 2.7.1
-* [dev] Update Akka to 2.5.12, Cats to 1.1.0
-* [dev] Add Mining actor and Experiment query actor, pool them to limit concurrent use
-* [dev] Move queries actors to dispatch package
-* [test] Fix integration tests
-* [test] Integration test for summary statistics
-* [test] Update integration tests, experiment with KNN
-* [fix] /metadata/datasets returns NPE
-* [fix] Fix count features
-* [fix] Handle tables without a 'dataset' column
+* __dev__ Update woken-messages to 2.7.1
+* __dev__ Update Akka to 2.5.12, Cats to 1.1.0
+* __dev__ Add Mining actor and Experiment query actor, pool them to limit concurrent use
+* __dev__ Move queries actors to dispatch package
+* __test__ Fix integration tests
+* __test__ Integration test for summary statistics
+* __test__ Update integration tests, experiment with KNN
+* __fix__ /metadata/datasets returns NPE
+* __fix__ Fix count features
+* __fix__ Handle tables without a 'dataset' column
 
 ## 2.4.0 - 2018-03-16
 
@@ -212,18 +212,18 @@
 * SPI: provide database configuration settings for Python-based algorithms using SQLAlchemy to connect to the database
 * Monitoring: trace Akka HTTP requests (temporarily disabled), Akka remote requests
 * Monitoring: host and JVM metrics
-* [dev] Revert to Scala 2.11.12 for serialization compatibility with Woken-validation which requires Scala 2.11
-* [dev] Improve initialisation order of services during startup
-* [dev] Migrate conversion of FilterRules to sql where to woken-messages
-* [dev] Common configuration files for Akka and Kamon
-* [dev] Enable strace for debugging
-* [dev] Update Akka http to 10.1.0-RC2, woken-messages to 2.6.1
-* [dev] Add FeaturesRepository DAO to access features data in the db
-* [test] New cases for experiment flows
-* [test] Improve tests for validation flows
-* [test] Update tests over websockets
-* [fix] Stabilisation of mining and experiment queries
-* [doc] Usage for this application
+* __dev__ Revert to Scala 2.11.12 for serialization compatibility with Woken-validation which requires Scala 2.11
+* __dev__ Improve initialisation order of services during startup
+* __dev__ Migrate conversion of FilterRules to sql where to woken-messages
+* __dev__ Common configuration files for Akka and Kamon
+* __dev__ Enable strace for debugging
+* __dev__ Update Akka http to 10.1.0-RC2, woken-messages to 2.6.1
+* __dev__ Add FeaturesRepository DAO to access features data in the db
+* __test__ New cases for experiment flows
+* __test__ Improve tests for validation flows
+* __test__ Update tests over websockets
+* __fix__ Stabilisation of mining and experiment queries
+* __doc__ Usage for this application
 
 ## 2.3.0 - 2018-02-20
 
@@ -239,20 +239,20 @@
 * Add label to datasets
 * Add Metadata for groups
 * Add Kamon monitoring, with support for Zipkin and Prometheus
-* [test] integration tests for distributed functionality
-* [test] use synthetic datasets for testing
-* [dev] Update to Sbt 1.1.0, Scala 2.12.4, woken-messages 2.4.8
-* [dev] Various attempts at finding right serialization and Akka networking configuration
-* [dev] Refactor VariablesMeta, Shapes and document JobResults
-* [dev] Rebrand top level package to ch.chuv.lren.woken
+* __test__ integration tests for distributed functionality
+* __test__ use synthetic datasets for testing
+* __dev__ Update to Sbt 1.1.0, Scala 2.12.4, woken-messages 2.4.8
+* __dev__ Various attempts at finding right serialization and Akka networking configuration
+* __dev__ Refactor VariablesMeta, Shapes and document JobResults
+* __dev__ Rebrand top level package to ch.chuv.lren.woken
 
 ## 2.2.0 - 2018-01-16
 
 * Distributed datamining
 * Distributed experiments
 * Add support for Websockets to connect to remote Woken instances
-* [dev] Rely on Akka streams for all distributed functionality, also for experiments
-* [dev] Update to Akka 2.5.9
+* __dev__ Rely on Akka streams for all distributed functionality, also for experiments
+* __dev__ Update to Akka 2.5.9
 
 ## 2.1.1 - 2017-12-14
 
@@ -263,8 +263,8 @@
 * Requires Chronos 3.0.2 and Zookeeper 3.4.8
 * Deep code refactoring, backend by more unit tests
 * Monitor jobs on Chronos, track failures and report errors on those jobs
-* [dev] Configuration uses Cats Validation
-* [dev] Favor immutable data structures
+* __dev__ Configuration uses Cats Validation
+* __dev__ Favor immutable data structures
 
 ## 2.0.2 - 2017-10-23
 

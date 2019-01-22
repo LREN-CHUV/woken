@@ -28,6 +28,7 @@ import ch.chuv.lren.woken.core.fp._
 import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.core.model.{ AlgorithmDefinition, DataProvenance, UserFeedbacks }
 import ch.chuv.lren.woken.core.model.jobs._
+import ch.chuv.lren.woken.errors.QueryError
 import ch.chuv.lren.woken.validation.flows.RemoteValidationFlow.ValidationContext
 import ch.chuv.lren.woken.messages.query.{ ExecutionStyle, _ }
 import ch.chuv.lren.woken.mining.LocalExperimentService
@@ -121,11 +122,15 @@ class ExperimentQueriesActor[F[_]: Effect](
         case Left(e) =>
           val msg = s"Experiment for $query failed with error: ${e.toString}"
           logger.error(msg, e)
-          initiator ! errorMsgResult(query, msg, Set(), List())
+          val result = errorMsgResult(query, msg, Set(), List())
+          backendServices.errorReporter.report(e, QueryError(result))
+          initiator ! result
         case Right(results) =>
-          results.error.foreach(
-            error => logger.error(s"Experiment for $query failed with error: $error")
-          )
+          results.error.foreach { error =>
+            val msg = s"Experiment for $query failed with error: $error"
+            logger.error(msg)
+            backendServices.errorReporter.report(new Exception(msg), QueryError(results))
+          }
           val feedbackMsg =
             if (results.feedback.nonEmpty) "with feedback " + results.feedback.mkString(", ")
             else ""
