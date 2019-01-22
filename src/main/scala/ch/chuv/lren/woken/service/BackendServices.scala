@@ -21,6 +21,7 @@ import cats.data.NonEmptyList
 import cats.effect._
 import ch.chuv.lren.woken.backends.faas.AlgorithmExecutor
 import ch.chuv.lren.woken.backends.worker.WokenWorker
+import ch.chuv.lren.woken.errors.ErrorReporter
 import sup.HealthReporter
 import sup.data.Tagged
 import sup.data.Tagged._
@@ -29,7 +30,8 @@ import scala.language.higherKinds
 
 case class BackendServices[F[_]: Effect](dispatcherService: DispatcherService,
                                          algorithmExecutor: AlgorithmExecutor[F],
-                                         wokenWorker: WokenWorker[F]) {
+                                         wokenWorker: WokenWorker[F],
+                                         errorReporter: ErrorReporter) {
 
   type TaggedS[H] = Tagged[String, H]
   lazy val healthChecks: HealthReporter[F, NonEmptyList, TaggedS] =

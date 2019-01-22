@@ -21,11 +21,6 @@ lazy val `woken-test` =
           library.akkaHttp,
           library.akkaHttpJson,
           library.sprayJson,
-          library.slf4j,
-          library.log4jSlf4j,
-          library.disruptor,
-          library.config,
-          library.scalaLogging,
           library.kamon,
           library.kamonAkka,
           library.kamonAkkaHttp,
@@ -65,12 +60,8 @@ lazy val library =
       val kamonSystemMetrics = "1.0.0"
       val kamonSigar      = "1.6.6-rev002"
       val sprayJson       = "1.3.5"
-      val slf4j           = "1.7.25"
-      val log4j           = "2.11.1"
-      val disruptor       = "3.4.2"
-      val scalaLogging    = "3.9.0"
       val config          = "1.3.3"
-      val wokenMessages   = "2.9.0"
+      val wokenMessages   = "2.9.1"
     }
     object ExclusionRules {
       val excludeLogback = ExclusionRule(organization = "ch.qos.logback", name = "logback-classic")
@@ -97,10 +88,6 @@ lazy val library =
     val kamonSigar: ModuleID   = "io.kamon"           % "sigar-loader" % Version.kamonSigar
 
     val sprayJson: ModuleID    = "io.spray"          %% "spray-json"   % Version.sprayJson
-    val slf4j: ModuleID        = "org.slf4j"          % "slf4j-api"    % Version.slf4j
-    val log4jSlf4j: ModuleID   = "org.apache.logging.log4j" % "log4j-slf4j-impl" % Version.log4j
-    val disruptor: ModuleID    = "com.lmax"           % "disruptor"    % Version.disruptor
-    val scalaLogging: ModuleID = "com.typesafe.scala-logging" %% "scala-logging" % Version.scalaLogging
     val config: ModuleID       = "com.typesafe"       % "config"       % Version.config
     val wokenMessages: ModuleID = "ch.chuv.lren.woken" %% "woken-messages" % Version.wokenMessages
   }

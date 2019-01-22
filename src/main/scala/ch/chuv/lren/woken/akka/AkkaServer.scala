@@ -27,6 +27,7 @@ import ch.chuv.lren.woken.backends.faas.chronos.ChronosExecutor
 import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.backends.worker.WokenWorker
 import ch.chuv.lren.woken.config.{ DatasetsConfiguration, WokenConfiguration }
+import ch.chuv.lren.woken.errors.BugsnagErrorReporter
 import ch.chuv.lren.woken.service._
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -70,7 +71,8 @@ class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
                                             databaseServices.jobResultService,
                                             config.jobs,
                                             config.databaseConfig)
-    BackendServices(dispatcherService, algorithmExecutor, wokenWorker)
+    val errorReporter = BugsnagErrorReporter(config.config)
+    BackendServices(dispatcherService, algorithmExecutor, wokenWorker, errorReporter)
   }
 
   private def mainRouterSupervisorProps =

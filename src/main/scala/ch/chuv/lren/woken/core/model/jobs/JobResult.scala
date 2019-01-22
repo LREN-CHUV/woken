@@ -282,14 +282,14 @@ object JobResult {
 
   def asQueryResult(jobResult: JobResult,
                     query: Option[Query],
-                    datasets: Set[DatasetId],
-                    feedback: List[UserFeedback]): QueryResult =
+                    dataProvenance: DataProvenance,
+                    feedback: UserFeedbacks): QueryResult =
     jobResult match {
       case pfa: PfaJobResult =>
         QueryResult(
           jobId = Some(pfa.jobId),
           node = pfa.node,
-          datasets = datasets,
+          dataProvenance = dataProvenance,
           feedback = feedback,
           timestamp = pfa.timestamp,
           `type` = pfaShape,
@@ -302,7 +302,7 @@ object JobResult {
         QueryResult(
           jobId = Some(pfa.jobId),
           node = pfa.node,
-          datasets = datasets,
+          dataProvenance = dataProvenance,
           feedback = feedback,
           timestamp = pfa.timestamp,
           `type` = pfaExperiment,
@@ -315,7 +315,7 @@ object JobResult {
         QueryResult(
           jobId = Some(v.jobId),
           node = v.node,
-          datasets = datasets,
+          dataProvenance = dataProvenance,
           feedback = feedback,
           timestamp = v.timestamp,
           `type` = v.shape,
@@ -328,7 +328,7 @@ object JobResult {
         QueryResult(
           jobId = Some(v.jobId),
           node = v.node,
-          datasets = datasets,
+          dataProvenance = dataProvenance,
           feedback = feedback,
           timestamp = v.timestamp,
           `type` = v.shape,
@@ -341,7 +341,7 @@ object JobResult {
         QueryResult(
           jobId = Some(v.jobId),
           node = v.node,
-          datasets = datasets,
+          dataProvenance = dataProvenance,
           feedback = feedback,
           timestamp = v.timestamp,
           `type` = v.shape,
@@ -354,7 +354,7 @@ object JobResult {
         QueryResult(
           jobId = e.jobId,
           node = e.node,
-          datasets = datasets,
+          dataProvenance = dataProvenance,
           feedback = feedback,
           timestamp = e.timestamp,
           `type` = error,
@@ -367,9 +367,9 @@ object JobResult {
 
   implicit class ToQueryResult(val jobResult: JobResult) extends AnyVal {
     def asQueryResult(query: Option[Query],
-                      datasets: Set[DatasetId],
+                      dataProvenance: Set[DatasetId],
                       feedback: List[UserFeedback]): QueryResult =
-      JobResult.asQueryResult(jobResult, query, datasets, feedback)
+      JobResult.asQueryResult(jobResult, query, dataProvenance, feedback)
   }
 
   def fromQueryResult(queryResult: QueryResult): JobResult =

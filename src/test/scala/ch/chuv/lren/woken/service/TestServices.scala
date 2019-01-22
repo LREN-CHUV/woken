@@ -27,6 +27,7 @@ import ch.chuv.lren.woken.core.model.VariablesMeta
 import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableId }
 import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
 import ch.chuv.lren.woken.dao._
+import ch.chuv.lren.woken.errors.ErrorReporter
 import ch.chuv.lren.woken.messages.variables.GroupMetaData
 import ch.chuv.lren.woken.messages.variables.variablesProtocol._
 import org.scalamock.scalatest.MockFactory
@@ -122,9 +123,11 @@ object TestServices extends JsonUtils with FeaturesTableTestSupport with MockFac
   lazy val dispatcherService: DispatcherService     = mock[DispatcherService]
   lazy val wokenWorker: WokenWorker[IO]             = mock[WokenWorker[IO]]
   lazy val algorithmExecutor: AlgorithmExecutor[IO] = mock[AlgorithmExecutor[IO]]
+  lazy val errorReporter                            = mock[ErrorReporter]
 
   def backendServices(system: ActorSystem): BackendServices[IO] =
     BackendServices(dispatcherService = dispatcherService,
                     algorithmExecutor = algorithmExecutor,
-                    wokenWorker = wokenWorker)
+                    wokenWorker = wokenWorker,
+                    errorReporter = errorReporter)
 }

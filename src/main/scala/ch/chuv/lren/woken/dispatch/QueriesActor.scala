@@ -26,7 +26,6 @@ import akka.util.Timeout
 import cats.effect.{ Effect, IO }
 import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.core.model.jobs.{ ErrorJobResult, ExperimentJobResult, JobResult }
-import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.service.{
   BackendServices,
@@ -135,7 +134,7 @@ trait QueriesActor[Q <: Query, F[_]] extends Actor with LazyLogging {
           QueryResult(
             jobId = None,
             node = config.jobs.node,
-            datasets = results.toSet[QueryResult].flatMap(_.datasets),
+            dataProvenance = results.toSet[QueryResult].flatMap(_.dataProvenance),
             feedback = results.flatMap(_.feedback),
             timestamp = OffsetDateTime.now(),
             `type` = Shapes.compound,
@@ -149,38 +148,40 @@ trait QueriesActor[Q <: Query, F[_]] extends Actor with LazyLogging {
   }
 
   private[dispatch] def noResult(initialQuery: Q,
-                                 datasets: Set[DatasetId],
-                                 feedback: List[UserFeedback]): QueryResult =
+                                 dataProvenance: DataProvenance,
+                                 feedback: UserFeedbacks): QueryResult =
     ErrorJobResult(None, config.jobs.node, OffsetDateTime.now(), None, "No results")
-      .asQueryResult(Some(initialQuery), datasets, feedback)
+      .asQueryResult(Some(initialQuery), dataProvenance, feedback)
 
   private[dispatch] def reportResult(initiator: ActorRef)(
       queryResult: QueryResult,
-      datasets: Set[DatasetId],
-      feedback: List[UserFeedback]
+      dataProvenance: DataProvenance,
+      feedback: UserFeedbacks
   ): QueryResult = {
-    val resultWithProv = queryResult.copy(datasets = queryResult.datasets ++ datasets,
-                                          feedback = queryResult.feedback ++ feedback)
+    val resultWithProv = queryResult.copy(
+      dataProvenance = queryResult.dataProvenance ++ dataProvenance,
+      feedback = queryResult.feedback ++ feedback
+    )
     initiator ! resultWithProv
     resultWithProv
   }
 
   private[dispatch] def errorResult(initialQuery: Q,
                                     e: Throwable,
-                                    datasets: Set[DatasetId],
-                                    feedback: List[UserFeedback]): QueryResult = {
+                                    dataProvenance: DataProvenance,
+                                    feedback: UserFeedbacks): QueryResult = {
     logger.error(s"Cannot complete query because of ${e.getMessage}", e)
     ErrorJobResult(None, config.jobs.node, OffsetDateTime.now(), None, e.toString)
-      .asQueryResult(Some(initialQuery), datasets, feedback)
+      .asQueryResult(Some(initialQuery), dataProvenance, feedback)
   }
 
   private[dispatch] def errorMsgResult(initialQuery: Q,
                                        errorMessage: String,
-                                       datasets: Set[DatasetId],
-                                       feedback: List[UserFeedback]): QueryResult = {
+                                       dataProvenance: DataProvenance,
+                                       feedback: UserFeedbacks): QueryResult = {
     logger.error(s"Cannot complete query $initialQuery, cause $errorMessage")
     ErrorJobResult(None, config.jobs.node, OffsetDateTime.now(), None, errorMessage)
-      .asQueryResult(Some(initialQuery), datasets, feedback)
+      .asQueryResult(Some(initialQuery), dataProvenance, feedback)
   }
 
   private[dispatch] def algorithmsOfQuery(query: Query): List[AlgorithmSpec] = query match {
