@@ -20,8 +20,10 @@ package ch.chuv.lren.woken.main
 import cats.effect.{ ExitCode, IO, IOApp }
 import ch.chuv.lren.woken.config.mainConfig
 import com.typesafe.scalalogging.Logger
+import org.apache.logging.log4j.core.config.plugins.util.PluginManager
 import org.slf4j.LoggerFactory
 
+import scala.collection.JavaConverters._
 import scala.io.StdIn
 
 /**
@@ -43,7 +45,12 @@ object Main extends IOApp {
     Logger(LoggerFactory.getLogger("Woken"))
 
   def run(args: List[String]): IO[ExitCode] = {
+    // Report automatically all errors to Bugsnag
+    // TODO: use errors.reportErrorsToBugsnag()
+    PluginManager.addPackages(List("ch.chuv.lren.woken.errors").asJavaCollection)
+
     val config = mainConfig.unsafeRunSync()
+
     MainServer.resource[IO](config).use { _ =>
       val io = for {
         _ <- IO(logger.info("[OK] Woken startup complete."))          // scalastyle:off
