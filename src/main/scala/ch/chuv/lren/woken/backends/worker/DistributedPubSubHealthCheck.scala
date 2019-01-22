@@ -22,21 +22,13 @@ import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.pattern.ask
 import akka.util.Timeout
 import cats.Id
-import cats.data.NonEmptyList
 import cats.effect.{ Effect, IO }
 import cats.implicits._
-import ch.chuv.lren.woken.messages.validation.{
-  ScoringQuery,
-  ScoringResult,
-  ValidationQuery,
-  ValidationResult
-}
-import ch.chuv.lren.woken.messages.variables.{ VariableMetaData, VariableType }
+import ch.chuv.lren.woken.messages.{ Ping, Pong }
 import com.typesafe.scalalogging.Logger
 import eu.timepit.refined.types.numeric.PosInt
 import eu.timepit.refined.auto._
 import org.slf4j.LoggerFactory
-import spray.json.{ JsObject, JsString }
 import sup.HealthCheck
 
 import scala.concurrent.Future
@@ -64,46 +56,13 @@ object DistributedPubSubHealthCheck {
   }
 
   def checkValidation[F[_]: Effect](mediator: ActorRef): HealthCheck[F, Id] = {
-    val query = ValidationQuery(
-      0,
-      JsObject(Map("test" -> JsString("test"))),
-      List.empty,
-      VariableMetaData("alzheimerbroadcategory",
-                       "alzheimerbroadcategory",
-                       VariableType.text,
-                       None,
-                       None,
-                       None,
-                       None,
-                       None,
-                       None,
-                       None,
-                       None,
-                       None,
-                       Set())
-    )
-    check[F, ValidationQuery, ValidationResult](mediator, "/user/validation", query)(Some(5))
+    val query = Ping(Some("validation"))
+    check[F, Ping, Pong](mediator, "/user/validation", query)(Some(5))
   }
 
   def checkScoring[F[_]: Effect](mediator: ActorRef): HealthCheck[F, Id] = {
-    val query = ScoringQuery(
-      algorithmOutput = NonEmptyList(JsString("test"), List.empty),
-      groundTruth = NonEmptyList(JsString("test"), List.empty),
-      targetMetaData = VariableMetaData("alzheimerbroadcategory",
-                                        "alzheimerbroadcategory",
-                                        VariableType.text,
-                                        None,
-                                        None,
-                                        None,
-                                        None,
-                                        None,
-                                        None,
-                                        None,
-                                        None,
-                                        None,
-                                        Set())
-    )
-    check[F, ScoringQuery, ScoringResult](mediator, "/user/scoring", query)(Some(5))
+    val query = Ping(Some("scoring"))
+    check[F, Ping, Pong](mediator, "/user/scoring", query)(Some(5))
   }
 
 }
