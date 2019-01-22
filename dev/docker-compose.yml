@@ -174,7 +174,7 @@ services:
       - db
 
   woken_db_setup:
-    image: "hbpmip/woken-db-setup:1.2.2"
+    image: "hbpmip/woken-db-setup:1.2.3"
     container_name: "woken-db-setup"
     restart: "no"
     environment:
@@ -208,7 +208,7 @@ services:
       - chronos
 
   portalbackend:
-    image: hbpmip/portal-backend:2.8.5
+    image: hbpmip/portal-backend
     restart: "no"
     ports:
       - "65440:8080"
