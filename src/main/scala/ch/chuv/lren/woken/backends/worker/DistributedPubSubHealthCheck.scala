@@ -53,7 +53,7 @@ object DistributedPubSubHealthCheck {
     val result = responseIO
       .map(_ => Health.healthy.pure[Id])
       .recoverWith {
-        case e => logger.warn("Cannot check remote actor $path", e); Health.sick.pure[F]
+        case e => logger.warn(s"Cannot check remote actor $path", e); Health.sick.pure[F]
       }
       .map(HealthResult.apply)
     HealthCheck.liftF(result)
