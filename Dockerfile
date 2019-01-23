@@ -51,6 +51,8 @@ COPY --from=scala-build-env /build/target/scala-2.11/woken-all.jar /opt/woken/wo
 
 USER woken
 ENV HOME=/home/woken \
+    APP_NAME="Woken" \
+    APP_TYPE="Scala" \
     VERSION=$VERSION \
     BUILD_DATE=$BUILD_DATE \
     BUGSNAG_KEY=4cfb095348013b4424338126f23da70b
