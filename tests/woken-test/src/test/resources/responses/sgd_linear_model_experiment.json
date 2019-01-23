@@ -401,7 +401,7 @@
         "name": "linear_model",
         "output": "string"
       },
-      "datasets": [],
+      "dataProvenance": [],
       "feedback": [],
       "jobId": "*",
       "node": "local",
@@ -409,7 +409,7 @@
       "type": "application/pfa+json"
     }
   ],
-  "datasets": [
+  "dataProvenance": [
     {
       "code": "desd-synthdata"
     },

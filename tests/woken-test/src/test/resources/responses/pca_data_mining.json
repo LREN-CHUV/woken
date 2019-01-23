@@ -603,7 +603,7 @@
       }
     }
   },
-  "datasets": [
+  "dataProvenance": [
     {
       "code": "sample_data"
     }
@@ -625,7 +625,7 @@
       }
     ],
     "covariablesMustExist": true,
-    "datasets": [],
+    "dataProvenance": [],
     "grouping": [],
     "targetTable": "sample_data",
     "user": {

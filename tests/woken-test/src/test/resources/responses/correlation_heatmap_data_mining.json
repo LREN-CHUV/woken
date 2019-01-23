@@ -41,7 +41,7 @@
       "title": "Correlation heatmap"
     }
   },
-  "datasets": [
+  "dataProvenance": [
     {
       "code": "sample_data"
     }
