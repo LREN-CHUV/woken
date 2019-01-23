@@ -22,21 +22,21 @@ import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.pattern.ask
 import akka.util.Timeout
 import cats.Id
-import cats.effect.{ Effect, IO }
+import cats.effect.Effect
 import cats.implicits._
+import ch.chuv.lren.woken.core.fp._
 import ch.chuv.lren.woken.messages.{ Ping, Pong }
 import com.typesafe.scalalogging.Logger
 import eu.timepit.refined.types.numeric.PosInt
 import eu.timepit.refined.auto._
 import org.slf4j.LoggerFactory
-import sup.HealthCheck
+import sup.{ Health, HealthCheck, HealthResult }
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.higherKinds
 import scala.reflect.ClassTag
 
-// TODO: Pubsub checks should use a simple Ping message
 object DistributedPubSubHealthCheck {
 
   private val logger: Logger = Logger(LoggerFactory.getLogger("woken.DistributedPubSubHealthCheck"))
@@ -49,10 +49,14 @@ object DistributedPubSubHealthCheck {
     implicit val askTimeout: Timeout = Timeout(timeoutSeconds.fold(0)(_.value).seconds)
     val topicsFuture: Future[B] =
       (mediator ? DistributedPubSubMediator.Send(path, request, localAffinity = false)).mapTo[B]
-    val responseIO: IO[B] = IO.fromFuture(IO.pure(topicsFuture))
-    val result            = responseIO.attempt.unsafeRunSync()
-    logger.info("Found validation instance: {}", result)
-    HealthCheck.liftFBoolean(result.isRight.pure[F])
+    val responseIO: F[B] = topicsFuture.fromFuture
+    val result = responseIO
+      .map(_ => Health.healthy.pure[Id])
+      .recoverWith {
+        case e => logger.warn("Cannot check remote actor $path", e); Health.sick.pure[F]
+      }
+      .map(HealthResult.apply)
+    HealthCheck.liftF(result)
   }
 
   def checkValidation[F[_]: Effect](mediator: ActorRef): HealthCheck[F, Id] = {
