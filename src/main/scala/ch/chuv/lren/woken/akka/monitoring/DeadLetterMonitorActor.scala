@@ -17,7 +17,7 @@
 
 package ch.chuv.lren.woken.akka.monitoring
 
-import akka.actor.{Actor, DeadLetter, Props}
+import akka.actor.{ Actor, DeadLetter, Props }
 import com.typesafe.scalalogging.LazyLogging
 import org.slf4j.MarkerFactory
 

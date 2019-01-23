@@ -23,12 +23,12 @@ import com.github.swagger.akka.model.Info
 @SuppressWarnings(Array("org.wartremover.warts.Any"))
 object SwaggerService extends SwaggerHttpService {
 
-  override val basePath    = "/"
   override val apiDocsPath = "api-docs"
   override val info        = Info(version = "0.1")
 
   override val apiClasses: Set[Class[_]] =
     Set(classOf[MiningServiceApi], classOf[MetadataServiceApi])
-  override val unwantedDefinitions = Seq("Function1", "Function1RequestContextFutureRouteResult")
+  override val unwantedDefinitions: Seq[String] =
+    Seq("Function1", "Function1RequestContextFutureRouteResult")
 
 }

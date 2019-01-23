@@ -625,7 +625,7 @@
       }
     ],
     "covariablesMustExist": true,
-    "dataProvenance": [],
+    "datasets": [],
     "grouping": [],
     "targetTable": "sample_data",
     "user": {
