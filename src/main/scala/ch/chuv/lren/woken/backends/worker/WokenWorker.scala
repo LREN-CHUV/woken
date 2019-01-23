@@ -17,7 +17,8 @@
 
 package ch.chuv.lren.woken.backends.worker
 
-import akka.actor.{ ActorRef, ActorSystem }
+import akka.actor.ActorRef
+import akka.cluster.Cluster
 import akka.cluster.pubsub.{ DistributedPubSub, DistributedPubSubMediator }
 import akka.pattern.ask
 import akka.util.Timeout
@@ -39,7 +40,8 @@ import scala.language.{ higherKinds, postfixOps }
 
 object WokenWorker {
   type TaggedS[H] = Tagged[String, H]
-  def apply[F[_]: Effect](system: ActorSystem): WokenWorker[F] = new WokenWorkerImpl(system)
+  def apply[F[_]: Effect](pubSub: DistributedPubSub, cluster: Cluster): WokenWorker[F] =
+    new WokenWorkerImpl(pubSub, cluster)
 }
 
 import WokenWorker.TaggedS
@@ -52,37 +54,37 @@ trait WokenWorker[F[_]] {
   def healthChecks: HealthReporter[F, NonEmptyList, TaggedS]
 }
 
-class WokenWorkerImpl[F[_]: Effect](system: ActorSystem) extends WokenWorker[F] with LazyLogging {
-
-  private val mediator: ActorRef = DistributedPubSub(system).mediator
+class WokenWorkerImpl[F[_]: Effect](pubSub: DistributedPubSub, cluster: Cluster)
+    extends WokenWorker[F]
+    with LazyLogging {
 
   override def validate(validationQuery: ValidationQuery): F[ValidationResult] =
     fromFuture[F, ValidationResult] {
       implicit val askTimeout: Timeout = Timeout(5 minutes)
       logger.debug(s"validationQuery: $validationQuery")
-      val future = mediator ? DistributedPubSubMediator.Send("/user/validation",
-                                                             validationQuery,
-                                                             localAffinity = false)
+      val future = pubSub.mediator ? DistributedPubSubMediator.Send("/user/validation",
+                                                                    validationQuery,
+                                                                    localAffinity = false)
       future.mapTo[ValidationResult]
     }
 
   override def score(scoringQuery: ScoringQuery): F[ScoringResult] = fromFuture[F, ScoringResult] {
     implicit val askTimeout: Timeout = Timeout(5 minutes)
     logger.debug(s"scoringQuery: $scoringQuery")
-    val future = mediator ? DistributedPubSubMediator.Send("/user/scoring",
-                                                           scoringQuery,
-                                                           localAffinity = false)
+    val future = pubSub.mediator ? DistributedPubSubMediator.Send("/user/scoring",
+                                                                  scoringQuery,
+                                                                  localAffinity = false)
     future.mapTo[ScoringResult]
   }
 
   override val validationServiceHealthCheck: HealthCheck[F, TaggedS] =
     DistributedPubSubHealthCheck
-      .checkValidation(mediator)
+      .checkValidation(pubSub, cluster)
       .through[F, TaggedS](mods.tagWith("Woken validation worker(s)"))
 
   override val scoringServiceHealthCheck: HealthCheck[F, TaggedS] =
     DistributedPubSubHealthCheck
-      .checkScoring(mediator)
+      .checkScoring(pubSub, cluster)
       .through[F, TaggedS](mods.tagWith("Woken scoring worker(s)"))
 
   override lazy val healthChecks: HealthReporter[F, NonEmptyList, TaggedS] =
