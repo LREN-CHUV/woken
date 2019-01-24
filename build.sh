@@ -19,11 +19,11 @@ get_script_dir () {
 cd "$(get_script_dir)"
 
 if [[ $NO_SUDO || -n "$CIRCLECI" ]]; then
-  CAPTAIN="captain"
+  DOCKER="docker"
 elif groups $USER | grep &>/dev/null '\bdocker\b'; then
-  CAPTAIN="captain"
+  DOCKER="docker"
 else
-  CAPTAIN="sudo captain"
+  DOCKER="sudo docker"
 fi
 
 IMAGE="hbpmip/woken"

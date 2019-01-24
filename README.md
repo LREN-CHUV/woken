@@ -72,8 +72,7 @@ Follow these steps to get started:
 
 You need the following software installed:
 
-* [Docker](https://www.docker.com/) 17.06 or better with docker-compose
-* [Captain](https://github.com/harbur/captain) 1.1.0 or better
+* [Docker](https://www.docker.com/) 18.09 or better with docker-compose
 
 ```sh
   ./build.sh

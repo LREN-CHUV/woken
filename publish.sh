@@ -24,17 +24,17 @@ if pgrep -lf sshuttle > /dev/null ; then
 fi
 
 if [ $NO_SUDO ]; then
-  CAPTAIN="captain"
+  DOCKER="docker"
 elif groups "$USER" | grep &>/dev/null '\bdocker\b'; then
-  CAPTAIN="captain"
+  DOCKER="docker"
 else
-  CAPTAIN="sudo captain"
+  DOCKER="sudo docker"
 fi
 
 # Build
 echo "Build the project..."
 ./build.sh
-#./tests/test.sh
+./tests/test.sh
 echo "[ok] Done"
 
 count=$(git status --porcelain | wc -l)
@@ -91,16 +91,13 @@ updated_version=$(bumpversion --dry-run --list patch | grep current_version | se
 # Build again to update the version
 echo "Build the project for distribution..."
 ./build.sh
-#./tests/test.sh
+./tests/test.sh
 echo "[ok] Done"
 
 # Push on Docker Hub
-#  WARNING: Requires captain 1.1.0 to push user tags
-BUILD_DATE=$(date -Iseconds) \
-  VCS_REF=$updated_version \
-  VERSION=$updated_version \
-  WORKSPACE=$WORKSPACE \
-  $CAPTAIN push target_image --branch-tags=false --commit-tags=false --tag $updated_version
+IMAGE=hbpmip/woken
+$DOCKER push "$IMAGE:latest"
+$DOCKER push "$IMAGE:$updated_version"
 
 git push
 git push --tags

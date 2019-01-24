@@ -1,7 +1,0 @@
-target_image:
-  build: Dockerfile
-  image: hbpmip/woken
-  pre:
-    - echo "Building woken image"
-  post:
-    - echo "Finished building woken image"
