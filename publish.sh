@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+#
+# Build the release image for the project and publish it on Dockerhub, then
+# announce the new version on Slack
+#
+# Option:
+#   --no-tests: skip the test suite
+
 set -o pipefail  # trace ERR through pipes
 set -o errtrace  # trace ERR through 'time command' and other functions
 set -o errexit   ## set -e : exit the script if any statement returns a non-true return value
@@ -31,10 +38,21 @@ else
   DOCKER="sudo docker"
 fi
 
+tests=1
+for param in "$@"
+do
+  if [ "--no-tests" == "$param" ]; then
+    tests=0
+    echo "INFO: --no-tests option detected !"
+  fi
+done
+
 # Build
 echo "Build the project..."
 ./build.sh
-./tests/test.sh
+if [ $tests == 1 ]; then
+  ./tests/test.sh
+fi
 echo "[ok] Done"
 
 count=$(git status --porcelain | wc -l)
@@ -91,10 +109,14 @@ updated_version=$(bumpversion --dry-run --list patch | grep current_version | se
 # Build again to update the version
 echo "Build the project for distribution..."
 ./build.sh
-./tests/test.sh
+if [ $tests == 1 ]; then
+  ./tests/test.sh
+fi
 echo "[ok] Done"
 
 # Push on Docker Hub
+echo
+echo "Publishing..."
 IMAGE=hbpmip/woken
 $DOCKER push "$IMAGE:latest"
 $DOCKER push "$IMAGE:$updated_version"
