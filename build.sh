@@ -26,8 +26,13 @@ else
   CAPTAIN="sudo captain"
 fi
 
-BUILD_DATE=$(date -Iseconds) \
-  VCS_REF=$(git describe --tags --dirty) \
-  VERSION=$(git describe --tags --dirty) \
-  WORKSPACE=$(pwd) \
-  $CAPTAIN build
+IMAGE="hbpmip/woken"
+VCS_REF=$(git describe --tags --dirty)
+VERSION=$(git describe --tags --dirty)
+
+docker build --build-arg BUILD_DATE=$(date -Iseconds) \
+    --build-arg VCS_REF=$VCS_REF \
+    --build-arg VERSION=$VERSION \
+    --tag "$IMAGE:latest" \
+    --tag "$IMAGE:$VERSION" \
+    .

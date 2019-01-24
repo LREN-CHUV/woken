@@ -1,8 +1,11 @@
+.bloop/
 .idea/
+.settings/
 dev/log/
 dev/tmp/
 tests/log/
 tests/tmp/
 tests/woken/lib/
 project/project/
+project/target/
 target/

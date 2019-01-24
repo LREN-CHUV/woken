@@ -62,6 +62,7 @@ fi
 
 trap '$DOCKER_COMPOSE rm -f' SIGINT SIGQUIT
 
+export HOST=$(hostname)
 export TEST_ARGS="${test_args}"
 
 echo "Remove old running containers (if any)..."
@@ -102,6 +103,7 @@ done
 
 $DOCKER_COMPOSE up -d woken
 $DOCKER_COMPOSE run wait_woken
+
 $DOCKER_COMPOSE up -d wokenvalidation
 $DOCKER_COMPOSE run wait_wokenvalidation
 

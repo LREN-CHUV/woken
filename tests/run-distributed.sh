@@ -59,6 +59,8 @@ fi
 
 trap '$DOCKER_COMPOSE rm -f' SIGINT SIGQUIT
 
+export HOST=$(hostname)
+
 echo "Remove old running containers (if any)..."
 $DOCKER_COMPOSE kill
 $DOCKER_COMPOSE rm -f

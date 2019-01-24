@@ -26,10 +26,6 @@ RUN sbt -mem 1500 test assembly
 
 FROM hbpmip/java-base:11.0.1-1
 
-ARG BUILD_DATE
-ARG VCS_REF
-ARG VERSION
-
 COPY docker/woken.sh /opt/woken/
 COPY docker/lets-encrypt-install.sh /opt/woken/
 COPY docker/weaver-agent.sh /opt/woken/
@@ -48,6 +44,10 @@ RUN addgroup woken \
     && /opt/woken/weaver-agent.sh
 
 COPY --from=scala-build-env /build/target/scala-2.11/woken-all.jar /opt/woken/woken.jar
+
+ARG BUILD_DATE
+ARG VCS_REF
+ARG VERSION
 
 USER woken
 ENV HOME=/home/woken \

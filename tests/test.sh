@@ -62,6 +62,7 @@ function _cleanup() {
 }
 trap _cleanup EXIT INT TERM
 
+export HOST=$(hostname)
 export TEST_ARGS="${test_args}"
 
 echo "Remove old running containers (if any)..."
