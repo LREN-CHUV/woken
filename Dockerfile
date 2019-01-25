@@ -26,12 +26,12 @@ RUN sbt -mem 1500 test assembly
 
 FROM hbpmip/java-base:11.0.1-1
 
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-cacert \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY docker/woken.sh /opt/woken/
 COPY docker/lets-encrypt-install.sh /opt/woken/
 COPY docker/weaver-agent.sh /opt/woken/
-
-RUN apt-get update && apt-get install -y curl ca-cacert \
-    && rm -rf /var/lib/apt/lists/*
 
 RUN addgroup woken \
     && adduser --system --disabled-password --uid 1000 --ingroup woken woken \
