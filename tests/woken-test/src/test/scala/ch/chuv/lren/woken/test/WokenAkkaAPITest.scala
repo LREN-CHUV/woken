@@ -197,8 +197,10 @@ class WokenAkkaAPITest
         val json = response.toJson
         val expected = loadJson("/responses/knn_data_mining.json")
 
+        // k-NN is not deterministic, cannot check exactly its results
+        val skippedTags = List("codebook")
         save(approximate(json), "/responses/knn_data_mining.json")
-        assertResult(approximate(expected))(approximate(json))
+        assertResult(approximate(expected, skippedTags))(approximate(json, skippedTags))
       }
 
       "uses a histogram                    [visualisation, highcharts]" in {
@@ -390,8 +392,6 @@ class WokenAkkaAPITest
 
         val json = response.toJson
         val expected = loadJson("/responses/heatmaply_data_mining.json")
-
-        // save(approximate(json), "/responses/heatmaply_data_mining.json")
 
         def cleanMore(s: String): String =
           s.replaceAll(""" id=\\".*?\\"""", """ id=\\"\\"""")
