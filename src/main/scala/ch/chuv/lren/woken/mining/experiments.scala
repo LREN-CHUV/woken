@@ -36,9 +36,10 @@ import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.core.model.AlgorithmDefinition
 import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
+import ch.chuv.lren.woken.dao.JobResultRepository
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.mining.LocalExperimentFlow.LocalExperimentJob
-import ch.chuv.lren.woken.service.{ FeaturesService, FeaturesTableService, JobResultService }
+import ch.chuv.lren.woken.service.{ FeaturesService, FeaturesTableService }
 import ch.chuv.lren.woken.validation.flows.AlgorithmWithCVFlow
 import ch.chuv.lren.woken.validation.{
   FeaturesSplitter,
@@ -71,7 +72,7 @@ case class LocalExperimentService[F[_]: Effect](
     algorithmExecutor: AlgorithmExecutor[F],
     wokenWorker: WokenWorker[F],
     featuresService: FeaturesService[F],
-    jobResultService: JobResultService[F],
+    jobResultService: JobResultRepository[F],
     system: ActorSystem
 )(implicit ctx: ActorRefFactory, ec: ExecutionContext)
     extends LazyLogging {

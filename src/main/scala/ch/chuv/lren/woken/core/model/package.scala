@@ -17,18 +17,13 @@
 
 package ch.chuv.lren.woken.core
 
-import ch.chuv.lren.woken.messages.datasets.DatasetId
-import ch.chuv.lren.woken.messages.query.UserFeedback
 import ch.chuv.lren.woken.messages.variables.FeatureIdentifier
 
 package object model {
 
   // import acyclic.pkg
 
-  type UserFeedbacks = List[UserFeedback]
-
+  // TODO: use type defined in woken-messages
   type FeatureIdentifiers = List[FeatureIdentifier]
-
-  type DataProvenance = Set[DatasetId]
 
 }

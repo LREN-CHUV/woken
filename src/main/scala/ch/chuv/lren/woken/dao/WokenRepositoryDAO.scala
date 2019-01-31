@@ -22,13 +22,20 @@ import java.util.{ Base64, UUID }
 
 import doobie._
 import doobie.implicits._
-import cats._
+import cats.Id
+import cats.data.Validated._
 import cats.effect.Effect
+import cats.implicits._
 import com.typesafe.scalalogging.LazyLogging
+import ch.chuv.lren.woken.messages.query.{ Query => WokenQuery }
+import ch.chuv.lren.woken.messages.query.queryProtocol._
 import ch.chuv.lren.woken.messages.query.Shapes.{ error => errorShape, _ }
+import ch.chuv.lren.woken.core.model.database.sqlUtils._
 import ch.chuv.lren.woken.core.model.jobs._
-import ch.chuv.lren.woken.core.json.yaml
+import ch.chuv.lren.woken.core.json._
 import ch.chuv.lren.woken.core.json.yaml.Yaml
+import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
+import ch.chuv.lren.woken.messages.query.QueryResult
 import spray.json._
 import sup.HealthCheck
 
@@ -45,6 +52,8 @@ case class WokenRepositoryDAO[F[_]: Effect](xa: Transactor[F]) extends WokenRepo
 
   override val jobResults: JobResultRepositoryDAO[F] = new JobResultRepositoryDAO[F](xa)
 
+  override def resultsCache: ResultsCacheRepository[F] = new ResultsCacheRepositoryDAO[F](xa)
+
   override def healthCheck: HealthCheck[F, Id] = validate(xa)
 }
 
@@ -54,13 +63,6 @@ case class WokenRepositoryDAO[F[_]: Effect](xa: Transactor[F]) extends WokenRepo
 class JobResultRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
     extends JobResultRepository[F]
     with LazyLogging {
-
-  protected implicit val ShapeMeta: Meta[Shape] =
-    Meta[String].timap(
-      s => fromString(s).getOrElse(throw new IllegalArgumentException(s"Invalid shape: $s"))
-    )(
-      shape => shape.mime
-    )
 
   type JobResultColumns =
     (String, String, OffsetDateTime, Shape, Option[String], Option[String], Option[String])
@@ -198,6 +200,128 @@ class JobResultRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
       .withUniqueGeneratedKeys[JobResult](uniqueGeneratedKeys: _*)
       .transact(xa)
   }
+
+  override def healthCheck: HealthCheck[F, Id] = validate(xa)
+}
+
+class ResultsCacheRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
+    extends ResultsCacheRepository[F] {
+
+  override def put(result: QueryResult, query: WokenQuery): F[Unit] = {
+
+    // Extract simple fields
+    val node = result.node
+    // TODO: Query result should contain a hash of the original contents of the table queried
+    val tableContentHash: Option[String] = None
+    val createdAt                        = result.timestamp
+    val lastUsed                         = OffsetDateTime.now()
+    val shape                            = result.`type`
+    val function                         = result.algorithm
+
+    // Extract fields that require validation
+    val jobIdV: Validation[String]     = result.jobId.toValidNel[String]("Empty job id")
+    val tableNameV: Validation[String] = query.targetTable.toValidNel[String]("Empty table name")
+    val queryWhereV: Validation[String] = {
+      if (query.variables.length + query.covariables.length + query.grouping.length > 30)
+        "High dimension query".invalidNel[String]
+      else query.filters.fold("")(_.toSqlWhere).validNel[String]
+    }
+    val queryJsonV: Validation[JsObject] = queryWhereV.andThen { _ =>
+      query.toJson.asJsObject.validNel[String]
+    }
+    val resultJsonV: Validation[JsObject] = queryWhereV.andThen { _ =>
+      val json = result.toJson.asJsObject
+      if (weightEstimate(json) > 1000000) "Result too big".invalidNel[JsObject]
+      else json.validNel[String]
+    }
+
+    def insert(jobId: String,
+               tableName: String,
+               queryWhere: String,
+               queryJson: JsObject,
+               resultJson: JsObject): Update0 =
+      sql"""INSERT INTO "results_cache" (
+      "job_id", "node", "table_name", "table_contents_hash", "query_where", "query", "created_at", "last_used", "data", "shape", "function")
+      values ($jobId, $node, $tableName, $tableContentHash, $queryWhere, $queryJson, $createdAt, $lastUsed, $resultJson, $shape, $function)""".update
+
+    val insertV = (jobIdV, tableNameV, queryWhereV, queryJsonV, resultJsonV) mapN insert
+
+    insertV.fold(
+      err => {
+        logger.warn(
+          s"Cannot store query result in the cache, caused by ${err.toList.mkString(", ")}"
+        )
+        ().pure[F]
+      },
+      insert =>
+        insert.run.transact(xa).map { count =>
+          if (count == 0) {
+            logger.warn("Result not stored in the database cache, insert failed")
+          }
+      }
+    )
+
+  }
+
+  override def get(
+      node: String,
+      table: String,
+      tableContentsHash: Option[String],
+      query: WokenQuery
+  ): F[Option[QueryResult]] = {
+
+    val queryWhereV: Validation[String] = {
+      if (query.variables.length + query.covariables.length + query.grouping.length > 30)
+        "High dimension query".invalidNel[String]
+      else query.filters.fold("")(_.toSqlWhere).validNel[String]
+    }
+
+    queryWhereV.fold(
+      err => {
+        logger.debug(s"Ignore cached results: ${err.toList.mkString(",")}")
+        Option.empty[QueryResult].pure[F]
+      },
+      queryWhere => {
+        val filterBase =
+          sql"""WHERE "node" = $node AND "table_name" = $table AND "query_where" = $queryWhere"""
+
+        val filter = tableContentsHash.fold(filterBase)(
+          hash => filterBase ++ fr"""AND "table_content_hash" =""" ++ frConst(hash)
+        )
+
+        val q = sql"""SELECT "data" FROM "results_cache"""" ++ filter
+
+        q.query[JsObject].map(_.convertTo[QueryResult]).option.transact(xa).flatMap { resultOp =>
+          resultOp.fold(Option.empty[QueryResult].pure[F]) { result =>
+            val updateTs
+              : Fragment = sql"""UPDATE "results_cache" SET "last_used" = now()""" ++ filter
+            updateTs.update.run.transact(xa).map(_ => Some(result))
+          }
+        }
+      }
+    )
+  }
+
+  override def cleanUnusedCacheEntries(): F[Unit] =
+    sql"""DELETE FROM "results_cache" where "last_used" - "created" > interval '10 days'""".update.run
+      .transact(xa)
+      .map(logDeleted)
+
+  override def cleanTooManyCacheEntries(maxEntries: Int): F[Unit] =
+    sql"""DELETE FROM "results_cache" ORDER BY "last_used" DESC OFFSET 10000""".update.run
+      .transact(xa)
+      .map(logDeleted)
+
+  override def cleanCacheEntriesForOldContent(
+      table: String,
+      tableContentHash: String
+  ): F[Unit] =
+    sql"""DELETE FROM "results_cache" WHERE "table_name" = $table AND "table_content_hash" != $tableContentHash""".update.run
+      .transact(xa)
+      .map(logDeleted)
+
+  private def logDeleted(count: Int): Unit =
+    logger.info(s"Deleted $count records from results_cache")
 
   override def healthCheck: HealthCheck[F, Id] = validate(xa)
 }

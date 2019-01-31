@@ -38,9 +38,9 @@ import scala.language.higherKinds
 
 object TestServices extends JsonUtils with FeaturesTableTestSupport with MockFactory {
 
-  lazy val jobResultService: JobResultService[IO] = JobResultService(
-    new WokenInMemoryRepository[IO]().jobResults
-  )
+  lazy val wokenRepository: WokenRepository[IO]               = new WokenInMemoryRepository[IO]()
+  lazy val jobResultService: JobResultRepository[IO]          = wokenRepository.jobResults
+  lazy val resultsCacheRepository: ResultsCacheRepository[IO] = wokenRepository.resultsCache
 
   lazy val emptyVariablesMetaService: VariablesMetaService[IO] = {
     VariablesMetaService(
@@ -113,6 +113,7 @@ object TestServices extends JsonUtils with FeaturesTableTestSupport with MockFac
       config,
       featuresService,
       jobResultService,
+      resultsCacheRepository,
       localVariablesMetaService,
       queryToJobService,
       datasetService,
@@ -123,7 +124,7 @@ object TestServices extends JsonUtils with FeaturesTableTestSupport with MockFac
   lazy val dispatcherService: DispatcherService     = mock[DispatcherService]
   lazy val wokenWorker: WokenWorker[IO]             = mock[WokenWorker[IO]]
   lazy val algorithmExecutor: AlgorithmExecutor[IO] = mock[AlgorithmExecutor[IO]]
-  lazy val errorReporter                            = mock[ErrorReporter]
+  lazy val errorReporter: ErrorReporter             = mock[ErrorReporter]
 
   def backendServices(system: ActorSystem): BackendServices[IO] =
     BackendServices(dispatcherService = dispatcherService,

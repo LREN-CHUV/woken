@@ -23,12 +23,7 @@ import cats.effect._
 import cats.implicits._
 import ch.chuv.lren.woken.config.{ DatabaseConfiguration, WokenConfiguration, configurationFailed }
 import ch.chuv.lren.woken.core.model.database.TableId
-import ch.chuv.lren.woken.dao.{
-  FeaturesRepositoryDAO,
-  MetadataRepositoryDAO,
-  WokenRepository,
-  WokenRepositoryDAO
-}
+import ch.chuv.lren.woken.dao._
 import com.typesafe.scalalogging.Logger
 import doobie.hikari.HikariTransactor
 import org.slf4j.LoggerFactory
@@ -40,7 +35,8 @@ import scala.language.higherKinds
 case class DatabaseServices[F[_]: ConcurrentEffect: ContextShift: Timer](
     config: WokenConfiguration,
     featuresService: FeaturesService[F],
-    jobResultService: JobResultService[F],
+    jobResultService: JobResultRepository[F],
+    resultsCacheService: ResultsCacheRepository[F],
     variablesMetaService: VariablesMetaService[F],
     queryToJobService: QueryToJobService[F],
     datasetService: DatasetService,
@@ -137,8 +133,11 @@ object DatabaseServices {
         Sync[F].delay(WokenRepositoryDAO(xa))
       }
 
-      val jrsIO: F[JobResultService[F]] = wokenIO.map { wokenRepository =>
-        JobResultService(wokenRepository.jobResults)
+      val jrsIO: F[JobResultRepository[F]] = wokenIO.map { wokenRepository =>
+        wokenRepository.jobResults
+      }
+      val rcsIO: F[ResultsCacheRepository[F]] = wokenIO.map { wokenRepository =>
+        wokenRepository.resultsCache
       }
 
       val fsIO: F[FeaturesService[F]] = wokenIO.flatMap { wokenRepository =>
@@ -162,6 +161,7 @@ object DatabaseServices {
       val servicesIO = for {
         featuresService      <- fsIO
         jobResultService     <- jrsIO
+        resultsCacheService  <- rcsIO
         variablesMetaService <- vmsIO
         queryToJobService = QueryToJobService(featuresService,
                                               variablesMetaService,
@@ -171,6 +171,7 @@ object DatabaseServices {
         DatabaseServices[F](config,
                             featuresService,
                             jobResultService,
+                            resultsCacheService,
                             variablesMetaService,
                             queryToJobService,
                             datasetService,

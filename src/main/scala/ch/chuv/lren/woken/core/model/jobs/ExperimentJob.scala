@@ -48,6 +48,15 @@ object ExperimentJob {
       .andThen { algorithms =>
         if (algorithms.isEmpty) "No algorithm defined".invalidNel else algorithms.validNel
       }
+      .andThen { algorithms =>
+        if (algorithms.exists(_._2.predictive) && query.validations.nonEmpty &&
+            query.validations
+              .flatMap(_.parametersAsMap.get("k"))
+              .map(Integer.parseInt)
+              .exists(_ < 2)) {
+          "When a predictive algorithm is used with cross validation, parameter k must be 2 or more".invalidNel
+        } else algorithms.validNel
+      }
       .map(_.toMap)
       .map { algorithms =>
         // Select the dataset common between all algorithms. If one algorithms cannot handle nulls, all nulls must be ignored

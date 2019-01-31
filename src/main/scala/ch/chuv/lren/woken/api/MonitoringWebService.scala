@@ -49,6 +49,7 @@ import scala.collection.JavaConverters._
   *  /cluster/ready : readiness check of the cluster
   *  /cluster/members : list members of the cluster
   */
+@SuppressWarnings(Array("org.wartremover.warts.Any", "org.wartremover.warts.Throw"))
 class MonitoringWebService[F[_]: Effect](cluster: Cluster,
                                          config: Config,
                                          appConfig: AppConfiguration,

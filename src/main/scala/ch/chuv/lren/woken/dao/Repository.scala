@@ -21,6 +21,7 @@ import java.time.{ OffsetDateTime, ZoneOffset }
 
 import cats.Id
 import doobie._
+import ch.chuv.lren.woken.messages.query.Shapes._
 import com.typesafe.scalalogging.LazyLogging
 import org.postgresql.util.PGobject
 import spray.json._
@@ -60,6 +61,13 @@ trait Repository[F[_]] extends LazyLogging {
   protected implicit val ListStringMeta: Meta[List[String]] =
     Meta[String].timap(_.split(",").toList)(
       _.mkString(",")
+    )
+
+  protected implicit val ShapeMeta: Meta[Shape] =
+    Meta[String].timap(
+      s => fromString(s).getOrElse(throw new IllegalArgumentException(s"Invalid shape: $s"))
+    )(
+      shape => shape.mime
     )
 
   protected def codecMeta[A: RootJsonFormat: TypeTag]: Meta[A] =

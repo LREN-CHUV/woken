@@ -185,6 +185,16 @@ Woken :
 
 # Acknowledgements
 
+## Funding
+
 This work has been funded by the European Union Seventh Framework Program (FP7/2007­2013) under grant agreement no. 604102 (HBP)
 
 This work is part of SP8 of the Human Brain Project (SGA1).
+
+## Tools
+
+We use the following tools for development:
+
+* IntelliJ IDEA
+* [Bugsnag](https://bugsnag.com) to report errors in real time to our development team
+* [CircleCI](https://circleci.com) for continuous integration

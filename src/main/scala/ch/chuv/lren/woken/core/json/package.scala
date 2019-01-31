@@ -17,8 +17,25 @@
 
 package ch.chuv.lren.woken.core
 
+import spray.json._
+
 package object json {
 
   import acyclic.pkg
+
+  /**
+    * Quick estimation of the weight of a Json object
+    *
+    * @param json The json to weight
+    */
+  def weightEstimate(json: JsValue): Int = json match {
+    case `JsNull`          => 0
+    case JsBoolean(_)      => 1
+    case JsNumber(_)       => 1
+    case JsString(s)       => s.length
+    case JsArray(elements) => elements.map(weightEstimate).sum
+    case JsObject(fields)  => fields.values.map(weightEstimate).sum
+    case _                 => 0 // Cannot weight accurately, it does not matter currently
+  }
 
 }

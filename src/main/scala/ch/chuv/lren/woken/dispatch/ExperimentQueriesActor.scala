@@ -26,11 +26,11 @@ import cats.effect.Effect
 import cats.implicits._
 import ch.chuv.lren.woken.core.fp._
 import ch.chuv.lren.woken.config.WokenConfiguration
-import ch.chuv.lren.woken.core.model.{ AlgorithmDefinition, DataProvenance, UserFeedbacks }
+import ch.chuv.lren.woken.core.model.AlgorithmDefinition
 import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.errors.QueryError
 import ch.chuv.lren.woken.validation.flows.RemoteValidationFlow.ValidationContext
-import ch.chuv.lren.woken.messages.query.{ ExecutionStyle, _ }
+import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.mining.LocalExperimentService
 import ch.chuv.lren.woken.service.{ BackendServices, DatabaseServices }
 import ch.chuv.lren.woken.validation.flows.RemoteValidationFlow

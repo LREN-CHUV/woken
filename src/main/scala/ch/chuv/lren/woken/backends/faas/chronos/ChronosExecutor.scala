@@ -33,7 +33,7 @@ import ch.chuv.lren.woken.config.{ DatabaseConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.core.model.jobs.{ DockerJob, ErrorJobResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.core.fp.{ fromFuture, runNow }
-import ch.chuv.lren.woken.service.JobResultService
+import ch.chuv.lren.woken.dao.JobResultRepository
 import com.typesafe.scalalogging.LazyLogging
 import sup.{ HealthCheck, mods }
 
@@ -46,7 +46,7 @@ import scala.language.higherKinds
 case class ChronosExecutor[F[_]: Effect](system: ActorSystem,
                                          chronosService: ActorRef,
                                          dockerBridgeNetwork: Option[String],
-                                         jobResultService: JobResultService[F],
+                                         jobResultService: JobResultRepository[F],
                                          jobsConf: JobsConfiguration,
                                          jdbcConfF: String => Validation[DatabaseConfiguration])
     extends AlgorithmExecutor[F] {
@@ -84,7 +84,7 @@ case class StartCoordinatorJob(job: DockerJob, replyTo: ActorRef)
 
 case class CoordinatorConfig[F[_]](chronosService: ActorRef,
                                    dockerBridgeNetwork: Option[String],
-                                   jobResultService: JobResultService[F],
+                                   jobResultService: JobResultRepository[F],
                                    jobsConf: JobsConfiguration,
                                    jdbcConfF: String => Validation[DatabaseConfiguration])
 

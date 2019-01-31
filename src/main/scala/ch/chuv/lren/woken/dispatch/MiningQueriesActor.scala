@@ -143,11 +143,11 @@ class MiningQueriesActor[F[_]: Effect](
 
   private def processJob(query: MiningQuery, jobInProgress: MiningJobInProgress): F[QueryResult] = {
     val feedback = jobInProgress.feedback
-
     if (feedback.nonEmpty) logger.info(s"Feedback: ${feedback.mkString(", ")}")
+
     jobInProgress.job match {
       case job: MiningJob =>
-        runMiningJob(jobInProgress, job.dockerJob)
+        runMiningJob(jobInProgress, job)
       case job: ValidationJob[F] =>
         runValidationJob(jobInProgress, job)
       case job =>
@@ -156,7 +156,7 @@ class MiningQueriesActor[F[_]: Effect](
     }
   }
 
-  private def runMiningJob(jobInProgress: MiningJobInProgress, job: DockerJob): F[QueryResult] = {
+  private def runMiningJob(jobInProgress: MiningJobInProgress, job: MiningJob): F[QueryResult] = {
 
     val query = jobInProgress.job.query
     // Detection of histograms in federation mode
@@ -189,8 +189,8 @@ class MiningQueriesActor[F[_]: Effect](
         // Execution of the algorithm from the central server in a distributed mode
         case (remoteLocations, _) =>
           logger.info(s"Remote data mining on nodes $remoteLocations for query $query")
-          val algorithm           = job.algorithmSpec
-          val algorithmDefinition = job.algorithmDefinition
+          val algorithm           = job.dockerJob.algorithmSpec
+          val algorithmDefinition = job.dockerJob.algorithmDefinition
           val queriesByStepExecution: Map[ExecutionStyle.Value, MiningQuery] =
             algorithmDefinition.distributedExecutionPlan.steps.map { step =>
               (step.execution,
@@ -213,8 +213,23 @@ class MiningQueriesActor[F[_]: Effect](
   }
 
   private def startLocalMiningJob(jobInProgress: MiningJobInProgress,
-                                  job: DockerJob): F[QueryResult] =
-    backendServices.algorithmExecutor.execute(job).map { r =>
+                                  job: MiningJob): F[QueryResult] = {
+    val dockerJob = job.dockerJob
+    val node      = config.jobs.node
+    // TODO: add support for table schema
+    val table = dockerJob.query.dbTable.name
+    // TODO: use table content hash
+
+    // Check the cache first
+    databaseServices.resultsCacheService.get(node, table, None, job.query).flatMap[QueryResult] {
+      resultO =>
+        resultO.fold(doLocalMiningJob(jobInProgress, dockerJob))(result => result.pure[F])
+    }
+  }
+
+  private def doLocalMiningJob(jobInProgress: MiningJobInProgress,
+                               dockerJob: DockerJob): F[QueryResult] =
+    backendServices.algorithmExecutor.execute(dockerJob).map { r =>
       val query    = jobInProgress.job.query
       val prov     = jobInProgress.dataProvenance
       val feedback = jobInProgress.feedback
@@ -226,7 +241,7 @@ class MiningQueriesActor[F[_]: Effect](
         case List(result) => result.asQueryResult(Some(query), prov, feedback)
         case result :: _ =>
           val msg =
-            s"Discarded additional results returned by algorithm ${job.algorithmDefinition.code}"
+            s"Discarded additional results returned by algorithm ${dockerJob.algorithmDefinition.code}"
           logger.warn(msg)
           result.asQueryResult(Some(query), prov, feedback :+ UserWarning(msg))
       }
