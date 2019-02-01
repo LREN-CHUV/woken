@@ -42,13 +42,10 @@ object TestServices extends JsonUtils with FeaturesTableTestSupport with MockFac
   lazy val jobResultService: JobResultRepository[IO]          = wokenRepository.jobResults
   lazy val resultsCacheRepository: ResultsCacheRepository[IO] = wokenRepository.resultsCache
 
-  lazy val emptyVariablesMetaService: VariablesMetaService[IO] = {
-    VariablesMetaService(
-      new MetadataInMemoryRepository[IO]().variablesMeta
-    )
-  }
+  lazy val emptyVariablesMetaService: VariablesMetaRepository[IO] =
+    new MetadataInMemoryRepository[IO]().variablesMeta
 
-  lazy val localVariablesMetaService: VariablesMetaService[IO] = {
+  lazy val localVariablesMetaService: VariablesMetaRepository[IO] = {
     val churnHierarchy = loadJson("/metadata/churn_variables.json").convertTo[GroupMetaData]
     val churnVariablesMeta =
       VariablesMeta(1, "churn", churnHierarchy, "CHURN", List("state", "custserv_calls", "churn"))
@@ -67,9 +64,7 @@ object TestServices extends JsonUtils with FeaturesTableTestSupport with MockFac
     val featuresMixedVariablesMeta =
       VariablesMeta(6, "cde_features_mixed", cdeHierarchy, "CDE_FEATURES_MIXED", cdeGroupings)
 
-    val metaService = VariablesMetaService(
-      new MetadataInMemoryRepository[IO]().variablesMeta
-    )
+    val metaService = new MetadataInMemoryRepository[IO]().variablesMeta
 
     metaService.put(churnVariablesMeta)
     metaService.put(sampleVariablesMeta)
@@ -121,14 +116,18 @@ object TestServices extends JsonUtils with FeaturesTableTestSupport with MockFac
     )
   }
 
-  lazy val dispatcherService: DispatcherService     = mock[DispatcherService]
-  lazy val wokenWorker: WokenWorker[IO]             = mock[WokenWorker[IO]]
-  lazy val algorithmExecutor: AlgorithmExecutor[IO] = mock[AlgorithmExecutor[IO]]
-  lazy val errorReporter: ErrorReporter             = mock[ErrorReporter]
+  lazy val dispatcherService: DispatcherService       = mock[DispatcherService]
+  lazy val wokenWorker: WokenWorker[IO]               = mock[WokenWorker[IO]]
+  lazy val algorithmExecutor: AlgorithmExecutor[IO]   = mock[AlgorithmExecutor[IO]]
+  lazy val miningCacheService: MiningCacheService[IO] = mock[MiningCacheService[IO]]
+  lazy val errorReporter: ErrorReporter               = mock[ErrorReporter]
 
   def backendServices(system: ActorSystem): BackendServices[IO] =
-    BackendServices(dispatcherService = dispatcherService,
-                    algorithmExecutor = algorithmExecutor,
-                    wokenWorker = wokenWorker,
-                    errorReporter = errorReporter)
+    BackendServices(
+      dispatcherService = dispatcherService,
+      algorithmExecutor = algorithmExecutor,
+      wokenWorker = wokenWorker,
+      miningCacheService = miningCacheService,
+      errorReporter = errorReporter
+    )
 }

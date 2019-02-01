@@ -28,6 +28,7 @@ import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import com.typesafe.scalalogging.{ LazyLogging, Logger }
 import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.core.model.VariablesMeta
+import ch.chuv.lren.woken.dao.VariablesMetaRepository
 import ch.chuv.lren.woken.messages.datasets.{ Dataset, DatasetId }
 import ch.chuv.lren.woken.messages.remoting.RemoteLocation
 import ch.chuv.lren.woken.messages.variables.{
@@ -54,7 +55,7 @@ trait DispatcherService {
 
   def dispatchVariablesQueryFlow[F[_]: Effect](
       datasetService: DatasetService,
-      variablesMetaService: VariablesMetaService[F]
+      variablesMetaService: VariablesMetaRepository[F]
   ): Flow[VariablesForDatasetsQuery, VariablesForDatasetsQR, NotUsed]
 
 }
@@ -64,7 +65,6 @@ trait DispatcherService {
   *
   * @param allDatasets All datasets known to this Woken instance
   * @param wokenClientService The client service used to dispatch calls to other Woken instances
-  *
   * @author Ludovic Claude <ludovic.claude@chuv.ch>
   */
 class DispatcherServiceImpl(val allDatasets: Map[DatasetId, Dataset],
@@ -83,7 +83,11 @@ class DispatcherServiceImpl(val allDatasets: Map[DatasetId, Dataset],
       allDatasets.get(dataset).flatMap(_.location)
 
   override def dispatchTo(datasets: Set[DatasetId]): (Set[RemoteLocation], Boolean) = {
-    logger.info(s"Dispatch to datasets $datasets knowing $allDatasets")
+    logger.whenDebugEnabled(
+      logger.debug(
+        s"Dispatch to datasets ${datasets.map(_.code).mkString(",")} knowing ${allDatasets.keys.map(_.code).mkString(",")}"
+      )
+    )
     val maybeLocations = datasets.map(dispatchTo)
     val local          = maybeLocations.isEmpty || maybeLocations.contains(None)
     val maybeSet =
@@ -113,15 +117,16 @@ class DispatcherServiceImpl(val allDatasets: Map[DatasetId, Dataset],
       .via(wokenClientService.queryFlow)
       .named("dispatch-remote-experiment")
 
+  @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
   override def dispatchVariablesQueryFlow[F[_]: Effect](
       datasetService: DatasetService,
-      variablesMetaService: VariablesMetaService[F]
+      variablesMetaService: VariablesMetaRepository[F]
   ): Flow[VariablesForDatasetsQuery, VariablesForDatasetsQR, NotUsed] =
     Flow.fromGraph(GraphDSL.create() { implicit builder =>
       import GraphDSL.Implicits._
 
-      val broadcast = builder.add(Broadcast[VariablesForDatasetsQuery](2))
-      val merger    = builder.add(Merge[VariablesForDatasetsQR](2))
+      val broadcast = builder.add(Broadcast[VariablesForDatasetsQuery](outputPorts = 2))
+      val merger    = builder.add(Merge[VariablesForDatasetsQR](inputPorts = 2))
 
       broadcast ~> remoteDispatchVariablesQueryFlow() ~> merger
       broadcast ~> localVariablesQueryFlow(datasetService, variablesMetaService) ~> merger
@@ -154,7 +159,7 @@ class DispatcherServiceImpl(val allDatasets: Map[DatasetId, Dataset],
     */
   def localVariablesQueryFlow[F[_]: Effect](
       datasetService: DatasetService,
-      variablesMetaService: VariablesMetaService[F]
+      variablesMetaService: VariablesMetaRepository[F]
   ): Flow[VariablesForDatasetsQuery, VariablesForDatasetsQR, NotUsed] =
     Flow[VariablesForDatasetsQuery]
       .map[VariablesForDatasetsQR] { q =>
@@ -167,7 +172,7 @@ class DispatcherServiceImpl(val allDatasets: Map[DatasetId, Dataset],
             val varsForDs = ds.tables
               .map(_.toUpperCase) // TODO: table name should not always be uppercase
               .flatMap(v => runNow(variablesMetaService.get(v)))
-              .flatMap(_.filterVariables(_ => true))
+              .flatMap(_.allVariables())
               .map(_.copy(datasets = Set(ds.dataset)))
             varsForDs.toSet
           }

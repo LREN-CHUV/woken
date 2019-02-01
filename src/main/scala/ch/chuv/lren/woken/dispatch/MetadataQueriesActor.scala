@@ -24,11 +24,12 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{ Sink, Source }
 import cats.effect.Effect
 import ch.chuv.lren.woken.core.model.VariablesMeta
+import ch.chuv.lren.woken.dao.VariablesMetaRepository
 import ch.chuv.lren.woken.messages.variables.{
   VariablesForDatasetsQuery,
   VariablesForDatasetsResponse
 }
-import ch.chuv.lren.woken.service.{ DatasetService, DispatcherService, VariablesMetaService }
+import ch.chuv.lren.woken.service.{ DatasetService, DispatcherService }
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 
@@ -42,7 +43,7 @@ object MetadataQueriesActor extends LazyLogging {
 
   def props[F[_]: Effect](dispatcherService: DispatcherService,
                           datasetService: DatasetService,
-                          variablesMetaService: VariablesMetaService[F]): Props =
+                          variablesMetaService: VariablesMetaRepository[F]): Props =
     Props(
       new MetadataQueriesActor(dispatcherService, datasetService, variablesMetaService)
     )
@@ -50,7 +51,7 @@ object MetadataQueriesActor extends LazyLogging {
   def roundRobinPoolProps[F[_]: Effect](config: Config,
                                         dispatcherService: DispatcherService,
                                         datasetService: DatasetService,
-                                        variablesMetaService: VariablesMetaService[F]): Props = {
+                                        variablesMetaService: VariablesMetaRepository[F]): Props = {
 
     val resizer = OptimalSizeExploringResizer(
       config
@@ -79,7 +80,7 @@ object MetadataQueriesActor extends LazyLogging {
 
 class MetadataQueriesActor[F[_]: Effect](dispatcherService: DispatcherService,
                                          datasetService: DatasetService,
-                                         variablesMetaService: VariablesMetaService[F])
+                                         variablesMetaService: VariablesMetaRepository[F])
     extends Actor
     with LazyLogging {
 

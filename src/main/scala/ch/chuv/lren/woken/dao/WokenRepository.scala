@@ -68,6 +68,8 @@ trait ResultsCacheRepository[F[_]] extends Repository[F] {
           tableContentsHash: Option[String],
           query: Query): F[Option[QueryResult]]
 
+  def reset(): F[Unit]
+
   def clean()(implicit effect: Effect[F]): F[Unit] =
     for {
       _ <- cleanUnusedCacheEntries()
@@ -115,7 +117,7 @@ class WokenInMemoryRepository[F[_]: Effect] extends WokenRepository[F] {
 
 class ResultsCacheInMemoryRepository[F[_]: Effect] extends ResultsCacheRepository[F] {
 
-  override def put(result: QueryResult, query: Query): F[Unit] = Effect[F].pure(())
+  override def put(result: QueryResult, query: Query): F[Unit] = ().pure[F]
   override def get(
       node: String,
       table: String,
@@ -123,14 +125,16 @@ class ResultsCacheInMemoryRepository[F[_]: Effect] extends ResultsCacheRepositor
       query: Query
   ): F[Option[QueryResult]] = Option.empty[QueryResult].pure[F]
 
-  override def cleanUnusedCacheEntries(): F[Unit] = Effect[F].pure(())
+  override def reset(): F[Unit] = ().pure[F]
 
-  override def cleanTooManyCacheEntries(maxEntries: Int): F[Unit] = Effect[F].pure(())
+  override def cleanUnusedCacheEntries(): F[Unit] = ().pure[F]
+
+  override def cleanTooManyCacheEntries(maxEntries: Int): F[Unit] = ().pure[F]
 
   override def cleanCacheEntriesForOldContent(
       table: String,
       tableContentHash: String
-  ): F[Unit] = Effect[F].pure(())
+  ): F[Unit] = ().pure[F]
 
   override def healthCheck: HealthCheck[F, Id] = HealthCheck.liftFBoolean(true.pure[F])
 }

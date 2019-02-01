@@ -37,7 +37,7 @@ case class DatabaseServices[F[_]: ConcurrentEffect: ContextShift: Timer](
     featuresService: FeaturesService[F],
     jobResultService: JobResultRepository[F],
     resultsCacheService: ResultsCacheRepository[F],
-    variablesMetaService: VariablesMetaService[F],
+    variablesMetaService: VariablesMetaRepository[F],
     queryToJobService: QueryToJobService[F],
     datasetService: DatasetService,
     algorithmLibraryService: AlgorithmLibraryService
@@ -151,8 +151,8 @@ object DatabaseServices {
         }.map(_.valueOr(configurationFailed))
       }
 
-      val vmsIO: F[VariablesMetaService[F]] = mkService(t.metaTransactor, config.metaDb) { xa =>
-        Sync[F].delay(VariablesMetaService(MetadataRepositoryDAO(xa).variablesMeta))
+      val vmsIO: F[VariablesMetaRepository[F]] = mkService(t.metaTransactor, config.metaDb) { xa =>
+        Sync[F].delay(MetadataRepositoryDAO(xa).variablesMeta)
       }
 
       val datasetService          = ConfBasedDatasetService(config.config)

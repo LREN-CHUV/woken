@@ -70,8 +70,11 @@ trait Api {
                                databaseServices,
                                backendServices)
 
+    val maintenanceService =
+      new MaintenanceWebService[F](backendServices.miningCacheService, config.app)
+
     cors()(
-      SwaggerService.routes ~ miningService.routes ~ metadataService.routes ~ monitoringService.routes
+      SwaggerService.routes ~ miningService.routes ~ metadataService.routes ~ monitoringService.routes ~ maintenanceService.routes
     )
 
   }

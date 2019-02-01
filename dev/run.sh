@@ -88,8 +88,8 @@ for i in 1 2 3 4 5 ; do
   $DOCKER_COMPOSE stop chronos
 done
 
-echo "Please start Woken from your IDE. It should use the configuration in config/application.conf"
-echo "and have environment variable CLUSTER_IP set to $HOST"
+echo "Please start Woken from your IDE. It should use the configuration in dev/config/application.conf"
+echo "and have environment variable CLUSTER_IP set to $(hostname)"
 echo "For IntelliJ IDEA, the Run configuration should include:"
 echo "  VM Options: -Dconfig.file=config/application.conf"
 echo "  Working directory: $(get_script_dir)"
@@ -98,7 +98,7 @@ echo "      CLUSTER_PORT: 8088"
 echo "      CLUSTER_IP: $(hostname)"
 echo "      WOKEN_PORT_8088_TCP_ADDR: woken
 echo "      DOCKER_BRIDGE_NETWORK: "dev_default"
-echo
+echo ""
 read -p "Press enter to continue >"
 
 if [ $validation == 1 ]; then

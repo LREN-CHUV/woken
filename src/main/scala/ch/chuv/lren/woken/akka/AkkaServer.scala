@@ -30,7 +30,6 @@ import ch.chuv.lren.woken.config.{ DatasetsConfiguration, WokenConfiguration }
 import ch.chuv.lren.woken.errors.BugsnagErrorReporter
 import ch.chuv.lren.woken.service._
 import com.typesafe.scalalogging.Logger
-import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration._
 import scala.language.higherKinds
@@ -73,8 +72,14 @@ class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
                                             databaseServices.jobResultService,
                                             config.jobs,
                                             config.databaseConfig)
-    val errorReporter = BugsnagErrorReporter(config.config)
-    BackendServices(dispatcherService, algorithmExecutor, wokenWorker, errorReporter)
+    val miningCacheService = MiningCacheService(this)
+    val errorReporter      = BugsnagErrorReporter(config.config)
+
+    BackendServices(dispatcherService,
+                    algorithmExecutor,
+                    wokenWorker,
+                    miningCacheService,
+                    errorReporter)
   }
 
   private def mainRouterSupervisorProps =

@@ -17,7 +17,7 @@
 
 package ch.chuv.lren.woken.core.model
 
-import ch.chuv.lren.woken.messages.variables.{ GroupMetaData, VariableMetaData }
+import ch.chuv.lren.woken.messages.variables.{ GroupMetaData, VariableId, VariableMetaData }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import cats.syntax.validated._
 
@@ -36,22 +36,30 @@ case class VariablesMeta(id: Int,
                          targetFeaturesTable: String,
                          defaultHistogramGroupings: List[String]) {
 
-  def selectVariables(variables: List[String]): Validation[List[VariableMetaData]] = {
+  /**
+    * Returns the metadata for a selection of variables
+    * @param variables List of variable ids
+    * @return metadata for each variable or a validation error
+    */
+  def selectVariables(variables: List[VariableId]): Validation[List[VariableMetaData]] = {
     val variablesMeta =
-      filterVariables(variables.contains).sortBy(varMeta => variables.indexOf(varMeta.code))
+      filterVariables(v => variables.contains(v)).sortBy(varMeta => variables.indexOf(varMeta.toId))
     if (variablesMeta.lengthCompare(variables.size) != 0) {
-      val missingVars = variables.diff(variablesMeta.map(_.code))
+      val missingVars = variables.diff(variablesMeta.map(_.toId))
       s"Found ${variablesMeta.size} out of ${variables.size} variables. Missing ${missingVars
+        .map(_.code)
         .mkString(",")}".invalidNel
     } else
       variablesMeta.validNel[String]
   }
 
-  def filterVariables(filter: String => Boolean): List[VariableMetaData] = {
+  def allVariables(): List[VariableMetaData] = filterVariables(_ => true)
+
+  def filterVariables(filter: VariableId => Boolean): List[VariableMetaData] = {
 
     def selectVars(group: GroupMetaData): List[VariableMetaData] =
       group.groups.map(selectVars).reduceOption(_ ++ _).getOrElse(Nil) ++ group.variables.filter(
-        v => filter(v.code)
+        v => filter(v.toId)
       )
 
     selectVars(hierarchy)

@@ -31,8 +31,9 @@ import ch.chuv.lren.woken.core.model._
 import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.core.model.jobs.{ ExperimentJob, _ }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
+import ch.chuv.lren.woken.dao.VariablesMetaRepository
 import ch.chuv.lren.woken.messages.query._
-import ch.chuv.lren.woken.messages.variables.VariableMetaData
+import ch.chuv.lren.woken.messages.variables.{ VariableId, VariableMetaData }
 import com.typesafe.scalalogging.LazyLogging
 import shapeless.{ ::, HNil }
 
@@ -81,13 +82,13 @@ object QueryToJobService extends LazyLogging {
 
   def apply[F[_]: Effect](
       featuresService: FeaturesService[F],
-      variablesMetaService: VariablesMetaService[F],
+      variablesMetaService: VariablesMetaRepository[F],
       jobsConfiguration: JobsConfiguration,
       algorithmLookup: String => Validation[AlgorithmDefinition]
   ): QueryToJobService[F] =
     new QueryToJobServiceImpl[F](
       featuresService: FeaturesService[F],
-      variablesMetaService: VariablesMetaService[F],
+      variablesMetaService: VariablesMetaRepository[F],
       jobsConfiguration: JobsConfiguration,
       algorithmLookup: String => Validation[AlgorithmDefinition]
     )
@@ -95,7 +96,7 @@ object QueryToJobService extends LazyLogging {
 
 class QueryToJobServiceImpl[F[_]: Effect](
     featuresService: FeaturesService[F],
-    variablesMetaService: VariablesMetaService[F],
+    variablesMetaService: VariablesMetaRepository[F],
     jobsConfiguration: JobsConfiguration,
     algorithmLookup: String => Validation[AlgorithmDefinition]
 ) extends QueryToJobService[F] {
@@ -213,7 +214,7 @@ class QueryToJobServiceImpl[F[_]: Effect](
   }
 
   private def prepareQuery[Q <: Query](
-      variablesMetaService: VariablesMetaService[F],
+      variablesMetaService: VariablesMetaRepository[F],
       jobsConfiguration: JobsConfiguration,
       query: Q
   ): F[Validation[PreparedQuery[Q]]] = {
@@ -251,16 +252,18 @@ class QueryToJobServiceImpl[F[_]: Effect](
         else {
 
           // Take only the covariables (and groupings) known to exist on the target table
-          val existingDbCovariables = v.filterVariables(query.dbCovariables.contains).map(_.code)
-          val existingCovariables = query.covariables.filter { covar =>
-            existingDbCovariables.contains(Queries.toField(covar))
-          }
+          val existingCovariables = v
+            .filterVariables { v: VariableId =>
+              query.covariables.contains(v)
+            }
+            .map(_.toId)
           val covariablesFeedback = prepareFeedback(query.covariables, existingCovariables)
 
-          val existingDbGroupings = v.filterVariables(query.dbGrouping.contains).map(_.code)
-          val existingGroupings = query.grouping.filter { grouping =>
-            existingDbGroupings.contains(Queries.toField(grouping))
-          }
+          val existingGroupings = v
+            .filterVariables { v: VariableId =>
+              query.grouping.contains(v)
+            }
+            .map(_.toId)
           val groupingsFeedback = prepareFeedback(query.grouping, existingGroupings)
 
           val feedback: UserFeedbacks = covariablesFeedback ++ groupingsFeedback
@@ -290,7 +293,7 @@ class QueryToJobServiceImpl[F[_]: Effect](
 
       val metadata: Validation[List[VariableMetaData]] = mq.andThen {
         case (v, q) =>
-          v.selectVariables(q.dbAllVars)
+          v.selectVariables(q.allVars)
       }
 
       val feedback: UserFeedbacks = validatedQueryWithFeedback.map(_._2).getOrElse(Nil)

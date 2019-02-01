@@ -43,6 +43,13 @@ object Queries {
   // TODO: add support for GroupId as feature
   implicit class QueryEnhanced[Q <: Query](val query: Q) extends AnyVal {
 
+    def allVars: List[VariableId] =
+      (query.variables ++ query.covariables ++ query.grouping).distinct.flatMap {
+        case v @ VariableId(_) => Some(v)
+        // TODO: expend a group into a list of variables
+        case _ => None
+      }
+
     def dbAllVars: List[String] = (dbVariables ++ dbCovariables ++ dbGrouping).distinct
 
     def dbVariables: List[String]   = query.variables.map(toField)

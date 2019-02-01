@@ -20,12 +20,7 @@ package ch.chuv.lren.woken.core.model
 import cats.data.NonEmptyList
 import cats.data.Validated.Invalid
 import ch.chuv.lren.woken.JsonUtils
-import ch.chuv.lren.woken.messages.variables.{
-  GroupMetaData,
-  VariableMetaData,
-  VariableType,
-  variablesProtocol
-}
+import ch.chuv.lren.woken.messages.variables._
 import org.scalatest.{ Matchers, WordSpec }
 import spray.json._
 import variablesProtocol._
@@ -43,7 +38,8 @@ class VariablesMetaTest extends WordSpec with Matchers with JsonUtils {
                       "sample_data",
                       List("state", "custserv_calls", "churn"))
 
-      val selectedMeta = meta.filterVariables(List("IQ", "score_math_course1").contains)
+      val selectedMeta =
+        meta.filterVariables(List("IQ", "score_math_course1").map(VariableId).contains)
 
       val expected = List(
         VariableMetaData(
@@ -98,7 +94,7 @@ class VariablesMetaTest extends WordSpec with Matchers with JsonUtils {
              "leftmorgmedialorbitalgyrus",
              "agegroup",
              "alzheimerbroadcategory",
-             "subjectageyears")
+             "subjectageyears").map(VariableId)
       )
 
       val expected =
@@ -129,7 +125,9 @@ class VariablesMetaTest extends WordSpec with Matchers with JsonUtils {
                       List("state", "custserv_calls", "churn"))
 
       val selectedMeta =
-        meta.selectVariables(List("IQ", "score_math_course1", "not_me", "look_a_ghost"))
+        meta.selectVariables(
+          List("IQ", "score_math_course1", "not_me", "look_a_ghost").map(VariableId)
+        )
 
       val expected =
         Invalid(NonEmptyList("Found 2 out of 4 variables. Missing not_me,look_a_ghost", Nil))

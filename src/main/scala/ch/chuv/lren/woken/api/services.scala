@@ -86,6 +86,12 @@ trait SecuredRouteHelper extends BasicAuthenticator with Directives {
   implicit val executionContext: ExecutionContext
   implicit val timeout: Timeout
 
+  def securePath(pm: PathMatcher[Unit], restRoute: Route): Route =
+    path(pm) {
+      authenticateBasicAsync(realm = "Woken Secure API", basicAuthenticator).apply { _ =>
+        restRoute
+      }
+    }
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
   def securePathWithWebSocket(pm: PathMatcher[Unit],
                               wsFlow: Flow[Message, Message, Any],

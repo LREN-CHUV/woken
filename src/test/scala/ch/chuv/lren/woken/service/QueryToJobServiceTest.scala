@@ -25,6 +25,7 @@ import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.core.model._
 import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
+import ch.chuv.lren.woken.dao.VariablesMetaRepository
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.query.filters._
@@ -61,8 +62,8 @@ class QueryToJobServiceTest
   val algorithmLookup: String => Validation[AlgorithmDefinition] =
     AlgorithmsConfiguration.factory(config)
 
-  val variablesMetaService: VariablesMetaService[IO] = TestServices.localVariablesMetaService
-  val featuresService: FeaturesService[IO]           = TestServices.featuresService
+  val variablesMetaService: VariablesMetaRepository[IO] = TestServices.localVariablesMetaService
+  val featuresService: FeaturesService[IO]              = TestServices.featuresService
 
   val queryToJobService: QueryToJobService[IO] =
     QueryToJobService[IO](featuresService, variablesMetaService, jobsConf, algorithmLookup)

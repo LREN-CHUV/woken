@@ -35,8 +35,6 @@ object MainServer {
   def resource[F[_]: ConcurrentEffect: ContextShift: Timer](
       cfg: WokenConfiguration
   )(implicit ev: ContextShift[IO]): Resource[F, Unit] =
-    // TODO: backendServer should ensure connection to Chronos, worker Woken processes in distributed mode...
-    // TODO: collect also from each resource a health check
     for {
       databaseServices <- service.databaseResource[F](cfg)
       akkaServer       <- akka.resource[F](databaseServices, cfg)

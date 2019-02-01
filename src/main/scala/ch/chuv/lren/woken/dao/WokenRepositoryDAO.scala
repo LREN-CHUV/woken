@@ -294,7 +294,7 @@ class ResultsCacheRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
         q.query[JsObject].map(_.convertTo[QueryResult]).option.transact(xa).flatMap { resultOp =>
           resultOp.fold(Option.empty[QueryResult].pure[F]) { result =>
             val updateTs
-              : Fragment = sql"""UPDATE "results_cache" SET "last_used" = now()""" ++ filter
+              : Fragment = sql"""UPDATE "results_cache" SET "last_used" = now();""" ++ filter
             updateTs.update.run.transact(xa).map(_ => Some(result))
           }
         }
@@ -302,13 +302,18 @@ class ResultsCacheRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
     )
   }
 
+  override def reset(): F[Unit] =
+    sql"""DELETE FROM "results_cache";""".update.run
+      .transact(xa)
+      .map(logDeleted)
+
   override def cleanUnusedCacheEntries(): F[Unit] =
-    sql"""DELETE FROM "results_cache" where "last_used" - "created" > interval '10 days'""".update.run
+    sql"""DELETE FROM "results_cache" where "last_used" - "created" > interval '10 days';""".update.run
       .transact(xa)
       .map(logDeleted)
 
   override def cleanTooManyCacheEntries(maxEntries: Int): F[Unit] =
-    sql"""DELETE FROM "results_cache" ORDER BY "last_used" DESC OFFSET 10000""".update.run
+    sql"""DELETE FROM "results_cache" ORDER BY "last_used" DESC OFFSET 10000;""".update.run
       .transact(xa)
       .map(logDeleted)
 
@@ -316,7 +321,7 @@ class ResultsCacheRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
       table: String,
       tableContentHash: String
   ): F[Unit] =
-    sql"""DELETE FROM "results_cache" WHERE "table_name" = $table AND "table_content_hash" != $tableContentHash""".update.run
+    sql"""DELETE FROM "results_cache" WHERE "table_name" = $table AND "table_content_hash" != $tableContentHash;""".update.run
       .transact(xa)
       .map(logDeleted)
 
