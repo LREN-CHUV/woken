@@ -116,18 +116,16 @@ object TestServices extends JsonUtils with FeaturesTableTestSupport with MockFac
     )
   }
 
-  lazy val dispatcherService: DispatcherService       = mock[DispatcherService]
-  lazy val wokenWorker: WokenWorker[IO]               = mock[WokenWorker[IO]]
-  lazy val algorithmExecutor: AlgorithmExecutor[IO]   = mock[AlgorithmExecutor[IO]]
-  lazy val miningCacheService: MiningCacheService[IO] = mock[MiningCacheService[IO]]
-  lazy val errorReporter: ErrorReporter               = mock[ErrorReporter]
+  lazy val dispatcherService: DispatcherService     = mock[DispatcherService]
+  lazy val wokenWorker: WokenWorker[IO]             = mock[WokenWorker[IO]]
+  lazy val algorithmExecutor: AlgorithmExecutor[IO] = mock[AlgorithmExecutor[IO]]
+  lazy val errorReporter: ErrorReporter             = mock[ErrorReporter]
 
   def backendServices(system: ActorSystem): BackendServices[IO] =
     BackendServices(
       dispatcherService = dispatcherService,
       algorithmExecutor = algorithmExecutor,
       wokenWorker = wokenWorker,
-      miningCacheService = miningCacheService,
       errorReporter = errorReporter
     )
 }

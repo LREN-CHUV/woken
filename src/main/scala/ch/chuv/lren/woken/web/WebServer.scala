@@ -33,11 +33,12 @@ import scala.concurrent.duration._
 import scala.language.higherKinds
 import scala.util.{ Failure, Success }
 
-class WebServer[F[_]: ConcurrentEffect: Timer](override val core: CoreSystem,
-                                               override val config: WokenConfiguration,
-                                               val databaseServices: DatabaseServices[F],
-                                               val backendServices: BackendServices[F])
-    extends Api
+class WebServer[F[_]: ConcurrentEffect: ContextShift: Timer](
+    override val core: CoreSystem,
+    override val config: WokenConfiguration,
+    val databaseServices: DatabaseServices[F],
+    val backendServices: BackendServices[F]
+) extends Api
     with StaticResources
     with WokenSSLConfiguration {
 

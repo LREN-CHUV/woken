@@ -17,11 +17,11 @@
 
 package ch.chuv.lren.woken.service
 
+import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.Timeout
 import cats.effect.{ ConcurrentEffect, ContextShift, Timer }
 import cats.implicits._
-import ch.chuv.lren.woken.akka.AkkaServer
 import ch.chuv.lren.woken.core.model.database.FeaturesTableDescription
 import ch.chuv.lren.woken.core.fp.runNow
 import ch.chuv.lren.woken.messages.query.{ AlgorithmSpec, MiningQuery, QueryResult, UserId }
@@ -52,19 +52,22 @@ trait MiningCacheService[F[_]] {
 
 object MiningCacheService {
   def apply[F[_]: ConcurrentEffect: ContextShift: Timer](
-      akkaServer: AkkaServer[F]
-  ): MiningCacheService[F] = new MiningCacheServiceImpl[F](akkaServer)
+      mainRouter: ActorRef,
+      databaseServices: DatabaseServices[F]
+  ): MiningCacheService[F] = new MiningCacheServiceImpl[F](mainRouter, databaseServices)
 }
 
-class MiningCacheServiceImpl[F[_]: ConcurrentEffect: ContextShift: Timer](akkaServer: AkkaServer[F])
-    extends MiningCacheService[F]
+class MiningCacheServiceImpl[F[_]: ConcurrentEffect: ContextShift: Timer](
+    mainRouter: ActorRef,
+    databaseServices: DatabaseServices[F]
+) extends MiningCacheService[F]
     with LazyLogging {
 
   def prefill(): Unit = {
     implicit val timeout: Timeout = 10.minutes
 
-    val tables               = akkaServer.databaseServices.config.featuresDb.tables
-    val variablesMetaService = akkaServer.databaseServices.variablesMetaService
+    val tables               = databaseServices.config.featuresDb.tables
+    val variablesMetaService = databaseServices.variablesMetaService
 
     tables.foreach { table =>
       // TODO: add support for table schema
@@ -79,8 +82,8 @@ class MiningCacheServiceImpl[F[_]: ConcurrentEffect: ContextShift: Timer](akkaSe
                 val statisticsSummaryQuery =
                   queryFor(statisticsSummaryAlgorithm, table, variable.toId)
 
-                waitFor((akkaServer.mainRouter ? histogramQuery).mapTo[QueryResult])
-                waitFor((akkaServer.mainRouter ? statisticsSummaryQuery).mapTo[QueryResult])
+                waitFor((mainRouter ? histogramQuery).mapTo[QueryResult])
+                waitFor((mainRouter ? statisticsSummaryQuery).mapTo[QueryResult])
 
             }
         }
@@ -95,13 +98,13 @@ class MiningCacheServiceImpl[F[_]: ConcurrentEffect: ContextShift: Timer](akkaSe
     * Run maintainance tasks, to be scheduled regularly as part of preventive maintenance
     */
   override def maintainCache(): Unit =
-    runNow(akkaServer.databaseServices.resultsCacheService.clean())
+    runNow(databaseServices.resultsCacheService.clean())
 
   /**
     * Force a full reset of the cache
     */
   override def resetCache(): Unit =
-    runNow(akkaServer.databaseServices.resultsCacheService.reset())
+    runNow(databaseServices.resultsCacheService.reset())
 
   private def waitFor(f: Future[QueryResult]): Unit = {
     val result = Await.result(f, 10.minutes)

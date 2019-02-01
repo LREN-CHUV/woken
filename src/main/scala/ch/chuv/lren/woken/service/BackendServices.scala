@@ -31,7 +31,6 @@ import scala.language.higherKinds
 case class BackendServices[F[_]: Effect](dispatcherService: DispatcherService,
                                          algorithmExecutor: AlgorithmExecutor[F],
                                          wokenWorker: WokenWorker[F],
-                                         miningCacheService: MiningCacheService[F],
                                          errorReporter: ErrorReporter) {
 
   type TaggedS[H] = Tagged[String, H]

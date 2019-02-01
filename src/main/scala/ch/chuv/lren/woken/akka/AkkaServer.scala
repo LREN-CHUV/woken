@@ -72,14 +72,9 @@ class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
                                             databaseServices.jobResultService,
                                             config.jobs,
                                             config.databaseConfig)
-    val miningCacheService = MiningCacheService(this)
-    val errorReporter      = BugsnagErrorReporter(config.config)
+    val errorReporter = BugsnagErrorReporter(config.config)
 
-    BackendServices(dispatcherService,
-                    algorithmExecutor,
-                    wokenWorker,
-                    miningCacheService,
-                    errorReporter)
+    BackendServices(dispatcherService, algorithmExecutor, wokenWorker, errorReporter)
   }
 
   private def mainRouterSupervisorProps =

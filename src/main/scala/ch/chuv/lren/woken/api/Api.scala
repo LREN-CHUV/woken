@@ -21,11 +21,11 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
-import cats.effect.Effect
+import cats.effect.{ ConcurrentEffect, ContextShift, Timer }
 import ch.chuv.lren.woken.akka.CoreSystem
 import ch.chuv.lren.woken.api.swagger.SwaggerService
 import ch.chuv.lren.woken.config.WokenConfiguration
-import ch.chuv.lren.woken.service.{ BackendServices, DatabaseServices }
+import ch.chuv.lren.woken.service.{ BackendServices, DatabaseServices, MiningCacheService }
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 
 import scala.language.higherKinds
@@ -43,8 +43,10 @@ trait Api {
   def core: CoreSystem
   def config: WokenConfiguration
 
-  def routes[F[_]: Effect](databaseServices: DatabaseServices[F],
-                           backendServices: BackendServices[F]): Route = {
+  def routes[F[_]: ConcurrentEffect: ContextShift: Timer](
+      databaseServices: DatabaseServices[F],
+      backendServices: BackendServices[F]
+  ): Route = {
     implicit val system: ActorSystem             = core.system
     implicit val materializer: ActorMaterializer = core.actorMaterializer
 
@@ -70,8 +72,10 @@ trait Api {
                                databaseServices,
                                backendServices)
 
+    val miningCacheService = MiningCacheService(core.mainRouter, databaseServices)
+
     val maintenanceService =
-      new MaintenanceWebService[F](backendServices.miningCacheService, config.app)
+      new MaintenanceWebService[F](miningCacheService, config.app)
 
     cors()(
       SwaggerService.routes ~ miningService.routes ~ metadataService.routes ~ monitoringService.routes ~ maintenanceService.routes
