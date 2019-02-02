@@ -40,14 +40,14 @@ trait Repository[F[_]] extends LazyLogging {
 
   protected implicit val JsObjectMeta: Meta[JsObject] =
     Meta.Advanced
-      .other[PGobject]("json")
+      .other[PGobject]("jsonb")
       .timap[JsObject](
         // failure raises an exception
         a => a.getValue.parseJson.asJsObject
       )(
         a => {
           val o = new PGobject
-          o.setType("json")
+          o.setType("jsonb")
           o.setValue(a.compactPrint)
           o
         }

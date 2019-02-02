@@ -27,7 +27,13 @@ import cats.data.Validated._
 import cats.effect.Effect
 import cats.implicits._
 import com.typesafe.scalalogging.LazyLogging
-import ch.chuv.lren.woken.messages.query.{ Query => WokenQuery }
+import ch.chuv.lren.woken.messages.query.{
+  ExperimentQuery,
+  MiningQuery,
+  QueryResult,
+  UserId,
+  Query => WokenQuery
+}
 import ch.chuv.lren.woken.messages.query.queryProtocol._
 import ch.chuv.lren.woken.messages.query.Shapes.{ error => errorShape, _ }
 import ch.chuv.lren.woken.core.model.database.sqlUtils._
@@ -35,7 +41,6 @@ import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.core.json._
 import ch.chuv.lren.woken.core.json.yaml.Yaml
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
-import ch.chuv.lren.woken.messages.query.QueryResult
 import spray.json._
 import sup.HealthCheck
 
@@ -207,29 +212,31 @@ class JobResultRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
 class ResultsCacheRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
     extends ResultsCacheRepository[F] {
 
-  override def put(result: QueryResult, query: WokenQuery): F[Unit] = {
+  private val systemUser = UserId("woken")
+
+  override def put(result: QueryResult, userQuery: WokenQuery): F[Unit] = {
+
+    val query = normalise(userQuery)
 
     // Extract simple fields
     val node = result.node
     // TODO: Query result should contain a hash of the original contents of the table queried
-    val tableContentHash: Option[String] = None
-    val createdAt                        = result.timestamp
-    val lastUsed                         = OffsetDateTime.now()
-    val shape                            = result.`type`
-    val function                         = result.algorithm
+    val tableContentHash = ""
+    val createdAt        = result.timestamp
+    val lastUsed         = OffsetDateTime.now()
+    val shape            = result.`type`
+    val function         = result.algorithm
 
     // Extract fields that require validation
     val jobIdV: Validation[String]     = result.jobId.toValidNel[String]("Empty job id")
     val tableNameV: Validation[String] = query.targetTable.toValidNel[String]("Empty table name")
-    val queryWhereV: Validation[String] = {
+    val queryJsonV: Validation[JsObject] = {
       if (query.variables.length + query.covariables.length + query.grouping.length > 30)
-        "High dimension query".invalidNel[String]
-      else query.filters.fold("")(_.toSqlWhere).validNel[String]
+        "High dimension query".invalidNel[JsObject]
+      else
+        query.toJson.asJsObject.validNel[String]
     }
-    val queryJsonV: Validation[JsObject] = queryWhereV.andThen { _ =>
-      query.toJson.asJsObject.validNel[String]
-    }
-    val resultJsonV: Validation[JsObject] = queryWhereV.andThen { _ =>
+    val resultJsonV: Validation[JsObject] = queryJsonV.andThen { _ =>
       val json = result.toJson.asJsObject
       if (weightEstimate(json) > 1000000) "Result too big".invalidNel[JsObject]
       else json.validNel[String]
@@ -237,14 +244,13 @@ class ResultsCacheRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
 
     def insert(jobId: String,
                tableName: String,
-               queryWhere: String,
                queryJson: JsObject,
                resultJson: JsObject): Update0 =
       sql"""INSERT INTO "results_cache" (
-      "job_id", "node", "table_name", "table_contents_hash", "query_where", "query", "created_at", "last_used", "data", "shape", "function")
-      values ($jobId, $node, $tableName, $tableContentHash, $queryWhere, $queryJson, $createdAt, $lastUsed, $resultJson, $shape, $function)""".update
+      "job_id", "node", "table_name", "table_contents_hash", "query", "created_at", "last_used", "data", "shape", "function")
+      values ($jobId, $node, $tableName, $tableContentHash, $queryJson, $createdAt, $lastUsed, $resultJson, $shape, $function)""".update
 
-    val insertV = (jobIdV, tableNameV, queryWhereV, queryJsonV, resultJsonV) mapN insert
+    val insertV = (jobIdV, tableNameV, queryJsonV, resultJsonV) mapN insert
 
     insertV.fold(
       err => {
@@ -267,36 +273,43 @@ class ResultsCacheRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
       node: String,
       table: String,
       tableContentsHash: Option[String],
-      query: WokenQuery
+      userQuery: WokenQuery
   ): F[Option[QueryResult]] = {
+    val query = normalise(userQuery)
 
-    val queryWhereV: Validation[String] = {
+    val queryJsonV: Validation[JsObject] = {
       if (query.variables.length + query.covariables.length + query.grouping.length > 30)
-        "High dimension query".invalidNel[String]
-      else query.filters.fold("")(_.toSqlWhere).validNel[String]
+        "High dimension query".invalidNel[JsObject]
+      else query.toJson.asJsObject.validNel[String]
     }
 
-    queryWhereV.fold(
+    queryJsonV.fold(
       err => {
         logger.debug(s"Ignore cached results: ${err.toList.mkString(",")}")
         Option.empty[QueryResult].pure[F]
       },
-      queryWhere => {
+      queryJson => {
         val filterBase =
-          sql"""WHERE "node" = $node AND "table_name" = $table AND "query_where" = $queryWhere"""
+          fr"""WHERE "node" = $node AND "table_name" = $table AND "query" = $queryJson"""
 
         val filter = tableContentsHash.fold(filterBase)(
           hash => filterBase ++ fr"""AND "table_content_hash" =""" ++ frConst(hash)
         )
 
-        val q = sql"""SELECT "data" FROM "results_cache"""" ++ filter
+        val q = fr"""SELECT "data" FROM "results_cache"""" ++ filter
 
-        q.query[JsObject].map(_.convertTo[QueryResult]).option.transact(xa).flatMap { resultOp =>
-          resultOp.fold(Option.empty[QueryResult].pure[F]) { result =>
-            val updateTs
-              : Fragment = sql"""UPDATE "results_cache" SET "last_used" = now();""" ++ filter
-            updateTs.update.run.transact(xa).map(_ => Some(result))
-          }
+        q.query[JsObject].map(_.convertTo[QueryResult]).option.transact(xa).flatMap {
+          resultOp =>
+            resultOp.fold {
+              logger.info(
+                s"Could not find matching result in the cache for node $node, table $table, query ${queryJson.compactPrint}"
+              )
+              Option.empty[QueryResult].pure[F]
+            } { result =>
+              val updateTs
+                : Fragment = fr"""UPDATE "results_cache" SET "last_used" = now()""" ++ filter
+              updateTs.update.run.transact(xa).map(_ => Some(result))
+            }
         }
       }
     )
@@ -329,4 +342,11 @@ class ResultsCacheRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
     logger.info(s"Deleted $count records from results_cache")
 
   override def healthCheck: HealthCheck[F, Id] = validate(xa)
+
+  private def normalise(query: WokenQuery): WokenQuery =
+    query match {
+      case q: MiningQuery     => q.copy(user = systemUser)
+      case q: ExperimentQuery => q.copy(user = systemUser)
+    }
+
 }

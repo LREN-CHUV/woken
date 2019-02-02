@@ -102,8 +102,12 @@ class MiningQueriesActor[F[_]: Effect](
   override def receive: Receive = {
 
     case mine: Mine =>
-      val initiator     = if (mine.replyTo == Actor.noSender) sender() else mine.replyTo
-      val query         = mine.query
+      val initiator = if (mine.replyTo == Actor.noSender) sender() else mine.replyTo
+      // Define the target table if user did not specify it
+      val query =
+        if (mine.query.targetTable.isEmpty)
+          mine.query.copy(targetTable = Some(config.jobs.featuresTable))
+        else mine.query
       val jobValidatedF = queryToJobService.miningQuery2Job(query)
       val doIt: F[QueryResult] = jobValidatedF.flatMap { jv =>
         jv.fold(
@@ -223,20 +227,23 @@ class MiningQueriesActor[F[_]: Effect](
     // Check the cache first
     databaseServices.resultsCacheService.get(node, table, None, job.query).flatMap[QueryResult] {
       resultO =>
-        resultO.fold(doLocalMiningJob(jobInProgress, dockerJob))(result => result.pure[F])
+        resultO.fold(doLocalMiningJob(jobInProgress, dockerJob)) { result =>
+          logger.debug("Cache hit! Returning result")
+          result.pure[F]
+        }
     }
   }
 
   private def doLocalMiningJob(jobInProgress: MiningJobInProgress,
                                dockerJob: DockerJob): F[QueryResult] =
-    backendServices.algorithmExecutor.execute(dockerJob).map { r =>
+    backendServices.algorithmExecutor.execute(dockerJob).flatMap { r =>
       val query    = jobInProgress.job.query
       val prov     = jobInProgress.dataProvenance
       val feedback = jobInProgress.feedback
 
       // TODO: we can only handle one result from the Coordinator handling a mining query.
       // Containerised algorithms that can produce more than one result (e.g. PFA model + images) are ignored
-      r.results match {
+      val results = r.results match {
         case List()       => noResult(query, Set(), feedback)
         case List(result) => result.asQueryResult(Some(query), prov, feedback)
         case result :: _ =>
@@ -244,6 +251,11 @@ class MiningQueriesActor[F[_]: Effect](
             s"Discarded additional results returned by algorithm ${dockerJob.algorithmDefinition.code}"
           logger.warn(msg)
           result.asQueryResult(Some(query), prov, feedback :+ UserWarning(msg))
+      }
+
+      results.error match {
+        case None => databaseServices.resultsCacheService.put(results, query).map(_ => results)
+        case _    => results.pure[F]
       }
     }
 

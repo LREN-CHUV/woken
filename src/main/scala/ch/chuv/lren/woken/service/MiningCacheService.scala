@@ -76,7 +76,7 @@ class MiningCacheServiceImpl[F[_]: ConcurrentEffect: ContextShift: Timer](
           variables =>
             variables.allVariables().foreach {
               variable =>
-                val histogramAlgorithm         = AlgorithmSpec("histogram", Nil, None)
+                val histogramAlgorithm         = AlgorithmSpec("histograms", Nil, None)
                 val histogramQuery             = queryFor(histogramAlgorithm, table, variable.toId)
                 val statisticsSummaryAlgorithm = AlgorithmSpec("statisticsSummary", Nil, None)
                 val statisticsSummaryQuery =

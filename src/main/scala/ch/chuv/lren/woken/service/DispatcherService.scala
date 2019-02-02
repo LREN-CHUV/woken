@@ -85,7 +85,7 @@ class DispatcherServiceImpl(val allDatasets: Map[DatasetId, Dataset],
   override def dispatchTo(datasets: Set[DatasetId]): (Set[RemoteLocation], Boolean) = {
     logger.whenDebugEnabled(
       logger.debug(
-        s"Dispatch to datasets ${datasets.map(_.code).mkString(",")} knowing ${allDatasets.keys.map(_.code).mkString(",")}"
+        s"Dispatch to datasets [${datasets.map(_.code).mkString(",")}] knowing [${allDatasets.keys.map(_.code).mkString(",")}]"
       )
     )
     val maybeLocations = datasets.map(dispatchTo)
