@@ -65,7 +65,6 @@ object AlgorithmExecutorInstances {
         HealthCheck.const[IO, Id](Health.healthy).through(mods.tagWith("Health of mock executor"))
     }
 
-
   def dummyAlgorithm: AlgorithmExecutor[IO] =
     new AlgorithmExecutor[IO] {
 

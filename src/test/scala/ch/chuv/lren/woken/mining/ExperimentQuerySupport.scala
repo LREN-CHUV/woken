@@ -18,6 +18,7 @@
 package ch.chuv.lren.woken.mining
 
 import java.util.UUID
+
 import cats.implicits._
 import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableId }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
@@ -29,6 +30,7 @@ import ch.chuv.lren.woken.Predefined.Algorithms.{
   knnDefinition,
   knnWithK5
 }
+import ch.chuv.lren.woken.core.model.jobs.ExperimentJob
 
 object ExperimentQuerySupport {
 
@@ -66,7 +68,7 @@ object ExperimentQuerySupport {
       executionPlan = None
     )
 
-  def experimentQuery2job(query: ExperimentQuery): Validation[ExperimentActor.Job] =
+  def experimentQuery2job(query: ExperimentQuery): Validation[ExperimentJob] =
     ExperimentJob.mkValid(
       UUID.randomUUID().toString,
       query,

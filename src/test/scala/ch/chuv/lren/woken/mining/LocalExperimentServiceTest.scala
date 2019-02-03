@@ -17,13 +17,21 @@
 
 package ch.chuv.lren.woken.mining
 
-import akka.actor.{Actor, ActorSystem, Props}
+import java.util.UUID
+
+import akka.actor.{ Actor, ActorSystem, Props }
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Source
 import akka.stream.testkit.scaladsl.TestSink
-import akka.testkit.{TestKit, TestProbe}
+import akka.testkit.{ TestKit, TestProbe }
 import cats.effect.IO
 import ch.chuv.lren.woken.JsonUtils
+import ch.chuv.lren.woken.Predefined.Algorithms.{
+  anovaDefinition,
+  anovaFactorial,
+  knnDefinition,
+  knnWithK5
+}
 import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableId }
 import ch.chuv.lren.woken.core.model.jobs.{ ErrorJobResult, ExperimentJob, JobResult, PfaJobResult }
@@ -33,16 +41,16 @@ import ch.chuv.lren.woken.messages.variables.VariableId
 import ch.chuv.lren.woken.service.TestServices
 import com.typesafe.config.{ Config, ConfigFactory }
 import com.typesafe.scalalogging.LazyLogging
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import cats.implicits._
-import cats.scalatest.{ValidatedMatchers, ValidatedValues}
+import cats.scalatest.{ ValidatedMatchers, ValidatedValues }
 import ch.chuv.lren.woken.backends.faas.AlgorithmExecutor
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import ExperimentQuerySupport._
-import ch.chuv.lren.woken.core.model.jobs.{ErrorJobResult, JobResult, PfaJobResult}
+import ch.chuv.lren.woken.core.model.jobs.{ ErrorJobResult, JobResult, PfaJobResult }
 
 /**
   * Experiment flow should always complete with success, but the error is reported inside the response.
@@ -260,7 +268,7 @@ class LocalExperimentServiceTest
       }
 
     }
-
+   */
   }
 
 }
