@@ -14,7 +14,7 @@ It relies on a runtime environment containing [Mesos](http://mesos.apache.org) a
 
 ```sh
 
- docker run --rm --env [list of environment variables] --link woken hbpmip/woken:2.8.3
+ docker run --rm --env [list of environment variables] --link woken hbpmip/woken:2.9.1
 
 ```
 
@@ -46,3 +46,6 @@ where the environment variables are:
 * JVM_SYSTEM_METRICS: Enable collection of metrics of the JVM using JMX, default to no. Requires Kamon enabled.
 * MINING_LIMIT: Maximum number of concurrent mining operations. Default to 100
 * EXPERIMENT_LIMIT: Maximum number of concurrent experiments. Default to 100
+* RELEASE_STAGE: Release stage used when reporting errors to Bugsnag. Values are dev, staging, production
+* DATA_CENTER_LOCATION: Location of the datacenter, used when reporting errors to Bugsnag
+* CONTAINER_ORCHESTRATION: Container orchestration system used to execute the Docker containers. Values are mesos, docker-compose, kubernetes

@@ -21,7 +21,7 @@ import java.time.OffsetDateTime
 import java.util.UUID
 
 import akka.NotUsed
-import akka.actor.{ Actor, ActorRef, Props }
+import akka.actor.{ ActorRefFactory, ActorSystem }
 import akka.stream._
 import akka.stream.scaladsl.{ Broadcast, Flow, GraphDSL, Merge, Partition, Sink, Source, ZipWith }
 import cats.Monoid
@@ -31,20 +31,14 @@ import cats.effect.{ Effect, Resource }
 import cats.implicits._
 import ch.chuv.lren.woken.backends.faas.{ AlgorithmExecutor, AlgorithmResults }
 import ch.chuv.lren.woken.backends.worker.WokenWorker
-import ch.chuv.lren.woken.core.features.FeaturesQuery
-import ch.chuv.lren.woken.core.fp.runNow
+import ch.chuv.lren.woken.core.fp._
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.core.model.AlgorithmDefinition
 import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
-import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.messages.query._
-import ch.chuv.lren.woken.service.{
-  DispatcherService,
-  FeaturesService,
-  FeaturesTableService,
-  JobResultService
-}
+import ch.chuv.lren.woken.mining.LocalExperimentFlow.LocalExperimentJob
+import ch.chuv.lren.woken.service.{ FeaturesService, FeaturesTableService, JobResultService }
 import ch.chuv.lren.woken.validation.flows.AlgorithmWithCVFlow
 import ch.chuv.lren.woken.validation.{
   FeaturesSplitter,
@@ -53,70 +47,34 @@ import ch.chuv.lren.woken.validation.{
 }
 import com.typesafe.scalalogging.LazyLogging
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 import scala.util.control.NonFatal
-import scala.util.{ Failure, Success, Try }
 
-/**
-  * We use the companion object to hold all the messages that the ``ExperimentActor`` receives.
-  */
-object ExperimentActor {
-
-  // Incoming messages
-  type Job = ExperimentJob
-
-  /**
-    * Start a new experiment job.
-    *
-    * @param job - experiment job
-    * @param replyTo Actor to reply to. Can be Actor.noSender when the ask pattern is used. This information is added in preparation for Akka Typed
-    * @param initiator The initiator of the request, this information will be returned by CoordinatorActor.Response#initiator.
-    *                  It can also have the value Actor.noSender
-    */
-  case class StartExperimentJob(job: ExperimentJob, replyTo: ActorRef, initiator: ActorRef)
-
-  case object Done
-
-  // Output messages: JobResult containing the experiment PFA
-
-  case class Response(job: Job,
-                      result: Either[ErrorJobResult, ExperimentJobResult],
-                      datasets: Set[DatasetId],
-                      initiator: ActorRef)
-
-  def props[F[_]: Effect](algorithmExecutor: AlgorithmExecutor[F],
-                          dispatcherService: DispatcherService,
-                          featuresService: FeaturesService[F],
-                          jobResultService: JobResultService[F],
-                          wokenWorker: WokenWorker[F]): Props =
-    Props(
-      new ExperimentActor(algorithmExecutor,
-                          dispatcherService,
-                          featuresService,
-                          jobResultService,
-                          wokenWorker)
-    )
+object LocalExperimentService {
+  case class LocalExperimentResponse(jobInProgress: ExperimentJobInProgress,
+                                     result: Either[ErrorJobResult, ExperimentJobResult]) {
+    def toQueryResult: QueryResult =
+      result
+        .fold(r => r, r => r)
+        .asQueryResult(Some(jobInProgress.job.query),
+                       jobInProgress.dataProvenance,
+                       jobInProgress.feedback)
+  }
 
 }
 
 /**
-  * The job of this Actor in our application core is to service a request to start a job and wait for the result of the calculation.
-  *
-  * This actor will have the responsibility of spawning one ValidationActor plus one LocalCoordinatorActor per algorithm and aggregate
-  * the results before responding
-  *
+  * This service manages the local execution of an experiment
   */
-class ExperimentActor[F[_]: Effect](val algorithmExecutor: AlgorithmExecutor[F],
-                                    val dispatcherService: DispatcherService,
-                                    val featuresService: FeaturesService[F],
-                                    val jobResultService: JobResultService[F],
-                                    val wokenWorker: WokenWorker[F])
-    extends Actor
-    with LazyLogging {
-
-  import ExperimentActor._
-
+case class LocalExperimentService[F[_]: Effect](
+    algorithmExecutor: AlgorithmExecutor[F],
+    wokenWorker: WokenWorker[F],
+    featuresService: FeaturesService[F],
+    jobResultService: JobResultService[F],
+    system: ActorSystem
+)(implicit ctx: ActorRefFactory, ec: ExecutionContext)
+    extends LazyLogging {
   val decider: Supervision.Decider = {
     case err: RuntimeException =>
       logger.error("Runtime error detected", err)
@@ -127,33 +85,37 @@ class ExperimentActor[F[_]: Effect](val algorithmExecutor: AlgorithmExecutor[F],
   }
 
   implicit val materializer: ActorMaterializer = ActorMaterializer(
-    ActorMaterializerSettings(context.system).withSupervisionStrategy(decider)
+    ActorMaterializerSettings(system).withSupervisionStrategy(decider)
   )
 
-  implicit val ec: ExecutionContext = context.dispatcher
+  import LocalExperimentService._
 
-  @SuppressWarnings(Array("org.wartremover.warts.Any", "org.wartremover.warts.NonUnitStatements"))
-  override def receive: Receive = {
+  // Implementation note: when cross-validation is used, we create a temporary table in the database. We ensure the release of resources using Cats Resource.
+  // It is not possible to combine Akka flows with Cats Resource, so instead of creating an end-to-end flow for the computation, we wrap the flow into
+  // a F effect where resource management is properly applied.
 
-    case StartExperimentJob(job, requestedReplyTo, initiator) if job.query.algorithms.isEmpty =>
-      val replyTo = if (requestedReplyTo == Actor.noSender) sender() else requestedReplyTo
-      val msg     = "Experiment contains no algorithms"
-      completeWithError(job, msg, Set(), initiator, replyTo)
-
-    case StartExperimentJob(job, requestedReplyTo, initiator) if job.query.algorithms.nonEmpty =>
-      val replyTo                         = if (requestedReplyTo == Actor.noSender) sender() else requestedReplyTo
-      val thisActor                       = self
-      val algorithms: List[AlgorithmSpec] = job.query.algorithms
+  /**
+    * Run the experiment locally: each algorithm contained in the experiment is executed and its results are cross-validated if applicable
+    *
+    * @param job The job in progress to execute
+    * @return a monad wrapping the computation for the response
+    */
+  def runExperiment(job: ExperimentJobInProgress): F[LocalExperimentResponse] =
+    if (job.job.queryAlgorithms.isEmpty) {
+      errorResult(job, "Experiment contains no algorithms").pure[F]
+    } else {
+      val query      = job.job.query
+      val algorithms = query.algorithms
       val featuresTableServiceV =
-        featuresService.featuresTable(job.inputTable)
+        featuresService.featuresTable(job.job.inputTable)
 
-      val containsPredictiveAlgorithms = job.queryAlgorithms.exists {
+      val containsPredictiveAlgorithms = job.job.queryAlgorithms.exists {
         case (_, defn) => defn.predictive
       }
 
       val splitterDefsV: Validation[List[FeaturesSplitterDefinition]] =
         if (containsPredictiveAlgorithms) {
-          defineSplitters(job.query.validations)
+          defineSplitters(job.job.query.validations)
         } else Nil.validNel[String]
 
       logger.info(
@@ -163,124 +125,56 @@ class ExperimentActor[F[_]: Effect](val algorithmExecutor: AlgorithmExecutor[F],
 
       ((featuresTableServiceV, splitterDefsV) mapN Tuple2.apply).fold(
         err => {
-          val msg = s"""Invalid definition of validations: ${err.mkString_("", ",", "")}"""
-          completeWithError(job, msg, Set(), initiator, replyTo)
-        }, {
-          case (featuresTableService, splitterDefs) =>
-            val datasets = runNow(featuresTableService.datasets(job.query.filters))
-            if (splitterDefs.isEmpty) {
-              val future =
-                executeExperimentFlow(job, datasets, Nil, featuresTableService, initiator)
-              completeExperiment(job, future, datasets, thisActor, initiator, replyTo)
-            } else
-              executeExtendedExperimentFlow(job,
-                                            datasets,
-                                            splitterDefs,
-                                            featuresTableService,
-                                            thisActor,
-                                            initiator,
-                                            replyTo)
+          val msg = s"""Invalid definition of cross-validations: ${err.mkString_("", ",", "")}"""
+          errorResult(job, msg).pure[F]
+        },
+        fa => {
+          val (featuresTableService, splitterDefs) = fa
+          val r: F[LocalExperimentResponse] =
+            if (splitterDefs.isEmpty)
+              executeExperimentFlow(job, Nil, featuresTableService)
+            else
+              executeExtendedExperimentFlow(job, splitterDefs, featuresTableService)
+
+          r.recoverWith(recoverErrors(job))
+            .flatMap { response =>
+              // Intercalate a side effect to store the result
+              jobResultService.put(response.result.fold(r => r, r => r)).map(_ => response)
+            }
         }
       )
+    }
 
-    case e =>
-      logger.error(s"Unhandled message: $e")
-      context stop self
+  private def recoverErrors(
+      job: ExperimentJobInProgress
+  ): PartialFunction[Throwable, F[LocalExperimentResponse]] = {
+    case NonFatal(e) =>
+      val msg = s"Cannot complete experiment ${job.job.jobId}: ${e.getMessage}"
+      logger.error(msg, e)
+      errorResult(job, msg).pure[F]
   }
 
-  private def executeExtendedExperimentFlow(
+  private def errorResult(job: ExperimentJobInProgress, msg: String): LocalExperimentResponse = {
+    val result =
+      ErrorJobResult(Some(job.job.jobId), algorithmExecutor.node, OffsetDateTime.now(), None, msg)
+    LocalExperimentResponse(job, Left(result))
+  }
+
+  implicit val FPlus: Monoid[Either[NonEmptyList[String], Unit]] =
+    new Monoid[Either[NonEmptyList[String], Unit]] {
+      def empty: Either[NonEmptyList[String], Unit] = ().rightNel[String]
+      def combine(
+          x: Either[NonEmptyList[String], Unit],
+          y: Either[NonEmptyList[String], Unit]
+      ): Either[NonEmptyList[String], Unit] =
+        x.combine(y)
+    }
+
+  private[mining] def validateFolds(
       job: ExperimentJob,
-      datasets: Set[DatasetId],
-      splitterDefs: List[FeaturesSplitterDefinition],
-      featuresTableService: FeaturesTableService[F],
-      thisActor: ActorRef,
-      initiator: ActorRef,
-      replyTo: ActorRef
-  ): Unit =
-    featuresTableService
-      .createExtendedFeaturesTable(job.query.filters,
-                                   Nil,
-                                   splitterDefs.map(_.splitColumn),
-                                   splitterDefs)
-      .fold(
-        err => {
-          val msg =
-            s"""Invalid definition of extended features table: ${err
-              .mkString_("", ",", "")}"""
-          completeWithError(job, msg, datasets, initiator, replyTo)
-        },
-        (extendedFeaturesTableR: Resource[F, FeaturesTableService[F]]) => {
-          val task = extendedFeaturesTableR.use[Unit] {
-            extendedFeaturesTable =>
-              val splitters = splitterDefs.map {
-                FeaturesSplitter(_, extendedFeaturesTable)
-              }
-
-              val extTable = extendedFeaturesTable.table.table
-              val extendedJob = job.copy(
-                inputTable = extTable,
-                query = job.query.copy(targetTable = Some(extTable.name))
-              )
-
-              validateFolds(extendedJob, splitterDefs, extendedFeaturesTable)
-                .flatMap {
-                  case Left(err) =>
-                    val msg =
-                      s"""Invalid folding of extended features table: ${err
-                        .mkString_("", ",", "")}"""
-                    Effect[F].delay(completeWithError(job, msg, datasets, initiator, replyTo))
-                  case Right(_) =>
-                    Effect[F].defer {
-                      val experimentFlowF =
-                        executeExperimentFlow(extendedJob,
-                                              datasets,
-                                              splitters,
-                                              extendedFeaturesTable,
-                                              initiator)
-                      completeExperiment(job,
-                                         experimentFlowF,
-                                         datasets,
-                                         thisActor,
-                                         initiator,
-                                         replyTo)
-
-                      // Wait for the experiment flow to complete
-                      Effect[F].async { cb =>
-                        experimentFlowF.onComplete {
-                          case Success(_)     => cb(Right(()))
-                          case Failure(error) => cb(Left(error))
-                        }
-                      }
-                    }
-                }
-
-          }
-          Effect[F]
-            .toIO(task)
-            .attempt
-            .unsafeRunSync()
-            .fold(
-              err => completeWithError(job, err.toString, datasets, initiator, replyTo),
-              _ => ()
-            )
-        }
-      )
-
-  private def validateFolds(
-      job: Job,
       splitterDefs: List[FeaturesSplitterDefinition],
       extendedFeaturesTable: FeaturesTableService[F]
-  ): F[Either[NonEmptyList[String], Unit]] = {
-    implicit val FPlus: Monoid[Either[NonEmptyList[String], Unit]] =
-      new Monoid[Either[NonEmptyList[String], Unit]] {
-        def empty: Either[NonEmptyList[String], Unit] = ().rightNel[String]
-        def combine(
-            x: Either[NonEmptyList[String], Unit],
-            y: Either[NonEmptyList[String], Unit]
-        ): Either[NonEmptyList[String], Unit] =
-          x.combine(y)
-      }
-
+  ): F[Either[NonEmptyList[String], Unit]] =
     splitterDefs
       .map { splitterDef =>
         extendedFeaturesTable
@@ -290,37 +184,27 @@ class ExperimentActor[F[_]: Effect](val algorithmExecutor: AlgorithmExecutor[F],
       .sequence
       .map[Either[NonEmptyList[String], Unit]] { ldc =>
         Monoid.combineAll(ldc.map {
-          case (splitterDef, counts) =>
-            if (splitterDef.numFolds != counts.size)
-              s"Expected ${splitterDef.numFolds} folds, got ${counts.size}".leftNel[Unit]
-            else {
-              Monoid.combineAll(
-                counts
-                  .filter(_._2 == 0)
-                  .map { case (value, _) => s"Fold $value has no data".leftNel[Unit] }
-              )
-            }
+          case (splitterDef, counts) if splitterDef.numFolds != counts.size =>
+            s"Expected ${splitterDef.numFolds} folds, got ${counts.size}".leftNel[Unit]
+          case (_, counts) =>
+            Monoid.combineAll(
+              counts
+                .filter(_._2 == 0)
+                .map { case (value, _) => s"Fold $value has no data".leftNel[Unit] }
+            )
         })
       }
-  }
 
-  private def executeExperimentFlow(job: Job,
-                                    datasets: Set[DatasetId],
-                                    splitters: List[FeaturesSplitter[F]],
-                                    featuresTableService: FeaturesTableService[F],
-                                    initiator: ActorRef): Future[Response] = {
-    val algorithms = job.query.algorithms
-    val experimentFlow: Flow[Job, Map[AlgorithmSpec, JobResult], NotUsed] =
-      ExperimentFlow(
-        featuresTableService,
-        dispatcherService,
-        splitters,
-        algorithmExecutor,
-        wokenWorker
-      ).flow
+  private def executeExperimentFlow(
+      job: ExperimentJobInProgress,
+      splitters: List[FeaturesSplitter[F]],
+      featuresTableService: FeaturesTableService[F]
+  ): F[LocalExperimentResponse] = {
+    val algorithms     = job.job.query.algorithms
+    val experimentFlow = LocalExperimentFlow(algorithmExecutor, wokenWorker).flow
 
     Source
-      .single(job)
+      .single(LocalExperimentJob(job.job, featuresTableService, splitters))
       .via(experimentFlow)
       .map { results =>
         logger.info("Experiment - build final response")
@@ -332,158 +216,181 @@ class ExperimentActor[F[_]: Effect](val algorithmExecutor: AlgorithmExecutor[F],
                "Algorithms defined in the results should match the incoming list of algorithms")
 
         val pfa =
-          ExperimentJobResult(jobId = job.jobId, node = algorithmExecutor.node, results = results)
+          ExperimentJobResult(jobId = job.job.jobId,
+                              node = algorithmExecutor.node,
+                              results = results)
 
-        Response(job, Right(pfa), datasets, initiator)
+        LocalExperimentResponse(job, Right(pfa))
       }
       .runWith(Sink.head)
+      .fromFuture
   }
 
-  private def completeWithError(job: Job,
-                                msg: String,
-                                datasets: Set[DatasetId],
-                                initiator: ActorRef,
-                                replyTo: ActorRef): Unit = {
-    val result =
-      ErrorJobResult(Some(job.jobId), algorithmExecutor.node, OffsetDateTime.now(), None, msg)
-    val _ = runNow(jobResultService.put(result))
-    replyTo ! Response(job, Left(result), datasets, initiator)
-    context stop self
-  }
+  private def executeExtendedExperimentFlow(
+      job: ExperimentJobInProgress,
+      splitterDefs: List[FeaturesSplitterDefinition],
+      featuresTableService: FeaturesTableService[F]
+  ): F[LocalExperimentResponse] =
+    featuresTableService
+      .createExtendedFeaturesTable(job.job.query.filters,
+                                   Nil,
+                                   splitterDefs.map(_.splitColumn),
+                                   splitterDefs)
+      .fold(
+        err => {
+          val msg =
+            s"""Invalid definition of extended features table: ${err
+              .mkString_("", ",", "")}"""
+          errorResult(job, msg).pure[F]
+        },
+        (extendedFeaturesTableR: Resource[F, FeaturesTableService[F]]) => {
+          extendedFeaturesTableR.use[LocalExperimentResponse] {
+            extendedFeaturesTable =>
+              val splitters = splitterDefs.map {
+                FeaturesSplitter(_, extendedFeaturesTable)
+              }
 
-  private def completeExperiment(job: ExperimentJob,
-                                 responseF: Future[Response],
-                                 datasets: Set[DatasetId],
-                                 thisActor: ActorRef,
-                                 initiator: ActorRef,
-                                 replyTo: ActorRef): Unit =
-    responseF
-      .andThen {
-        case Success(response) =>
-          // Store the job result, including errors, into the database
-          val result = response.result.fold(identity, identity)
-          val _      = runNow(jobResultService.put(result))
-          // Copy the job to avoid spilling internals of extended jobs to outside world. Smelly design here
-          replyTo ! response.copy(job = job, datasets = response.datasets ++ datasets)
-        case Failure(e) =>
-          logger.error(s"Cannot complete experiment ${job.jobId}: ${e.getMessage}", e)
-          val result = ErrorJobResult(Some(job.jobId),
-                                      algorithmExecutor.node,
-                                      OffsetDateTime.now(),
-                                      None,
-                                      e.toString)
-          val response = Response(job, Left(result), datasets, initiator)
-          val _        = runNow(jobResultService.put(result))
-          replyTo ! response
-      }
-      .onComplete { _ =>
-        logger.info("Stopping experiment...")
-        Try {
-          context stop thisActor
-        }.recover {
-          case NonFatal(e) =>
-            logger.error("Cannot shutdown cleanly Experiment actor", e)
+              val extTable = extendedFeaturesTable.table.table
+              val extendedJob = job.job.copy(
+                inputTable = extTable,
+                query = job.job.query.copy(targetTable = Some(extTable.name))
+              )
+              val extendedJobInProgress: ExperimentJobInProgress = job.copy(job = extendedJob)
+
+              validateFolds(extendedJob, splitterDefs, extendedFeaturesTable)
+                .flatMap {
+                  case Left(err) =>
+                    val msg =
+                      s"""Invalid folding of extended features table: ${err
+                        .mkString_("", ",", "")}"""
+                    errorResult(job, msg).pure[F]
+                  case Right(_) =>
+                    executeExperimentFlow(extendedJobInProgress, splitters, extendedFeaturesTable)
+                }
+                .map { r =>
+                  // Restore the original job in the response
+                  r.copy(jobInProgress = job)
+                }
+
+          }
         }
-      }
+      )
 }
 
-object ExperimentFlow {
-  case class JobForAlgorithmPreparation(job: ExperimentJob,
-                                        algorithmSpec: AlgorithmSpec,
-                                        algorithmDefinition: AlgorithmDefinition,
-                                        validations: List[ValidationSpec]) {
+private[mining] object LocalExperimentFlow extends LazyLogging {
+
+  case class LocalExperimentJob[F[_]](job: ExperimentJob,
+                                      featuresTableService: FeaturesTableService[F],
+                                      splitters: List[FeaturesSplitter[F]])
+
+  case class AlgorithmInExperimentPreparation[F[_]](
+      job: ExperimentJob,
+      algorithmSpec: AlgorithmSpec,
+      algorithmDefinition: AlgorithmDefinition,
+      validations: List[ValidationSpec],
+      featuresTableService: FeaturesTableService[F],
+      splitters: List[FeaturesSplitter[F]]
+  ) {
     assert(algorithmSpec.code == algorithmDefinition.code,
            "Algorithm spec and definition should match")
   }
 
+  case class AlgorithmInExperimentJob[F[_]](job: ExperimentJob,
+                                            algorithmSpec: AlgorithmSpec,
+                                            subJob: AlgorithmWithCVFlow.Job[F])
+
+  case class AlgorithmInExperimentResult(job: ExperimentJob,
+                                         algorithmSpec: AlgorithmSpec,
+                                         result: JobResult)
+
 }
 
-// TODO: move featuresTableService, splitters to the job
-case class ExperimentFlow[F[_]: Effect](
-    featuresTableService: FeaturesTableService[F],
-    dispatcherService: DispatcherService,
-    splitters: List[FeaturesSplitter[F]],
+private[mining] case class LocalExperimentFlow[F[_]: Effect](
     algorithmExecutor: AlgorithmExecutor[F],
     wokenWorker: WokenWorker[F]
 )(implicit materializer: Materializer, ec: ExecutionContext)
     extends LazyLogging {
 
-  import ExperimentFlow.JobForAlgorithmPreparation
-
-  private case class JobForAlgorithm(job: ExperimentJob,
-                                     algorithmSpec: AlgorithmSpec,
-                                     subJob: AlgorithmWithCVFlow.Job[F])
-
-  private case class ExperimentJobResult(job: ExperimentJob,
-                                         algorithmSpec: AlgorithmSpec,
-                                         result: JobResult)
+  import LocalExperimentFlow._
 
   private val algorithmWithCVFlow =
     AlgorithmWithCVFlow(algorithmExecutor, wokenWorker)
 
+  private val LOCAL_PREDICTIVE_ALGORITHM = 0
+  private val OTHER_ALGORITHM            = 1
+
   @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
-  def flow: Flow[ExperimentJob, Map[AlgorithmSpec, JobResult], NotUsed] =
+  def flow: Flow[LocalExperimentJob[F], Map[AlgorithmSpec, JobResult], NotUsed] =
     Flow
       .fromGraph(GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
         import GraphDSL.Implicits._
 
-        // TODO: detect distributed algorithms
-        val LOCAL_PREDICTIVE_ALGORITHM = 0
-        val OTHER_ALGORITHM            = 1
-
-        def partitionAlgorithmByType(jobForAlgorithm: JobForAlgorithmPreparation): Int = {
-          val algoDef = jobForAlgorithm.algorithmDefinition
-          if (algoDef.predictive) {
-            logger.info(s"Algorithm ${algoDef.code} is local and predictive")
-            LOCAL_PREDICTIVE_ALGORITHM
-          } else {
-            logger.info(s"Algorithm ${algoDef.code} is not local or not predictive")
-            OTHER_ALGORITHM
-          }
-        }
-
         // prepare graph elements
-        val jobSplitter = builder.add(splitJob)
-        val partition =
-          builder
-            .add(Partition[JobForAlgorithmPreparation](outputPorts = 2, partitionAlgorithmByType))
-        val merge = builder.add(Merge[ExperimentJobResult](inputPorts = 2))
+        val splitByAlgorithm = builder.add(splitExperimentJobByAlgorithm)
+        val partition = builder
+          .add(
+            Partition[AlgorithmInExperimentPreparation[F]](outputPorts = 2,
+                                                           partitionAlgorithmByType)
+          )
+        val merge = builder.add(Merge[AlgorithmInExperimentResult](inputPorts = 2))
         val toMap =
-          builder.add(Flow[ExperimentJobResult].fold[Map[AlgorithmSpec, JobResult]](Map()) {
+          builder.add(Flow[AlgorithmInExperimentResult].fold(Map[AlgorithmSpec, JobResult]()) {
             (m, r) =>
               m + (r.algorithmSpec -> r.result)
           })
 
         // connect the graph
-        jobSplitter ~> partition.in
+        splitByAlgorithm ~> partition.in
         // Algorithm with validation
         partition
-          .out(LOCAL_PREDICTIVE_ALGORITHM) ~> prepareAlgorithmFlow ~> localAlgorithmWithValidation ~> merge
+          .out(LOCAL_PREDICTIVE_ALGORITHM) ~> prepareAlgorithmFlow ~> runLocalAlgorithmWithCrossValidation ~> merge
         // Algorithm without validation
-        partition.out(OTHER_ALGORITHM) ~> prepareAlgorithmFlow ~> algorithmOnly ~> merge
+        partition.out(OTHER_ALGORITHM) ~> prepareAlgorithmFlow ~> runLocalAlgorithm ~> merge
         merge ~> toMap
 
-        FlowShape(jobSplitter.in, toMap.out)
+        FlowShape(splitByAlgorithm.in, toMap.out)
       })
       .named("run-experiment")
 
-  def splitJob: Flow[ExperimentActor.Job, JobForAlgorithmPreparation, NotUsed] =
-    Flow[ExperimentActor.Job]
+  private def partitionAlgorithmByType(
+      jobForAlgorithm: AlgorithmInExperimentPreparation[F]
+  ): Int = {
+    val algoDef = jobForAlgorithm.algorithmDefinition
+    if (algoDef.predictive) {
+      logger.info(s"Algorithm ${algoDef.code} is local and predictive")
+      LOCAL_PREDICTIVE_ALGORITHM
+    } else {
+      logger.info(s"Algorithm ${algoDef.code} is local and not predictive")
+      OTHER_ALGORITHM
+    }
+  }
+
+  private def splitExperimentJobByAlgorithm
+    : Flow[LocalExperimentJob[F], AlgorithmInExperimentPreparation[F], NotUsed] =
+    Flow[LocalExperimentJob[F]]
       .map { job =>
-        val algorithms  = job.queryAlgorithms
-        val validations = job.query.validations
+        val algorithms           = job.job.queryAlgorithms
+        val validations          = job.job.query.validations
+        val featuresTableService = job.featuresTableService
+        val splitters            = job.splitters
 
         algorithms.map {
           case (algoSpec, algoDefn) =>
-            JobForAlgorithmPreparation(job, algoSpec, algoDefn, validations)
+            AlgorithmInExperimentPreparation[F](job.job,
+                                                algoSpec,
+                                                algoDefn,
+                                                validations,
+                                                featuresTableService,
+                                                splitters)
         }
       }
       .mapConcat(identity)
       .named("split-job")
 
   @SuppressWarnings(Array("org.wartremover.warts.Throw"))
-  private def prepareAlgorithmFlow: Flow[JobForAlgorithmPreparation, JobForAlgorithm, NotUsed] =
-    Flow[JobForAlgorithmPreparation]
+  private def prepareAlgorithmFlow
+    : Flow[AlgorithmInExperimentPreparation[F], AlgorithmInExperimentJob[F], NotUsed] =
+    Flow[AlgorithmInExperimentPreparation[F]]
       .map { a =>
         val job                 = a.job
         val jobId               = UUID.randomUUID().toString
@@ -492,34 +399,31 @@ case class ExperimentFlow[F[_]: Effect](
         val algorithmDefinition = a.algorithmDefinition
         val featuresQuery       = query.features(job.inputTable, None)
         val subJob =
-          createAlgoritmWithCVFlowJob(jobId, job, algorithmSpec, algorithmDefinition, featuresQuery)
+          AlgorithmWithCVFlow.Job(jobId,
+                                  algorithmSpec,
+                                  algorithmDefinition,
+                                  a.featuresTableService,
+                                  featuresQuery,
+                                  a.splitters,
+                                  job.metadata)
         logger.info(s"Prepared mining query sub job $subJob")
-        JobForAlgorithm(job, algorithmSpec, subJob)
+        AlgorithmInExperimentJob(job, algorithmSpec, subJob)
       }
       .named("prepare-mining-query")
 
-  private def createAlgoritmWithCVFlowJob(jobId: String,
-                                          job: ExperimentJob,
-                                          algorithmSpec: AlgorithmSpec,
-                                          algorithmDefinition: AlgorithmDefinition,
-                                          query: FeaturesQuery) =
-    AlgorithmWithCVFlow.Job(jobId,
-                            algorithmSpec,
-                            algorithmDefinition,
-                            featuresTableService,
-                            query,
-                            splitters,
-                            job.metadata)
-
-  private def localAlgorithmWithValidation: Flow[JobForAlgorithm, ExperimentJobResult, NotUsed] =
+  /**
+    * Run a local algorithm, benchmark the results using cross-validation and return the results
+    */
+  private def runLocalAlgorithmWithCrossValidation
+    : Flow[AlgorithmInExperimentJob[F], AlgorithmInExperimentResult, NotUsed] =
     Flow
       .fromGraph(GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
         import GraphDSL.Implicits._
 
-        val broadcast = builder.add(Broadcast[JobForAlgorithm](outputPorts = 3))
+        val broadcast = builder.add(Broadcast[AlgorithmInExperimentJob[F]](outputPorts = 3))
         val runAlgorithmAndValidate =
-          algorithmWithCVFlow.runLocalAlgorithmAndValidate(parallelism = 4)
-        val zip = builder.add(ZipWith(ExperimentJobResult))
+          algorithmWithCVFlow.runLocalAlgorithmAndCrossValidate(parallelism = 10)
+        val zip = builder.add(ZipWith(AlgorithmInExperimentResult))
 
         broadcast.out(0).map(_.job) ~> zip.in0
         broadcast.out(1).map(_.algorithmSpec) ~> zip.in1
@@ -528,17 +432,21 @@ case class ExperimentFlow[F[_]: Effect](
 
         FlowShape(broadcast.in, zip.out)
       })
-      .named("algorithm-with-validation")
+      .named("algorithm-with-cross-validation")
 
-  private def algorithmOnly: Flow[JobForAlgorithm, ExperimentJobResult, NotUsed] =
+  /**
+    * Run a local algorithm and return its results
+    */
+  private def runLocalAlgorithm
+    : Flow[AlgorithmInExperimentJob[F], AlgorithmInExperimentResult, NotUsed] =
     Flow
       .fromGraph(GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
         import GraphDSL.Implicits._
 
-        val broadcast    = builder.add(Broadcast[JobForAlgorithm](outputPorts = 3))
+        val broadcast    = builder.add(Broadcast[AlgorithmInExperimentJob[F]](outputPorts = 3))
         val runAlgorithm = algorithmWithCVFlow.runAlgorithmOnLocalData
         val takeModel    = Flow[AlgorithmResults].map(extractResult)
-        val zip          = builder.add(ZipWith(ExperimentJobResult))
+        val zip          = builder.add(ZipWith(AlgorithmInExperimentResult))
 
         broadcast.out(0).map(_.job) ~> zip.in0
         broadcast.out(1).map(_.algorithmSpec) ~> zip.in1

@@ -16,6 +16,7 @@
  */
 
 package ch.chuv.lren.woken.core.model
+
 import ch.chuv.lren.woken.messages.query.{ ExperimentQuery, MiningQuery }
 
 package object jobs {

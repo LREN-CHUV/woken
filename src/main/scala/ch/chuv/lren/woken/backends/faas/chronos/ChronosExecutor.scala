@@ -69,7 +69,7 @@ case class ChronosExecutor[F[_]: Effect](system: ActorSystem,
     val url        = s"$chronosUrl/v1/scheduler/jobs"
 
     checkHealth(url)
-      .through[F, TaggedS](mods.tagWith("Woken scoring worker(s)"))
+      .through[F, TaggedS](mods.tagWith("Algorithm executor (Chronos)"))
   }
 
 }

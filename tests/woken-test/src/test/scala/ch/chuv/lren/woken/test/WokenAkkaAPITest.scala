@@ -197,6 +197,7 @@ class WokenAkkaAPITest
         val json = response.toJson
         val expected = loadJson("/responses/knn_data_mining.json")
 
+        save(approximate(json), "/responses/knn_data_mining.json")
         assertResult(approximate(expected))(approximate(json))
       }
 
@@ -223,6 +224,7 @@ class WokenAkkaAPITest
         val json = response.toJson
         val expected = loadJson("/responses/histograms.json")
 
+        save(approximate(json), "/responses/histograms.json")
         assertResult(approximate(expected))(approximate(json))
       }
 
@@ -248,6 +250,7 @@ class WokenAkkaAPITest
         val json = response.toJson
         val expected = loadJson("/responses/summary_statistics.json")
 
+        save(approximate(json), "/responses/summary_statistics.json")
         assertResult(approximate(expected))(approximate(json))
       }
 
@@ -276,6 +279,7 @@ class WokenAkkaAPITest
         val skippedTags = List("series")
         val expected = loadJson("/responses/tsne_data_mining.json")
 
+        save(approximate(json), "/responses/tsne_data_mining.json")
         assertResult(approximate(expected, skippedTags))(
           approximate(json, skippedTags))
       }
@@ -305,7 +309,6 @@ class WokenAkkaAPITest
           loadJson("/responses/correlation_heatmap_data_mining.json")
 
         save(approximate(json), "/responses/correlation_heatmap_data_mining.json")
-
         assertResult(approximate(expected))(approximate(json))
       }
 
@@ -335,7 +338,6 @@ class WokenAkkaAPITest
           loadJson("/responses/pca_data_mining.json")
 
         save(approximate(json), "/responses/pca_data_mining.json")
-
         assertResult(approximate(expected))(approximate(json))
       }
 
@@ -362,6 +364,7 @@ class WokenAkkaAPITest
         val json = response.toJson
         val expected = loadJson("/responses/ggparci_data_mining.json")
 
+        save(approximate(json), "/responses/ggparci_data_mining.json")
         assertResult(approximate(expected))(approximate(json))
       }
 
@@ -396,6 +399,7 @@ class WokenAkkaAPITest
             .replaceAll("""\\"attrs\\":\{.*</script>""",
                         """\"attrs\":{}}]}}</script>""")
 
+        save(approximate(json), "/responses/heatmaply_data_mining.json")
         assertResult(cleanMore(approximate(expected)))(
           cleanMore(approximate(json)))
       }
@@ -428,6 +432,7 @@ class WokenAkkaAPITest
             .replaceAll("""Time taken: .*?\\n""", """Time taken:\\n""")
             .replaceAll("""bk_dir=.*?\\n""", """bk_dir=\\n""")
 
+        save(approximate(json), "/responses/hedwig_data_mining.json")
         assertResult(cleanMore(approximate(expected)))(
           cleanMore(approximate(json)))
       }
@@ -455,8 +460,7 @@ class WokenAkkaAPITest
         val json = response.toJson
         val expected = loadJson("/responses/hinmine_data_mining.json")
 
-        // save(approximate(json), "/responses/hinmine_data_mining.json")
-
+        save(approximate(json), "/responses/hinmine_data_mining.json")
         assertResult(approximate(expected))(approximate(json))
       }
 
@@ -478,7 +482,6 @@ class WokenAkkaAPITest
         val expected = loadJson("/responses/knn_experiment.json")
 
         save(approximate(json), "/responses/knn_experiment.json")
-
         assertResult(approximate(expected))(approximate(json))
       }
 
@@ -496,7 +499,6 @@ class WokenAkkaAPITest
         val expected = loadJson("/responses/lr_and_anova_experiment.json")
 
         save(approximate(json), "/responses/lr_and_anova_experiment.json")
-
         assertResult(approximate(expected))(approximate(json))
       }
 
@@ -519,7 +521,6 @@ class WokenAkkaAPITest
         val expected = loadJson("/responses/naive_bayes_experiment.json")
 
         save(approximate(json), "/responses/naive_bayes_experiment.json")
-
         assertResult(approximate(expected))(approximate(json))
       }
 
@@ -545,7 +546,6 @@ class WokenAkkaAPITest
         val expected = loadJson("/responses/sgd_linear_model_experiment.json")
 
         save(approximate(json), "/responses/sgd_linear_model_experiment.json")
-
         assertResult(approximate(expected, skippedTags))(
           approximate(json, skippedTags))
       }
@@ -572,7 +572,6 @@ class WokenAkkaAPITest
         val expected = loadJson("/responses/sgd_neural_network_experiment.json")
 
         save(approximate(json), "/responses/sgd_neural_network_experiment.json")
-
         assertResult(approximate(expected, skippedTags))(
           approximate(json, skippedTags))
       }
@@ -597,7 +596,6 @@ class WokenAkkaAPITest
         val expected = loadJson("/responses/gradient_boosting_experiment.json")
 
         save(approximate(json), "/responses/gradient_boosting_experiment.json")
-
         assertResult(approximate(expected))(approximate(json))
       }
 

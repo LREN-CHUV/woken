@@ -88,15 +88,13 @@ case class AlgorithmWithCVFlow[F[_]: Effect](
     CrossValidationFlow(algorithmExecutor, wokenWorker)
 
   /**
-    * Run a predictive and local algorithm and perform its validation procedure.
-    *
-    * If the algorithm is predictive, validate it using cross-validation for validation with local data.
+    * Run a local predictive algorithm and benchmark its model using the cross-validation procedure on local data.
     *
     * @param parallelism Parallelism factor
     * @return A flow that executes an algorithm and its validation procedures
     */
   @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
-  def runLocalAlgorithmAndValidate(
+  def runLocalAlgorithmAndCrossValidate(
       parallelism: Int
   ): Flow[AlgorithmWithCVFlow.Job[F], ResultResponse, NotUsed] =
     Flow
@@ -115,7 +113,7 @@ case class AlgorithmWithCVFlow[F[_]: Effect](
 
         FlowShape(broadcast.in, response.out)
       })
-      .named("run-algorithm-and-validate")
+      .named("run-algorithm-and-cross-validate")
 
   /**
     * Execute an algorithm and learn from the local data.
@@ -132,18 +130,14 @@ case class AlgorithmWithCVFlow[F[_]: Effect](
         logger.info(s"Start job for algorithm ${algorithm.code}")
 
         // Spawn a CoordinatorActor
-        val jobId  = UUID.randomUUID().toString
-        val subJob = createDockerJob(job, jobId, job.query)
+        val subJobId = UUID.randomUUID().toString
+        val subJob =
+          DockerJob(subJobId, job.query, job.algorithm, job.algorithmDefinition, job.metadata)
 
         runLater(algorithmExecutor.execute(subJob).map(response => (job, response)))
       }
       .log("Learned from available local data")
       .named("learn-from-available-local-data")
-
-  private def createDockerJob(job: AlgorithmWithCVFlow.Job[F],
-                              jobId: String,
-                              featuresQuery: FeaturesQuery): DockerJob =
-    DockerJob(jobId, featuresQuery, job.algorithm, job.algorithmDefinition, job.metadata)
 
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
   private def crossValidate(

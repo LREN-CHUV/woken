@@ -29,7 +29,6 @@ import kamon.sigar.SigarProvisioner
 import kamon.system.SystemMetrics
 import kamon.zipkin.ZipkinReporter
 import org.hyperic.sigar.{ Sigar, SigarLoader }
-import org.slf4j.LoggerFactory
 
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
@@ -113,8 +112,7 @@ case class Monitoring[F[_]: ConcurrentEffect: Timer](core: CoreSystem, config: W
 
 object Monitoring {
 
-  private val logger: Logger =
-    Logger(LoggerFactory.getLogger("woken.Monitoring"))
+  private val logger: Logger = Logger("woken.Monitoring")
 
   /** Resource that creates and yields monitoring services with Kamon, guaranteeing cleanup. */
   def resource[F[_]: ConcurrentEffect: ContextShift: Timer](

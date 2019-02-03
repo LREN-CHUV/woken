@@ -1,5 +1,5 @@
 # Pull base image
-FROM hbpmip/scala-base-build:1.2.6-3 as scala-build-env
+FROM hbpmip/scala-base-build:1.2.6-5 as scala-build-env
 
 # First caching layer: build.sbt and sbt configuration
 COPY build.sbt /build/

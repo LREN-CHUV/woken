@@ -3,21 +3,21 @@
   "data": {
     "data": [
       {
-        "25%": 42.7354818081,
-        "50%": 47.0656661866,
-        "75%": 53.5290071048,
-        "EX^2": 2599.3333333331,
-        "count": 150,
+        "25%": 42.73548,
+        "50%": 47.06567,
+        "75%": 53.52901,
+        "EX^2": 2599.33333,
+        "count": 150.0,
         "group": [
           "all"
         ],
         "group_variables": [],
         "index": "cognitive_task2",
         "label": "Cognitive Task 2",
-        "max": 80.4738996627,
+        "max": 80.4739,
         "mean": 50.0,
-        "min": 35.3848051833,
-        "null_count": 0,
+        "min": 35.38481,
+        "null_count": 0.0,
         "std": 10.0,
         "type": "real"
       }
@@ -99,8 +99,33 @@
       ]
     }
   },
+  "dataProvenance": [
+    {
+      "code": "sample_data"
+    }
+  ],
+  "feedback": [],
   "jobId": "*",
   "node": "local",
+  "query": {
+    "algorithm": {
+      "code": "statisticsSummary",
+      "parameters": []
+    },
+    "covariables": [],
+    "covariablesMustExist": true,
+    "datasets": [],
+    "grouping": [],
+    "targetTable": "sample_data",
+    "user": {
+      "code": "test1"
+    },
+    "variables": [
+      {
+        "code": "cognitive_task2"
+      }
+    ]
+  },
   "timestamp": 0.0,
   "type": "application/vnd.dataresource+json"
 }

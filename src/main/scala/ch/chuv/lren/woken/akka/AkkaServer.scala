@@ -27,6 +27,7 @@ import ch.chuv.lren.woken.backends.faas.chronos.ChronosExecutor
 import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.backends.worker.WokenWorker
 import ch.chuv.lren.woken.config.{ DatasetsConfiguration, WokenConfiguration }
+import ch.chuv.lren.woken.errors.BugsnagErrorReporter
 import ch.chuv.lren.woken.service._
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -59,18 +60,21 @@ class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
 
   override protected def logger: Logger = AkkaServer.logger
 
+  private val pubSub = DistributedPubSub(system)
+
   val backendServices: BackendServices[F] = {
     val wokenService: WokenClientService = WokenClientService(config.jobs.node)
     val dispatcherService: DispatcherService =
       DispatcherService(DatasetsConfiguration.datasets(config.config), wokenService)
-    val wokenWorker = WokenWorker[F](system)
+    val wokenWorker = WokenWorker[F](pubSub, cluster)
     val algorithmExecutor = ChronosExecutor(system,
                                             chronosHttp,
                                             config.app.dockerBridgeNetwork,
                                             databaseServices.jobResultService,
                                             config.jobs,
                                             config.databaseConfig)
-    BackendServices(dispatcherService, algorithmExecutor, wokenWorker)
+    val errorReporter = BugsnagErrorReporter(config.config)
+    BackendServices(dispatcherService, algorithmExecutor, wokenWorker, errorReporter)
   }
 
   private def mainRouterSupervisorProps =
@@ -95,15 +99,11 @@ class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
     system.actorOf(mainRouterSupervisorProps, name = "entrypoint")
 
   def startActors(): Unit = {
-
-    val mediator = DistributedPubSub(system).mediator
-
-    mediator ! DistributedPubSubMediator.Put(mainRouter)
+    pubSub.mediator ! DistributedPubSubMediator.Put(mainRouter)
 
     ClusterClientReceptionist(system).registerService(mainRouter)
 
     monitorDeadLetters()
-
   }
 
   def selfChecks(): Unit = {
@@ -130,7 +130,7 @@ class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
 }
 
 object AkkaServer {
-  private val logger: Logger = Logger(LoggerFactory.getLogger("woken.AkkaServer"))
+  private val logger: Logger = Logger("woken.AkkaServer")
 
   /** Resource that creates and yields an Akka server, guaranteeing cleanup. */
   def resource[F[_]: ConcurrentEffect: ContextShift: Timer](

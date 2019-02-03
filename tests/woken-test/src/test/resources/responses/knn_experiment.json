@@ -1407,7 +1407,7 @@
         "name": "kNN",
         "output": "double"
       },
-      "datasets": [],
+      "dataProvenance": [],
       "feedback": [],
       "jobId": "*",
       "node": "local",
@@ -1415,7 +1415,11 @@
       "type": "application/pfa+json"
     }
   ],
-  "datasets": [],
+  "dataProvenance": [
+    {
+      "code": "sample_data"
+    }
+  ],
   "feedback": [],
   "jobId": "*",
   "node": "local",

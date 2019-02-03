@@ -17,93 +17,61 @@
 
 package ch.chuv.lren.woken.backends.worker
 
-import akka.actor.ActorRef
-import akka.cluster.pubsub.DistributedPubSubMediator
+import akka.cluster.Cluster
+import akka.cluster.pubsub.{ DistributedPubSub, DistributedPubSubMediator }
 import akka.pattern.ask
 import akka.util.Timeout
 import cats.Id
-import cats.data.NonEmptyList
-import cats.effect.{ Effect, IO }
+import cats.effect.Effect
 import cats.implicits._
-import ch.chuv.lren.woken.messages.validation.{
-  ScoringQuery,
-  ScoringResult,
-  ValidationQuery,
-  ValidationResult
-}
-import ch.chuv.lren.woken.messages.variables.{ VariableMetaData, VariableType }
+import ch.chuv.lren.woken.core.fp._
+import ch.chuv.lren.woken.messages.{ Ping, Pong }
 import com.typesafe.scalalogging.Logger
-import eu.timepit.refined.types.numeric.PosInt
-import eu.timepit.refined.auto._
-import org.slf4j.LoggerFactory
-import spray.json.{ JsObject, JsString }
 import sup.HealthCheck
 
-import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.higherKinds
-import scala.reflect.ClassTag
 
-// TODO: Pubsub checks should use a simple Ping message
 object DistributedPubSubHealthCheck {
 
-  private val logger: Logger = Logger(LoggerFactory.getLogger("woken.DistributedPubSubHealthCheck"))
+  private val logger: Logger = Logger("woken.DistributedPubSubHealthCheck")
 
-  private def check[F[_]: Effect, A, B](
-      mediator: ActorRef,
-      path: String,
-      request: A
-  )(timeoutSeconds: Option[PosInt])(implicit classTag: ClassTag[B]): HealthCheck[F, Id] = {
-    implicit val askTimeout: Timeout = Timeout(timeoutSeconds.fold(0)(_.value).seconds)
-    val topicsFuture: Future[B] =
-      (mediator ? DistributedPubSubMediator.Send(path, request, localAffinity = false)).mapTo[B]
-    val responseIO: IO[B] = IO.fromFuture(IO.pure(topicsFuture))
-    val result            = responseIO.attempt.unsafeRunSync()
-    logger.info("Found validation instance: {}", result)
-    HealthCheck.liftFBoolean(result.isRight.pure[F])
-  }
+  def check[F[_]: Effect](pubSub: DistributedPubSub, cluster: Cluster, path: String, role: String)(
+      timeout: FiniteDuration
+  ): HealthCheck[F, Id] =
+    HealthCheck.liftFBoolean {
+      // Defer computation to return a different result on every execution
+      Effect[F].defer {
+        if (!cluster.state.members.exists(m => m.roles.contains(role))) {
+          val clusterRoles = cluster.state.members.flatMap(_.roles).mkString(",")
+          logger.warn(
+            s"Cannot find a member in the cluster with role $role, found roles $clusterRoles"
+          )
+          false.pure[F]
+        } else {
+          val response: F[Pong] = fromFuture {
+            implicit val askTimeout: Timeout = Timeout(timeout)
+            (pubSub.mediator ? DistributedPubSubMediator.Send(path,
+                                                              Ping(Some(role)),
+                                                              localAffinity = false))
+              .mapTo[Pong]
+          }
+          response
+            .map(_ => true)
+            .recoverWith {
+              case e =>
+                logger.warn(s"Cannot check remote actor $path", e)
+                false.pure[F]
+            }
+        }
+      }
+    }
 
-  def checkValidation[F[_]: Effect](mediator: ActorRef): HealthCheck[F, Id] = {
-    val query = ValidationQuery(
-      0,
-      JsObject(Map("test" -> JsString("test"))),
-      List.empty,
-      VariableMetaData("alzheimerbroadcategory",
-                       "alzheimerbroadcategory",
-                       VariableType.text,
-                       None,
-                       None,
-                       None,
-                       None,
-                       None,
-                       None,
-                       None,
-                       None,
-                       None,
-                       Set())
-    )
-    check[F, ValidationQuery, ValidationResult](mediator, "/user/validation", query)(Some(5))
-  }
+  def checkValidation[F[_]: Effect](pubSub: DistributedPubSub,
+                                    cluster: Cluster): HealthCheck[F, Id] =
+    check[F](pubSub, cluster, "/user/validation", "validation")(30.seconds)
 
-  def checkScoring[F[_]: Effect](mediator: ActorRef): HealthCheck[F, Id] = {
-    val query = ScoringQuery(
-      algorithmOutput = NonEmptyList(JsString("test"), List.empty),
-      groundTruth = NonEmptyList(JsString("test"), List.empty),
-      targetMetaData = VariableMetaData("alzheimerbroadcategory",
-                                        "alzheimerbroadcategory",
-                                        VariableType.text,
-                                        None,
-                                        None,
-                                        None,
-                                        None,
-                                        None,
-                                        None,
-                                        None,
-                                        None,
-                                        None,
-                                        Set())
-    )
-    check[F, ScoringQuery, ScoringResult](mediator, "/user/scoring", query)(Some(5))
-  }
+  def checkScoring[F[_]: Effect](pubSub: DistributedPubSub, cluster: Cluster): HealthCheck[F, Id] =
+    check[F](pubSub, cluster, "/user/scoring", "scoring")(30.seconds)
 
 }

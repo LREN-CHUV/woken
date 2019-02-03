@@ -27,7 +27,6 @@ import ch.chuv.lren.woken.backends.HttpClient.checkHealth
 import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.service.{ BackendServices, DatabaseServices }
 import com.typesafe.scalalogging.Logger
-import org.slf4j.LoggerFactory
 
 import scala.concurrent.{ Await, Future }
 import scala.concurrent.duration._
@@ -107,7 +106,7 @@ class WebServer[F[_]: ConcurrentEffect: Timer](override val core: CoreSystem,
 
 object WebServer {
 
-  private val logger: Logger = Logger(LoggerFactory.getLogger("woken.WebServer"))
+  private val logger: Logger = Logger("woken.WebServer")
 
   /** Resource that creates and yields a web server, guaranteeing cleanup. */
   def resource[F[_]: ConcurrentEffect: ContextShift: Timer](

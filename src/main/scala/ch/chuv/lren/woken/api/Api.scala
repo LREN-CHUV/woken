@@ -64,6 +64,7 @@ trait Api {
 
     val monitoringService =
       new MonitoringWebService(core.cluster,
+                               config.config,
                                config.app,
                                config.jobs,
                                databaseServices,

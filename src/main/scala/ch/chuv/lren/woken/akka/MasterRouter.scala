@@ -26,6 +26,7 @@ import ch.chuv.lren.woken.dispatch.{
   MetadataQueriesActor,
   MiningQueriesActor
 }
+import ch.chuv.lren.woken.messages.{ Ping, Pong }
 import ch.chuv.lren.woken.messages.datasets.{ DatasetsQuery, DatasetsResponse }
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables._
@@ -63,6 +64,11 @@ class MasterRouter[F[_]: Effect](
 
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
   def receive: Receive = {
+
+    // For health checks in the cluster
+    case Ping(role) if role.isEmpty || role.contains("woken") =>
+      logger.info("Ping received")
+      sender() ! Pong(Set("woken"))
 
     case MethodsQuery =>
       mark("MethodsQueryRequestReceived")

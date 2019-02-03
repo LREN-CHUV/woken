@@ -33,6 +33,7 @@ import scala.concurrent.{ ExecutionContext, Future }
 
 object RemoteValidationFlow {
 
+  // TODO: use ExperimentJobInProgress
   case class ValidationContext(query: ExperimentQuery,
                                algorithms: Map[AlgorithmSpec, AlgorithmDefinition],
                                experimentResult: ExperimentJobResult,
