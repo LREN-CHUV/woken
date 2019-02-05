@@ -196,5 +196,6 @@ This work is part of SP8 of the Human Brain Project (SGA1).
 We use the following tools for development:
 
 * IntelliJ IDEA
-* [Bugsnag](https://bugsnag.com) to report errors in real time to our development team
+* [<img src="docs/bugsnag_logo_navy.png" height="16"></img>](https://bugsnag.com) to report errors in real time to our development team
 * [CircleCI](https://circleci.com) for continuous integration
+file:///home/ludo/Projects/HBP/algorithm-factory/woken/
