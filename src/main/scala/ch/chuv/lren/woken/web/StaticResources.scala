@@ -33,7 +33,7 @@ trait StaticResources {
       pathPrefix("swagger-ui") {
         getFromResourceDirectory("swagger-ui")
       } ~
-      pathPrefix("webjars/swagger-ui") {
+      pathPrefix("webjars" / "swagger-ui") {
         getFromResourceDirectory("META-INF/resources/webjars/swagger-ui/3.20.5")
       } ~
       path("favicon.ico") {
