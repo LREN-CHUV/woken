@@ -65,6 +65,35 @@ object AlgorithmExecutorInstances {
         HealthCheck.const[IO, Id](Health.healthy).through(mods.tagWith("Health of mock executor"))
     }
 
+  def dummyAlgorithm: AlgorithmExecutor[IO] =
+    new AlgorithmExecutor[IO] {
+
+      /**
+        * Name of the current node (or cluster) where Docker containers are executed
+        */
+      override def node: String = "DummyTestNode"
+
+      private val pfa =
+        """
+           {
+             "input": {},
+             "output": {},
+             "action": [],
+             "cells": {}
+           }
+        """.stripMargin.parseJson.asJsObject
+
+      override def execute(job: DockerJob): IO[AlgorithmResults] =
+        AlgorithmResults(
+          job,
+          List(
+            PfaJobResult(job.jobId, "testNode", OffsetDateTime.now(), job.algorithmSpec.code, pfa)
+          )
+        ).pure[IO]
+
+      override def healthCheck: HealthCheck[IO, TaggedS] = ???
+    }
+
   private def errorResponse(job: DockerJob, msg: String) =
     AlgorithmResults(
       job,

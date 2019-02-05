@@ -117,7 +117,6 @@ case class CrossValidationFlow[F[_]: Effect](
         l :+ r
       }
       .mapAsync(1) { foldResults =>
-        if (foldResults.isEmpty) throw new Exception("No fold results received")
         runLater(scoreAll(foldResults.sortBy(_.fold).toNel))
       }
       .map { jobScoreOption =>
@@ -139,6 +138,9 @@ case class CrossValidationFlow[F[_]: Effect](
                     }
                 )
               )
+            case Right(kFoldCrossValidationScore: KFoldCrossValidationScore) =>
+              crossValidationScore.job -> Right(kFoldCrossValidationScore)
+
             case Left(error) =>
               logger.warn(s"Global score failed with message $error")
               crossValidationScore.job -> Left(error)

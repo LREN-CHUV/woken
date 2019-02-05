@@ -100,7 +100,7 @@ object WebSocketClient
       Flow
         .fromSinkAndSourceMat(sink, source)(Keep.left)
 
-    val (upgradeResponse, closed) =
+    val (upgradeResponse, _) =
       Http().singleWebSocketRequest(
         WebSocketRequest(
           location.url,
@@ -110,8 +110,6 @@ object WebSocketClient
         ),
         flow
       )
-
-    import actorSystem.dispatcher
 
     val connected = upgradeResponse.map { upgrade =>
       if (upgrade.response.status == StatusCodes.SwitchingProtocols) {
