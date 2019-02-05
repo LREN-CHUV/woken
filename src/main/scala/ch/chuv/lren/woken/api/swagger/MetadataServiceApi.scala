@@ -33,6 +33,7 @@ trait MetadataServiceApi extends Directives {
   @Operation(
     summary = "Get list of datasets",
     description = "Get catalog containing available datasets",
+    tags = Array("api"),
     responses = Array(
       new ApiResponse(
         responseCode = "200",
@@ -60,6 +61,7 @@ trait MetadataServiceApi extends Directives {
   @Operation(
     summary = "Get variables metadata for all available datasets",
     description = "Get list of variable metadata for all available datasets",
+    tags = Array("api"),
     parameters = Array(
       new Parameter(
         name = "datasets",

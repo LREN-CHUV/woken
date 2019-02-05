@@ -29,6 +29,7 @@ trait MonitoringServiceApi extends Directives {
   @Operation(
     summary = "Check the health of the application",
     description = "Check the health of the application and the Akka cluster",
+    tags = Array("monitoring"),
     responses = Array(
       new ApiResponse(
         responseCode = "200",
@@ -49,6 +50,7 @@ trait MonitoringServiceApi extends Directives {
   @Operation(
     summary = "Check the health of the cluster",
     description = "Check the health of the Akka cluster",
+    tags = Array("monitoring"),
     responses = Array(
       new ApiResponse(
         responseCode = "200",
@@ -69,6 +71,7 @@ trait MonitoringServiceApi extends Directives {
   @Operation(
     summary = "Check the health of the backend services for Woken",
     description = "Check the health of the backend services for Woken (Chronos, Woken Worker)",
+    tags = Array("monitoring"),
     responses = Array(
       new ApiResponse(
         responseCode = "200",
@@ -89,6 +92,7 @@ trait MonitoringServiceApi extends Directives {
   @Operation(
     summary = "Check the health of the database",
     description = "Check the health of the database",
+    tags = Array("monitoring"),
     responses = Array(
       new ApiResponse(
         responseCode = "200",
@@ -109,6 +113,7 @@ trait MonitoringServiceApi extends Directives {
   @Operation(
     summary = "Check the readiness of the application after startup",
     description = "Check the readiness of the application after startup",
+    tags = Array("monitoring"),
     responses = Array(
       new ApiResponse(
         responseCode = "200",

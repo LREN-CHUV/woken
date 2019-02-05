@@ -38,6 +38,7 @@ trait MiningServiceApi extends Directives {
   @Operation(
     summary = "Run a data mining job",
     description = "Run a data mining job for a single algorithm",
+    tags = Array("api"),
     requestBody = new RequestBody(
       description = "Data mining query to execute",
       content = Array(
@@ -73,6 +74,7 @@ trait MiningServiceApi extends Directives {
   @Operation(
     summary = "Run a data mining experiment",
     description = "Run a data mining experiment and return id",
+    tags = Array("api"),
     requestBody = new RequestBody(
       description = "Experiment to execute",
       content = Array(
@@ -107,6 +109,7 @@ trait MiningServiceApi extends Directives {
   @Operation(
     summary = "Get complete catalog of mining methods (algorithms)",
     description = "Get catalog containing available mining methods (algorithms)",
+    tags = Array("api"),
     responses = Array(
       new ApiResponse(
         responseCode = "200",
