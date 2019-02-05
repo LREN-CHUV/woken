@@ -36,3 +36,22 @@ docker build --build-arg BUILD_DATE=$(date -Iseconds) \
     --tag "$IMAGE:latest" \
     --tag "$IMAGE:$VERSION" \
     .
+
+eval $(grep -e "^\s*BUGSNAG_KEY" Dockerfile)
+
+if [ -n "$BUGSNAG_KEY" ]; then
+  curl https://build.bugsnag.com/ \
+    --header "Content-Type: application/json" \
+    --data "{
+      \"apiKey\": \"$BUGSNAG_KEY\",
+      \"appVersion\": \"$VERSION\",
+      \"releaseStage\": \"dev\",
+      \"builderName\": \"$USER\",
+      \"sourceControl\": {
+        \"provider\": \"github\",
+        \"repository\": \"https://github.com/LREN-CHUV/woken\",
+        \"revision\": \"$VCS_REF\"
+      },
+      \"metadata\": {}
+    }"
+fi
