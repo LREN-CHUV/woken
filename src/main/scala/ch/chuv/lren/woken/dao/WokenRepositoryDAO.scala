@@ -228,7 +228,6 @@ class ResultsCacheRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
     val function         = result.algorithm
 
     // Extract fields that require validation
-    val jobIdV: Validation[String]     = result.jobId.toValidNel[String]("Empty job id")
     val tableNameV: Validation[String] = query.targetTable.toValidNel[String]("Empty table name")
     val queryJsonV: Validation[JsObject] = {
       if (query.variables.length + query.covariables.length + query.grouping.length > 30)
@@ -242,15 +241,14 @@ class ResultsCacheRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
       else json.validNel[String]
     }
 
-    def insert(jobId: String,
-               tableName: String,
+    def insert(tableName: String,
                queryJson: JsObject,
                resultJson: JsObject): Update0 =
       sql"""INSERT INTO "results_cache" (
-      "job_id", "node", "table_name", "table_contents_hash", "query", "created_at", "last_used", "data", "shape", "function")
-      values ($jobId, $node, $tableName, $tableContentHash, $queryJson, $createdAt, $lastUsed, $resultJson, $shape, $function)""".update
+      "node", "table_name", "table_contents_hash", "query", "created_at", "last_used", "data", "shape", "function")
+      values ($node, $tableName, $tableContentHash, $queryJson, $createdAt, $lastUsed, $resultJson, $shape, $function)""".update
 
-    val insertV = (jobIdV, tableNameV, queryJsonV, resultJsonV) mapN insert
+    val insertV = (tableNameV, queryJsonV, resultJsonV) mapN insert
 
     insertV.fold(
       err => {
