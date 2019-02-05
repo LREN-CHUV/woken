@@ -22,6 +22,7 @@ import java.time.{ OffsetDateTime, ZoneOffset }
 import cats.Id
 import doobie._
 import ch.chuv.lren.woken.messages.query.Shapes._
+import ch.chuv.lren.woken.messages.variables.VariableId
 import com.typesafe.scalalogging.LazyLogging
 import org.postgresql.util.PGobject
 import spray.json._
@@ -58,9 +59,9 @@ trait Repository[F[_]] extends LazyLogging {
       dt => java.sql.Timestamp.valueOf(dt.toLocalDateTime)
     )
 
-  protected implicit val ListStringMeta: Meta[List[String]] =
-    Meta[String].timap(_.split(",").toList)(
-      _.mkString(",")
+  protected implicit val ListVariableIdMeta: Meta[List[VariableId]] =
+    Meta[String].timap(_.split(",").toList.map(VariableId))(
+      _.map(_.code).mkString(",")
     )
 
   protected implicit val ShapeMeta: Meta[Shape] =

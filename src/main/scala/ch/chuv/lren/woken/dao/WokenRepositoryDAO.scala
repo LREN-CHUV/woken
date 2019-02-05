@@ -241,9 +241,7 @@ class ResultsCacheRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
       else json.validNel[String]
     }
 
-    def insert(tableName: String,
-               queryJson: JsObject,
-               resultJson: JsObject): Update0 =
+    def insert(tableName: String, queryJson: JsObject, resultJson: JsObject): Update0 =
       sql"""INSERT INTO "results_cache" (
       "node", "table_name", "table_contents_hash", "query", "created_at", "last_used", "data", "shape", "function")
       values ($node, $tableName, $tableContentHash, $queryJson, $createdAt, $lastUsed, $resultJson, $shape, $function)""".update

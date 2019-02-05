@@ -69,7 +69,6 @@ trait MiningServiceApi extends Directives {
   @POST
   def runMiningJob: Route
 
-
   @Path("/experiment")
   @Operation(
     summary = "Run a data mining experiment",

@@ -28,7 +28,7 @@ import doobie.util.ExecutionContexts
 import doobie.util.transactor.Transactor
 import ch.chuv.lren.woken.JsonUtils
 import ch.chuv.lren.woken.core.model.VariablesMeta
-import ch.chuv.lren.woken.messages.variables.GroupMetaData
+import ch.chuv.lren.woken.messages.variables.{ GroupMetaData, VariableId }
 import ch.chuv.lren.woken.messages.variables.variablesProtocol._
 
 class MetadataRepositoryDAOTest extends WordSpec with Matchers with MockFactory with JsonUtils {
@@ -38,7 +38,11 @@ class MetadataRepositoryDAOTest extends WordSpec with Matchers with MockFactory 
     "put and get variables" ignore withVariablesMetaRepository { dao =>
       val churnHierarchy = loadJson("/metadata/churn_variables.json").convertTo[GroupMetaData]
       val churnVariablesMeta =
-        VariablesMeta(1, "churn", churnHierarchy, "CHURN", List("state", "custserv_calls", "churn"))
+        VariablesMeta(1,
+                      "churn",
+                      churnHierarchy,
+                      "CHURN",
+                      List("state", "custserv_calls", "churn").map(VariableId))
 
       val updated = dao.put(churnVariablesMeta).unsafeRunSync()
 

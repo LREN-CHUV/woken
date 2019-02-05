@@ -17,10 +17,11 @@
 
 package ch.chuv.lren.woken.core.model
 
-import ch.chuv.lren.woken.messages.variables.{GroupMetaData, VariableId, VariableMetaData}
+import ch.chuv.lren.woken.messages.variables.{ GroupMetaData, VariableId, VariableMetaData }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import cats.syntax.validated._
-import ch.chuv.lren.woken.messages.query.UserId
+
+// TODO: source field in VariablesMeta has unclear semantics and purpose.
 
 /**
   * Meta description of variables
@@ -32,7 +33,7 @@ import ch.chuv.lren.woken.messages.query.UserId
   * @param defaultHistogramGroupings List of groupings to apply by default when creating histograms on the features table
   */
 case class VariablesMeta(id: Int,
-                         source: UserId,
+                         source: String,
                          hierarchy: GroupMetaData,
                          targetFeaturesTable: String,
                          defaultHistogramGroupings: List[VariableId]) {

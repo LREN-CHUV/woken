@@ -36,7 +36,7 @@ class VariablesMetaTest extends WordSpec with Matchers with JsonUtils {
                       "test",
                       json.convertTo[GroupMetaData],
                       "sample_data",
-                      List("state", "custserv_calls", "churn"))
+                      List("state", "custserv_calls", "churn").map(VariableId))
 
       val selectedMeta =
         meta.filterVariables(List("IQ", "score_math_course1").map(VariableId).contains)
@@ -82,11 +82,13 @@ class VariablesMetaTest extends WordSpec with Matchers with JsonUtils {
 
       val json = loadJson("/metadata/mip_cde_variables.json")
       val meta =
-        VariablesMeta(1,
-                      "test",
-                      json.convertTo[GroupMetaData],
-                      "mip_cde_features",
-                      List("dataset", "gender", "agegroup", "alzheimerbroadcategory"))
+        VariablesMeta(
+          1,
+          "test",
+          json.convertTo[GroupMetaData],
+          "mip_cde_features",
+          List("dataset", "gender", "agegroup", "alzheimerbroadcategory").map(VariableId)
+        )
 
       val selectedMeta = meta.selectVariables(
         List("rs610932_a",
@@ -122,7 +124,7 @@ class VariablesMetaTest extends WordSpec with Matchers with JsonUtils {
                       "test",
                       json.convertTo[GroupMetaData],
                       "sample_data",
-                      List("state", "custserv_calls", "churn"))
+                      List("state", "custserv_calls", "churn").map(VariableId))
 
       val selectedMeta =
         meta.selectVariables(

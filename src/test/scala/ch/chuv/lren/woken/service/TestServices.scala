@@ -28,7 +28,7 @@ import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableI
 import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
 import ch.chuv.lren.woken.dao._
 import ch.chuv.lren.woken.errors.ErrorReporter
-import ch.chuv.lren.woken.messages.variables.GroupMetaData
+import ch.chuv.lren.woken.messages.variables.{ GroupMetaData, VariableId }
 import ch.chuv.lren.woken.messages.variables.variablesProtocol._
 import org.scalamock.scalatest.MockFactory
 import spray.json.JsObject
@@ -47,14 +47,20 @@ object TestServices extends JsonUtils with FeaturesTableTestSupport with MockFac
 
   lazy val localVariablesMetaService: VariablesMetaRepository[IO] = {
     val churnHierarchy = loadJson("/metadata/churn_variables.json").convertTo[GroupMetaData]
-    val churnVariablesMeta =
-      VariablesMeta(1, "churn", churnHierarchy, "CHURN", List("state", "custserv_calls", "churn"))
+    val churnVariablesMeta = new VariablesMeta(
+      1,
+      "churn",
+      churnHierarchy,
+      "CHURN",
+      List("state", "custserv_calls", "churn").map(VariableId)
+    )
 
     val sampleHierarchy     = loadJson("/metadata/sample_variables.json").convertTo[GroupMetaData]
     val sampleVariablesMeta = VariablesMeta(2, "sample", sampleHierarchy, "Sample", Nil)
 
     val cdeHierarchy = loadJson("/metadata/mip_cde_variables.json").convertTo[GroupMetaData]
-    val cdeGroupings = List("dataset", "gender", "agegroup", "alzheimerbroadcategory")
+    val cdeGroupings =
+      List("dataset", "gender", "agegroup", "alzheimerbroadcategory").map(VariableId)
     val featuresAVariablesMeta =
       VariablesMeta(3, "cde_features_a", cdeHierarchy, "CDE_FEATURES_A", cdeGroupings)
     val featuresBVariablesMeta =
