@@ -17,75 +17,83 @@
 
 package ch.chuv.lren.woken.api.swagger
 
-import javax.ws.rs.Path
-
+import javax.ws.rs.{ GET, Path }
 import akka.http.scaladsl.server.{ Directives, Route }
 import ch.chuv.lren.woken.messages.datasets.DatasetsResponse
 import ch.chuv.lren.woken.messages.variables.VariablesForDatasetsResponse
-import io.swagger.annotations._
+import io.swagger.v3.oas.annotations.enums.ParameterIn
+import io.swagger.v3.oas.annotations.{ Operation, Parameter }
+import io.swagger.v3.oas.annotations.media.{ Content, Schema }
+import io.swagger.v3.oas.annotations.responses.ApiResponse
 
-@Api(value = "/metadata", consumes = "application/json", produces = "application/json")
+@Path("/metadata")
 trait MetadataServiceApi extends Directives {
 
   @Path("/datasets")
-  @ApiOperation(
-    value = "Get dataset catalog",
-    notes = "Get catalog containing available datasets",
-    httpMethod = "GET",
-    consumes = "application/json",
-    response = classOf[DatasetsResponse]
-  )
-  @ApiImplicitParams(Array())
-  @ApiResponses(
-    Array(
-      new ApiResponse(code = 200,
-                      message = "Dataset listing",
-                      response = classOf[spray.json.JsObject]),
-      new ApiResponse(code = 401, message = "Authentication required.", response = classOf[String]),
-      new ApiResponse(code = 403, message = "Authentication failed.", response = classOf[String]),
-      new ApiResponse(code = 500, message = "Internal server error", response = classOf[String])
+  @Operation(
+    summary = "Get list of datasets",
+    description = "Get catalog containing available datasets",
+    responses = Array(
+      new ApiResponse(
+        responseCode = "200",
+        description = "Success - list of datasets",
+        content = Array(
+          new Content(mediaType = "application/json",
+                      schema = new Schema(implementation = classOf[DatasetsResponse]))
+        )
+      ),
+      new ApiResponse(responseCode = "401",
+                      description = "Authentication required",
+                      content = Array(new Content(mediaType = "text/plain"))),
+      new ApiResponse(responseCode = "403",
+                      description = "Authentication failed",
+                      content = Array(new Content(mediaType = "text/plain"))),
+      new ApiResponse(responseCode = "500",
+                      description = "Internal server error",
+                      content = Array(new Content(mediaType = "text/plain")))
     )
   )
-  @Authorization(value = "BasicAuth")
+  @GET
   def listDatasets: Route
 
   @Path("/variables")
-  @ApiOperation(
-    value = "Get variables metadata for all available datasets",
-    notes = "Get list of variable metadata for all available datasets",
-    httpMethod = "GET",
-    consumes = "application/json",
-    response = classOf[VariablesForDatasetsResponse]
-  )
-  @ApiParam
-  @ApiImplicitParams(
-    value = Array(
-      new ApiImplicitParam(
+  @Operation(
+    summary = "Get variables metadata for all available datasets",
+    description = "Get list of variable metadata for all available datasets",
+    parameters = Array(
+      new Parameter(
         name = "datasets",
-        value = "comma separated list of datasets IDs where variables should be fetched from",
-        dataType = "string",
-        allowMultiple = true,
-        paramType = "query",
-        required = false
+        description = "comma separated list of datasets IDs where variables should be fetched from",
+        in = ParameterIn.QUERY,
+        schema = new Schema(implementation = classOf[String], required = false)
       ),
-      new ApiImplicitParam(name = "exhaustive",
-                           value =
-                             "if set to true variables returned should be present in all datasets",
-                           dataType = "boolean",
-                           paramType = "query",
-                           required = false)
+      new Parameter(
+        name = "exhaustive",
+        description = "if set to true variables returned should be present in all datasets",
+        in = ParameterIn.QUERY,
+        schema = new Schema(implementation = classOf[Boolean], required = false)
+      )
+    ),
+    responses = Array(
+      new ApiResponse(
+        responseCode = "200",
+        description = "Success - list of variables",
+        content = Array(
+          new Content(mediaType = "application/json",
+                      schema = new Schema(implementation = classOf[VariablesForDatasetsResponse]))
+        )
+      ),
+      new ApiResponse(responseCode = "401",
+                      description = "Authentication required",
+                      content = Array(new Content(mediaType = "text/plain"))),
+      new ApiResponse(responseCode = "403",
+                      description = "Authentication failed",
+                      content = Array(new Content(mediaType = "text/plain"))),
+      new ApiResponse(responseCode = "500",
+                      description = "Internal server error",
+                      content = Array(new Content(mediaType = "text/plain")))
     )
   )
-  @ApiResponses(
-    value = Array(
-      new ApiResponse(code = 200,
-                      message = "Varialble metadata listing",
-                      response = classOf[spray.json.JsObject]),
-      new ApiResponse(code = 401, message = "Authentication required.", response = classOf[String]),
-      new ApiResponse(code = 403, message = "Authentication failed.", response = classOf[String]),
-      new ApiResponse(code = 500, message = "Internal server error", response = classOf[String])
-    )
-  )
-  @Authorization(value = "BasicAuth")
+  @GET
   def listVariables: Route
 }

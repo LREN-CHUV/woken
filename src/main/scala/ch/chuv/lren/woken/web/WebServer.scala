@@ -18,6 +18,7 @@
 package ch.chuv.lren.woken.web
 
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.server.Directives._
 import cats.effect._
 import cats.implicits._
 import ch.chuv.lren.woken.akka.{ AkkaServer, CoreSystem }
@@ -57,7 +58,7 @@ class WebServer[F[_]: ConcurrentEffect: ContextShift: Timer](
 
     // Start a new HTTP server on port 8080 with our service actor as the handler
     http.bindAndHandle(
-      routes(databaseServices, backendServices),
+      routes(databaseServices, backendServices) ~ staticResources,
       interface = app.networkInterface,
       port = app.webServicesPort
     )

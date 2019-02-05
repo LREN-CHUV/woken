@@ -17,102 +17,118 @@
 
 package ch.chuv.lren.woken.api.swagger
 
-import javax.ws.rs.Path
-
+import javax.ws.rs.{ GET, POST, Path }
 import akka.http.scaladsl.server.{ Directives, Route }
-import ch.chuv.lren.woken.messages.query.{ MethodsResponse, QueryResult }
-import io.swagger.annotations._
+import ch.chuv.lren.woken.messages.query._
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.media.{ Content, Schema }
+import io.swagger.v3.oas.annotations.parameters.RequestBody
+import io.swagger.v3.oas.annotations.responses.ApiResponse
 
 // This trait documents the API, tries not to pollute the code with annotations
 
 /**
   * Operations for data mining
   */
-@Api(value = "/mining", consumes = "application/json", produces = "application/json")
+@Path("/mining")
 trait MiningServiceApi extends Directives {
+  import queryProtocol._
 
-  @ApiOperation(
-    value = "Run a data mining job",
-    notes = "Run a data mining job and return id",
-    httpMethod = "POST",
-    consumes = "application/json",
-    response = classOf[QueryResult]
-  )
-  @ApiImplicitParams(
-    Array(
-      new ApiImplicitParam(name = "body",
-                           value = "Process to execute",
-                           required = true,
-                           dataType = "eu.hbp.mip.messages.external.MiningQuery",
-                           paramType = "body")
+  @Path("/job")
+  @Operation(
+    summary = "Run a data mining job",
+    description = "Run a data mining job for a single algorithm",
+    requestBody = new RequestBody(
+      description = "Data mining query to execute",
+      content = Array(
+        new Content(mediaType = "application/json",
+                    schema = new Schema(implementation = classOf[MiningQuery]))
+      ),
+      required = true
+    ),
+    responses = Array(
+      new ApiResponse(
+        responseCode = "200",
+        description = "Success - Result of the data mining query",
+        content = Array(
+          new Content(mediaType = "application/json",
+                      schema = new Schema(implementation = classOf[QueryResult]))
+        )
+      ),
+      new ApiResponse(responseCode = "401",
+                      description = "Authentication required",
+                      content = Array(new Content(mediaType = "text/plain"))),
+      new ApiResponse(responseCode = "403",
+                      description = "Authentication failed",
+                      content = Array(new Content(mediaType = "text/plain"))),
+      new ApiResponse(responseCode = "500",
+                      description = "Internal server error",
+                      content = Array(new Content(mediaType = "text/plain")))
     )
   )
-  @ApiResponses(
-    Array(
-      new ApiResponse(code = 201,
-                      message = "Mining job initialized",
-                      response = classOf[QueryResult]),
-      new ApiResponse(code = 401, message = "Authentication required.", response = classOf[String]),
-      new ApiResponse(code = 403, message = "Authentication failed.", response = classOf[String]),
-      new ApiResponse(code = 405, message = "Invalid mining job", response = classOf[String]),
-      new ApiResponse(code = 500, message = "Internal server error", response = classOf[String])
-    )
-  )
-  @Authorization(value = "BasicAuth")
+  @POST
   def runMiningJob: Route
 
+
   @Path("/experiment")
-  @ApiOperation(
-    value = "Run a data mining experiment",
-    notes = "Run a data mining experiment and return id",
-    httpMethod = "POST",
-    consumes = "application/json",
-    response = classOf[QueryResult]
-  )
-  @ApiImplicitParams(
-    Array(
-      new ApiImplicitParam(name = "body",
-                           value = "Process to execute",
-                           required = true,
-                           dataType = "eu.hbp.mip.messages.external.ExperimentQuery",
-                           paramType = "body")
+  @Operation(
+    summary = "Run a data mining experiment",
+    description = "Run a data mining experiment and return id",
+    requestBody = new RequestBody(
+      description = "Experiment to execute",
+      content = Array(
+        new Content(mediaType = "application/json",
+                    schema = new Schema(implementation = classOf[ExperimentQuery]))
+      ),
+      required = true
+    ),
+    responses = Array(
+      new ApiResponse(
+        responseCode = "200",
+        description = "Success - Result of the experiment query",
+        content = Array(
+          new Content(mediaType = "application/json",
+                      schema = new Schema(implementation = classOf[QueryResult]))
+        )
+      ),
+      new ApiResponse(responseCode = "401",
+                      description = "Authentication required",
+                      content = Array(new Content(mediaType = "text/plain"))),
+      new ApiResponse(responseCode = "403",
+                      description = "Authentication failed",
+                      content = Array(new Content(mediaType = "text/plain"))),
+      new ApiResponse(responseCode = "500",
+                      description = "Internal server error",
+                      content = Array(new Content(mediaType = "text/plain")))
     )
   )
-  @ApiResponses(
-    Array(
-      new ApiResponse(code = 201,
-                      message = "Experiment initialized",
-                      response = classOf[QueryResult]),
-      new ApiResponse(code = 401, message = "Authentication required.", response = classOf[String]),
-      new ApiResponse(code = 403, message = "Authentication failed.", response = classOf[String]),
-      new ApiResponse(code = 405, message = "Invalid Experiment", response = classOf[String]),
-      new ApiResponse(code = 500, message = "Internal server error", response = classOf[String])
-    )
-  )
-  @Authorization(value = "BasicAuth")
   def runExperiment: Route
 
   @Path("/algorithms")
-  @ApiOperation(
-    value = "Get complete catalog of mining methods (algorithms)",
-    notes = "Get catalog containing available mining methods (algorithms)",
-    httpMethod = "GET",
-    consumes = "application/json",
-    response = classOf[MethodsResponse]
-  )
-  @ApiImplicitParams(Array())
-  @ApiResponses(
-    Array(
-      new ApiResponse(code = 201,
-                      message = "Experiment initialized",
-                      response = classOf[spray.json.JsObject]),
-      new ApiResponse(code = 401, message = "Authentication required.", response = classOf[String]),
-      new ApiResponse(code = 403, message = "Authentication failed.", response = classOf[String]),
-      new ApiResponse(code = 404, message = "Not Found", response = classOf[String]),
-      new ApiResponse(code = 500, message = "Internal server error", response = classOf[String])
+  @Operation(
+    summary = "Get complete catalog of mining methods (algorithms)",
+    description = "Get catalog containing available mining methods (algorithms)",
+    responses = Array(
+      new ApiResponse(
+        responseCode = "200",
+        description = "Success - returns the list of algorithms",
+        content = Array(
+          new Content(mediaType = "application/json",
+                      schema = new Schema(implementation = classOf[MethodsResponse]))
+        )
+      ),
+      new ApiResponse(responseCode = "401",
+                      description = "Authentication required",
+                      content = Array(new Content(mediaType = "text/plain"))),
+      new ApiResponse(responseCode = "403",
+                      description = "Authentication failed",
+                      content = Array(new Content(mediaType = "text/plain"))),
+      new ApiResponse(responseCode = "500",
+                      description = "Internal server error",
+                      content = Array(new Content(mediaType = "text/plain")))
     )
   )
-  @Authorization(value = "BasicAuth")
+  @GET
   def listAlgorithms: Route
 
 }

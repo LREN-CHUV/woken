@@ -26,6 +26,7 @@ import akka.management.http.ManagementRouteProviderSettings
 import akka.util.Helpers
 import cats.implicits._
 import cats.effect.Effect
+import ch.chuv.lren.woken.api.swagger.MonitoringServiceApi
 import ch.chuv.lren.woken.config.{ AppConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.service.{ BackendServices, DatabaseServices }
 import ch.chuv.lren.woken.core.fp.runNow
@@ -56,13 +57,14 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
                                          jobsConfig: JobsConfiguration,
                                          databaseServices: DatabaseServices[F],
                                          backendServices: BackendServices[F])
-    extends Directives
+    extends MonitoringServiceApi
+    with Directives
     with LazyLogging {
 
   private val allChecks =
     HealthReporter.fromChecks(databaseServices.healthChecks, backendServices.healthChecks)
 
-  val healthRoute: Route = pathPrefix("health") {
+  def health: Route = pathPrefix("health") {
     pathEndOrSingleSlash {
       get {
         val up = runNow(allChecks.check).value.health.isHealthy
@@ -88,7 +90,7 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
     } ~ dbHealth ~ backendHealth ~ clusterHealth
   }
 
-  val readinessRoute: Route = pathPrefix("readiness") {
+  def readiness: Route = pathPrefix("readiness") {
     get {
       if (cluster.state.leader.isEmpty)
         complete((StatusCodes.InternalServerError, "No leader elected for the cluster"))
@@ -109,7 +111,7 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
   private val readyStates: Set[MemberStatus] =
     healthcheckConfig.getStringList("ready-states").asScala.map(memberStatus).toSet
 
-  private def clusterHealth: Route = pathPrefix("cluster") {
+  def clusterHealth: Route = pathPrefix("cluster") {
     get {
       val selfState = cluster.selfMember.status
       if (readyStates.contains(selfState)) complete(StatusCodes.OK)
@@ -117,7 +119,7 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
     }
   }
 
-  private def backendHealth: Route = pathPrefix("backend") {
+  def backendHealth: Route = pathPrefix("backend") {
     get {
       if (runNow(backendServices.healthChecks.check).value.health.isHealthy) {
         complete(OK)
@@ -130,7 +132,7 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
     }
   }
 
-  private def dbHealth: Route = pathPrefix("db") {
+  def dbHealth: Route = pathPrefix("db") {
     get {
       if (runNow(databaseServices.healthChecks.check).value.health.isHealthy) {
         complete(OK)
@@ -143,7 +145,7 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
     }
   }
 
-  val routes: Route = healthRoute ~ readinessRoute ~ clusterManagementRoutes ~ clusterHealthRoutes
+  val routes: Route = health ~ readiness ~ clusterManagementRoutes ~ clusterHealthRoutes
 
   type TaggedS[H] = Tagged[String, H]
 

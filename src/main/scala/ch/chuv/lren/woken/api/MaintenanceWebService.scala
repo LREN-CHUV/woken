@@ -55,7 +55,7 @@ class MaintenanceWebService[F[_]: Effect](
   val routes: Route = prefillMiningCache ~ maintainMiningCache ~ resetMiningCache
 
   override def prefillMiningCache: Route = securePath(
-    "maintenance" / "miningCache" / "prefill",
+    "maintenance" / "mining-cache" / "prefill",
     post {
       operationName("prefill", Map("requestType" -> "http-post")) {
         miningCacheService.prefill()
@@ -64,7 +64,7 @@ class MaintenanceWebService[F[_]: Effect](
     }
   )
   override def resetMiningCache: Route = securePath(
-    "maintenance" / "miningCache" / "reset",
+    "maintenance" / "mining-cache" / "reset",
     post {
       operationName("reset", Map("requestType" -> "http-post")) {
         miningCacheService.resetCache()
@@ -74,7 +74,7 @@ class MaintenanceWebService[F[_]: Effect](
   )
 
   override def maintainMiningCache: Route = securePath(
-    "maintenance" / "miningCache" / "maintain",
+    "maintenance" / "mining-cache" / "maintain",
     post {
       operationName("clean", Map("requestType" -> "http-post")) {
         miningCacheService.maintainCache()

@@ -32,7 +32,7 @@ import javax.ws.rs.{ POST, Path }
 @Path("/maintenance")
 trait MaintenanceServiceApi extends Directives {
 
-  @Path("/miningCache/prefill")
+  @Path("/mining-cache/prefill")
   @POST
   @Operation(
     summary = "Prefill the cache for mining",
@@ -51,7 +51,7 @@ trait MaintenanceServiceApi extends Directives {
   )
   def prefillMiningCache: Route
 
-  @Path("/miningCache/reset")
+  @Path("/mining-cache/reset")
   @POST
   @Operation(
     summary = "Full reset the mining cache",
@@ -70,7 +70,7 @@ trait MaintenanceServiceApi extends Directives {
   )
   def resetMiningCache: Route
 
-  @Path("/miningCache/maintain")
+  @Path("/mining-cache/maintain")
   @POST
   @Operation(
     summary = "Run maintenance tasks on the mining cache",

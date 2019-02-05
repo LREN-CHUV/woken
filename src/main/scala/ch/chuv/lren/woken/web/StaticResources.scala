@@ -27,11 +27,14 @@ trait StaticResources {
     get {
       path("") {
         pathEndOrSingleSlash {
-          getFromResource("/swagger-ui/index.html")
+          getFromResource("swagger-ui/index.html")
         }
       } ~
-      pathPrefix("webjars") {
-        getFromResourceDirectory("META-INF/resources/webjars")
+      pathPrefix("swagger-ui") {
+        getFromResourceDirectory("swagger-ui")
+      } ~
+      pathPrefix("webjars/swagger-ui") {
+        getFromResourceDirectory("META-INF/resources/webjars/swagger-ui/3.20.5")
       } ~
       path("favicon.ico") {
         complete(StatusCodes.NotFound)
