@@ -80,7 +80,7 @@ object WebSocketClient
             promise.failure(e)
             throw e
         }
-        .mapAsync(3)(identity)
+        .mapAsync(parallelism = 3)(identity)
         .map { jsonEncodedString =>
           Try {
             jsonEncodedString.parseJson.convertTo[QueryResult]

@@ -91,7 +91,10 @@ object AlgorithmExecutorInstances {
           )
         ).pure[IO]
 
-      override def healthCheck: HealthCheck[IO, TaggedS] = ???
+      override def healthCheck: HealthCheck[IO, TaggedS] =
+        HealthCheck
+          .const[IO, Id](Health.healthy)
+          .through[IO, TaggedS](mods.tagWith("Algorithm executor (Dummy)"))
     }
 
   private def errorResponse(job: DockerJob, msg: String) =

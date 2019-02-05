@@ -496,7 +496,7 @@ object ExtendedFeaturesTableRepositoryDAO {
       stmt.update.run
     }
 
-    val extTableColumns = newFeatures ++ List(rndColumn: TableColumn)
+    val extTableColumns = newFeatures ++ List(rndColumn)
     val extViewDescription =
       extTable.copy(table = table.table.copy(name = s"${extTable.table.name}v"))
     val extViewColumns = tableColumns ++ extTableColumns.filter(_ != pk)

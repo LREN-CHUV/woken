@@ -54,6 +54,7 @@ class MaintenanceWebService[F[_]: Effect](
 
   val routes: Route = prefillMiningCache ~ maintainMiningCache ~ resetMiningCache
 
+  // TODO: prefill should return a websocket that tracks progress
   override def prefillMiningCache: Route = securePath(
     "maintenance" / "mining-cache" / "prefill",
     post {

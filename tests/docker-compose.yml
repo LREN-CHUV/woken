@@ -221,9 +221,12 @@ services:
     volumes:
       - ./woken/config:/opt/woken/config
     ports:
+      # Web API
       - "8087:8087"
+      # Akka cluster
       - "8088:8088"
       - "9095:9095"
+      # Remote Java debugging with JDWP
       - "8000:8000"
     environment:
       CLUSTER_PORT: 8088
@@ -239,7 +242,7 @@ services:
       RELEASE_STAGE: "dev"
       DATACENTER_LOCATION: "$HOST"
       CONTAINER_ORCHESTRATION: "docker-compose"
-      JAVA_OPTS: "-agentlib:jdwp=transport=dt_socket,address=8000,server=y,suspend=n"
+      JAVA_OPTIONS: "-agentlib:jdwp=transport=dt_socket,address=8000,server=y,suspend=n"
     links:
       - zipkin
       - wokenprometheus

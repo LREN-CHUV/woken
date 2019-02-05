@@ -18,9 +18,11 @@
 package ch.chuv.lren.woken.dao
 
 import cats.Id
+import cats.effect.concurrent.Ref
 import cats.effect.{ Effect, Resource }
 import cats.implicits._
 import ch.chuv.lren.woken.core.features.FeaturesQuery
+import ch.chuv.lren.woken.core.fp.runNow
 import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn, TableId }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
@@ -28,6 +30,7 @@ import ch.chuv.lren.woken.messages.datasets.DatasetId
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import ch.chuv.lren.woken.messages.query.filters._
+import ch.chuv.lren.woken.messages.variables.SqlType
 import doobie.util.log.LogHandler
 import doobie.util.update.Update0
 import sup.HealthCheck
@@ -251,6 +254,8 @@ class FeaturesTableInMemoryRepository[F[_]: Effect](val tableId: TableId,
   override def features(query: FeaturesQuery): F[(Headers, Stream[JsObject])] =
     (columns, dataFeatures.toStream).pure[F]
 
+  private val genNumber: F[Ref[F, Int]] = Ref.of[F, Int](0)
+
   override def createExtendedFeaturesTable(
       filters: Option[FilterRule],
       newFeatures: List[TableColumn],
@@ -263,8 +268,11 @@ class FeaturesTableInMemoryRepository[F[_]: Effect](val tableId: TableId,
         filters,
         newFeatures,
         otherColumns,
-        prefills,
-        ???
+        prefills, { () =>
+          genNumber.flatMap { g =>
+            g.modify(x => (x + 1, x))
+          }
+        }
       )
       .map(r => r.map[FeaturesTableRepository[F]](t => t))
 
@@ -282,22 +290,37 @@ object ExtendedFeaturesTableInMemoryRepository {
       prefills: List[PrefillExtendedFeaturesTable],
       nextTableSeqNumber: () => F[Int]
   ): Validation[Resource[F, ExtendedFeaturesTableInMemoryRepository[F]]] = {
-    val respository = new ExtendedFeaturesTableInMemoryRepository[F](
+    val pk = sourceTable.table.primaryKey.headOption
+      .getOrElse(throw new Exception("Expected a single primary key"))
+    val rndColumn           = TableColumn("_rnd", SqlType.numeric)
+    val newColumns          = newFeatures ++ otherColumns
+    val extTableColumns     = newFeatures ++ List(rndColumn)
+    val extViewColumns      = newColumns ++ extTableColumns.filter(_ != pk)
+    val extendedTableNumber = runNow(nextTableSeqNumber())
+    val table               = sourceTable.table
+    val extTable = table.copy(
+      table = table.table.copy(name = s"${table.table.name}__$extendedTableNumber"),
+      validateSchema = false
+    )
+    val extView = extTable.copy(table = extTable.table.copy(name = extTable.table.name + "v"))
+    val repository = new ExtendedFeaturesTableInMemoryRepository[F](
       sourceTable,
-      ???,
-      ???,
-      ???,
+      filters,
+      extView,
+      extViewColumns,
+      extTable,
       newFeatures,
-      ???
+      rndColumn
     )
 
-    Resource.make(Effect[F].delay(respository))(_ => Effect[F].delay(())).valid
+    Resource.make(Effect[F].delay(repository))(_ => Effect[F].delay(())).valid
   }
 
 }
 
 class ExtendedFeaturesTableInMemoryRepository[F[_]: Effect] private (
     val sourceTable: FeaturesTableInMemoryRepository[F],
+    val filters: Option[FilterRule],
     val view: FeaturesTableDescription,
     val viewColumns: List[TableColumn],
     val extTable: FeaturesTableDescription,
@@ -376,5 +399,6 @@ class ExtendedFeaturesTableInMemoryRepository[F[_]: Effect] private (
     * @param filters The filters used to filter rows
     * @return a set of dataset ids
     */
-  override def datasets(filters: Option[FilterRule]): F[Set[DatasetId]] = ???
+  override def datasets(filters: Option[FilterRule]): F[Set[DatasetId]] =
+    sourceTable.datasets(filters)
 }
