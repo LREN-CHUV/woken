@@ -74,17 +74,21 @@ class MiningCacheServiceImpl[F[_]: ConcurrentEffect: ContextShift: Timer](
       runNow(variablesMetaService.get(table.table.name).map { metaO =>
         metaO.foreach {
           variables =>
-            variables.allVariables().foreach {
-              variable =>
-                val histogramAlgorithm         = AlgorithmSpec("histograms", Nil, None)
-                val histogramQuery             = queryFor(histogramAlgorithm, table, variable.toId)
-                val statisticsSummaryAlgorithm = AlgorithmSpec("statisticsSummary", Nil, None)
-                val statisticsSummaryQuery =
-                  queryFor(statisticsSummaryAlgorithm, table, variable.toId)
+            {
+              val groupings = variables.defaultHistogramGroupings
+              variables.allVariables().foreach {
+                variable =>
+                  val histogramAlgorithm = AlgorithmSpec("histograms", Nil, None)
+                  val histogramQuery =
+                    queryFor(histogramAlgorithm, table, groupings, variable.toId)
+                  val statisticsSummaryAlgorithm = AlgorithmSpec("statisticsSummary", Nil, None)
+                  val statisticsSummaryQuery =
+                    queryFor(statisticsSummaryAlgorithm, table, groupings, variable.toId)
 
-                waitFor((mainRouter ? histogramQuery).mapTo[QueryResult])
-                waitFor((mainRouter ? statisticsSummaryQuery).mapTo[QueryResult])
+                  waitFor((mainRouter ? histogramQuery).mapTo[QueryResult])
+                  waitFor((mainRouter ? statisticsSummaryQuery).mapTo[QueryResult])
 
+              }
             }
         }
       })
@@ -115,12 +119,13 @@ class MiningCacheServiceImpl[F[_]: ConcurrentEffect: ContextShift: Timer](
 
   private def queryFor(algorithm: AlgorithmSpec,
                        table: FeaturesTableDescription,
+                       groupings: List[VariableId],
                        variable: VariableId) =
     MiningQuery(systemUser,
                 List(variable),
                 Nil,
                 covariablesMustExist = false,
-                Nil,
+                groupings,
                 None,
                 Some(table.table.name),
                 Set(),
