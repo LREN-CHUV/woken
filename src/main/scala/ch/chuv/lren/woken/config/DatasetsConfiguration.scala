@@ -29,12 +29,12 @@ import cats.implicits._
 object DatasetsConfiguration {
 
   // Seems useful as Scala enumeration and Cats mapN don't appear to work together well
-  def createDataset(dataset: String,
-                    label: String,
-                    description: String,
-                    tables: List[String],
-                    anonymisationLevel: String,
-                    location: Option[RemoteLocation]): Dataset = Dataset(
+  private[this] def createDataset(dataset: String,
+                                  label: String,
+                                  description: String,
+                                  tables: List[String],
+                                  anonymisationLevel: String,
+                                  location: Option[RemoteLocation]): Dataset = Dataset(
     DatasetId(dataset),
     label,
     description,
@@ -87,20 +87,20 @@ object DatasetsConfiguration {
 
   }
 
-  def factory(config: Config): String => Validation[Dataset] =
-    dataset => read(config, List("datasets", dataset))
+  def factory(config: Config): DatasetId => Validation[Dataset] =
+    dataset => read(config, List("datasets", dataset.code))
 
-  def datasetNames(config: Config): Validation[Set[String]] =
-    config.validateConfig("datasets").map(_.keys)
+  def datasetNames(config: Config): Validation[Set[DatasetId]] =
+    config.validateConfig("datasets").map(_.keys.map(DatasetId))
 
   def datasets(config: Config): Validation[Map[DatasetId, Dataset]] = {
     val datasetFactory = factory(config)
-    datasetNames(config).andThen { names: Set[String] =>
+    datasetNames(config).andThen { names: Set[DatasetId] =>
       val m: List[Validation[(DatasetId, Dataset)]] =
         names.toList
-          .map { n =>
-            val datasetIdV: Validation[DatasetId] = DatasetId(n).validNel[String]
-            datasetIdV -> datasetFactory(n)
+          .map { datasetId =>
+            val datasetIdV: Validation[DatasetId] = datasetId.validNel[String]
+            datasetIdV -> datasetFactory(datasetId)
           }
           .map(_.tupled)
       val t: Validation[List[(DatasetId, Dataset)]] = m.sequence[Validation, (DatasetId, Dataset)]
