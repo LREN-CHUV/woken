@@ -32,9 +32,7 @@ jobs:
             - ~/.cache/pre-commit
       - run:
           name: "Build the project"
-          command: |
-            PATH=$PATH:/$HOME/.captain/bin/ ./build.sh
+          command: ./build.sh
       - run:
-          name: "Test the project"
-          command: |
-            PATH=$PATH:/$HOME/.captain/bin/ ./tests/ci.sh --all
+          name: "Run integration tests"
+          command: ./tests/ci.sh --all
