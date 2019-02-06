@@ -228,6 +228,8 @@ services:
       - "9095:9095"
       # Remote Java debugging with JDWP
       - "8000:8000"
+      # JMX
+      - "3333:3333"
     environment:
       CLUSTER_PORT: 8088
       CLUSTER_IP: woken
@@ -242,7 +244,7 @@ services:
       RELEASE_STAGE: "dev"
       DATACENTER_LOCATION: "$HOST"
       CONTAINER_ORCHESTRATION: "docker-compose"
-      JAVA_OPTIONS: "-agentlib:jdwp=transport=dt_socket,address=8000,server=y,suspend=n"
+      JAVA_OPTIONS: "-agentlib:jdwp=transport=dt_socket,address=*:8000,server=y,suspend=n -Dcom.sun.management.jmxremote.port=3333 -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false"
     links:
       - zipkin
       - wokenprometheus
