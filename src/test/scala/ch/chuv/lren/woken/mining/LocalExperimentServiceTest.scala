@@ -34,11 +34,11 @@ import ch.chuv.lren.woken.Predefined.Algorithms.{
 }
 import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableId }
-import ch.chuv.lren.woken.core.model.jobs.{ ErrorJobResult, ExperimentJob, JobResult, PfaJobResult }
+import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables.VariableId
-import ch.chuv.lren.woken.service.TestServices
+import ch.chuv.lren.woken.service.{ FeaturesService, QueryToJobService, TestServices }
 import com.typesafe.config.{ Config, ConfigFactory }
 import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
@@ -50,7 +50,9 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import ExperimentQuerySupport._
-import ch.chuv.lren.woken.core.model.jobs.{ ErrorJobResult, JobResult, PfaJobResult }
+import ch.chuv.lren.woken.config.{ AlgorithmsConfiguration, JobsConfiguration }
+import ch.chuv.lren.woken.core.model.AlgorithmDefinition
+import ch.chuv.lren.woken.dao.VariablesMetaRepository
 
 /**
   * Experiment flow should always complete with success, but the error is reported inside the response.
@@ -65,18 +67,43 @@ class LocalExperimentServiceTest
     with JsonUtils
     with LazyLogging {
 
-  val config: Config =
-    ConfigFactory
-      .parseResourcesAnySyntax("algorithms.conf")
-      .withFallback(ConfigFactory.load("test.conf"))
-      .resolve()
-
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val ec: ExecutionContext            = ExecutionContext.global
 
+  val config: Config = ConfigFactory
+    .parseResourcesAnySyntax("localDatasets.conf")
+    .withFallback(ConfigFactory.load("algorithms.conf"))
+    .withFallback(ConfigFactory.load("test.conf"))
+    .resolve()
+
   val user: UserId = UserId("test")
 
-  lazy val service = LocalExperimentService[IO](???, ???, ???, ???, system)
+  val jobsConf =
+    JobsConfiguration("testNode",
+                      "admin",
+                      "http://chronos",
+                      "features_db",
+                      "Sample",
+                      "Sample",
+                      "results_db",
+                      "meta_db",
+                      0.5,
+                      512)
+
+  val algorithmLookup: String => Validation[AlgorithmDefinition] =
+    AlgorithmsConfiguration.factory(config)
+
+  val variablesMetaService: VariablesMetaRepository[IO] = TestServices.localVariablesMetaService
+  val featuresService: FeaturesService[IO]              = TestServices.featuresService
+  val queryToJobService: QueryToJobService[IO] =
+    QueryToJobService[IO](featuresService, variablesMetaService, jobsConf, algorithmLookup)
+
+  lazy val service: LocalExperimentService[IO] =
+    LocalExperimentService[IO](TestServices.algorithmExecutor,
+                               TestServices.wokenWorker,
+                               featuresService,
+                               TestServices.jobResultService,
+                               system)
 
   override def afterAll {
     TestKit.shutdownActorSystem(system)
@@ -99,26 +126,8 @@ class LocalExperimentServiceTest
       executionPlan = None
     )
 
-  private def experimentQuery2job(query: ExperimentQuery): Validation[ExperimentJob] =
-    ExperimentJob.mkValid(
-      UUID.randomUUID().toString,
-      query,
-      FeaturesTableDescription(TableId("features_db", None, query.targetTable.getOrElse("Sample")),
-                               Nil,
-                               None,
-                               validateSchema = false,
-                               None,
-                               0.67),
-      Nil, { spec =>
-        Map(knnWithK5 -> knnDefinition, anovaFactorial -> anovaDefinition)
-          .get(spec)
-          .toRight("Missing algorithm")
-          .toValidatedNel[String]
-      }
-    )
-
   "Experiment flow" should {
-    /*
+
     "fail in case of a query with no algorithms" in {
       val experimentQuery = ExperimentQuery(
         user = user,
@@ -135,139 +144,127 @@ class LocalExperimentServiceTest
         validations = Nil,
         executionPlan = None
       )
-      val job = Exp
-      val experimentJob = service.runExperiment(experimentQuery)
-      experimentJob.isValid shouldBe false
-      experimentJob.invalidValue.head shouldBe "No algorithm defined"
-      experimentJob.invalidValue.size shouldBe 1
+      val job: IO[Validation[ExperimentJobInProgress]] =
+        queryToJobService.experimentQuery2Job(experimentQuery)
+
+      job.unsafeRunSync().isValid shouldBe false
+
     }
 
     "fail in case of a query containing an invalid algorithm" in {
-      val experiment    = experimentQuery("invalid-algo", Nil)
-      val experimentJob = experimentQuery2job(experiment)
+      val experiment = experimentQuery("invalid-algo", Nil)
+      val job: IO[Validation[ExperimentJobInProgress]] =
+        queryToJobService.experimentQuery2Job(experiment)
+
+      val experimentJob = job.unsafeRunSync()
+
       experimentJob.isValid shouldBe false
-      experimentJob.invalidValue.head shouldBe "Missing algorithm"
-      experimentJob.invalidValue.size shouldBe 1
     }
 
     "complete with an error response in case of a query containing a failing algorithm" in {
-      val experimentWrapper =
-        system.actorOf(ExperimentFlowWrapper.propsFailingAlgorithm("Algorithm execution failed"))
-      val experiment    = experimentQuery("knn", List(CodeValue("k", "5")))
-      val experimentJob = experimentQuery2job(experiment)
-      experimentJob.isValid shouldBe true
-      val testProbe = TestProbe()
-      testProbe.send(experimentWrapper, experimentJob.toOption.get)
-      testProbe.expectMsgPF(20 seconds, "error") {
-        case response: ExperimentResponse =>
-          print("Failed: " + response)
-          response.result.nonEmpty shouldBe true
-          response.result.head._1 shouldBe AlgorithmSpec("knn", List(CodeValue("k", "5")), None)
-          response.result.head._2 match {
-            case ejr: ErrorJobResult => ejr.error shouldBe "Algorithm execution failed"
-            case _                   => fail("Response should be of type ErrorJobResponse")
-          }
-      }
+      val experiment = experimentQuery("knn", List(CodeValue("k", "5")))
+      val job: IO[Validation[ExperimentJobInProgress]] =
+        queryToJobService.experimentQuery2Job(experiment)
+
+      val result = for {
+        j <- job
+        r <- service.runExperiment(j.value)
+      } yield r
+
+      result.attempt.unsafeRunSync().isLeft shouldBe true
 
     }
 
     "complete with success in case of a valid query on Anova algorithm (non predictive)" in {
-      val experimentWrapper =
-        system.actorOf(ExperimentFlowWrapper.propsSuccessfulAlgorithm("anova"))
 
       val experiment = experimentQuery("anova", List(CodeValue("design", "factorial")))
 
-      val experimentJob = experimentQuery2job(experiment)
-      experimentJob.isValid shouldBe true
-      val testProbe = TestProbe()
-      testProbe.send(experimentWrapper, experimentJob.toOption.get)
-      testProbe.expectMsgPF(20 seconds, "error") {
-        case response: ExperimentResponse =>
-          println(response.result)
-          response.result.nonEmpty shouldBe true
-          response.result.head._1 shouldBe AlgorithmSpec("anova",
-                                                         List(CodeValue("design", "factorial")),
-                                                         None)
-          response.result.head._2 match {
-            case pfa: PfaJobResult =>
-              pfa.algorithm shouldBe "anova"
-              pfa.node shouldBe "testNode"
-              pfa.model.compactPrint.nonEmpty shouldBe true
-            case _ => fail("Response should be of type ErrorJobResponse")
-          }
-      }
-    }
+      val job: IO[Validation[ExperimentJobInProgress]] =
+        queryToJobService.experimentQuery2Job(experiment)
 
-    "complete with success in case of a valid query on k-NN algorithm (predictive)" in {
-      val experimentWrapper =
-        system.actorOf(ExperimentFlowWrapper.propsSuccessfulAlgorithm("knn"))
+      val result = for {
+        j <- job
+        r <- service.runExperiment(j.value)
+      } yield r
 
-      val experiment = experimentQuery("knn", List(CodeValue("k", "5")))
+      val experimentResult = result.attempt.unsafeRunSync()
 
-      val experimentJob = experimentQuery2job(experiment)
-      experimentJob.isValid shouldBe true
-      val testProbe = TestProbe()
-      testProbe.send(experimentWrapper, experimentJob.toOption.get)
-      testProbe.expectMsgPF(20 seconds, "error") {
-        case response: ExperimentResponse =>
-          response.result.nonEmpty shouldBe true
-          response.result.head._1 shouldBe AlgorithmSpec("knn", List(CodeValue("k", "5")), None)
-          response.result.head._2 match {
-            case ejr: ErrorJobResult => ejr.error.nonEmpty shouldBe true
-            case pfa: PfaJobResult =>
-              pfa.algorithm shouldBe "knn"
-              pfa.node shouldBe "testNode"
-              pfa.model.compactPrint.nonEmpty shouldBe true
-            case _ => fail("Response should be of type ErrorJobResponse")
-          }
-      }
-    }
-     */
-    /* TODO
-    "split flow should return validation failed" ignore {
-      val experimentWrapper =
-        system.actorOf(ExperimentFlowWrapper.propsSuccessfulAlgorithm("knn"), "SplitFlowProbeActor")
-      val experiment    = experimentQuery("knn", List(CodeValue("k", "5")))
-      val experimentJob = experimentQuery2job(experiment)
-      experimentJob.isValid shouldBe true
-      val testProbe = TestProbe()
-      testProbe.send(experimentWrapper, SplitFlowCommand(experimentJob.toOption.get))
-      testProbe.expectMsgPF(20 seconds, "error") {
-        case response: SplitFlowResponse =>
-          response.algorithmMaybe.isDefined shouldBe true
-      }
-    }
-
-    "complete with success in case of valid algorithms" in {
-      val experimentWrapper =
-        system.actorOf(ExperimentFlowWrapper.propsSuccessfulAlgorithm("knn"))
-      val experiment = experimentQuery(
-        List(
-          AlgorithmSpec("knn", List(CodeValue("k", "5")), None),
-          AlgorithmSpec("anova", List(CodeValue("design", "factorial")), None)
-        )
-      )
-      val experimentJob = experimentQuery2job(experiment)
-      experimentJob.isValid shouldBe true
-      val testProbe = TestProbe()
-      testProbe.send(experimentWrapper, experimentJob.toOption.get)
-      testProbe.expectMsgPF(20 seconds, "error") {
-        case response: ExperimentResponse =>
-          response.result.nonEmpty shouldBe true
-          response.result.head._1 shouldBe AlgorithmSpec("anova",
-                                                         List(CodeValue("design", "factorial")),
-                                                         None)
-          response.result.head._2 match {
-            case ejr: ErrorJobResult => ejr.error.nonEmpty shouldBe true
-            case pfa: PfaJobResult =>
-              pfa.algorithm shouldBe "knn"
-              pfa.node shouldBe "testNode"
-              pfa.model.compactPrint.nonEmpty shouldBe true
-            case _ => fail("Response should be of type ErrorJobResponse")
-          }
-      }
+      experimentResult.isRight shouldBe true
 
     }
+
+    /*
+
+   "complete with success in case of a valid query on k-NN algorithm (predictive)" in {
+     val experimentWrapper =
+       system.actorOf(ExperimentFlowWrapper.propsSuccessfulAlgorithm("knn"))
+
+     val experiment = experimentQuery("knn", List(CodeValue("k", "5")))
+
+     val experimentJob = experimentQuery2job(experiment)
+     experimentJob.isValid shouldBe true
+     val testProbe = TestProbe()
+     testProbe.send(experimentWrapper, experimentJob.toOption.get)
+     testProbe.expectMsgPF(20 seconds, "error") {
+       case response: ExperimentResponse =>
+         response.result.nonEmpty shouldBe true
+         response.result.head._1 shouldBe AlgorithmSpec("knn", List(CodeValue("k", "5")), None)
+         response.result.head._2 match {
+           case ejr: ErrorJobResult => ejr.error.nonEmpty shouldBe true
+           case pfa: PfaJobResult =>
+             pfa.algorithm shouldBe "knn"
+             pfa.node shouldBe "testNode"
+             pfa.model.compactPrint.nonEmpty shouldBe true
+           case _ => fail("Response should be of type ErrorJobResponse")
+         }
+     }
+   }
+
+
+   "split flow should return validation failed" ignore {
+     val experimentWrapper =
+       system.actorOf(ExperimentFlowWrapper.propsSuccessfulAlgorithm("knn"), "SplitFlowProbeActor")
+     val experiment    = experimentQuery("knn", List(CodeValue("k", "5")))
+     val experimentJob = experimentQuery2job(experiment)
+     experimentJob.isValid shouldBe true
+     val testProbe = TestProbe()
+     testProbe.send(experimentWrapper, SplitFlowCommand(experimentJob.toOption.get))
+     testProbe.expectMsgPF(20 seconds, "error") {
+       case response: SplitFlowResponse =>
+         response.algorithmMaybe.isDefined shouldBe true
+     }
+   }
+
+   "complete with success in case of valid algorithms" in {
+     val experimentWrapper =
+       system.actorOf(ExperimentFlowWrapper.propsSuccessfulAlgorithm("knn"))
+     val experiment = experimentQuery(
+       List(
+         AlgorithmSpec("knn", List(CodeValue("k", "5")), None),
+         AlgorithmSpec("anova", List(CodeValue("design", "factorial")), None)
+       )
+     )
+     val experimentJob = experimentQuery2job(experiment)
+     experimentJob.isValid shouldBe true
+     val testProbe = TestProbe()
+     testProbe.send(experimentWrapper, experimentJob.toOption.get)
+     testProbe.expectMsgPF(20 seconds, "error") {
+       case response: ExperimentResponse =>
+         response.result.nonEmpty shouldBe true
+         response.result.head._1 shouldBe AlgorithmSpec("anova",
+                                                        List(CodeValue("design", "factorial")),
+                                                        None)
+         response.result.head._2 match {
+           case ejr: ErrorJobResult => ejr.error.nonEmpty shouldBe true
+           case pfa: PfaJobResult =>
+             pfa.algorithm shouldBe "knn"
+             pfa.node shouldBe "testNode"
+             pfa.model.compactPrint.nonEmpty shouldBe true
+           case _ => fail("Response should be of type ErrorJobResponse")
+         }
+     }
+
+   }
    */
   }
 

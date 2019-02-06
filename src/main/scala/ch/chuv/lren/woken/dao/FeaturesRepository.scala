@@ -37,6 +37,7 @@ import sup.HealthCheck
 
 import scala.collection.concurrent.TrieMap
 import scala.language.higherKinds
+import scala.util.{ Failure, Success, Try }
 
 /**
   * The interface to Features database
@@ -207,13 +208,19 @@ class FeaturesTableInMemoryRepository[F[_]: Effect](val tableId: TableId,
     )
 
   override def count(filters: Option[FilterRule]): F[Int] = filters.fold(count) { f =>
-    filter(dataFeatures, f).size.pure[F]
+    filter(dataFeatures, f) match {
+      case Success(value)     => value.size.pure[F]
+      case Failure(exception) => exception.raiseError[F, Int]
+    }
   }
 
   override def countGroupBy(groupByColumn: TableColumn,
                             filters: Option[FilterRule]): F[Map[String, Int]] =
     filters.fold(countGroupBy(dataFeatures, groupByColumn)) { f =>
-      countGroupBy(filter(dataFeatures, f), groupByColumn)
+      filter(dataFeatures, f) match {
+        case Success(value)     => countGroupBy(value, groupByColumn)
+        case Failure(exception) => exception.raiseError[F, Map[String, Int]]
+      }
     }
 
   private def countGroupBy(data: List[JsObject], groupByColumn: TableColumn): F[Map[String, Int]] =
@@ -223,24 +230,31 @@ class FeaturesTableInMemoryRepository[F[_]: Effect](val tableId: TableId,
       .pure[F]
 
   @SuppressWarnings(Array("org.wartremover.warts.Throw", "org.wartremover.warts.TraversableOps"))
-  private def filter(data: List[JsObject], filters: FilterRule): List[JsObject] = filters match {
-    case SingleFilterRule(_, field, _, _, operator, value) =>
-      operator match {
-        case Operator.equal     => data.filter(_.fields(field).toString == value.head.toString)
-        case Operator.notEqual  => data.filter(_.fields(field).toString != value.head.toString)
-        case Operator.isNull    => data.filter(_.fields(field) == JsNull)
-        case Operator.isNotNull => data.filter(_.fields(field) != JsNull)
-        case _                  => throw new NotImplementedError(s"Filter on operator $operator is not implemented")
-      }
-    case CompoundFilterRule(condition, rules) =>
-      condition match {
-        case Condition.and =>
-          rules.map(filter(data, _)).foldRight(data)((filtered, curr) => curr.intersect(filtered))
-        case Condition.or =>
-          rules
-            .map(filter(data, _))
-            .foldRight(data)((filtered, curr) => curr.union(filtered.diff(curr)))
-      }
+  private def filter(data: List[JsObject], filters: FilterRule): Try[List[JsObject]] = Try {
+    filters match {
+      case SingleFilterRule(_, field, _, _, operator, value) =>
+        operator match {
+          case Operator.equal     => data.filter(_.fields(field).toString == value.head.toString)
+          case Operator.notEqual  => data.filter(_.fields(field).toString != value.head.toString)
+          case Operator.isNull    => data.filter(_.fields(field) == JsNull)
+          case Operator.isNotNull => data.filter(_.fields(field) != JsNull)
+          case _ =>
+            throw new NotImplementedError(s"Filter on operator $operator is not implemented")
+        }
+      case CompoundFilterRule(condition, rules) =>
+        condition match {
+          case Condition.and =>
+            rules
+              .map(filter(data, _))
+              .foldRight(data)((filtered, curr) => curr.intersect(filtered.getOrElse(List.empty)))
+          case Condition.or =>
+            rules
+              .map(filter(data, _))
+              .foldRight(data)(
+                (filtered, curr) => curr.union(filtered.getOrElse(List.empty).diff(curr))
+              )
+        }
+    }
   }
 
   override def datasets(filters: Option[FilterRule]): F[Set[DatasetId]] =
