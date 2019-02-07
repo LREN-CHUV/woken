@@ -20,9 +20,10 @@ package ch.chuv.lren.woken.test
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables.VariableId
 import spray.json._
-
 import java.io.File
 import java.io.PrintWriter
+
+import scala.collection.immutable.TreeSet
 import scala.io.Source
 
 trait Queries {
@@ -56,9 +57,9 @@ trait Queries {
       targetTable = targetTable,
       algorithms = algorithms,
       validations = List(ValidationSpec("kfold", List(CodeValue("k", "2")))),
-      trainingDatasets = Set(),
-      testingDatasets = Set(),
-      validationDatasets = Set(),
+      trainingDatasets = TreeSet(),
+      testingDatasets = TreeSet(),
+      validationDatasets = TreeSet(),
       executionPlan = None
     )
 
