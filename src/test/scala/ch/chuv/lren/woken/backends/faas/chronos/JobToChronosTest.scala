@@ -30,6 +30,8 @@ import ch.chuv.lren.woken.messages.query.filters.{ InputType, Operator, SingleFi
 import ch.chuv.lren.woken.messages.variables.{ VariableId, VariableMetaData, VariableType }
 import org.scalatest.{ FlatSpec, Matchers }
 
+import scala.collection.immutable.TreeSet
+
 class JobToChronosTest extends FlatSpec with Matchers {
 
   val user: UserId = UserId("test")
@@ -46,7 +48,7 @@ class JobToChronosTest extends FlatSpec with Matchers {
     grouping = List("grp1", "grp2").map(VariableId),
     filters = Some(rule),
     targetTable = None,
-    datasets = Set(),
+    datasets = TreeSet(),
     algorithm = knnWithK5,
     executionPlan = None
   )

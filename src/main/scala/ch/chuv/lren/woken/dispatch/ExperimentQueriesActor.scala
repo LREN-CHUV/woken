@@ -36,6 +36,7 @@ import ch.chuv.lren.woken.service.{ BackendServices, DatabaseServices }
 import ch.chuv.lren.woken.validation.flows.RemoteValidationFlow
 import com.typesafe.scalalogging.LazyLogging
 
+import scala.collection.immutable.TreeSet
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.{ higherKinds, postfixOps }
@@ -195,7 +196,7 @@ class ExperimentQueriesActor[F[_]: Effect](
         val mapQuery = queriesByStepExecution.getOrElse(ExecutionStyle.map, job.query)
         val reduceQuery = queriesByStepExecution
           .get(ExecutionStyle.reduce)
-          .map(_.copy(trainingDatasets = Set(), validationDatasets = Set()))
+          .map(_.copy(trainingDatasets = TreeSet(), validationDatasets = TreeSet()))
 
         mapFlow(mapQuery, job.queryAlgorithms, prov, feedback)
           .mapAsync(parallelism = 1) {

@@ -33,6 +33,8 @@ import cats.scalatest.{ ValidatedMatchers, ValidatedValues }
 import ch.chuv.lren.woken.messages.variables.VariableId
 import org.scalatest.{ Matchers, WordSpec }
 
+import scala.collection.immutable.TreeSet
+
 class ExperimentJobTest extends WordSpec with Matchers with ValidatedMatchers with ValidatedValues {
 
   val user: UserId = UserId("test")
@@ -48,9 +50,9 @@ class ExperimentJobTest extends WordSpec with Matchers with ValidatedMatchers wi
         grouping = Nil,
         filters = None,
         targetTable = None,
-        trainingDatasets = Set(),
-        testingDatasets = Set(),
-        validationDatasets = Set(),
+        trainingDatasets = TreeSet(),
+        testingDatasets = TreeSet(),
+        validationDatasets = TreeSet(),
         algorithms = Nil,
         validations = Nil,
         executionPlan = None
@@ -82,9 +84,9 @@ class ExperimentJobTest extends WordSpec with Matchers with ValidatedMatchers wi
       targetTable = Some("Sample"),
       algorithms = List(AlgorithmSpec(algorithm, parameters, None)),
       validations = List(ValidationSpec("kfold", List(CodeValue("k", "2")))),
-      trainingDatasets = Set(),
-      testingDatasets = Set(),
-      validationDatasets = Set(),
+      trainingDatasets = TreeSet(),
+      testingDatasets = TreeSet(),
+      validationDatasets = TreeSet(),
       executionPlan = None
     )
 

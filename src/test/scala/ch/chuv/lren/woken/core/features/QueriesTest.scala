@@ -23,6 +23,8 @@ import org.scalatest.{ Matchers, WordSpec }
 import ch.chuv.lren.woken.messages.query.filters._
 import ch.chuv.lren.woken.messages.variables.VariableId
 
+import scala.collection.immutable.TreeSet
+
 class QueriesTest extends WordSpec with Matchers {
 
   "QueryEnhanced" should {
@@ -47,7 +49,7 @@ class QueriesTest extends WordSpec with Matchers {
       grouping = List("grp1", "grp2").map(VariableId),
       filters = Some(rule),
       targetTable = None,
-      datasets = Set(),
+      datasets = TreeSet(),
       algorithm = algorithm,
       executionPlan = None
     )
@@ -101,7 +103,7 @@ class QueriesTest extends WordSpec with Matchers {
         filters =
           Some(SingleFilterRule("a", "1a", "number", InputType.number, Operator.less, List("10"))),
         targetTable = None,
-        datasets = Set(),
+        datasets = TreeSet(),
         algorithm = algorithm,
         executionPlan = None
       )

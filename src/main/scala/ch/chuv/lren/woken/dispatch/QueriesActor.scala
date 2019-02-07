@@ -38,6 +38,7 @@ import com.typesafe.scalalogging.LazyLogging
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration._
 import scala.language.{ higherKinds, postfixOps }
+import scala.util.control.NonFatal
 
 trait QueriesActor[Q <: Query, F[_]] extends Actor with LazyLogging {
 
@@ -125,6 +126,13 @@ trait QueriesActor[Q <: Query, F[_]] extends Actor with LazyLogging {
           .mapTo[QueryResult]
           .map { reducedResult =>
             resultsToCompoundGather :+ reducedResult
+          }
+          .recoverWith {
+            case NonFatal(e) =>
+              val msg = s"Cannot perform reduce step, got ${e.toString}"
+              logger.error(msg, e)
+              val q = reduceQuery.getOrElse(initialQuery)
+              Future(List(errorResult(q, e, Set(), Nil)))
           }
       }
       .map {

@@ -36,6 +36,7 @@ import spray.json.DefaultJsonProtocol
 
 import scala.concurrent.duration._
 import scala.concurrent.{ ExecutionContext, Future }
+import scala.util.control.NonFatal
 
 object MiningWebService
 
@@ -90,7 +91,7 @@ class MiningWebService(
                     case qr if qr.data.nonEmpty  => OK         -> qr.toJson
                   }
                   .recoverWith[(StatusCode, JsValue)] {
-                    case e =>
+                    case NonFatal(e) =>
                       logger.warn(s"Query $query failed with error $e")
                       Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
                   }
@@ -116,7 +117,7 @@ class MiningWebService(
                     case qr if qr.data.nonEmpty  => OK         -> qr.toJson
                   }
                   .recoverWith[(StatusCode, JsValue)] {
-                    case e =>
+                    case NonFatal(e) =>
                       logger.warn(s"Query $query failed with error $e")
                       Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
                   }

@@ -23,7 +23,7 @@ import akka.actor.FSM.{ Failure, Normal }
 import akka.actor._
 import akka.pattern.{ ask, pipe }
 import akka.util.Timeout
-import cats.effect.Effect
+import cats.effect.{ Effect, ExitCase, IO }
 
 import scala.concurrent.{ ExecutionContext, Future }
 import ch.chuv.lren.woken.backends.HttpClient.checkHealth
@@ -32,7 +32,7 @@ import ch.chuv.lren.woken.backends.faas.{ AlgorithmExecutor, AlgorithmResults }
 import ch.chuv.lren.woken.config.{ DatabaseConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.core.model.jobs.{ DockerJob, ErrorJobResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
-import ch.chuv.lren.woken.core.fp.{ fromFuture, runNow }
+import ch.chuv.lren.woken.core.fp.{ fromFutureWithGuarantee, runNow }
 import ch.chuv.lren.woken.dao.JobResultRepository
 import com.typesafe.scalalogging.LazyLogging
 import sup.{ HealthCheck, mods }
@@ -49,7 +49,8 @@ case class ChronosExecutor[F[_]: Effect](system: ActorSystem,
                                          jobResultService: JobResultRepository[F],
                                          jobsConf: JobsConfiguration,
                                          jdbcConfF: String => Validation[DatabaseConfiguration])
-    extends AlgorithmExecutor[F] {
+    extends AlgorithmExecutor[F]
+    with LazyLogging {
 
   private val jobAsync = CoordinatorActor.executeJobAsync(
     CoordinatorConfig(chronosService, dockerBridgeNetwork, jobResultService, jobsConf, jdbcConfF),
@@ -62,7 +63,13 @@ case class ChronosExecutor[F[_]: Effect](system: ActorSystem,
   override def node: String = jobsConf.node
 
   override def execute(job: DockerJob): F[AlgorithmResults] =
-    fromFuture[F, AlgorithmResults](jobAsync(job))
+    fromFutureWithGuarantee[F, AlgorithmResults](jobAsync(job), {
+      case ExitCase.Error(t) =>
+        IO.delay(
+          logger.error(s"Cannot complete Docker job ${job.toString}", t)
+        )
+      case _ => IO(())
+    })
 
   override def healthCheck: HealthCheck[F, TaggedS] = {
     val chronosUrl = jobsConf.chronosServerUrl

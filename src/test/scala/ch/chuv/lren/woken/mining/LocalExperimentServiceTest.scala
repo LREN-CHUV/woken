@@ -52,6 +52,8 @@ import scala.language.postfixOps
 import ExperimentQuerySupport._
 import ch.chuv.lren.woken.core.model.jobs.{ ErrorJobResult, JobResult, PfaJobResult }
 
+import scala.collection.immutable.TreeSet
+
 /**
   * Experiment flow should always complete with success, but the error is reported inside the response.
   */
@@ -93,9 +95,9 @@ class LocalExperimentServiceTest
       targetTable = Some("Sample"),
       algorithms = List(AlgorithmSpec(algorithm, parameters, None)),
       validations = List(ValidationSpec("kfold", List(CodeValue("k", "2")))),
-      trainingDatasets = Set(),
-      testingDatasets = Set(),
-      validationDatasets = Set(),
+      trainingDatasets = TreeSet(),
+      testingDatasets = TreeSet(),
+      validationDatasets = TreeSet(),
       executionPlan = None
     )
 
@@ -128,9 +130,9 @@ class LocalExperimentServiceTest
         grouping = Nil,
         filters = None,
         targetTable = None,
-        trainingDatasets = Set(),
-        testingDatasets = Set(),
-        validationDatasets = Set(),
+        trainingDatasets = TreeSet(),
+        testingDatasets = TreeSet(),
+        validationDatasets = TreeSet(),
         algorithms = Nil,
         validations = Nil,
         executionPlan = None

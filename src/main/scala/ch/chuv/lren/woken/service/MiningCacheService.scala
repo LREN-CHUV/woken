@@ -28,6 +28,7 @@ import ch.chuv.lren.woken.messages.query.{ AlgorithmSpec, MiningQuery, QueryResu
 import ch.chuv.lren.woken.messages.variables.VariableId
 import com.typesafe.scalalogging.LazyLogging
 
+import scala.collection.immutable.TreeSet
 import scala.concurrent.duration._
 import scala.concurrent.{ Await, Future }
 import scala.language.higherKinds
@@ -128,7 +129,7 @@ class MiningCacheServiceImpl[F[_]: ConcurrentEffect: ContextShift: Timer](
                 groupings,
                 None,
                 Some(table.table.name),
-                Set(),
+                TreeSet(),
                 algorithm,
                 None)
 }

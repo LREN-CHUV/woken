@@ -42,6 +42,8 @@ import scala.concurrent.duration._
 import scala.language.{ higherKinds, postfixOps }
 import spray.json._
 
+import scala.collection.immutable.TreeSet
+
 object MiningQueriesActor extends LazyLogging {
 
   case class Mine(query: MiningQuery, replyTo: ActorRef)
@@ -204,7 +206,7 @@ class MiningQueriesActor[F[_]: Effect](
 
           val mapQuery = queriesByStepExecution.getOrElse(ExecutionStyle.map, query)
           val reduceQuery =
-            queriesByStepExecution.get(ExecutionStyle.reduce).map(_.copy(datasets = Set()))
+            queriesByStepExecution.get(ExecutionStyle.reduce).map(_.copy(datasets = TreeSet()))
 
           mapFlow(mapQuery)
             .mapAsync(parallelism = 1) {
