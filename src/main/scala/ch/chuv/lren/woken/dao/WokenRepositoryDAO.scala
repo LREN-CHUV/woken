@@ -244,7 +244,8 @@ class ResultsCacheRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
     def insert(tableName: String, queryJson: JsObject, resultJson: JsObject): Update0 =
       sql"""INSERT INTO "results_cache" (
       "node", "table_name", "table_contents_hash", "query", "created_at", "last_used", "data", "shape", "function")
-      values ($node, $tableName, $tableContentHash, $queryJson, $createdAt, $lastUsed, $resultJson, $shape, $function)""".update
+      values ($node, $tableName, $tableContentHash, $queryJson, $createdAt, $lastUsed, $resultJson, $shape, $function)
+      ON CONFLICT DO UPDATE""".update
 
     val insertV = (tableNameV, queryJsonV, resultJsonV) mapN insert
 
@@ -294,6 +295,7 @@ class ResultsCacheRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
 
         val q = fr"""SELECT "data" FROM "results_cache"""" ++ filter
 
+        // TODO: handle case of queries returning several results
         q.query[JsObject].map(_.convertTo[QueryResult]).option.transact(xa).flatMap {
           resultOp =>
             resultOp.fold {
