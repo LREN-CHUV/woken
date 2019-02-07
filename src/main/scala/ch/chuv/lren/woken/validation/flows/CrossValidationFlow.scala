@@ -30,6 +30,7 @@ import ch.chuv.lren.woken.backends.faas.{ AlgorithmExecutor, AlgorithmResults }
 import ch.chuv.lren.woken.backends.worker.WokenWorker
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.fp.runLater
+import ch.chuv.lren.woken.core.streams.debugElements
 import ch.chuv.lren.woken.core.model.AlgorithmDefinition
 import ch.chuv.lren.woken.core.model.jobs.{ DockerJob, ErrorJobResult, PfaJobResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
@@ -99,8 +100,9 @@ case class CrossValidationFlow[F[_]: Effect](
       parallelism: Int
   ): Flow[Job[F], Option[(Job[F], Either[String, Score])], NotUsed] =
     Flow[Job[F]]
+      .named("crossValidate")
       .map { job =>
-        logger.info(s"Validation spec: ${job.splitter.definition.validation}")
+        logger.debug(s"Validation spec: ${job.splitter.definition.validation}")
 
         job.splitter.splitFeatures(job.query).map((job, _))
       }
@@ -113,6 +115,7 @@ case class CrossValidationFlow[F[_]: Effect](
       .mapAsync(parallelism)(r => runLater(validateFold(r)))
       .mapAsync(parallelism)(r => runLater(scoreFoldValidationResponse(r)))
       .log("Fold result")
+      .withAttributes(debugElements)
       .fold[FoldResults[F]](List[FoldResult[F]]()) { (l, r) =>
         l :+ r
       }
@@ -129,7 +132,7 @@ case class CrossValidationFlow[F[_]: Effect](
                   folds = crossValidationScore.foldScores
                     .filter {
                       case (k, ScoringResult(Left(error))) =>
-                        logger.warn(s"Fold $k failed with message $error")
+                        logger.error(s"Fold $k failed with message $error")
                         false
                       case _ => true
                     }
@@ -142,7 +145,7 @@ case class CrossValidationFlow[F[_]: Effect](
               crossValidationScore.job -> Right(kFoldCrossValidationScore)
 
             case Left(error) =>
-              logger.warn(s"Global score failed with message $error")
+              logger.error(s"Global score failed with message $error")
               crossValidationScore.job -> Left(error)
           }
         }
@@ -150,7 +153,7 @@ case class CrossValidationFlow[F[_]: Effect](
 
       }
       .log("Cross validation result")
-      .named("crossValidate")
+      .withAttributes(debugElements)
 
   private def targetMetadata(job: Job[F]): VariableMetaData =
     job.query.dbVariables.headOption
@@ -177,7 +180,7 @@ case class CrossValidationFlow[F[_]: Effect](
 
     algorithmExecutor
       .execute(subJob)
-      .map(
+      .map[FoldContext[AlgorithmResults, F]](
         response =>
           FoldContext[AlgorithmResults, F](job = job,
                                            response = response,
@@ -192,12 +195,12 @@ case class CrossValidationFlow[F[_]: Effect](
     val queryF: F[ValidationQuery] = context.response match {
       case AlgorithmResults(_, List(pfa: PfaJobResult)) =>
         // Prepare the results for validation
-        logger.info("Received result from local method.")
+        logger.debug("Received result from local method.")
         // Take the raw model, as model contains runtime-inserted validations which are not yet compliant with PFA / Avro spec
         val model     = pfa.modelWithoutValidation
         val partition = context.partition
 
-        logger.info(
+        logger.debug(
           s"Send a validation work for fold ${partition.fold} to validation worker"
         )
 
@@ -209,6 +212,7 @@ case class CrossValidationFlow[F[_]: Effect](
         }
 
       case AlgorithmResults(_, List(error: ErrorJobResult)) =>
+        // TODO: report cross validation error to Bugsnag
         val message =
           s"Error on cross validation job ${error.jobId} during fold ${context.partition.fold}" +
             s" on variable ${context.targetMetaData.code}: ${error.error}"
@@ -217,6 +221,7 @@ case class CrossValidationFlow[F[_]: Effect](
         Effect[F].raiseError(new IllegalStateException(message))
 
       case AlgorithmResults(_, unhandled) =>
+        // TODO: report cross validation error to Bugsnag
         val message =
           s"Error on cross validation job ${context.job.jobId} during fold ${context.partition.fold}" +
             s" on variable ${context.targetMetaData.code}: Unhandled response from CoordinatorActor: $unhandled"
@@ -282,7 +287,9 @@ case class CrossValidationFlow[F[_]: Effect](
                        groundTruth: NonEmptyList[JsValue]): F[FoldResult[F]] = {
       implicit val askTimeout: Timeout = Timeout(5 minutes)
       val scoringQuery                 = ScoringQuery(algorithmOutput, groundTruth, context.targetMetaData)
-      logger.info(s"scoringQuery: $scoringQuery")
+      logger.whenDebugEnabled(
+        logger.debug(s"scoringQuery: $scoringQuery")
+      )
       wokenWorker
         .score(scoringQuery)
         .map(
@@ -300,6 +307,7 @@ case class CrossValidationFlow[F[_]: Effect](
 
     groundTruthF.flatMap { groundTruthV =>
       val r: F[FoldResult[F]] = ((resultsV, groundTruthV) mapN performScoring).valueOr { e =>
+        // TODO: report scoring error to Bugsnag
         val errorMsg = e.toList.mkString(",")
         logger.error(s"Cannot perform scoring on $context: $errorMsg")
         Effect[F].raiseError(new Exception(errorMsg))
@@ -337,6 +345,7 @@ case class CrossValidationFlow[F[_]: Effect](
                                    validations = validations)
             }
         case (r, gt) =>
+          // TODO: report cross validation error to Bugsnag
           val message =
             s"Final reduce for cross-validation uses empty datasets: Validations = $r, ground truths = $gt"
           logger.error(message)

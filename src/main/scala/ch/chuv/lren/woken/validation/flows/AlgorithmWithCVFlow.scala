@@ -29,6 +29,7 @@ import ch.chuv.lren.woken.backends.faas.{ AlgorithmExecutor, AlgorithmResults }
 import ch.chuv.lren.woken.backends.worker.WokenWorker
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.fp.runLater
+import ch.chuv.lren.woken.core.streams.debugElements
 import ch.chuv.lren.woken.core.model.AlgorithmDefinition
 import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.messages.query._
@@ -124,6 +125,7 @@ case class AlgorithmWithCVFlow[F[_]: Effect](
   def runAlgorithmOnLocalData
     : Flow[AlgorithmWithCVFlow.Job[F], (AlgorithmWithCVFlow.Job[F], AlgorithmResults), NotUsed] =
     Flow[AlgorithmWithCVFlow.Job[F]]
+      .named("learn-from-available-local-data")
       .mapAsync(1) { job =>
         val algorithm = job.algorithm
 
@@ -137,13 +139,14 @@ case class AlgorithmWithCVFlow[F[_]: Effect](
         runLater(algorithmExecutor.execute(subJob).map(response => (job, response)))
       }
       .log("Learned from available local data")
-      .named("learn-from-available-local-data")
+      .withAttributes(debugElements)
 
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
   private def crossValidate(
       parallelism: Int
   ): Flow[AlgorithmWithCVFlow.Job[F], ValidationResults, NotUsed] =
     Flow[AlgorithmWithCVFlow.Job[F]]
+      .named("cross-validate")
       .map { job =>
         job.cvSplitters.map { splitter =>
           val jobId          = UUID.randomUUID().toString
@@ -165,7 +168,7 @@ case class AlgorithmWithCVFlow[F[_]: Effect](
         }
       }
       .log("Cross validation results")
-      .named("cross-validate")
+      .withAttributes(debugElements)
 
   private def createCrossValidationJob(job: AlgorithmWithCVFlow.Job[F],
                                        splitter: FeaturesSplitter[F],
@@ -186,6 +189,7 @@ case class AlgorithmWithCVFlow[F[_]: Effect](
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
   private def buildResponse: Flow[(AlgorithmResults, ValidationResults), ResultResponse, NotUsed] =
     Flow[(AlgorithmResults, ValidationResults)]
+      .named("build-response")
       .map {
         case (response, validations) =>
           val algorithm = response.job.algorithmSpec
@@ -218,5 +222,5 @@ case class AlgorithmWithCVFlow[F[_]: Effect](
           }
       }
       .log("Response")
-      .named("build-response")
+      .withAttributes(debugElements)
 }

@@ -25,17 +25,20 @@ import akka.stream.scaladsl.{ Flow, Sink, Source }
 import cats.effect.Effect
 import cats.implicits._
 import ch.chuv.lren.woken.core.fp._
+import ch.chuv.lren.woken.core.streams.debugElements
 import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.core.model.AlgorithmDefinition
 import ch.chuv.lren.woken.core.model.jobs._
-import ch.chuv.lren.woken.errors.QueryError
+import ch.chuv.lren.woken.errors._
 import ch.chuv.lren.woken.validation.flows.RemoteValidationFlow.ValidationContext
 import ch.chuv.lren.woken.messages.query._
+import ch.chuv.lren.woken.messages.query.queryProtocol._
 import ch.chuv.lren.woken.mining.LocalExperimentService
 import ch.chuv.lren.woken.service.{ BackendServices, DatabaseServices }
 import ch.chuv.lren.woken.validation.flows.RemoteValidationFlow
 import com.typesafe.scalalogging.LazyLogging
 
+import spray.json._
 import scala.collection.immutable.TreeSet
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -122,20 +125,22 @@ class ExperimentQueriesActor[F[_]: Effect](
       runNow(doIt) {
         case Left(e) =>
           val msg = s"Experiment for $query failed with error: ${e.toString}"
-          logger.error(msg, e)
+          logger.error(SKIP_REPORTING_MARKER, msg, e)
           val result = errorMsgResult(query, msg, Set(), List())
           backendServices.errorReporter.report(e, QueryError(result))
           initiator ! result
         case Right(results) =>
           results.error.foreach { error =>
             val msg = s"Experiment for $query failed with error: $error"
-            logger.error(msg)
+            logger.error(SKIP_REPORTING_MARKER, msg)
             backendServices.errorReporter.report(new Exception(msg), QueryError(results))
           }
-          val feedbackMsg =
-            if (results.feedback.nonEmpty) "with feedback " + results.feedback.mkString(", ")
-            else ""
-          results.data.foreach(_ => logger.info(s"Experiment for $query complete $feedbackMsg"))
+          logger.whenDebugEnabled {
+            val feedbackMsg =
+              if (results.feedback.nonEmpty) "with feedback " + results.feedback.mkString(", ")
+              else ""
+            results.data.foreach(_ => logger.debug(s"Experiment for $query complete $feedbackMsg"))
+          }
           initiator ! results
       }
 
@@ -155,12 +160,18 @@ class ExperimentQueriesActor[F[_]: Effect](
 
       // Local execution of the experiment on a worker node or a standalone node
       case (_, true) =>
-        logger.info(s"Local experiment for query $query")
+        logger.whenDebugEnabled(
+          logger.debug(s"Local experiment for query ${query.toJson.compactPrint}")
+        )
         startLocalExperimentJob(jobInProgress)
 
       // Offload execution of the experiment from the central server to a remote worker node
       case (remoteLocations, false) if remoteLocations.size == 1 =>
-        logger.info(s"Remote experiment on a single node $remoteLocations for query $query")
+        logger.whenDebugEnabled(
+          logger.debug(
+            s"Remote experiment on a single node $remoteLocations for query ${query.toJson.compactPrint}"
+          )
+        )
         mapFlow(job.query, job.queryAlgorithms, prov, feedback)
           .mapAsync(parallelism = 1) {
             case List()        => Future(noResult(job.query, Set(), feedback))
@@ -168,13 +179,18 @@ class ExperimentQueriesActor[F[_]: Effect](
             case listOfResults => gatherAndReduce(query, listOfResults, None)
           }
           .log("Result of experiment")
+          .withAttributes(debugElements)
           .runWith(Sink.last)
           .fromFuture
 
       // Dispatch the experiment from the central server to all remote worker nodes
       // TODO: support also mixing local execution with remote executions
       case (remoteLocations, _) =>
-        logger.info(s"Remote experiment on nodes $remoteLocations for query $query")
+        logger.whenDebugEnabled(
+          logger.debug(
+            s"Remote experiment on nodes $remoteLocations for query ${query.toJson.compactPrint}"
+          )
+        )
         val queriesByStepExecution: Map[ExecutionStyle.Value, ExperimentQuery] =
           job.queryAlgorithms
             .flatMap { algorithm =>
@@ -206,6 +222,7 @@ class ExperimentQueriesActor[F[_]: Effect](
               gatherAndReduce(query, mapResults, reduceQuery)
           }
           .log("Result of experiment")
+          .withAttributes(debugElements)
           .runWith(Sink.last)
           .fromFuture
     }
@@ -223,6 +240,7 @@ class ExperimentQueriesActor[F[_]: Effect](
           case experimentResult: ExperimentJobResult =>
             Source
               .single(ValidationContext(mapQuery, algorithms, experimentResult, prov, feedback))
+              .named("remote-validation-of-distributed-experiment")
               .via(remoteValidationFlow)
               .map[QueryResult] { r =>
                 r.experimentResult.asQueryResult(Some(mapQuery),
@@ -243,6 +261,7 @@ class ExperimentQueriesActor[F[_]: Effect](
                 }
               )
               .log("Result of experiment")
+              .withAttributes(debugElements)
               .runWith(Sink.last)
           case r =>
             logger.warn(s"Expected an ExperimentJobResult, found $r")
@@ -267,11 +286,13 @@ class ExperimentQueriesActor[F[_]: Effect](
             // TODO: experiment flow should return a result + warnings when the remote validation failed partially or totally
             Source
               .single(vc)
+              .named("remote-validation-of-local-experiment")
               .via(remoteValidationFlow)
               .map[QueryResult] { r =>
                 r.experimentResult.asQueryResult(Some(r.query), r.dataProvenance, r.feedback)
               }
               .log("Final result of experiment")
+              .withAttributes(debugElements)
               .runWith(Sink.last)
               .fromFuture
 

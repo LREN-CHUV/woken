@@ -27,10 +27,12 @@ import akka.stream.scaladsl.{ Flow, Sink, Source }
 import cats.effect.Effect
 import cats.implicits._
 import ch.chuv.lren.woken.core.fp._
+import ch.chuv.lren.woken.core.streams.debugElements
 import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.core.model.jobs._
-import ch.chuv.lren.woken.errors.QueryError
+import ch.chuv.lren.woken.errors._
 import ch.chuv.lren.woken.messages.query._
+import ch.chuv.lren.woken.messages.query.queryProtocol._
 import ch.chuv.lren.woken.messages.validation.Score
 import ch.chuv.lren.woken.messages.validation.validationProtocol._
 import ch.chuv.lren.woken.service.{ BackendServices, DatabaseServices }
@@ -115,7 +117,7 @@ class MiningQueriesActor[F[_]: Effect](
         jv.fold(
           errList => {
             val errors = errList.mkString_("", ", ", "")
-            val msg    = s"Mining for $query failed with error: $errors"
+            val msg    = errorMsg(query, errors)
             errorMsgResult(query, msg, Set(), List()).pure[F]
           },
           j => processJob(query, j)
@@ -124,21 +126,26 @@ class MiningQueriesActor[F[_]: Effect](
 
       runNow(doIt) {
         case Left(e) =>
-          val msg = s"Mining for $query failed with error: ${e.toString}"
-          logger.error(msg, e)
+          val msg = errorMsg(query, e.toString)
+          logger.error(SKIP_REPORTING_MARKER, msg, e)
           val result = errorMsgResult(query, msg, Set(), List())
           backendServices.errorReporter.report(e, QueryError(result))
           initiator ! result
+
         case Right(results) =>
           results.error.foreach { error =>
-            val msg = s"Mining for $query failed with error: $error"
-            logger.error(msg)
+            val msg = errorMsg(query, error)
+            logger.error(SKIP_REPORTING_MARKER, msg)
             backendServices.errorReporter.report(new Exception(msg), QueryError(results))
           }
-          val feedbackMsg =
-            if (results.feedback.nonEmpty) "with feedback " + results.feedback.mkString(", ")
-            else ""
-          results.data.foreach(_ => logger.info(s"Mining for $query complete $feedbackMsg"))
+          logger.whenDebugEnabled {
+            val feedbackMsg =
+              if (results.feedback.nonEmpty) "with feedback " + results.feedback.mkString(", ")
+              else ""
+            results.data.foreach(
+              _ => logger.debug(s"Mining for ${query.toJson.compactPrint} complete $feedbackMsg")
+            )
+          }
           initiator ! results
       }
 
@@ -146,6 +153,9 @@ class MiningQueriesActor[F[_]: Effect](
       logger.warn(s"Received unhandled request $e of type ${e.getClass}")
 
   }
+
+  private def errorMsg(query: MiningQuery, error: String) =
+    s"Mining for ${query.toJson.compactPrint} failed with error: $error"
 
   private def processJob(query: MiningQuery, jobInProgress: MiningJobInProgress): F[QueryResult] = {
     val feedback = jobInProgress.feedback
@@ -169,32 +179,47 @@ class MiningQueriesActor[F[_]: Effect](
     val forceLocal = query.algorithm.code == "histograms"
 
     if (forceLocal) {
-      logger.info(s"Local data mining for query $query")
+      logger.whenDebugEnabled(
+        logger.debug(s"Local data mining for query ${query.toJson.compactPrint}")
+      )
       startLocalMiningJob(jobInProgress, job)
     } else
       dispatcherService.dispatchTo(query.datasets) match {
 
         // Local mining on a worker node or a standalone node
         case (_, true) =>
-          logger.info(s"Local data mining for query $query")
+          logger.whenDebugEnabled(
+            logger.debug(s"Local data mining for query ${query.toJson.compactPrint}")
+          )
           startLocalMiningJob(jobInProgress, job)
 
         // Mining from the central server using one remote node
         case (remoteLocations, false) if remoteLocations.size == 1 =>
-          logger.info(s"Remote data mining on a single node $remoteLocations for query $query")
-          mapFlow(query)
+          logger.whenDebugEnabled(
+            logger.debug(
+              s"Remote data mining on a single node $remoteLocations for query ${query.toJson.compactPrint}"
+            )
+          )
+          remoteMapFlow(query)
             .mapAsync(parallelism = 1) {
               case List()        => Future(noResult(query, Set(), Nil))
               case List(result)  => Future(result.copy(query = Some(query)))
               case listOfResults => gatherAndReduce(query, listOfResults, None)
             }
-            .log("Result of experiment")
+            .log("Result of mining on remote node")
+            .withAttributes(debugElements)
             .runWith(Sink.last)
-            .fromFuture
+            .fromFutureWithGuarantee(
+              logErrorFinalizer(logger, s"Cannot complete mining job ${job.toString}")
+            )
 
         // Execution of the algorithm from the central server in a distributed mode
         case (remoteLocations, _) =>
-          logger.info(s"Remote data mining on nodes $remoteLocations for query $query")
+          logger.whenDebugEnabled(
+            logger.debug(
+              s"Remote data mining on nodes $remoteLocations for query ${query.toJson.compactPrint}"
+            )
+          )
           val algorithm           = job.dockerJob.algorithmSpec
           val algorithmDefinition = job.dockerJob.algorithmDefinition
           val queriesByStepExecution: Map[ExecutionStyle.Value, MiningQuery] =
@@ -208,13 +233,15 @@ class MiningQueriesActor[F[_]: Effect](
           val reduceQuery =
             queriesByStepExecution.get(ExecutionStyle.reduce).map(_.copy(datasets = TreeSet()))
 
-          mapFlow(mapQuery)
-            .mapAsync(parallelism = 1) {
+          remoteMapFlow(mapQuery)
+            .mapAsync(parallelism = 5) {
               case List(result) => Future(result.copy(query = Some(query)))
               case mapResults   => gatherAndReduce(query, mapResults, reduceQuery)
             }
             .runWith(Sink.last)
-            .fromFuture
+            .fromFutureWithGuarantee(
+              logErrorFinalizer(logger, s"Cannot complete mining job ${job.toString}")
+            )
       }
   }
 
@@ -261,9 +288,10 @@ class MiningQueriesActor[F[_]: Effect](
       }
     }
 
-  private def mapFlow(mapQuery: MiningQuery) =
+  private def remoteMapFlow(mapQuery: MiningQuery) =
     Source
       .single(mapQuery)
+      .named("remote-map-operation")
       .via(dispatcherService.dispatchRemoteMiningFlow)
       .fold(List[QueryResult]()) {
         _ :+ _._2
@@ -279,6 +307,7 @@ class MiningQueriesActor[F[_]: Effect](
       case (_, true) =>
         Source
           .single(job)
+          .named("run-validation")
           .via(validationFlow)
           .runWith(Sink.last)
           .map {
@@ -309,7 +338,9 @@ class MiningQueriesActor[F[_]: Effect](
                 Some(query)
               )
           }
-          .fromFuture
+          .fromFutureWithGuarantee(
+            logErrorFinalizer(logger, s"Cannot complete validation job ${job.toString}")
+          )
 
       case _ =>
         logger.info(

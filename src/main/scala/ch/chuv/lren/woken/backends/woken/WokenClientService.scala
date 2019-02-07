@@ -27,6 +27,12 @@ import akka.stream.{ ActorMaterializer, FlowShape }
 import akka.stream.scaladsl._
 import ch.chuv.lren.woken.backends.{ AkkaClusterClient, HttpClient, WebSocketClient }
 import ch.chuv.lren.woken.messages.query._
+import ch.chuv.lren.woken.core.streams.debugElements
+import ch.chuv.lren.woken.messages.remoting.RemoteLocation
+import ch.chuv.lren.woken.messages.variables.{
+  VariablesForDatasetsQuery,
+  VariablesForDatasetsResponse
+}
 
 import scala.concurrent.{ ExecutionContext, Future }
 import com.typesafe.scalalogging.LazyLogging
@@ -34,11 +40,6 @@ import cats.implicits._
 import spray.json._
 import queryProtocol._
 import HttpClient._
-import ch.chuv.lren.woken.messages.remoting.RemoteLocation
-import ch.chuv.lren.woken.messages.variables.{
-  VariablesForDatasetsQuery,
-  VariablesForDatasetsResponse
-}
 
 case class WokenClientService(node: String)(implicit val system: ActorSystem,
                                             implicit val materializer: ActorMaterializer)
@@ -55,30 +56,36 @@ case class WokenClientService(node: String)(implicit val system: ActorSystem,
   // see https://stackoverflow.com/questions/37659421/what-is-the-best-way-to-combine-akka-http-flow-in-a-scala-stream-flow?rq=1
 
   def queryFlow: Flow[(RemoteLocation, Query), (RemoteLocation, QueryResult), NotUsed] =
-    Flow.fromGraph(GraphDSL.create() { implicit builder =>
-      import GraphDSL.Implicits._
+    Flow
+      .fromGraph(GraphDSL.create() { implicit builder =>
+        import GraphDSL.Implicits._
 
-      def partitionByRemoteLocationType(locationAndQuery: (RemoteLocation, Query)): Int =
-        locationAndQuery._1.url.scheme match {
-          case "http" | "https" => 0
-          case "ws" | "wss"     => 1
-          case "akka"           => 2
-          case _                => 1
-        }
+        def partitionByRemoteLocationType(locationAndQuery: (RemoteLocation, Query)): Int =
+          locationAndQuery._1.url.scheme match {
+            case "http" | "https" => 0
+            case "ws" | "wss"     => 1
+            case "akka"           => 2
+            case _                => 1
+          }
 
-      val partition =
-        builder.add(Partition[(RemoteLocation, Query)](3, partitionByRemoteLocationType))
-      val merger = builder.add(Merge[(RemoteLocation, QueryResult)](3))
+        val partition =
+          builder.add(
+            Partition[(RemoteLocation, Query)](outputPorts = 3,
+                                               partitioner = partitionByRemoteLocationType)
+          )
+        val merger = builder.add(Merge[(RemoteLocation, QueryResult)](inputPorts = 3))
 
-      partition.out(0).via(httpQueryFlow) ~> merger
-      partition.out(1).via(wsQueryFlow) ~> merger
-      partition.out(2).via(actorQueryFlow) ~> merger
+        partition.out(0).via(httpQueryFlow) ~> merger
+        partition.out(1).via(wsQueryFlow) ~> merger
+        partition.out(2).via(actorQueryFlow) ~> merger
 
-      FlowShape(partition.in, merger.out)
-    })
+        FlowShape(partition.in, merger.out)
+      })
+      .named("query-remote-woken")
 
   def httpQueryFlow: Flow[(RemoteLocation, Query), (RemoteLocation, QueryResult), NotUsed] =
     Flow[(RemoteLocation, Query)]
+      .named("http-query-remote-woken")
       .map {
         case (location, query: MiningQuery) =>
           logger.info(s"Send Post request to ${location.url} for query $query")
@@ -87,8 +94,8 @@ case class WokenClientService(node: String)(implicit val system: ActorSystem,
           logger.info(s"Send Post request to ${location.url} for query $query")
           Post(location, query).map((location, query, _))
       }
-      .mapAsync(10)(identity)
-      .mapAsync(10) {
+      .mapAsync(parallelism = 10)(identity)
+      .mapAsync(parallelism = 10) {
         case (url, query, response) if response.status.isSuccess() =>
           (url.pure[Future],
            Unmarshal(response)
@@ -113,7 +120,8 @@ case class WokenClientService(node: String)(implicit val system: ActorSystem,
 
   def wsQueryFlow: Flow[(RemoteLocation, Query), (RemoteLocation, QueryResult), NotUsed] =
     Flow[(RemoteLocation, Query)]
-      .mapAsync(100) {
+      .named("ws-query-remote-woken")
+      .mapAsync(parallelism = 100) {
         case (location, query: MiningQuery) =>
           logger.info(s"Send Post request to ${location.url}")
           WebSocketClient.sendReceive(location, query)
@@ -124,6 +132,7 @@ case class WokenClientService(node: String)(implicit val system: ActorSystem,
 
   def actorQueryFlow: Flow[(RemoteLocation, Query), (RemoteLocation, QueryResult), NotUsed] =
     Flow[(RemoteLocation, Query)]
+      .named("actor-query-remote-woken")
       .mapAsync(100) {
         case (location, query) => AkkaClusterClient.sendReceive(location, query).map((location, _))
       }
@@ -133,9 +142,12 @@ case class WokenClientService(node: String)(implicit val system: ActorSystem,
            (RemoteLocation, VariablesForDatasetsQuery, VariablesForDatasetsResponse),
            NotUsed] =
     Flow[(RemoteLocation, VariablesForDatasetsQuery)]
+      .named("remote-variable-meta")
       .map(query => sendReceive(Get(query._1)).map((query._1, query._2, _)))
-      .mapAsync(10)(identity)
-      .mapAsync[(RemoteLocation, VariablesForDatasetsQuery, VariablesForDatasetsResponse)](10) {
+      .mapAsync(parallelism = 10)(identity)
+      .mapAsync[(RemoteLocation, VariablesForDatasetsQuery, VariablesForDatasetsResponse)](
+        parallelism = 10
+      ) {
         case (url, query, response) if response.status.isSuccess() =>
           val varResponse = Unmarshal(response).to[VariablesForDatasetsResponse]
           (url.pure[Future], query.pure[Future], varResponse).mapN((_, _, _))
@@ -146,5 +158,6 @@ case class WokenClientService(node: String)(implicit val system: ActorSystem,
       }
       .map(identity)
       .log("Variables for dataset response")
+      .withAttributes(debugElements)
 
 }

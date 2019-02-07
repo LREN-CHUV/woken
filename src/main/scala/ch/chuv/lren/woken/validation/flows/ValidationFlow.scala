@@ -27,6 +27,7 @@ import cats.implicits._
 import ch.chuv.lren.woken.backends.worker.WokenWorker
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.core.fp.{ runLater, runNow }
+import ch.chuv.lren.woken.core.streams.debugElements
 import ch.chuv.lren.woken.core.model.jobs.ValidationJob
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query.AlgorithmSpec
@@ -74,6 +75,7 @@ case class ValidationFlow[F[_]: Effect](wokenWorker: WokenWorker[F])(
 
   def validate(): Flow[ValidationJob[F], (ValidationJob[F], Either[String, Score]), NotUsed] =
     Flow[ValidationJob[F]]
+      .named("validate-model")
       .map { job =>
         val validation = job.query.algorithm
 
@@ -87,11 +89,16 @@ case class ValidationFlow[F[_]: Effect](wokenWorker: WokenWorker[F])(
           .filterNulls(variablesCanBeNull, covariablesCanBeNull)
           .features(inputTable, None)
 
-        logger.info(s"Validation query: $featuresQuery")
+        logger.whenDebugEnabled(
+          logger.debug(s"Validation query: $featuresQuery")
+        )
 
         // JSON objects with fieldname corresponding to variables names
         val (_, dataframe) = runNow(tableService.features(featuresQuery))
-        logger.info(s"Query response: ${dataframe.mkString(",")}")
+
+        logger.whenDebugEnabled(
+          logger.debug(s"Query response: ${dataframe.mkString(",")}")
+        )
 
         // Separate features from labels
         val variables = featuresQuery.dbVariables
@@ -106,9 +113,10 @@ case class ValidationFlow[F[_]: Effect](wokenWorker: WokenWorker[F])(
           .unzip
         val groundTruth: List[JsValue] = labels.map(_.fields.toList.head._2)
 
-        logger.info(
+        logger.debug(
           s"Send validation work for all local data to validation worker"
         )
+
         val model = modelOf(validation).getOrElse(
           throw new IllegalStateException(
             "Should have a model in the validation algorithm parameters"
@@ -124,7 +132,7 @@ case class ValidationFlow[F[_]: Effect](wokenWorker: WokenWorker[F])(
         (validationResult.job, validationResult.scores.result)
       }
       .log("Validation result")
-      .named("validate-model")
+      .withAttributes(debugElements)
 
   private def modelOf(spec: AlgorithmSpec): Option[JsObject] =
     spec.parameters.find(_.code == "model").map(_.value.parseJson.asJsObject)

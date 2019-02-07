@@ -23,12 +23,14 @@ import akka.stream._
 import akka.stream.scaladsl.{ Flow, Sink, Source }
 import ch.chuv.lren.woken.core.model.AlgorithmDefinition
 import ch.chuv.lren.woken.core.model.jobs.{ ExperimentJobResult, PfaJobResult, ValidationJob }
+import ch.chuv.lren.woken.core.streams.debugElements
 import ch.chuv.lren.woken.messages.APIJsonProtocol._
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.validation.Score
 import ch.chuv.lren.woken.service.DispatcherService
 import com.typesafe.scalalogging.LazyLogging
 
+import spray.json._
 import scala.concurrent.{ ExecutionContext, Future }
 
 object RemoteValidationFlow {
@@ -58,6 +60,7 @@ case class RemoteValidationFlow(
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
   def remoteValidate: Flow[ValidationContext, ValidationContext, NotUsed] =
     Flow[ValidationContext]
+      .named("remote-validate")
       .mapAsync(1) { ctx =>
         def definitionOf(spec: AlgorithmSpec) =
           ctx.algorithms.getOrElse(
@@ -76,11 +79,13 @@ case class RemoteValidationFlow(
         }.toList
 
         Source(partialValidations)
+          .named("partial-validations")
           .filter(_.model.isDefined)
           .buffer(10, OverflowStrategy.backpressure)
           .mapAsync(10)(buildPartialValidation)
           .mapConcat(identity)
           .log("Remote validations")
+          .withAttributes(debugElements)
           .runWith(Sink.seq[PartialValidation])
           .map { validations =>
             val resultsWithValidations: Map[AlgorithmSpec, PfaJobResult] = validations
@@ -99,10 +104,14 @@ case class RemoteValidationFlow(
       partialValidation: PartialValidation
   ): Future[List[PartialValidation]] = {
     val query: MiningQuery = buildMineForValidationQuery(partialValidation)
-    logger.info(s"Prepared remote validation query: $query")
+
+    logger.whenDebugEnabled(
+      logger.debug(s"Prepared remote validation query: ${query.toJson.compactPrint}")
+    )
 
     Source
       .single(query)
+      .named("dispatch-remote-validation-query")
       .via(dispatcherService.dispatchRemoteMiningFlow)
       .fold(List[QueryResult]()) {
         _ :+ _._2
