@@ -319,7 +319,7 @@ services:
       - chronos
 
   wokenvalidationnode1:
-    image: hbpmip/woken-validation:2.6.3
+    image: hbpmip/woken-validation:2.6.4
     ports:
       - "18081:8081"
       - "18082:8082"
@@ -389,7 +389,7 @@ services:
       - chronos
 
   wokenvalidationnode2:
-    image: hbpmip/woken-validation:2.6.3
+    image: hbpmip/woken-validation:2.6.4
     ports:
       - "28081:8081"
       - "28082:8082"
