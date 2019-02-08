@@ -116,7 +116,7 @@ class MiningQueriesActor[F[_]: Effect](
       val doIt: F[QueryResult] = jobValidatedF.flatMap { jv =>
         jv.fold(
           errList => {
-            val errors = errList.mkString_("", ", ", "")
+            val errors = errList.mkString_(", ")
             val msg    = errorMsg(query, errors)
             errorMsgResult(query, msg, Set(), List()).pure[F]
           },

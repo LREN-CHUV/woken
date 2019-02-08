@@ -306,7 +306,8 @@ class ResultsCacheRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
             } { result =>
               val updateTs
                 : Fragment = fr"""UPDATE "results_cache" SET "last_used" = now()""" ++ filter
-              updateTs.update.run.transact(xa).map(_ => Some(result))
+              // Restore user query, as result may come from another user
+              updateTs.update.run.transact(xa).map(_ => Some(result.copy(query = Some(userQuery))))
             }
         }
       }
