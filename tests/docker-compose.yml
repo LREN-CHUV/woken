@@ -209,7 +209,7 @@ services:
   wokenprometheus:
     image: prom/prometheus
     volumes:
-     - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     hostname: prometheus
     ports:
       - "9090:9090"
@@ -319,7 +319,7 @@ services:
       - woken
 
   portalbackend:
-    image: hbpmip/portal-backend:2.9.1
+    image: hbpmip/portal-backend:2.9.2
     restart: "no"
     ports:
       - "65440:8080"
@@ -369,7 +369,7 @@ services:
       - portalbackend
 
   frontend:
-    image: hbpmip/portal-frontend:2.14.1
+    image: hbpmip/portal-frontend:2.15.1
     depends_on:
       - portalbackend
     ports:
@@ -382,7 +382,7 @@ services:
       PORTAL_BACKEND_CONTEXT: services
       MODE: local
       INSTANCE_NAME: "DEV"
-      VERSION: "2.9.0-dev (Woken dev, Validation 2.6.1, Backend 2.9.0, Frontend 2.14.1)"
+      VERSION: "2.9.0-dev (Woken dev, Validation 2.6.4, Backend 2.9.2, Frontend 2.15.1)"
 
 networks:
   default:
