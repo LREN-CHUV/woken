@@ -124,7 +124,7 @@ class FeaturesServiceImpl[F[_]: Effect](repository: FeaturesRepository[F])
           }
       }
       .fold(
-        (s"Table $table cannot be found or has not been configured in the configuration for database '" + repository.database + "'")
+        s"Table ${table.name} cannot be found or has not been configured in the configuration for database ${repository.database}"
           .invalidNel[FeaturesTableService[F]]
       ) { s: FeaturesTableService[F] =>
         s.validNel[String]

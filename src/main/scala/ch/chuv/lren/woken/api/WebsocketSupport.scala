@@ -87,7 +87,7 @@ trait WebsocketSupport {
         case TextMessage.Strict(table) =>
           DatasetsQuery(Some(table))
       }
-      .mapAsync(1) { query =>
+      .mapAsync(parallelism = 1) { query =>
         (masterRouter ? query).mapTo[DatasetsResponse]
       }
       .map { result =>
@@ -113,7 +113,7 @@ trait WebsocketSupport {
           logger.error("Deserialize failed", err)
           false
       }
-      .mapAsync(1) {
+      .mapAsync(parallelism = 1) {
         case Success(query) =>
           (masterRouter ? query).mapTo[VariablesForDatasetsResponse]
         case Failure(e) =>
@@ -134,7 +134,7 @@ trait WebsocketSupport {
         case TextMessage.Strict(jsonEncodedString) => Future(jsonEncodedString)
         case TextMessage.Streamed(stream)          => stream.runFold("")(_ + _)
       }
-      .mapAsync(3)(identity)
+      .mapAsync(parallelism = 3)(identity)
       .map { jsonEncodedString =>
         Try {
           jsonEncodedString.parseJson.convertTo[ExperimentQuery]
@@ -143,11 +143,11 @@ trait WebsocketSupport {
       .filter {
         case Success(_) => true
         case Failure(err) =>
-          logger.error("Deserialize failed", err)
+          logger.error("Cannot deserialize Json as experiment query", err)
           false
 
       }
-      .mapAsync(3) {
+      .mapAsync(parallelism = 3) {
         case Success(query) =>
           (masterRouter ? query).mapTo[QueryResult]
         case Failure(e) =>
@@ -168,7 +168,7 @@ trait WebsocketSupport {
         case TextMessage.Strict(jsonEncodedString) => Future(jsonEncodedString)
         case TextMessage.Streamed(stream)          => stream.runFold("")(_ + _)
       }
-      .mapAsync(3)(identity)
+      .mapAsync(parallelism = 3)(identity)
       .map { jsonEncodedString =>
         Try {
           jsonEncodedString.parseJson.convertTo[MiningQuery]
@@ -177,12 +177,12 @@ trait WebsocketSupport {
       .filter {
         case Success(_) => true
         case Failure(err) =>
-          logger.error("Deserialize failed", err)
+          logger.error("Cannot deserialize Json as mining query", err)
           false
 
       }
       .withAttributes(ActorAttributes.supervisionStrategy(decider))
-      .mapAsync(3) {
+      .mapAsync(parallelism = 3) {
         case Success(query) =>
           (masterRouter ? query).mapTo[QueryResult]
         case Failure(e) =>

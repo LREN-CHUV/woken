@@ -7,12 +7,12 @@ jobs:
   build:
     working_directory: ~/src
     docker:
-      - image: hbpmip/docker-compose-for-ci:17.06-2
+      - image: hbpmip/docker-compose-for-ci:18.09-1
     environment:
        - CIRCLECI: true
     steps:
       - setup_remote_docker:
-          version: 17.06.0-ce
+          version: 18.06.0-ce
       - checkout
       - restore_cache:
           keys:
@@ -32,9 +32,7 @@ jobs:
             - ~/.cache/pre-commit
       - run:
           name: "Build the project"
-          command: |
-            PATH=$PATH:/$HOME/.captain/bin/ ./build.sh
+          command: ./build.sh
       - run:
-          name: "Test the project"
-          command: |
-            PATH=$PATH:/$HOME/.captain/bin/ ./tests/ci.sh --all
+          name: "Run integration tests"
+          command: ./tests/ci.sh --all

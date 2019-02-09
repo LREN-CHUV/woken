@@ -56,7 +56,9 @@ object Main extends IOApp {
         _ <- IO(logger.info("[OK] Woken startup complete."))          // scalastyle:off
         _ <- IO(Console.println("Type 'exit' then <Enter> to exit.")) // scalastyle:off
         _ <- IO {
-          do {} while (!Option(StdIn.readLine()).exists(_.toLowerCase == "exit"))
+          do {
+            Thread.sleep(1000)
+          } while (!Option(StdIn.readLine()).exists(_.toLowerCase == "exit"))
           logger.info("Stopping Woken...")
         }
       } yield ExitCode.Success

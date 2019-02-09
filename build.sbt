@@ -98,13 +98,13 @@ lazy val library =
       val scalaCheck      = "1.14.0"
       val scalaTest       = "3.0.5"
       val scalaMock       = "4.1.0"
-      val akka            = "2.5.19"
+      val akka            = "2.5.20"
       val akkaHttp        = "10.1.7"
       val akkaHttpCors    = "0.3.4"
       val akkaManagement  = "0.20.0"
       val akkaHttpSwagger = "2.0.1"
       val swaggerScala    = "2.0.3"
-      val kamon           = "1.1.4"
+      val kamon           = "1.1.5"
       val kamonAkka       = "1.1.3"
       val kamonAkkaRemote = "1.1.0"
       val kamonAkkaHttp   = "1.1.1"
@@ -120,7 +120,7 @@ lazy val library =
       val log4j           = "2.11.1"
       val disruptor       = "3.4.2"
       val scalaLogging    = "3.9.0"
-      val cats            = "1.5.0"
+      val cats            = "1.6.0"
       val kittens         = "1.2.0"
       val catsScalaTest   = "2.4.0"
       val treelog         = "1.4.6"
@@ -132,9 +132,9 @@ lazy val library =
       val dockerTestKit   = "0.9.8"
       val diff            = "2.0.1"
       val acyclic         = "0.1.8"
-      val wokenMessages   = "2.9.4"
+      val wokenMessages   = "2.9.5"
       val sup             = "0.2.0"
-      val sttpBackend     = "1.5.7"
+      val sttpBackend     = "1.5.9"
     }
     object ExclusionRules {
       val excludeLogback = ExclusionRule(organization = "ch.qos.logback", name = "logback-classic")
@@ -220,7 +220,6 @@ lazy val settings = commonSettings ++ gitSettings ++ scalafmtSettings
 lazy val commonSettings =
   Seq(
     scalaVersion := "2.11.12",
-    ensimeScalaVersion in ThisBuild := "2.11.12",
     organization in ThisBuild := "ch.chuv.lren.woken",
     organizationName in ThisBuild := "LREN CHUV for Human Brain Project",
     homepage in ThisBuild := Some(url(s"https://github.com/HBPMedical/${name.value}/#readme")),

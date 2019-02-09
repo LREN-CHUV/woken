@@ -42,6 +42,7 @@ import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.core.model.jobs.{ DockerJob, ExperimentJob }
 import ch.chuv.lren.woken.messages.remoting.RemoteLocation
 
+import scala.collection.immutable.TreeSet
 import scala.concurrent.duration._
 import scala.language.{ higherKinds, postfixOps }
 
@@ -157,9 +158,9 @@ class MasterRouterTest
           grouping = Nil,
           filters = None,
           targetTable = None,
-          trainingDatasets = Set(),
-          testingDatasets = Set(),
-          validationDatasets = Set(),
+          trainingDatasets = TreeSet(),
+          testingDatasets = TreeSet(),
+          validationDatasets = TreeSet(),
           algorithms = Nil,
           validations = Nil,
           executionPlan = None
@@ -193,9 +194,9 @@ class MasterRouterTest
           grouping = Nil,
           filters = None,
           targetTable = None,
-          trainingDatasets = Set(),
-          testingDatasets = Set(),
-          validationDatasets = Set(),
+          trainingDatasets = TreeSet(),
+          testingDatasets = TreeSet(),
+          validationDatasets = TreeSet(),
           algorithms = Nil,
           validations = Nil,
           executionPlan = None
@@ -236,9 +237,9 @@ class MasterRouterTest
           grouping = Nil,
           filters = None,
           targetTable = None,
-          trainingDatasets = Set(),
-          testingDatasets = Set(),
-          validationDatasets = Set(),
+          trainingDatasets = TreeSet(),
+          testingDatasets = TreeSet(),
+          validationDatasets = TreeSet(),
           algorithms = Nil,
           validations = Nil,
           executionPlan = None
@@ -278,7 +279,7 @@ class MasterRouterTest
         filters = None,
         targetTable = Some("sample_data"),
         algorithm = AlgorithmSpec("knn", List(CodeValue("k", "5")), None),
-        datasets = Set(),
+        datasets = TreeSet(),
         executionPlan = None
       )
 

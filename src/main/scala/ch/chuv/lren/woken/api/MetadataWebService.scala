@@ -46,6 +46,7 @@ import spray.json.DefaultJsonProtocol
 
 import scala.concurrent.duration._
 import scala.concurrent.{ ExecutionContext, Future }
+import scala.util.control.NonFatal
 
 class MetadataWebService(
     val masterRouter: ActorRef,
@@ -85,7 +86,7 @@ class MetadataWebService(
                     OK -> datasetResponse.datasets.toJson
                   }
                   .recoverWith[(StatusCode, JsValue)] {
-                    case e =>
+                    case NonFatal(e) =>
                       logger.error(s"Cannot list datasets for table $table", e)
                       Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
                   }
@@ -113,7 +114,7 @@ class MetadataWebService(
                   case variablesResponse => OK -> variablesResponse.toJson
                 }
                 .recoverWith[(StatusCode, JsValue)] {
-                  case e =>
+                  case NonFatal(e) =>
                     logger.error(s"Cannot list variables for datasets ${datasets.mkString(",")}", e)
                     Future(BadRequest -> JsObject("error" -> JsString(e.toString)))
                 }

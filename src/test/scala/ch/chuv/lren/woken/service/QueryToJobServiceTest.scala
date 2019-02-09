@@ -33,6 +33,8 @@ import ch.chuv.lren.woken.messages.variables._
 import com.typesafe.config.{ Config, ConfigFactory }
 import org.scalatest.{ Matchers, WordSpec }
 
+import scala.collection.immutable.TreeSet
+
 class QueryToJobServiceTest
     extends WordSpec
     with Matchers
@@ -121,7 +123,7 @@ class QueryToJobServiceTest
         filters = None,
         targetTable = Some("unknown"),
         algorithm = AlgorithmSpec("knn", List(CodeValue("k", "5")), None),
-        datasets = Set(),
+        datasets = TreeSet(),
         executionPlan = None
       )
 
@@ -141,7 +143,7 @@ class QueryToJobServiceTest
         filters = None,
         targetTable = Some("Sample"),
         algorithm = AlgorithmSpec("unknown", Nil, None),
-        datasets = Set(),
+        datasets = TreeSet(),
         executionPlan = None
       )
 
@@ -162,7 +164,7 @@ class QueryToJobServiceTest
         filters = None,
         targetTable = Some("Sample"),
         algorithm = AlgorithmSpec("knn", Nil, None),
-        datasets = Set(),
+        datasets = TreeSet(),
         executionPlan = None
       )
 
@@ -183,7 +185,7 @@ class QueryToJobServiceTest
         filters = None,
         targetTable = Some("Sample"),
         algorithm = AlgorithmSpec("knn", Nil, None),
-        datasets = Set(),
+        datasets = TreeSet(),
         executionPlan = None
       )
 
@@ -207,7 +209,7 @@ class QueryToJobServiceTest
         filters = None,
         targetTable = Some("Sample"),
         algorithm = AlgorithmSpec("knn", List(CodeValue("k", "5")), None),
-        datasets = Set(DatasetId("Sample")),
+        datasets = TreeSet(DatasetId("Sample")),
         executionPlan = None
       )
 
@@ -259,7 +261,7 @@ class QueryToJobServiceTest
         filters = None,
         targetTable = Some("cde_features_a"),
         algorithm = AlgorithmSpec("knn", List(CodeValue("k", "5")), None),
-        datasets = Set(DatasetId("desd-synthdata")),
+        datasets = TreeSet(DatasetId("desd-synthdata")),
         executionPlan = None
       )
 
@@ -307,7 +309,7 @@ class QueryToJobServiceTest
         filters = None,
         targetTable = Some("cde_features_a"),
         algorithm = AlgorithmSpec("knn", List(CodeValue("k", "5")), None),
-        datasets = Set(DatasetId("desd-synthdata")),
+        datasets = TreeSet(DatasetId("desd-synthdata")),
         executionPlan = None
       )
 
@@ -355,7 +357,7 @@ class QueryToJobServiceTest
         filters = None,
         targetTable = Some("cde_features_a"),
         algorithm = AlgorithmSpec(ValidationJob.algorithmCode, Nil, None),
-        datasets = Set(DatasetId("desd-synthdata")),
+        datasets = TreeSet(DatasetId("desd-synthdata")),
         executionPlan = None
       )
       val table = TableId("features_db", None, "cde_features_a")
@@ -391,9 +393,9 @@ class QueryToJobServiceTest
         filters = None,
         targetTable = Some("unknown"),
         algorithms = List(AlgorithmSpec("knn", List(CodeValue("k", "5")), None)),
-        trainingDatasets = Set(),
-        testingDatasets = Set(),
-        validationDatasets = Set(),
+        trainingDatasets = TreeSet(),
+        testingDatasets = TreeSet(),
+        validationDatasets = TreeSet(),
         validations = Nil,
         executionPlan = None
       )
@@ -415,9 +417,9 @@ class QueryToJobServiceTest
         filters = None,
         targetTable = Some("cde_features_a"),
         algorithms = List(AlgorithmSpec("unknown", Nil, None)),
-        trainingDatasets = Set(),
-        testingDatasets = Set(),
-        validationDatasets = Set(),
+        trainingDatasets = TreeSet(),
+        testingDatasets = TreeSet(),
+        validationDatasets = TreeSet(),
         validations = Nil,
         executionPlan = None
       )
@@ -440,9 +442,9 @@ class QueryToJobServiceTest
         filters = None,
         targetTable = Some("cde_features_a"),
         algorithms = List(AlgorithmSpec("knn", Nil, None)),
-        trainingDatasets = Set(),
-        testingDatasets = Set(),
-        validationDatasets = Set(),
+        trainingDatasets = TreeSet(),
+        testingDatasets = TreeSet(),
+        validationDatasets = TreeSet(),
         validations = Nil,
         executionPlan = None
       )
@@ -465,9 +467,9 @@ class QueryToJobServiceTest
         filters = None,
         targetTable = Some("cde_features_a"),
         algorithms = List(AlgorithmSpec("knn", Nil, None)),
-        trainingDatasets = Set(),
-        testingDatasets = Set(),
-        validationDatasets = Set(),
+        trainingDatasets = TreeSet(),
+        testingDatasets = TreeSet(),
+        validationDatasets = TreeSet(),
         validations = Nil,
         executionPlan = None
       )
@@ -490,9 +492,9 @@ class QueryToJobServiceTest
         filters = None,
         targetTable = Some("cde_features_a"),
         algorithms = List(AlgorithmSpec("knn", List(CodeValue("k", "5")), None)),
-        trainingDatasets = Set(DatasetId("desd-synthdata")),
-        testingDatasets = Set(),
-        validationDatasets = Set(),
+        trainingDatasets = TreeSet(DatasetId("desd-synthdata")),
+        testingDatasets = TreeSet(),
+        validationDatasets = TreeSet(),
         validations = Nil,
         executionPlan = None
       )
@@ -525,9 +527,9 @@ class QueryToJobServiceTest
         filters = None,
         targetTable = Some("cde_features_a"),
         algorithms = List(AlgorithmSpec("knn", List(CodeValue("k", "5")), None)),
-        trainingDatasets = Set(DatasetId("desd-synthdata")),
-        testingDatasets = Set(),
-        validationDatasets = Set(),
+        trainingDatasets = TreeSet(DatasetId("desd-synthdata")),
+        testingDatasets = TreeSet(),
+        validationDatasets = TreeSet(),
         validations = Nil,
         executionPlan = None
       )
@@ -561,9 +563,9 @@ class QueryToJobServiceTest
         filters = None,
         targetTable = Some("cde_features_a"),
         algorithms = List(AlgorithmSpec(ValidationJob.algorithmCode, Nil, None)),
-        trainingDatasets = Set(DatasetId("desd-synthdata")),
-        testingDatasets = Set(),
-        validationDatasets = Set(),
+        trainingDatasets = TreeSet(DatasetId("desd-synthdata")),
+        testingDatasets = TreeSet(),
+        validationDatasets = TreeSet(),
         validations = Nil,
         executionPlan = None
       )

@@ -32,6 +32,8 @@ import ch.chuv.lren.woken.Predefined.Algorithms.{
 }
 import ch.chuv.lren.woken.core.model.jobs.ExperimentJob
 
+import scala.collection.immutable.TreeSet
+
 object ExperimentQuerySupport {
 
   def experimentQuery(algorithm: String, parameters: List[CodeValue]) =
@@ -45,9 +47,9 @@ object ExperimentQuerySupport {
       targetTable = Some("Sample"),
       algorithms = List(AlgorithmSpec(algorithm, parameters, None)),
       validations = List(ValidationSpec("kfold", List(CodeValue("k", "2")))),
-      trainingDatasets = Set(),
-      testingDatasets = Set(),
-      validationDatasets = Set(),
+      trainingDatasets = TreeSet(),
+      testingDatasets = TreeSet(),
+      validationDatasets = TreeSet(),
       executionPlan = None
     )
 
@@ -62,9 +64,9 @@ object ExperimentQuerySupport {
       targetTable = Some("Sample"),
       algorithms = algorithms,
       validations = List(ValidationSpec("kfold", List(CodeValue("k", "2")))),
-      trainingDatasets = Set(),
-      testingDatasets = Set(),
-      validationDatasets = Set(),
+      trainingDatasets = TreeSet(),
+      testingDatasets = TreeSet(),
+      validationDatasets = TreeSet(),
       executionPlan = None
     )
 

@@ -17,7 +17,8 @@
 
 package ch.chuv.lren.woken.core
 
-import cats.effect.{ Effect, IO, LiftIO }
+import cats.effect.{ Effect, ExitCase, IO, LiftIO }
+import com.typesafe.scalalogging.Logger
 
 import scala.concurrent.Future
 import scala.language.higherKinds
@@ -33,7 +34,23 @@ package object fp {
     IO.fromFuture(IO(f))
   )
 
+  def fromFutureWithGuarantee[F[_]: Effect, R](f: => Future[R],
+                                               finalizer: ExitCase[Throwable] => IO[Unit]): F[R] =
+    implicitly[LiftIO[F]].liftIO(
+      IO.fromFuture(IO(f).guaranteeCase(finalizer))
+    )
+
+  def logErrorFinalizer(logger: Logger, error: => String): ExitCase[Throwable] => IO[Unit] = {
+    case ExitCase.Error(t) =>
+      IO.delay(
+        logger.error(error, t)
+      )
+    case _ => IO(())
+  }
+
   implicit class FutureExtended[R](val f: Future[R]) {
     def fromFuture[F[_]: Effect]: F[R] = fp.fromFuture(f)
+    def fromFutureWithGuarantee[F[_]: Effect](finalizer: ExitCase[Throwable] => IO[Unit]): F[R] =
+      fp.fromFutureWithGuarantee(f, finalizer)
   }
 }

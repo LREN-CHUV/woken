@@ -29,11 +29,7 @@ import ch.chuv.lren.woken.monitoring.KamonSupport
 import com.typesafe.config.{Config, ConfigFactory}
 import ch.chuv.lren.woken.messages.datasets._
 import ch.chuv.lren.woken.messages.query._
-import ch.chuv.lren.woken.messages.variables.{
-  VariableId,
-  VariablesForDatasetsQuery,
-  VariablesForDatasetsResponse
-}
+import ch.chuv.lren.woken.messages.variables.{VariableId, VariablesForDatasetsQuery, VariablesForDatasetsResponse}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
@@ -42,6 +38,7 @@ import org.scalatest.tagobjects.Slow
 import spray.json._
 import queryProtocol._
 
+import scala.collection.immutable.TreeSet
 import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -186,12 +183,13 @@ class WokenAkkaAPITest
           filters = None,
           targetTable = Some("sample_data"),
           algorithm = AlgorithmSpec("knn", List(CodeValue("k", "5")), None),
-          datasets = Set(),
+          datasets = TreeSet(),
           executionPlan = None
         )
         val response: QueryResult =
           timedQuery(query, "mine data using k-NN algorithm")
 
+        response.error shouldBe empty
         response.data should not be empty
 
         val json = response.toJson
@@ -214,13 +212,14 @@ class WokenAkkaAPITest
           filters = None,
           targetTable = Some("sample_data"),
           algorithm = AlgorithmSpec("histograms", Nil, None),
-          datasets = Set(),
+          datasets = TreeSet(),
           executionPlan = None
         )
 
         val response: QueryResult =
           timedQuery(query, "mine data using a histogram")
 
+        response.error shouldBe empty
         response.data should not be empty
 
         val json = response.toJson
@@ -240,7 +239,7 @@ class WokenAkkaAPITest
           filters = None,
           targetTable = Some("sample_data"),
           algorithm = AlgorithmSpec("statisticsSummary", Nil, None),
-          datasets = Set(),
+          datasets = TreeSet(),
           executionPlan = None
         )
 
@@ -267,12 +266,13 @@ class WokenAkkaAPITest
           filters = None,
           targetTable = Some("sample_data"),
           algorithm = AlgorithmSpec("tSNE", Nil, None),
-          datasets = Set(),
+          datasets = TreeSet(),
           executionPlan = None
         )
 
         val response: QueryResult = timedQuery(query, "mine data using t-SNE")
 
+        response.error shouldBe empty
         response.data should not be empty
 
         val json = response.toJson
@@ -297,13 +297,14 @@ class WokenAkkaAPITest
           filters = None,
           targetTable = Some("sample_data"),
           algorithm = AlgorithmSpec("correlationHeatmap", Nil, None),
-          datasets = Set(),
+          datasets = TreeSet(),
           executionPlan = None
         )
 
         val response: QueryResult =
           timedQuery(query, "mine data using correlation heatmap")
 
+        response.error shouldBe empty
         response.data should not be empty
 
         val json = response.toJson
@@ -325,13 +326,14 @@ class WokenAkkaAPITest
           filters = None,
           targetTable = Some("sample_data"),
           algorithm = AlgorithmSpec("pca", Nil, None),
-          datasets = Set(),
+          datasets = TreeSet(),
           executionPlan = None
         )
 
         val response: QueryResult =
           timedQuery(query, "mine data using PCA")
 
+        response.error shouldBe empty
         response.data should not be empty
 
         val json = response.toJson
@@ -354,13 +356,14 @@ class WokenAkkaAPITest
           filters = None,
           targetTable = Some("sample_data"),
           algorithm = AlgorithmSpec("ggparci", Nil, None),
-          datasets = Set(),
+          datasets = TreeSet(),
           executionPlan = None
         )
 
         val response: QueryResult =
           timedQuery(query, "mine data using TAU ggparsi")
 
+        response.error shouldBe empty
         response.data should not be empty
 
         val json = response.toJson
@@ -381,13 +384,14 @@ class WokenAkkaAPITest
           filters = None,
           targetTable = Some("sample_data"),
           algorithm = AlgorithmSpec("heatmaply", Nil, None),
-          datasets = Set(),
+          datasets = TreeSet(),
           executionPlan = None
         )
 
         val response: QueryResult =
           timedQuery(query, "mine data using TAU heatmaply")
 
+        response.error shouldBe empty
         response.data should not be empty
 
         val json = response.toJson
@@ -415,13 +419,14 @@ class WokenAkkaAPITest
           filters = None,
           targetTable = Some("sample_data"),
           algorithm = AlgorithmSpec("hedwig", Nil, None),
-          datasets = Set(),
+          datasets = TreeSet(),
           executionPlan = None
         )
 
         val response: QueryResult =
           timedQuery(query, "mine data using JSI Hedwig")
 
+        response.error shouldBe empty
         response.data should not be empty
 
         val json = response.toJson
@@ -448,13 +453,14 @@ class WokenAkkaAPITest
           filters = None,
           targetTable = Some("sample_data"),
           algorithm = AlgorithmSpec("hinmine", Nil, None),
-          datasets = Set(),
+          datasets = TreeSet(),
           executionPlan = None
         )
 
         val response: QueryResult =
           timedQuery(query, "mine data using JSI hinmine")
 
+        response.error shouldBe empty
         response.data should not be empty
 
         val json = response.toJson
@@ -476,6 +482,7 @@ class WokenAkkaAPITest
         val response: QueryResult =
           timedQuery(query, "an experiment with k-NN algorithm")
 
+        response.error shouldBe empty
         response.data should not be empty
 
         val json = response.toJson
@@ -493,6 +500,7 @@ class WokenAkkaAPITest
         val response: QueryResult =
           timedQuery(query, "an experiment with Linear regression algorithm")
 
+        response.error shouldBe empty
         response.data should not be empty
 
         val json = response.toJson
@@ -515,6 +523,7 @@ class WokenAkkaAPITest
         val response: QueryResult =
           timedQuery(query, "an experiment with Naive Bayes algorithm")
 
+        response.error shouldBe empty
         response.data should not be empty
 
         val json = response.toJson
@@ -538,6 +547,7 @@ class WokenAkkaAPITest
         val response: QueryResult =
           timedQuery(query, "an experiment with SGD Linear Model algorithm")
 
+        response.error shouldBe empty
         response.data should not be empty
 
         // SGD Linear Model is not deterministic, cannot check exactly its results
@@ -564,6 +574,7 @@ class WokenAkkaAPITest
         val response: QueryResult =
           timedQuery(query, "an experiment with SGD Neural Network algorithm")
 
+        response.error shouldBe empty
         response.data should not be empty
 
         // SGD Neural Network is not deterministic, cannot check exactly its results
@@ -590,6 +601,7 @@ class WokenAkkaAPITest
         val response: QueryResult =
           timedQuery(query, "an experiment with Gradient Boosting algorithm")
 
+        response.error shouldBe empty
         response.data should not be empty
 
         val json = response.toJson
@@ -633,6 +645,7 @@ class WokenAkkaAPITest
       val response: QueryResult =
         timedQuery(knnQuery, "an experiment with k-NN algorithm")
 
+      response.error shouldBe empty
       response.data should not be empty
 
       val json = response.toJson

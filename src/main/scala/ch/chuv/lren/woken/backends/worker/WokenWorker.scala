@@ -17,21 +17,22 @@
 
 package ch.chuv.lren.woken.backends.worker
 
-import akka.actor.ActorRef
 import akka.cluster.Cluster
 import akka.cluster.pubsub.{ DistributedPubSub, DistributedPubSubMediator }
 import akka.pattern.ask
 import akka.util.Timeout
 import cats.data.NonEmptyList
-import cats.effect.Effect
-import ch.chuv.lren.woken.core.fp.fromFuture
+import cats.effect.{ Effect, ExitCase, IO }
+import ch.chuv.lren.woken.core.fp.fromFutureWithGuarantee
 import ch.chuv.lren.woken.messages.validation.{
   ScoringQuery,
   ScoringResult,
   ValidationQuery,
   ValidationResult
 }
+import ch.chuv.lren.woken.messages.validation.validationProtocol._
 import com.typesafe.scalalogging.LazyLogging
+import spray.json._
 import sup.{ HealthCheck, HealthReporter, mods }
 import sup.data.Tagged
 
@@ -59,23 +60,42 @@ class WokenWorkerImpl[F[_]: Effect](pubSub: DistributedPubSub, cluster: Cluster)
     with LazyLogging {
 
   override def validate(validationQuery: ValidationQuery): F[ValidationResult] =
-    fromFuture[F, ValidationResult] {
-      implicit val askTimeout: Timeout = Timeout(5 minutes)
-      logger.debug(s"validationQuery: $validationQuery")
-      val future = pubSub.mediator ? DistributedPubSubMediator.Send("/user/validation",
-                                                                    validationQuery,
-                                                                    localAffinity = false)
-      future.mapTo[ValidationResult]
-    }
+    fromFutureWithGuarantee[F, ValidationResult](
+      {
+        implicit val askTimeout: Timeout = Timeout(5 minutes)
+        logger.whenDebugEnabled(
+          logger.debug(s"validationQuery: $validationQuery")
+        )
+        val future = pubSub.mediator ? DistributedPubSubMediator.Send("/user/validation",
+                                                                      validationQuery,
+                                                                      localAffinity = false)
+        future.mapTo[ValidationResult]
+      }, {
+        case ExitCase.Error(t) =>
+          IO.delay(
+            logger.error(s"Cannot complete validation ${validationQuery.toJson.compactPrint}", t)
+          )
+        case _ => IO(())
+      }
+    )
 
-  override def score(scoringQuery: ScoringQuery): F[ScoringResult] = fromFuture[F, ScoringResult] {
-    implicit val askTimeout: Timeout = Timeout(5 minutes)
-    logger.debug(s"scoringQuery: $scoringQuery")
-    val future = pubSub.mediator ? DistributedPubSubMediator.Send("/user/scoring",
-                                                                  scoringQuery,
-                                                                  localAffinity = false)
-    future.mapTo[ScoringResult]
-  }
+  override def score(scoringQuery: ScoringQuery): F[ScoringResult] =
+    fromFutureWithGuarantee[F, ScoringResult](
+      {
+        implicit val askTimeout: Timeout = Timeout(5 minutes)
+        logger.whenDebugEnabled(
+          logger.debug(s"scoringQuery: $scoringQuery")
+        )
+        val future = pubSub.mediator ? DistributedPubSubMediator.Send("/user/scoring",
+                                                                      scoringQuery,
+                                                                      localAffinity = false)
+        future.mapTo[ScoringResult]
+      }, {
+        case ExitCase.Error(t) =>
+          IO.delay(logger.error(s"Cannot complete scoring ${scoringQuery.toJson.compactPrint}", t))
+        case _ => IO(())
+      }
+    )
 
   override val validationServiceHealthCheck: HealthCheck[F, TaggedS] =
     DistributedPubSubHealthCheck

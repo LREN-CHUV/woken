@@ -32,7 +32,7 @@ import ch.chuv.lren.woken.backends.faas.{ AlgorithmExecutor, AlgorithmResults }
 import ch.chuv.lren.woken.config.{ DatabaseConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.core.model.jobs.{ DockerJob, ErrorJobResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
-import ch.chuv.lren.woken.core.fp.{ fromFuture, runNow }
+import ch.chuv.lren.woken.core.fp._
 import ch.chuv.lren.woken.dao.JobResultRepository
 import com.typesafe.scalalogging.LazyLogging
 import sup.{ HealthCheck, mods }
@@ -49,7 +49,8 @@ case class ChronosExecutor[F[_]: Effect](system: ActorSystem,
                                          jobResultService: JobResultRepository[F],
                                          jobsConf: JobsConfiguration,
                                          jdbcConfF: String => Validation[DatabaseConfiguration])
-    extends AlgorithmExecutor[F] {
+    extends AlgorithmExecutor[F]
+    with LazyLogging {
 
   private val jobAsync = CoordinatorActor.executeJobAsync(
     CoordinatorConfig(chronosService, dockerBridgeNetwork, jobResultService, jobsConf, jdbcConfF),
@@ -62,7 +63,9 @@ case class ChronosExecutor[F[_]: Effect](system: ActorSystem,
   override def node: String = jobsConf.node
 
   override def execute(job: DockerJob): F[AlgorithmResults] =
-    fromFuture[F, AlgorithmResults](jobAsync(job))
+    jobAsync(job).fromFutureWithGuarantee(
+      logErrorFinalizer(logger, s"Cannot complete Docker job ${job.toString}")
+    )
 
   override def healthCheck: HealthCheck[F, TaggedS] = {
     val chronosUrl = jobsConf.chronosServerUrl
