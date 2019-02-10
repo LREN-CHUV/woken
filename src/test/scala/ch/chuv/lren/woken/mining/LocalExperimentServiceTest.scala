@@ -203,6 +203,7 @@ class LocalExperimentServiceTest
     experimentResult match {
       case Left(err) => fail("Failed to execute algorithm", err)
       case Right(response) =>
+        logger.info(s"Experiment response: ${response.toQueryResult}")
         response.result match {
           case Left(jobErr) =>
             fail("Failed to execute experiment job with specific algorithm: " + jobErr)

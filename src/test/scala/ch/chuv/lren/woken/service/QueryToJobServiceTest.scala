@@ -245,7 +245,7 @@ class QueryToJobServiceTest
 
       job.query.sql shouldBe """SELECT "score_test1","stress_before_test1" FROM "Sample" WHERE "score_test1" IS NOT NULL AND "stress_before_test1" IS NOT NULL"""
 
-      feedback shouldBe Nil
+      feedback shouldBe List(UserInfo("Missing variables stress_before_test1"))
     }
 
     "create a DockerJob for a kNN algorithm on a table with several datasets" in {
@@ -296,7 +296,7 @@ class QueryToJobServiceTest
 
       job.query.sql shouldBe """SELECT "apoe4","lefthippocampus" FROM "cde_features_a" WHERE "apoe4" IS NOT NULL AND "lefthippocampus" IS NOT NULL AND "dataset" IN ('desd-synthdata')"""
 
-      feedback shouldBe Nil
+      feedback shouldBe List(UserInfo("Missing variables lefthippocampus"))
     }
 
     "drop the unknown covariables that do not need to exist" in {
@@ -377,7 +377,7 @@ class QueryToJobServiceTest
         'metadata (List(CdeVariables.apoe4, CdeVariables.leftHipocampus))
       )
 
-      feedback shouldBe Nil
+      feedback shouldBe List(UserInfo("Missing variables lefthippocampus"))
     }
   }
 

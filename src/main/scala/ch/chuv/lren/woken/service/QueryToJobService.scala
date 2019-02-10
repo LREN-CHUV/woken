@@ -246,17 +246,16 @@ class QueryToJobServiceImpl[F[_]: Effect](
       )
 
       val validatedQueryWithFeedback: Validation[(Q, UserFeedbacks)] = variablesMeta.map { v =>
-        if (query.covariablesMustExist)
-          // TODO: check that the covariables do exist, fail early otherwise
-          (query, Nil)
-        else {
+        // Take only the covariables (and groupings) known to exist on the target table
+        val existingCovariables = v
+          .filterVariables { v: VariableId =>
+            query.covariables.contains(v)
+          }
+          .map(_.toId)
+        if (query.covariablesMustExist && (existingCovariables.size != query.covariables.size)) {
+          (query, prepareFeedback(existingCovariables, query.covariables))
+        } else {
 
-          // Take only the covariables (and groupings) known to exist on the target table
-          val existingCovariables = v
-            .filterVariables { v: VariableId =>
-              query.covariables.contains(v)
-            }
-            .map(_.toId)
           val covariablesFeedback = prepareFeedback(query.covariables, existingCovariables)
 
           val existingGroupings = v
