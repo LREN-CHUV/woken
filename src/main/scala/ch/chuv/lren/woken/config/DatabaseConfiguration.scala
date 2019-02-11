@@ -41,6 +41,7 @@ import scala.language.higherKinds
   * @param host Database host
   * @param port Database port
   * @param database Name of the database, default to the user name
+  * @param schema Schema of the db, defaults to public
   * @param user Database user
   * @param password Database password
   */
@@ -51,6 +52,7 @@ final case class DatabaseConfiguration(dbiDriver: String,
                                        host: String,
                                        port: Int,
                                        database: String,
+                                       schema: String,
                                        user: String,
                                        password: String,
                                        poolSize: Int,
@@ -75,6 +77,7 @@ object DatabaseConfiguration {
       val user                         = db.validateString("user")
       val password                     = db.validateString("password")
       val database: Validation[String] = db.validateString("database")
+      val schema: Validation[String]   = db.validateString("schema").orElse("public".validNel)
       val poolSize: Validation[Int] =
         db.validateInt("pool_size").orElse(10.validNel)
 
@@ -103,6 +106,7 @@ object DatabaseConfiguration {
        host,
        port,
        database,
+       schema,
        user,
        password,
        poolSize,
