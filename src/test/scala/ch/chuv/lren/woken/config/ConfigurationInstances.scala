@@ -19,17 +19,20 @@ package ch.chuv.lren.woken.config
 
 object ConfigurationInstances {
   val noDbConfig =
-    DatabaseConfiguration(dbiDriver = "DBI",
-                          dbApiDriver = "DBAPI",
-                          jdbcDriver = "java.lang.String",
-                          jdbcUrl = "",
-                          host = "",
-                          port = 0,
-                          database = "db",
-                          user = "",
-                          password = "",
-                          poolSize = 5,
-                          tables = Set())
+    DatabaseConfiguration(
+      dbiDriver = "DBI",
+      dbApiDriver = "DBAPI",
+      jdbcDriver = "java.lang.String",
+      jdbcUrl = "",
+      host = "",
+      port = 0,
+      database = "db",
+      schema = "public",
+      user = "",
+      password = "",
+      poolSize = 5,
+      tables = Set()
+    )
   val noJobsConf =
     JobsConfiguration("testNode",
                       "noone",

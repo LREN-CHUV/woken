@@ -134,7 +134,7 @@ lazy val library =
       val acyclic         = "0.1.8"
       val wokenMessages   = "2.9.6"
       val sup             = "0.2.0"
-      val sttpBackend     = "1.5.7"
+      val sttpBackend     = "1.5.9"
     }
     object ExclusionRules {
       val excludeLogback = ExclusionRule(organization = "ch.qos.logback", name = "logback-classic")
