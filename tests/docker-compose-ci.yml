@@ -215,9 +215,6 @@ services:
       DATACENTER_LOCATION: "CircleCI"
       CONTAINER_ORCHESTRATION: "docker-compose"
       JAVA_OPTIONS: "-agentlib:jdwp=transport=dt_socket,address=*:8000,server=y,suspend=n -Dcom.sun.management.jmxremote.port=3333 -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false"
-    links:
-      - zipkin
-      - wokenprometheus
     depends_on:
       - chronos
       - db
@@ -250,8 +247,6 @@ services:
       RELEASE_STAGE: "ci"
       DATACENTER_LOCATION: "CircleCI"
       CONTAINER_ORCHESTRATION: "docker-compose"
-    links:
-      - zipkin
     depends_on:
       - woken
 
