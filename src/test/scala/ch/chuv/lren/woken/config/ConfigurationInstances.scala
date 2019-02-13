@@ -17,9 +17,14 @@
 
 package ch.chuv.lren.woken.config
 
+import ch.chuv.lren.woken.messages.datasets.TableId
+import com.typesafe.config.{ Config, ConfigFactory }
+
 object ConfigurationInstances {
+
   val noDbConfig =
     DatabaseConfiguration(
+      id = DatabaseId("no_db"),
       dbiDriver = "DBI",
       dbApiDriver = "DBAPI",
       jdbcDriver = "java.lang.String",
@@ -31,18 +36,50 @@ object ConfigurationInstances {
       user = "",
       password = "",
       poolSize = 5,
-      tables = Set()
+      tables = Map()
     )
+
+  val featuresDb = DatabaseId("features_db")
+  val wokenDb    = DatabaseId("woken")
+  val metaDb     = DatabaseId("meta")
+
+  val unknownTableId                   = TableId("unknown", "unknown")
+  val featuresTableId: TableId         = tableId("features")
+  val churnDataTableId: TableId        = tableId("churn")
+  val sampleDataTableId: TableId       = tableId("sample_data")
+  val cdeFeaturesATableId: TableId     = tableId("cde_features_a")
+  val cdeFeaturesBTableId: TableId     = tableId("cde_features_b")
+  val cdeFeaturesCTableId: TableId     = tableId("cde_features_c")
+  val cdeFeaturesMixedTableId: TableId = tableId("cde_features_mixed")
+
   val noJobsConf =
     JobsConfiguration("testNode",
                       "noone",
                       "http://nowhere",
-                      "features",
-                      "features",
-                      "features",
-                      "results",
-                      "meta",
+                      featuresDb,
+                      featuresTableId,
+                      wokenDb,
+                      metaDb,
                       0.5,
                       512)
 
+  lazy val localNodeConfigSource: Config = ConfigFactory
+    .parseResourcesAnySyntax("localDatasets.conf")
+    .withFallback(ConfigFactory.load("algorithms.conf"))
+    .withFallback(ConfigFactory.load("test.conf"))
+    .resolve()
+
+  lazy val localNodeConfig: WokenConfiguration = WokenConfiguration(localNodeConfigSource)
+
+  lazy val centralNodeConfigSource: Config = ConfigFactory
+    .parseResourcesAnySyntax("remoteDatasets.conf")
+    .withFallback(ConfigFactory.load("algorithms.conf"))
+    .withFallback(ConfigFactory.load("test.conf"))
+    .resolve()
+
+  lazy val centralNodeConfig: WokenConfiguration = WokenConfiguration(centralNodeConfigSource)
+
+  lazy val featuresDbConfiguration: DatabaseConfiguration = localNodeConfig.featuresDb
+
+  private def tableId(name: String) = TableId(featuresDb.code, name)
 }

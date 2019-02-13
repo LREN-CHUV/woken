@@ -19,6 +19,7 @@ package ch.chuv.lren.woken.mining
 
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables.VariableId
+import ch.chuv.lren.woken.config.ConfigurationInstances._
 
 import scala.collection.immutable.TreeSet
 
@@ -32,7 +33,7 @@ object ExperimentQuerySupport {
       covariablesMustExist = false,
       grouping = Nil,
       filters = None,
-      targetTable = Some("Sample"),
+      targetTable = Some(sampleDataTableId),
       algorithms = List(AlgorithmSpec(algorithm, parameters, None)),
       validations = List(ValidationSpec("kfold", List(CodeValue("k", "2")))),
       trainingDatasets = TreeSet(),
@@ -49,7 +50,7 @@ object ExperimentQuerySupport {
       covariablesMustExist = false,
       grouping = Nil,
       filters = None,
-      targetTable = Some("Sample"),
+      targetTable = Some(sampleDataTableId),
       algorithms = algorithms,
       validations = List(ValidationSpec("kfold", List(CodeValue("k", "2")))),
       trainingDatasets = TreeSet(),

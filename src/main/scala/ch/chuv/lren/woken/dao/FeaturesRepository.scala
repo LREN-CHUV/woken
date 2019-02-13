@@ -21,12 +21,13 @@ import cats.Id
 import cats.effect.concurrent.Ref
 import cats.effect.{ Effect, Resource }
 import cats.implicits._
+import ch.chuv.lren.woken.config.DatabaseConfiguration
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.fp.runNow
-import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn, TableId }
+import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
-import ch.chuv.lren.woken.messages.datasets.DatasetId
+import ch.chuv.lren.woken.messages.datasets.{ DatasetId, TableId }
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import ch.chuv.lren.woken.messages.query.filters._
@@ -47,14 +48,9 @@ import scala.util.{ Failure, Success, Try }
 trait FeaturesRepository[F[_]] extends Repository[F] {
 
   /**
-    * @return the name of the database as defined in the configuration
+    * @return the database as defined in the configuration
     */
-  def database: String
-
-  /**
-    * @return the list of features tables available in the database
-    */
-  def tables: Set[FeaturesTableDescription]
+  def database: DatabaseConfiguration
 
   /**
     * Provides the interface to a features table
@@ -160,8 +156,7 @@ object FeaturesTableRepository {
 }
 
 class FeaturesInMemoryRepository[F[_]: Effect](
-    override val database: String,
-    override val tables: Set[FeaturesTableDescription],
+    override val database: DatabaseConfiguration,
     val tablesContent: Map[TableId, (Headers, List[JsObject])]
 ) extends FeaturesRepository[F] {
 
@@ -169,11 +164,11 @@ class FeaturesInMemoryRepository[F[_]: Effect](
 
   override def featuresTable(table: TableId): F[Option[FeaturesTableRepository[F]]] = {
     cache.get(table).orElse {
-      tables.find(_.table == table).map { t =>
+      database.tables.get(table).map { t =>
         val (headers, data) = tablesContent.getOrElse(table, Nil -> Nil)
         cache.getOrElseUpdate(
           table,
-          new FeaturesTableInMemoryRepository[F](table, headers, t.datasetColumn, data)
+          new FeaturesTableInMemoryRepository[F](t, headers, t.datasetColumn, data)
         )
       }
     }
@@ -183,7 +178,7 @@ class FeaturesInMemoryRepository[F[_]: Effect](
 
 }
 
-class FeaturesTableInMemoryRepository[F[_]: Effect](val tableId: TableId,
+class FeaturesTableInMemoryRepository[F[_]: Effect](override val table: FeaturesTableDescription,
                                                     override val columns: List[TableColumn],
                                                     val datasetColumn: Option[TableColumn],
                                                     val dataFeatures: List[JsObject])
@@ -192,13 +187,10 @@ class FeaturesTableInMemoryRepository[F[_]: Effect](val tableId: TableId,
   import FeaturesTableRepository.Headers
   import spray.json._
 
-  override val table =
-    FeaturesTableDescription(tableId, Nil, datasetColumn, validateSchema = false, None, 0.0)
-
   override def count: F[Int] = dataFeatures.size.pure[F]
 
   override def count(dataset: DatasetId): F[Int] =
-    datasetColumn.fold(if (dataset.code == tableId.name) count else 0.pure[F])(
+    datasetColumn.fold(if (dataset.code == table.table.name) count else 0.pure[F])(
       ds =>
         dataFeatures
           .count(
@@ -259,7 +251,7 @@ class FeaturesTableInMemoryRepository[F[_]: Effect](val tableId: TableId,
 
   override def datasets(filters: Option[FilterRule]): F[Set[DatasetId]] =
     datasetColumn.fold(
-      count(filters).map(n => if (n == 0) Set[DatasetId]() else Set(DatasetId(tableId.name)))
+      count(filters).map(n => if (n == 0) Set[DatasetId]() else Set(DatasetId(table.table.name)))
     ) { _ =>
       val datasets: Set[DatasetId] = Set()
       datasets.pure[F]
@@ -305,7 +297,11 @@ object ExtendedFeaturesTableInMemoryRepository {
       nextTableSeqNumber: () => F[Int]
   ): Validation[Resource[F, ExtendedFeaturesTableInMemoryRepository[F]]] = {
     val pk = sourceTable.table.primaryKey.headOption
-      .getOrElse(throw new Exception("Expected a single primary key"))
+      .getOrElse(
+        throw new Exception(
+          s"Expected a primary key with one column in table ${sourceTable.table.table.toString}"
+        )
+      )
     val rndColumn           = TableColumn("_rnd", SqlType.numeric)
     val newColumns          = newFeatures ++ otherColumns
     val extTableColumns     = newFeatures ++ List(rndColumn)

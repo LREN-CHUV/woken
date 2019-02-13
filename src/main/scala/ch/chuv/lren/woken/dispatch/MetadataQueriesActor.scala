@@ -99,10 +99,11 @@ class MetadataQueriesActor[F[_]: Effect](dispatcherService: DispatcherService,
       val query = varsForDataset.query.copy(
         datasets = datasetService
           .datasets()
-          .map(_.dataset)
+          .keys
           .filter(
             varsForDataset.query.datasets.isEmpty || varsForDataset.query.datasets.contains(_)
           )
+          .toSet
       )
       val zero = (query, VariablesForDatasetsResponse(Set()))
 

@@ -22,7 +22,6 @@ import cats.data.NonEmptyList
 import cats.effect._
 import cats.implicits._
 import ch.chuv.lren.woken.config.{ DatabaseConfiguration, WokenConfiguration, configurationFailed }
-import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.dao._
 import com.typesafe.scalalogging.Logger
 import doobie.hikari.HikariTransactor
@@ -56,24 +55,22 @@ case class DatabaseServices[F[_]: ConcurrentEffect: ContextShift: Timer](
     }
 
     Monoid
-      .combineAll(datasetService.datasets().filter(_.location.isEmpty).map { dataset =>
+      .combineAll(datasetService.datasets().values.filter(_.location.isEmpty).map { dataset =>
         Monoid.combineAll(dataset.tables.map {
-          qualifiedTableName =>
+          table =>
             {
-              val table = TableId(config.jobs.featuresDb, qualifiedTableName)
-
               featuresService
                 .featuresTable(table)
                 .fold[F[Unit]](
                   { error: NonEmptyList[String] =>
-                    val errMsg = error.mkString_("", ",", "")
+                    val errMsg = error.mkString_(",")
                     logger.error(errMsg)
                     Effect[F].raiseError(new IllegalStateException(errMsg))
                   }, { table: FeaturesTableService[F] =>
-                    table.count(dataset.dataset).map { count =>
+                    table.count(dataset.id).map { count =>
                       if (count == 0) {
                         val error =
-                          s"Table ${table.table} contains no value for dataset ${dataset.dataset.code}"
+                          s"Table ${table.table} contains no value for dataset ${dataset.id.code}"
                         logger.error(error)
                         throw new IllegalStateException(error)
                       }
@@ -142,10 +139,7 @@ object DatabaseServices {
 
       val fsIO: F[FeaturesService[F]] = wokenIO.flatMap { wokenRepository =>
         mkService(t.featuresTransactor, config.featuresDb) { xa =>
-          FeaturesRepositoryDAO(xa,
-                                config.featuresDb.database,
-                                config.featuresDb.tables,
-                                wokenRepository).map {
+          FeaturesRepositoryDAO(xa, config.featuresDb, wokenRepository).map {
             _.map { FeaturesService.apply[F] }
           }
         }.map(_.valueOr(configurationFailed))
@@ -155,7 +149,7 @@ object DatabaseServices {
         Sync[F].delay(MetadataRepositoryDAO(xa).variablesMeta)
       }
 
-      val datasetService          = ConfBasedDatasetService(config.config)
+      val datasetService          = ConfBasedDatasetService(config.config, config.jobs)
       val algorithmLibraryService = AlgorithmLibraryService()
 
       val servicesIO = for {

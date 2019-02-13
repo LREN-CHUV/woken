@@ -18,11 +18,11 @@
 package ch.chuv.lren.woken.config
 
 import akka.http.scaladsl.model.Uri
+import cats.data.NonEmptyList
 import com.typesafe.config.Config
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
-import ch.chuv.lren.woken.messages.datasets.{ AnonymisationLevel, Dataset, DatasetId }
+import ch.chuv.lren.woken.messages.datasets.{ AnonymisationLevel, Dataset, DatasetId, TableId }
 import ch.chuv.lren.woken.messages.remoting.{ BasicAuthentication, RemoteLocation }
-
 import cats.data.Validated._
 import cats.implicits._
 
@@ -32,7 +32,7 @@ object DatasetsConfiguration {
   private[this] def createDataset(dataset: String,
                                   label: String,
                                   description: String,
-                                  tables: List[String],
+                                  tables: List[TableId],
                                   anonymisationLevel: String,
                                   location: Option[RemoteLocation]): Dataset = Dataset(
     DatasetId(dataset),
@@ -43,16 +43,18 @@ object DatasetsConfiguration {
     location
   )
 
-  def read(config: Config, path: List[String]): Validation[Dataset] = {
+  def read(config: Config, path: List[String], database: DatabaseId): Validation[Dataset] = {
 
     val datasetConfig = config.validateConfig(path.mkString("."))
 
     datasetConfig.andThen { f =>
       val dataset: Validation[String] =
         path.lastOption.map(_.validNel[String]).getOrElse("Empty path".invalidNel[String])
-      val label                            = f.validateString("label")
-      val description                      = f.validateString("description")
-      val tables: Validation[List[String]] = f.validateStringList("tables")
+      val label       = f.validateString("label")
+      val description = f.validateString("description")
+      val tables: Validation[List[TableId]] = f
+        .validateStringList("tables")
+        .map(l => l.map(t => TableId(database.code, t)))
       val location: Validation[Option[RemoteLocation]] = f
         .validateConfig("location")
         .andThen { cl =>
@@ -87,25 +89,27 @@ object DatasetsConfiguration {
 
   }
 
-  def factory(config: Config): DatasetId => Validation[Dataset] =
-    dataset => read(config, List("datasets", dataset.code))
+  def factory(config: Config, defaultDatabase: DatabaseId): DatasetId => Validation[Dataset] =
+    dataset => read(config, List("datasets", dataset.code), defaultDatabase)
 
   def datasetNames(config: Config): Validation[Set[DatasetId]] =
     config.validateConfig("datasets").map(_.keys.map(DatasetId))
 
-  def datasets(config: Config): Validation[Map[DatasetId, Dataset]] = {
-    val datasetFactory = factory(config)
-    datasetNames(config).andThen { names: Set[DatasetId] =>
-      val m: List[Validation[(DatasetId, Dataset)]] =
-        names.toList
-          .map { datasetId =>
-            val datasetIdV: Validation[DatasetId] = datasetId.validNel[String]
-            datasetIdV -> datasetFactory(datasetId)
-          }
-          .map(_.tupled)
-      val t: Validation[List[(DatasetId, Dataset)]] = m.sequence[Validation, (DatasetId, Dataset)]
-      t.map(_.toMap)
-    }
+  def datasets(config: Config, defaultDatabase: DatabaseId): Validation[Map[DatasetId, Dataset]] = {
+    val datasetFactory = factory(config, defaultDatabase)
+    datasetNames(config)
+      .andThen { names: Set[DatasetId] =>
+        val m: List[Validation[(DatasetId, Dataset)]] =
+          names.toList
+            .map { datasetId =>
+              val datasetIdV: Validation[DatasetId] = datasetId.validNel[String]
+              datasetIdV -> datasetFactory(datasetId)
+            }
+            .map(_.tupled)
+        val t: Validation[List[(DatasetId, Dataset)]] = m.sequence[Validation, (DatasetId, Dataset)]
+        t.map(_.toMap)
+      }
+      .ensure(NonEmptyList("No datasets are configured", Nil))(_.nonEmpty)
   }
 
 }

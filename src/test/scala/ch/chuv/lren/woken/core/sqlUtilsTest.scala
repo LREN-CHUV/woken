@@ -17,14 +17,9 @@
 
 package ch.chuv.lren.woken.core
 
-import ch.chuv.lren.woken.core.model.database.{
-  FeaturesTableDescription,
-  TableColumn,
-  TableId,
-  sqlUtils
-}
+import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn, sqlUtils }
 import ch.chuv.lren.woken.messages.variables.SqlType
-import ch.chuv.lren.woken.service.TestServices.database
+import ch.chuv.lren.woken.config.ConfigurationInstances._
 import org.scalatest.{ Matchers, WordSpec }
 import doobie.implicits._
 
@@ -34,7 +29,7 @@ class sqlUtilsTest extends WordSpec with Matchers {
 
     "generate an equals where clause between two tables and one column" in {
       val table1 = FeaturesTableDescription(
-        TableId(database, None, "cde_features_a"),
+        cdeFeaturesATableId,
         List(TableColumn("subjectcode", SqlType.varchar)),
         Some(TableColumn("dataset", SqlType.varchar)),
         validateSchema = false,
@@ -45,7 +40,7 @@ class sqlUtilsTest extends WordSpec with Matchers {
         TableColumn("subjectcode", SqlType.varchar)
       )
 
-      val table2   = table1.copy(table = TableId(database, None, "cde_features_b"))
+      val table2   = table1.copy(table = cdeFeaturesBTableId)
       val headers2 = headers1
 
       sqlUtils.frEqual(table1, headers1, table2, headers2).toString() shouldBe
@@ -55,7 +50,7 @@ class sqlUtilsTest extends WordSpec with Matchers {
 
     "generate an equals where clause between two tables and two columns" in {
       val table1 = FeaturesTableDescription(
-        TableId(database, None, "cde_features_a"),
+        cdeFeaturesATableId,
         List(TableColumn("subjectcode", SqlType.varchar)),
         Some(TableColumn("dataset", SqlType.varchar)),
         validateSchema = false,
@@ -67,7 +62,7 @@ class sqlUtilsTest extends WordSpec with Matchers {
         TableColumn("dataset", SqlType.varchar)
       )
 
-      val table2   = table1.copy(table = TableId(database, None, "cde_features_b"))
+      val table2   = table1.copy(table = cdeFeaturesBTableId)
       val headers2 = headers1
 
       sqlUtils.frEqual(table1, headers1, table2, headers2).toString() shouldBe

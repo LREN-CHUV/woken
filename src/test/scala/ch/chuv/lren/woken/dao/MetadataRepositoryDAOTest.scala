@@ -30,6 +30,7 @@ import ch.chuv.lren.woken.JsonUtils
 import ch.chuv.lren.woken.core.model.VariablesMeta
 import ch.chuv.lren.woken.messages.variables.{ GroupMetaData, VariableId }
 import ch.chuv.lren.woken.messages.variables.variablesProtocol._
+import ch.chuv.lren.woken.config.ConfigurationInstances._
 
 class MetadataRepositoryDAOTest extends WordSpec with Matchers with MockFactory with JsonUtils {
 
@@ -41,14 +42,14 @@ class MetadataRepositoryDAOTest extends WordSpec with Matchers with MockFactory 
         VariablesMeta(1,
                       "churn",
                       churnHierarchy,
-                      "CHURN",
+                      churnDataTableId,
                       List("state", "custserv_calls", "churn").map(VariableId))
 
       val updated = dao.put(churnVariablesMeta).unsafeRunSync()
 
       updated shouldBe churnVariablesMeta
 
-      val retrieved = dao.get("CHURN").unsafeRunSync()
+      val retrieved = dao.get(churnDataTableId).unsafeRunSync()
 
       retrieved shouldBe churnVariablesMeta
     }

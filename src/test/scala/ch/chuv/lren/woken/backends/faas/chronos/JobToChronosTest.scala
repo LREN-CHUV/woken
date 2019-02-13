@@ -20,10 +20,9 @@ package ch.chuv.lren.woken.backends.faas.chronos
 import cats.data.ValidatedNel
 import cats.syntax.validated._
 import ch.chuv.lren.woken.Predefined.Algorithms.{ knnDefinition, knnWithK5 }
-import ch.chuv.lren.woken.config.{ DatabaseConfiguration, JobsConfiguration }
+import ch.chuv.lren.woken.config.{ DatabaseConfiguration, DatabaseId, JobsConfiguration }
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.features.Queries._
-import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.core.model.jobs.DockerJob
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.query.filters.{ InputType, Operator, SingleFilterRule }
@@ -31,6 +30,7 @@ import ch.chuv.lren.woken.messages.variables.{ VariableId, VariableMetaData, Var
 import org.scalatest.{ FlatSpec, Matchers }
 
 import scala.collection.immutable.TreeSet
+import ch.chuv.lren.woken.config.ConfigurationInstances._
 
 class JobToChronosTest extends FlatSpec with Matchers {
 
@@ -53,15 +53,14 @@ class JobToChronosTest extends FlatSpec with Matchers {
     executionPlan = None
   )
 
-  val tableId = TableId("features_db", None, "features_table")
-
   val featuresQuery: FeaturesQuery =
     query
       .filterNulls(variablesCanBeNull = false, covariablesCanBeNull = false)
-      .features(tableId, None)
+      .features(featuresTableId, None)
 
-  val jdbcConfs: Map[String, ValidatedNel[String, DatabaseConfiguration]] = Map(
-    "features_db" -> DatabaseConfiguration(
+  val jdbcConfs: Map[DatabaseId, ValidatedNel[String, DatabaseConfiguration]] = Map(
+    featuresDb -> DatabaseConfiguration(
+      featuresDb,
       dbiDriver = "PostgreSQL",
       dbApiDriver = "postgresql",
       jdbcDriver = "org.postgresql.Driver",
@@ -73,9 +72,10 @@ class JobToChronosTest extends FlatSpec with Matchers {
       user = "user",
       password = "test",
       poolSize = 5,
-      tables = Set()
+      tables = Map()
     ).validNel,
-    "woken_db" -> DatabaseConfiguration(
+    wokenDb -> DatabaseConfiguration(
+      wokenDb,
       dbiDriver = "PostgreSQL",
       dbApiDriver = "postgresql",
       jdbcDriver = "org.postgresql.Driver",
@@ -87,7 +87,7 @@ class JobToChronosTest extends FlatSpec with Matchers {
       user = "woken",
       password = "wpwd",
       poolSize = 5,
-      tables = Set()
+      tables = Map()
     ).validNel
   ).withDefaultValue("".invalidNel)
 
@@ -176,11 +176,10 @@ class JobToChronosTest extends FlatSpec with Matchers {
     node = "test",
     owner = "mip@chuv.ch",
     chronosServerUrl = "http://localhost:4400",
-    featuresDb = "features_db",
-    featuresTable = "features",
-    metadataKeyForFeaturesTable = "features",
-    resultDb = "woken_db",
-    metaDb = "meta_db",
+    defaultFeaturesDatabase = featuresDb,
+    defaultFeaturesTable = featuresTableId,
+    resultDb = wokenDb,
+    metaDb = metaDb,
     1.0,
     256
   )
@@ -205,7 +204,7 @@ class JobToChronosTest extends FlatSpec with Matchers {
       EnvironmentVariable("MODEL_PARAM_k", "5"),
       EnvironmentVariable(
         "PARAM_query",
-        """SELECT "target","a","b","c","grp1","grp2" FROM "features_table" WHERE "target" IS NOT NULL AND "a" IS NOT NULL AND "b" IS NOT NULL AND "c" IS NOT NULL AND "grp1" IS NOT NULL AND "grp2" IS NOT NULL AND "a" < 10"""
+        """SELECT "target","a","b","c","grp1","grp2" FROM "features" WHERE "target" IS NOT NULL AND "a" IS NOT NULL AND "b" IS NOT NULL AND "c" IS NOT NULL AND "grp1" IS NOT NULL AND "grp2" IS NOT NULL AND "a" < 10"""
       ),
       EnvironmentVariable("PARAM_grouping", "grp1,grp2"),
       EnvironmentVariable(
@@ -256,6 +255,8 @@ class JobToChronosTest extends FlatSpec with Matchers {
       retries = 0
     )
 
+    // ChronosJob(python_knn_1234,None,compute,List(),false,R1//PT1M,Some(PT5M),false,None,None,None,Some(Container(DOCKER,hbpmip/python-knn,false,List(),List(),HOST,List())),Some(1.0),None,Some(256.0),false,Some(mip@chuv.ch),None,List(EnvironmentVariable(DOCKER_IMAGE,hbpmip/python-knn), EnvironmentVariable(IN_DATABASE,features), EnvironmentVariable(IN_DBAPI_DRIVER,postgresql), EnvironmentVariable(IN_DBI_DRIVER,PostgreSQL), EnvironmentVariable(IN_HOST,localhost), EnvironmentVariable(IN_JDBC_DRIVER,org.postgresql.Driver), EnvironmentVariable(IN_JDBC_URL,jdbc:postgres:localhost:5432/features), EnvironmentVariable(IN_PASSWORD,test), EnvironmentVariable(IN_PORT,5432), EnvironmentVariable(IN_USER,user), EnvironmentVariable(JOB_ID,1234), EnvironmentVariable(MODEL_PARAM_k,5), EnvironmentVariable(NODE,test), EnvironmentVariable(OUT_DATABASE,woken), EnvironmentVariable(OUT_DBAPI_DRIVER,postgresql), EnvironmentVariable(OUT_DBI_DRIVER,PostgreSQL), EnvironmentVariable(OUT_HOST,localhost), EnvironmentVariable(OUT_JDBC_DRIVER,org.postgresql.Driver), EnvironmentVariable(OUT_JDBC_URL,jdbc:postgres:localhost:5432/woken), EnvironmentVariable(OUT_PASSWORD,wpwd), EnvironmentVariable(OUT_PORT,5432), EnvironmentVariable(OUT_USER,woken), EnvironmentVariable(PARAM_covariables,a,b,c), EnvironmentVariable(PARAM_grouping,grp1,grp2), EnvironmentVariable(PARAM_meta,{"grp2":{"code":"grp2","label":"grp2","type":"text"},"a":{"code":"a","label":"a","type":"text"},"grp1":{"code":"grp1","label":"grp1","type":"text"},"b":{"code":"b","label":"b","type":"text"},"target":{"code":"target","label":"target","type":"text"},"c":{"code":"c","label":"c","type":"text"}}), EnvironmentVariable(PARAM_query,SELECT "target","a","b","c","grp1","grp2" FROM "features" WHERE "target" IS NOT NULL AND "a" IS NOT NULL AND "b" IS NOT NULL AND "c" IS NOT NULL AND "grp1" IS NOT NULL AND "grp2" IS NOT NULL AND "a" < 10), EnvironmentVariable(PARAM_variables,target)),0) was not equal to
+    // ChronosJob(python_knn_1234,None,compute,List(),false,R1//PT1M,Some(PT5M),false,None,None,None,Some(Container(DOCKER,hbpmip/python-knn,false,List(),List(),HOST,List())),Some(1.0),None,Some(256.0),false,Some(mip@chuv.ch),None,List(EnvironmentVariable(DOCKER_IMAGE,hbpmip/python-knn), EnvironmentVariable(IN_DATABASE,features), EnvironmentVariable(IN_DBAPI_DRIVER,postgresql), EnvironmentVariable(IN_DBI_DRIVER,PostgreSQL), EnvironmentVariable(IN_HOST,localhost), EnvironmentVariable(IN_JDBC_DRIVER,org.postgresql.Driver), EnvironmentVariable(IN_JDBC_URL,jdbc:postgres:localhost:5432/features), EnvironmentVariable(IN_PASSWORD,test), EnvironmentVariable(IN_PORT,5432), EnvironmentVariable(IN_USER,user), EnvironmentVariable(JOB_ID,1234), EnvironmentVariable(MODEL_PARAM_k,5), EnvironmentVariable(NODE,test), EnvironmentVariable(OUT_DATABASE,woken), EnvironmentVariable(OUT_DBAPI_DRIVER,postgresql), EnvironmentVariable(OUT_DBI_DRIVER,PostgreSQL), EnvironmentVariable(OUT_HOST,localhost), EnvironmentVariable(OUT_JDBC_DRIVER,org.postgresql.Driver), EnvironmentVariable(OUT_JDBC_URL,jdbc:postgres:localhost:5432/woken), EnvironmentVariable(OUT_PASSWORD,wpwd), EnvironmentVariable(OUT_PORT,5432), EnvironmentVariable(OUT_USER,woken), EnvironmentVariable(PARAM_covariables,a,b,c), EnvironmentVariable(PARAM_grouping,grp1,grp2), EnvironmentVariable(PARAM_meta,{"grp2":{"code":"grp2","label":"grp2","type":"text"},"a":{"code":"a","label":"a","type":"text"},"grp1":{"code":"grp1","label":"grp1","type":"text"},"b":{"code":"b","label":"b","type":"text"},"target":{"code":"target","label":"target","type":"text"},"c":{"code":"c","label":"c","type":"text"}}), EnvironmentVariable(PARAM_query,SELECT "target","a","b","c","grp1","grp2" FROM "features_table" WHERE "target" IS NOT NULL AND "a" IS NOT NULL AND "b" IS NOT NULL AND "c" IS NOT NULL AND "grp1" IS NOT NULL AND "grp2" IS NOT NULL AND "a" < 10), EnvironmentVariable(PARAM_variables,target)),0) (JobToChronosTest.scala:282)//[info]
     /*
     import ai.x.diff.DiffShow
     import ai.x.diff.conversions._

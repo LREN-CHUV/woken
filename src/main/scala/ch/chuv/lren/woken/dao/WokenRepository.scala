@@ -23,6 +23,7 @@ import cats._
 import cats.effect.Effect
 import cats.implicits._
 import ch.chuv.lren.woken.core.model.jobs.JobResult
+import ch.chuv.lren.woken.messages.datasets.TableId
 import ch.chuv.lren.woken.messages.query.{ Query, QueryResult }
 import sup.HealthCheck
 
@@ -64,7 +65,7 @@ trait ResultsCacheRepository[F[_]] extends Repository[F] {
   def put(result: QueryResult, query: Query): F[Unit]
 
   def get(node: String,
-          table: String,
+          table: TableId,
           tableContentsHash: Option[String],
           query: Query): F[Option[QueryResult]]
 
@@ -120,7 +121,7 @@ class ResultsCacheInMemoryRepository[F[_]: Effect] extends ResultsCacheRepositor
   override def put(result: QueryResult, query: Query): F[Unit] = ().pure[F]
   override def get(
       node: String,
-      table: String,
+      table: TableId,
       tableContentsHash: Option[String],
       query: Query
   ): F[Option[QueryResult]] = Option.empty[QueryResult].pure[F]

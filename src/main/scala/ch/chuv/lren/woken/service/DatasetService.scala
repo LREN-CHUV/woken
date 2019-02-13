@@ -17,19 +17,18 @@
 
 package ch.chuv.lren.woken.service
 
-import ch.chuv.lren.woken.config.DatasetsConfiguration
-import ch.chuv.lren.woken.messages.datasets.Dataset
+import ch.chuv.lren.woken.config.{ DatasetsConfiguration, JobsConfiguration }
+import ch.chuv.lren.woken.messages.datasets.{ Dataset, DatasetId }
 import com.typesafe.config.Config
 
 trait DatasetService {
-  def datasets(): Set[Dataset]
+  def datasets(): Map[DatasetId, Dataset]
 }
 
-case class ConfBasedDatasetService(config: Config) extends DatasetService {
-  override def datasets(): Set[Dataset] =
+case class ConfBasedDatasetService(config: Config, jobsConfiguration: JobsConfiguration)
+    extends DatasetService {
+  override def datasets(): Map[DatasetId, Dataset] =
     DatasetsConfiguration
-      .datasets(config)
+      .datasets(config, jobsConfiguration.defaultFeaturesDatabase)
       .valueOr(nel => throw new IllegalStateException(s"Cannot load datasets: $nel"))
-      .values
-      .toSet
 }

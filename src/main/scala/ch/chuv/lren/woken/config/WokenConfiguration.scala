@@ -32,17 +32,17 @@ case class WokenConfiguration(config: Config) {
     .read(config)
     .valueOr(configurationFailed)
 
+  val databaseConfig: DatabaseId => Validation[DatabaseConfiguration] =
+    DatabaseConfiguration.factory(config)
+
   val jobs: JobsConfiguration = JobsConfiguration
     .read(config)
     .valueOr(configurationFailed)
 
-  val databaseConfig: String => Validation[DatabaseConfiguration] =
-    DatabaseConfiguration.factory(config)
-
-  val featuresDb: DatabaseConfiguration = databaseConfig(jobs.featuresDb)
+  val featuresDb: DatabaseConfiguration = databaseConfig(jobs.defaultFeaturesDatabase)
     .valueOr(configurationFailed)
 
-  val resultsDb: DatabaseConfiguration = databaseConfig("woken")
+  val resultsDb: DatabaseConfiguration = databaseConfig(DatabaseId("woken"))
     .valueOr(configurationFailed)
 
   val metaDb: DatabaseConfiguration = DatabaseConfiguration

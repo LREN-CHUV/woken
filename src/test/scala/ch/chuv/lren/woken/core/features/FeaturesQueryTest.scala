@@ -17,14 +17,15 @@
 
 package ch.chuv.lren.woken.core.features
 
-import ch.chuv.lren.woken.core.model.database.{ TableColumn, TableId }
+import ch.chuv.lren.woken.core.model.database.TableColumn
+import ch.chuv.lren.woken.messages.datasets.TableId
 import ch.chuv.lren.woken.messages.query.filters.{ InputType, Operator, SingleFilterRule }
 import ch.chuv.lren.woken.messages.variables.SqlType
 import org.scalatest.{ Matchers, WordSpec }
 
 class FeaturesQueryTest extends WordSpec with Matchers {
 
-  val tableId = TableId("test_db", None, "table")
+  val tableId = TableId("test_db", "table")
 
   "FeaturesQuery" should {
 

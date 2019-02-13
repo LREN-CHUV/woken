@@ -70,9 +70,9 @@ class MiningCacheServiceImpl[F[_]: ConcurrentEffect: ContextShift: Timer](
     val tables               = databaseServices.config.featuresDb.tables
     val variablesMetaService = databaseServices.variablesMetaService
 
-    tables.foreach { table =>
+    tables.values.foreach { table =>
       // TODO: add support for table schema
-      runNow(variablesMetaService.get(table.table.name).map { metaO =>
+      runNow(variablesMetaService.get(table.table).map { metaO =>
         metaO.foreach {
           variables =>
             {
@@ -128,7 +128,7 @@ class MiningCacheServiceImpl[F[_]: ConcurrentEffect: ContextShift: Timer](
                 covariablesMustExist = false,
                 groupings,
                 None,
-                Some(table.table.name),
+                Some(table.table),
                 TreeSet(),
                 algorithm,
                 None)

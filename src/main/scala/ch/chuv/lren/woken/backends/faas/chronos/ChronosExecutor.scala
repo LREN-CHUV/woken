@@ -29,7 +29,7 @@ import scala.concurrent.{ ExecutionContext, Future }
 import ch.chuv.lren.woken.backends.HttpClient.checkHealth
 import ch.chuv.lren.woken.backends.faas.AlgorithmExecutor.TaggedS
 import ch.chuv.lren.woken.backends.faas.{ AlgorithmExecutor, AlgorithmResults }
-import ch.chuv.lren.woken.config.{ DatabaseConfiguration, JobsConfiguration }
+import ch.chuv.lren.woken.config.{ DatabaseConfiguration, DatabaseId, JobsConfiguration }
 import ch.chuv.lren.woken.core.model.jobs.{ DockerJob, ErrorJobResult }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.core.fp._
@@ -48,7 +48,7 @@ case class ChronosExecutor[F[_]: Effect](system: ActorSystem,
                                          dockerBridgeNetwork: Option[String],
                                          jobResultService: JobResultRepository[F],
                                          jobsConf: JobsConfiguration,
-                                         jdbcConfF: String => Validation[DatabaseConfiguration])
+                                         jdbcConfF: DatabaseId => Validation[DatabaseConfiguration])
     extends AlgorithmExecutor[F]
     with LazyLogging {
 
@@ -89,7 +89,7 @@ case class CoordinatorConfig[F[_]](chronosService: ActorRef,
                                    dockerBridgeNetwork: Option[String],
                                    jobResultService: JobResultRepository[F],
                                    jobsConf: JobsConfiguration,
-                                   jdbcConfF: String => Validation[DatabaseConfiguration])
+                                   jdbcConfF: DatabaseId => Validation[DatabaseConfiguration])
 
 /**
   * We use the companion object to hold all the messages that the ``CoordinatorActor``

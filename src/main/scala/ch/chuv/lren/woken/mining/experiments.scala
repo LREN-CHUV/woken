@@ -58,7 +58,7 @@ object LocalExperimentService {
     def toQueryResult: QueryResult =
       result
         .fold(r => r, r => r)
-        .asQueryResult(Some(jobInProgress.job.query),
+        .asQueryResult(jobInProgress.job.query,
                        jobInProgress.dataProvenance,
                        jobInProgress.feedback)
   }
@@ -254,7 +254,7 @@ case class LocalExperimentService[F[_]: Effect](
               val extTable = extendedFeaturesTable.table.table
               val extendedJob = job.job.copy(
                 inputTable = extTable,
-                query = job.job.query.copy(targetTable = Some(extTable.name))
+                query = job.job.query.copy(targetTable = Some(extTable))
               )
               val extendedJobInProgress: ExperimentJobInProgress = job.copy(job = extendedJob)
 

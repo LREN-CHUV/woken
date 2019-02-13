@@ -28,10 +28,10 @@ import ch.chuv.lren.woken.config.JobsConfiguration
 import ch.chuv.lren.woken.core.features.Queries
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.core.model._
-import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.core.model.jobs.{ ExperimentJob, _ }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.dao.VariablesMetaRepository
+import ch.chuv.lren.woken.messages.datasets.TableId
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables.{ VariableId, VariableMetaData }
 import com.typesafe.scalalogging.LazyLogging
@@ -219,13 +219,8 @@ class QueryToJobServiceImpl[F[_]: Effect](
       query: Q
   ): F[Validation[PreparedQuery[Q]]] = {
 
-    val jobId      = UUID.randomUUID().toString
-    val featuresDb = jobsConfiguration.featuresDb
-    // TODO: define target db schema from configuration or query
-    val featuresDbSchema  = None
-    val featuresTableName = query.targetTable.getOrElse(jobsConfiguration.featuresTable)
-    val featuresTable     = TableId(featuresDb, featuresDbSchema, featuresTableName)
-    val metadataKey       = query.targetTable.getOrElse(jobsConfiguration.metadataKeyForFeaturesTable)
+    val jobId         = UUID.randomUUID().toString
+    val featuresTable = query.targetTable.getOrElse(jobsConfiguration.defaultFeaturesTable)
 
     def prepareFeedback(oldVars: FeatureIdentifiers,
                         existingVars: FeatureIdentifiers): UserFeedbacks =
@@ -234,15 +229,15 @@ class QueryToJobServiceImpl[F[_]: Effect](
         .toNel
         .fold[UserFeedbacks](Nil)(
           missing => {
-            val missingFields = missing.map(Queries.toField).mkString_("", ",", "")
+            val missingFields = missing.map(Queries.toField).mkString_(",")
             List(UserInfo(s"Missing variables $missingFields"))
           }
         )
 
-    variablesMetaService.get(metadataKey).map { variablesMetaO =>
+    variablesMetaService.get(featuresTable).map { variablesMetaO =>
       val variablesMeta: Validation[VariablesMeta] = Validated.fromOption(
         variablesMetaO,
-        NonEmptyList(s"Cannot find metadata for table $metadataKey", Nil)
+        NonEmptyList(s"Cannot find metadata for table ${featuresTable.toString}", Nil)
       )
 
       val validatedQueryWithFeedback: Validation[(Q, UserFeedbacks)] = variablesMeta.map { v =>
@@ -272,12 +267,12 @@ class QueryToJobServiceImpl[F[_]: Effect](
             case q: MiningQuery =>
               q.copy(covariables = existingCovariables,
                       grouping = existingGroupings,
-                      targetTable = Some(featuresTableName))
+                      targetTable = Some(featuresTable))
                 .asInstanceOf[Q]
             case q: ExperimentQuery =>
               q.copy(covariables = existingCovariables,
                       grouping = existingGroupings,
-                      targetTable = Some(featuresTableName))
+                      targetTable = Some(featuresTable))
                 .asInstanceOf[Q]
           }
 
@@ -311,11 +306,9 @@ class QueryToJobServiceImpl[F[_]: Effect](
 
     val _ :: featuresTable :: _ :: query :: _ :: HNil = preparedQuery
 
-    val table = query.targetTable.fold(featuresTable)(t => featuresTable.copy(name = t))
-    // TODO: Add targetSchema to query or schema to configuration or both, use it here instead of None
+    val table = query.targetTable.getOrElse(featuresTable)
     val validTableService: Validation[FeaturesTableService[F]] =
-      featuresService
-        .featuresTable(table)
+      featuresService.featuresTable(table)
 
     validTableService
       .map { tableService =>

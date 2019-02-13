@@ -27,9 +27,8 @@ import ch.chuv.lren.woken.dao.{
   FeaturesTableRepository,
   PrefillExtendedFeaturesTable
 }
-import ch.chuv.lren.woken.messages.datasets.DatasetId
+import ch.chuv.lren.woken.messages.datasets.{ DatasetId, TableId }
 import ch.chuv.lren.woken.core.fp.runNow
-import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query.filters.FilterRule
 import spray.json.JsObject

@@ -19,7 +19,7 @@ package ch.chuv.lren.woken.core.model.jobs
 
 import java.util.UUID
 
-import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableId }
+import ch.chuv.lren.woken.core.model.database.FeaturesTableDescription
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.Predefined.Algorithms.{
@@ -28,14 +28,21 @@ import ch.chuv.lren.woken.Predefined.Algorithms.{
   knnDefinition,
   knnWithK5
 }
+import ch.chuv.lren.woken.config.ConfigurationInstances._
 import cats.implicits._
 import cats.scalatest.{ ValidatedMatchers, ValidatedValues }
+import ch.chuv.lren.woken.dao.FeaturesTableTestSupport
 import ch.chuv.lren.woken.messages.variables.VariableId
 import org.scalatest.{ Matchers, WordSpec }
 
 import scala.collection.immutable.TreeSet
 
-class ExperimentJobTest extends WordSpec with Matchers with ValidatedMatchers with ValidatedValues {
+class ExperimentJobTest
+    extends WordSpec
+    with Matchers
+    with ValidatedMatchers
+    with ValidatedValues
+    with FeaturesTableTestSupport {
 
   val user: UserId = UserId("test")
 
@@ -81,7 +88,7 @@ class ExperimentJobTest extends WordSpec with Matchers with ValidatedMatchers wi
       covariablesMustExist = false,
       grouping = Nil,
       filters = None,
-      targetTable = Some("Sample"),
+      targetTable = Some(sampleDataTableId),
       algorithms = List(AlgorithmSpec(algorithm, parameters, None)),
       validations = List(ValidationSpec("kfold", List(CodeValue("k", "2")))),
       trainingDatasets = TreeSet(),
@@ -90,16 +97,17 @@ class ExperimentJobTest extends WordSpec with Matchers with ValidatedMatchers wi
       executionPlan = None
     )
 
-  private def experimentQuery2job(query: ExperimentQuery): Validation[ExperimentJob] =
+  private def experimentQuery2job(query: ExperimentQuery): Validation[ExperimentJob] = {
+    val targetTableId = query.targetTable.getOrElse(sampleDataTableId)
+    val targetTable: FeaturesTableDescription = targetTableId match {
+      case `sampleDataTableId`   => sampleTable
+      case `cdeFeaturesATableId` => cdeTable
+      case o                     => throw new NotImplementedError(s"$o is not supported")
+    }
     ExperimentJob.mkValid(
       UUID.randomUUID().toString,
       query,
-      FeaturesTableDescription(TableId("features_db", None, query.targetTable.getOrElse("Sample")),
-                               Nil,
-                               None,
-                               validateSchema = false,
-                               None,
-                               0.67),
+      targetTable,
       Nil, { spec =>
         Map(knnWithK5 -> knnDefinition, anovaFactorial -> anovaDefinition)
           .get(spec)
@@ -107,5 +115,6 @@ class ExperimentJobTest extends WordSpec with Matchers with ValidatedMatchers wi
           .toValidatedNel[String]
       }
     )
+  }
 
 }

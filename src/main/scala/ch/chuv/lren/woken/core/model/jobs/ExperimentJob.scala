@@ -20,8 +20,9 @@ package ch.chuv.lren.woken.core.model.jobs
 import cats.implicits._
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.core.model.AlgorithmDefinition
-import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableId }
+import ch.chuv.lren.woken.core.model.database.FeaturesTableDescription
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
+import ch.chuv.lren.woken.messages.datasets.TableId
 import ch.chuv.lren.woken.messages.query.{ AlgorithmSpec, ExperimentQuery }
 import ch.chuv.lren.woken.messages.variables.VariableMetaData
 
@@ -75,7 +76,7 @@ object ExperimentJob {
         val experimentQuery = query
           .filterDatasets(inputTable.datasetColumn)
           .filterNulls(variablesCanBeNull, covariablesCanBeNull)
-          .copy(targetTable = Some(inputTable.table.name))
+          .copy(targetTable = Some(inputTable.table))
 
         // TODO: report to user filtering on nulls when activated
         // TODO: report to user which algorithms are causing filter on nulls, and how many records are lost from training dataset

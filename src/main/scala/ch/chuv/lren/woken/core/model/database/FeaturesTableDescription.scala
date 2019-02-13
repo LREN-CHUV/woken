@@ -17,6 +17,7 @@
 
 package ch.chuv.lren.woken.core.model.database
 
+import ch.chuv.lren.woken.messages.datasets.TableId
 import ch.chuv.lren.woken.messages.query.UserId
 import ch.chuv.lren.woken.messages.variables.SqlType.SqlType
 
@@ -63,6 +64,7 @@ case class FeaturesTableDescription(
     * @return the quoted name of the table, for use in SELECT statements
     */
   def quotedName: String =
-    table.dbSchema.fold(s""""${table.name}"""")(sch => s""""$sch"."${table.name}"""")
+    if (table.dbSchema == "public") s""""${table.name}""""
+    else s""""${table.dbSchema}"."${table.name}""""
 
 }

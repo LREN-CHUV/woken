@@ -27,7 +27,7 @@ import ch.chuv.lren.woken.dispatch.{
   MiningQueriesActor
 }
 import ch.chuv.lren.woken.messages.{ Ping, Pong }
-import ch.chuv.lren.woken.messages.datasets.{ DatasetsQuery, DatasetsResponse }
+import ch.chuv.lren.woken.messages.datasets.{ DatasetsQuery, DatasetsResponse, TableId }
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables._
 import ch.chuv.lren.woken.service._
@@ -76,10 +76,12 @@ class MasterRouter[F[_]: Effect](
 
     case ds: DatasetsQuery =>
       mark("DatasetsQueryRequestReceived")
-      val allDatasets = databaseServices.datasetService.datasets()
-      val table       = ds.table.getOrElse(config.jobs.featuresTable)
+      val allDatasets = databaseServices.datasetService.datasets().values.toSet
+      val table: TableId = ds.table
+        .map(t => TableId(config.jobs.defaultFeaturesDatabase.code, t))
+        .getOrElse(config.jobs.defaultFeaturesTable)
       val datasets =
-        if (table == "*") allDatasets
+        if (table.name == "*") allDatasets
         else allDatasets.filter(_.tables.contains(table))
 
       sender ! DatasetsResponse(datasets.map(_.withoutAuthenticationDetails))
