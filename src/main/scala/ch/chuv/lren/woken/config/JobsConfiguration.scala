@@ -54,17 +54,18 @@ object JobsConfiguration {
     val jobsConfig = config.validateConfig(path.mkString("."))
 
     jobsConfig.andThen { jobs =>
-      val node                    = jobs.validateString("node")
-      val owner                   = jobs.validateString("owner")
-      val chronosServerUrl        = jobs.validateString("chronosServerUrl")
-      val defaultFeaturesDatabase = jobs.validateString("defaultFeaturesDatabase").map(DatabaseId)
+      val node             = jobs.validateString("node")
+      val owner            = jobs.validateString("owner")
+      val chronosServerUrl = jobs.validateString("chronosServerUrl")
+      val defaultFeaturesDatabase: Validation[DatabaseId] =
+        jobs.validateString("defaultFeaturesDatabase").map(DatabaseId)
       val defaultFeaturesTable: Validation[TableId] = jobs
         .validateConfig("defaultFeaturesTable")
         .andThen(
           tableConfig => defaultFeaturesDatabase.andThen(db => tableIdConfig(db, tableConfig))
         )
-      val resultDb = jobs.validateString("resultDb").map(DatabaseId)
-      val metaDb   = jobs.validateString("metaDb").map(DatabaseId)
+      val resultDb: Validation[DatabaseId] = jobs.validateString("resultDb").map(DatabaseId)
+      val metaDb: Validation[DatabaseId]   = jobs.validateString("metaDb").map(DatabaseId)
       val cpus: Validation[Double] =
         jobs.validateDouble("defaultJobCpus").orElse(0.5.validNel[String])
       val mem: Validation[Int] = jobs.validateInt("defaultJobMemory").orElse(512.validNel[String])
