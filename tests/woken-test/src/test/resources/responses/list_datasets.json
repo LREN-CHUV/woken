@@ -2,14 +2,22 @@
   "datasets": [
     {
       "anonymisationLevel": "Anonymised",
-      "dataset": {
+      "description": "Demo dataset DESD",
+      "id": {
         "code": "desd-synthdata"
       },
-      "description": "Demo dataset DESD",
       "label": "DESD",
       "tables": [
-        "cde_features_a",
-        "cde_features_mixed"
+        {
+          "database": "features",
+          "dbSchema": "public",
+          "name": "cde_features_a"
+        },
+        {
+          "database": "features",
+          "dbSchema": "public",
+          "name": "cde_features_mixed"
+        }
       ]
     }
   ]

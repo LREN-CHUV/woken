@@ -128,7 +128,7 @@ class WokenAkkaAPITest
         Dataset(DatasetId("desd-synthdata"),
                 "DESD",
                 "Demo dataset DESD",
-                List("cde_features_a", "cde_features_mixed"),
+                List(cdeFeaturesATableId, cdeFeaturesMixedTableId),
                 AnonymisationLevel.Anonymised,
                 None))
 
@@ -181,7 +181,7 @@ class WokenAkkaAPITest
           covariablesMustExist = true,
           grouping = Nil,
           filters = None,
-          targetTable = Some("sample_data"),
+          targetTable = Some(sampleTable),
           algorithm = AlgorithmSpec("knn", List(CodeValue("k", "5")), None),
           datasets = TreeSet(),
           executionPlan = None
@@ -210,7 +210,7 @@ class WokenAkkaAPITest
           covariablesMustExist = true,
           grouping = Nil,
           filters = None,
-          targetTable = Some("sample_data"),
+          targetTable = Some(sampleTable),
           algorithm = AlgorithmSpec("histograms", Nil, None),
           datasets = TreeSet(),
           executionPlan = None
@@ -237,7 +237,7 @@ class WokenAkkaAPITest
           covariablesMustExist = true,
           grouping = Nil,
           filters = None,
-          targetTable = Some("sample_data"),
+          targetTable = Some(sampleTable),
           algorithm = AlgorithmSpec("statisticsSummary", Nil, None),
           datasets = TreeSet(),
           executionPlan = None
@@ -264,7 +264,7 @@ class WokenAkkaAPITest
           covariablesMustExist = true,
           grouping = Nil,
           filters = None,
-          targetTable = Some("sample_data"),
+          targetTable = Some(sampleTable),
           algorithm = AlgorithmSpec("tSNE", Nil, None),
           datasets = TreeSet(),
           executionPlan = None
@@ -295,7 +295,7 @@ class WokenAkkaAPITest
           covariablesMustExist = true,
           grouping = Nil,
           filters = None,
-          targetTable = Some("sample_data"),
+          targetTable = Some(sampleTable),
           algorithm = AlgorithmSpec("correlationHeatmap", Nil, None),
           datasets = TreeSet(),
           executionPlan = None
@@ -324,7 +324,7 @@ class WokenAkkaAPITest
           covariablesMustExist = true,
           grouping = Nil,
           filters = None,
-          targetTable = Some("sample_data"),
+          targetTable = Some(sampleTable),
           algorithm = AlgorithmSpec("pca", Nil, None),
           datasets = TreeSet(),
           executionPlan = None
@@ -354,7 +354,7 @@ class WokenAkkaAPITest
           covariablesMustExist = true,
           grouping = Nil,
           filters = None,
-          targetTable = Some("sample_data"),
+          targetTable = Some(sampleTable),
           algorithm = AlgorithmSpec("ggparci", Nil, None),
           datasets = TreeSet(),
           executionPlan = None
@@ -382,7 +382,7 @@ class WokenAkkaAPITest
           covariablesMustExist = true,
           grouping = Nil,
           filters = None,
-          targetTable = Some("sample_data"),
+          targetTable = Some(sampleTable),
           algorithm = AlgorithmSpec("heatmaply", Nil, None),
           datasets = TreeSet(),
           executionPlan = None
@@ -417,7 +417,7 @@ class WokenAkkaAPITest
           covariablesMustExist = true,
           grouping = Nil,
           filters = None,
-          targetTable = Some("sample_data"),
+          targetTable = Some(sampleTable),
           algorithm = AlgorithmSpec("hedwig", Nil, None),
           datasets = TreeSet(),
           executionPlan = None
@@ -451,7 +451,7 @@ class WokenAkkaAPITest
           covariablesMustExist = true,
           grouping = Nil,
           filters = None,
-          targetTable = Some("sample_data"),
+          targetTable = Some(sampleTable),
           algorithm = AlgorithmSpec("hinmine", Nil, None),
           datasets = TreeSet(),
           executionPlan = None
@@ -517,7 +517,7 @@ class WokenAkkaAPITest
           parameters = List(),
           variables = List(VariableId("alzheimerbroadcategory")),
           covariables = List(VariableId("lefthippocampus")),
-          targetTable = Some("cde_features_mixed")
+          targetTable = Some(cdeFeaturesMixedTableId)
         )
 
         val response: QueryResult =
@@ -541,7 +541,7 @@ class WokenAkkaAPITest
             List(CodeValue("alpha", "0.25"), CodeValue("penalty", "l1")),
           variables = List(VariableId("alzheimerbroadcategory")),
           covariables = List(VariableId("lefthippocampus")),
-          targetTable = Some("cde_features_mixed")
+          targetTable = Some(cdeFeaturesMixedTableId)
         )
 
         val response: QueryResult =
@@ -568,7 +568,7 @@ class WokenAkkaAPITest
                             CodeValue("activation", "tanh")),
           variables = List(VariableId("alzheimerbroadcategory")),
           covariables = List(VariableId("lefthippocampus")),
-          targetTable = Some("cde_features_mixed")
+          targetTable = Some(cdeFeaturesMixedTableId)
         )
 
         val response: QueryResult =
@@ -595,7 +595,7 @@ class WokenAkkaAPITest
                             CodeValue("max_depth", "4")),
           variables = List(VariableId("alzheimerbroadcategory")),
           covariables = List(VariableId("lefthippocampus")),
-          targetTable = Some("cde_features_mixed")
+          targetTable = Some(cdeFeaturesMixedTableId)
         )
 
         val response: QueryResult =
