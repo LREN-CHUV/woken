@@ -48,39 +48,68 @@ case class DatabaseServices[F[_]: ConcurrentEffect: ContextShift: Timer](
   def validate(): F[Unit] = {
 
     logger.info("Check configuration of datasets...")
+    logger.info(datasetService.datasets().values.filter(_.location.isEmpty).toString())
 
     implicit val FPlus: Monoid[F[Unit]] = new Monoid[F[Unit]] {
       def empty: F[Unit]                           = Effect[F].pure(())
-      def combine(x: F[Unit], y: F[Unit]): F[Unit] = x.handleErrorWith(_ => y)
+      def combine(x: F[Unit], y: F[Unit]): F[Unit] = x.flatMap(_ => y)
     }
 
+    // Validate local datasets
     Monoid
       .combineAll(datasetService.datasets().values.filter(_.location.isEmpty).map { dataset =>
-        Monoid.combineAll(dataset.tables.map {
-          table =>
-            {
-              featuresService
-                .featuresTable(table)
-                .fold[F[Unit]](
-                  { error: NonEmptyList[String] =>
-                    val errMsg = error.mkString_(",")
-                    logger.error(errMsg)
-                    Effect[F].raiseError(new IllegalStateException(errMsg))
-                  }, { table: FeaturesTableService[F] =>
-                    table.count(dataset.id).map { count =>
-                      if (count == 0) {
-                        val error =
-                          s"Table ${table.table} contains no value for dataset ${dataset.id.code}"
-                        logger.error(error)
-                        throw new IllegalStateException(error)
-                      }
+        Monoid
+          .combineAll(dataset.tables.map {
+            table =>
+              {
+                featuresService
+                  .featuresTable(table)
+                  .fold[F[Unit]](
+                    { error: NonEmptyList[String] =>
+                      val errMsg = error.mkString_(",")
+                      logger.error(errMsg)
+                      Effect[F].raiseError(new IllegalStateException(errMsg))
+                    }, {
+                      table: FeaturesTableService[F] =>
+                        table
+                          .count(dataset.id)
+                          .flatMap[Unit] { count =>
+                            if (count == 0) {
+                              val error =
+                                s"Table ${table.table} contains no value for dataset ${dataset.id.code}"
+                              logger.error(error)
+                              Effect[F].raiseError(throw new IllegalStateException(error))
+                            } else ().pure[F]
+                          }
+                          .flatMap { _ =>
+                            val tableId = table.table.table
+                            variablesMetaService
+                              .get(tableId)
+                              .flatMap(
+                                metaO =>
+                                  metaO.fold(
+                                    Effect[F].raiseError[Unit](
+                                      new IllegalStateException(
+                                        s"Cannot find metadata for table ${tableId.toString}"
+                                      )
+                                    )
+                                  )(_ => ().pure[F])
+                              )
+                          }
                     }
-                  }
-                )
+                  )
+              }
+          })
+          .map(
+            _ => {
+              val tables = dataset.tables.map(_.toString).mkString(",")
+              logger.info(
+                s"Dataset ${dataset.id.code} (${dataset.label}) registered locally on tables $tables"
+              )
             }
-        })
+          )
       })
-      .map(_ => logger.info("[OK] Datasets are valid"))
+      .map(s_ => logger.info("[OK] Datasets are valid"))
 
   }
 

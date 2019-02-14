@@ -37,6 +37,8 @@ class VariablesMetaRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
 
   implicit val groupMetaDataMeta: Meta[GroupMetaData] = codecMeta[GroupMetaData]
 
+  implicit val han: LogHandler = LogHandler.jdkLogHandler
+
   // TODO: use a real cache, for example ScalaCache + Caffeine
   val variablesMetaCache: mutable.Map[TableId, VariablesMeta] =
     new mutable.WeakHashMap[TableId, VariablesMeta]()
@@ -73,7 +75,7 @@ class VariablesMetaRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
     // TODO: add database and schema to the where clause
     // TODO: collapse database,schema,table into a TableId in the Doobie mappings
     v.fold(
-      sql"SELECT id, source, hierarchy, target_table, histogram_groupings FROM meta_variables WHERE target_table=$table"
+      sql"SELECT id, source, hierarchy, 'features' as database, 'public' as db_schema, target_table as name, histogram_groupings FROM meta_variables WHERE upper(target_table)=upper($table)"
         .query[VariablesMeta]
         .option
         .transact(xa)
