@@ -619,6 +619,20 @@
       "feedback": [],
       "jobId": "*",
       "node": "local",
+      "query": {
+        "algorithm": {
+          "code": "naiveBayes",
+          "parameters": []
+        },
+        "covariables": [],
+        "covariablesMustExist": false,
+        "datasets": [],
+        "grouping": [],
+        "user": {
+          "code": "system"
+        },
+        "variables": []
+      },
       "timestamp": 0.0,
       "type": "application/pfa+json"
     }
@@ -631,7 +645,12 @@
       "code": "qqni-synthdata"
     }
   ],
-  "feedback": [],
+  "feedback": [
+    {
+      "msg": "Missing variables lefthippocampus",
+      "severity": "info"
+    }
+  ],
   "jobId": "*",
   "node": "local",
   "query": {
@@ -669,7 +688,11 @@
       ]
     },
     "grouping": [],
-    "targetTable": "cde_features_mixed",
+    "targetTable": {
+      "database": "features",
+      "dbSchema": "public",
+      "name": "cde_features_mixed"
+    },
     "testingDatasets": [],
     "trainingDatasets": [],
     "user": {

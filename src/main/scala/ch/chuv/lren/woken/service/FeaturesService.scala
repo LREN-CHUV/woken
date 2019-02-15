@@ -18,6 +18,7 @@
 package ch.chuv.lren.woken.service
 
 import cats.Id
+import cats.data.{ NonEmptyList, Validated }
 import cats.effect.{ Effect, Resource }
 import cats.syntax.validated._
 import ch.chuv.lren.woken.core.features.FeaturesQuery
@@ -30,7 +31,9 @@ import ch.chuv.lren.woken.dao.{
 import ch.chuv.lren.woken.messages.datasets.{ DatasetId, TableId }
 import ch.chuv.lren.woken.core.fp.runNow
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
+import ch.chuv.lren.woken.messages.query.{ UserFeedback, UserFeedbacks }
 import ch.chuv.lren.woken.messages.query.filters.FilterRule
+import ch.chuv.lren.woken.messages.variables.VariableMetaData
 import spray.json.JsObject
 import sup.HealthCheck
 
@@ -96,6 +99,15 @@ trait FeaturesTableService[F[_]] {
 
   def features(query: FeaturesQuery): F[(Headers, Stream[JsObject])]
 
+  /**
+    * Validate the fields in the actual table against their metadata
+    *
+    * @param variables Full list of variables for the table as defined in the metadata
+    */
+  def validateFields(
+      variables: List[VariableMetaData]
+  ): F[Validated[NonEmptyList[(VariableMetaData, UserFeedback)], UserFeedbacks]]
+
   def createExtendedFeaturesTable(
       filters: Option[FilterRule],
       newFeatures: List[TableColumn],
@@ -156,6 +168,16 @@ class FeaturesTableServiceImpl[F[_]: Effect](repository: FeaturesTableRepository
 
   override def datasets(filters: Option[FilterRule]): F[Set[DatasetId]] =
     repository.datasets(filters)
+
+  /**
+    * Validate the fields in the actual table against their metadata
+    *
+    * @param variables Full list of variables for the table as defined in the metadata
+    */
+  override def validateFields(
+      variables: List[VariableMetaData]
+  ): F[Validated[NonEmptyList[(VariableMetaData, UserFeedback)], UserFeedbacks]] =
+    repository.validateFields(variables)
 
   override def createExtendedFeaturesTable(
       filters: Option[FilterRule],

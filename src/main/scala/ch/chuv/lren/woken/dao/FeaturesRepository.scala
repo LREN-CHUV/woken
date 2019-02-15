@@ -18,6 +18,7 @@
 package ch.chuv.lren.woken.dao
 
 import cats.Id
+import cats.data.{ NonEmptyList, Validated }
 import cats.effect.concurrent.Ref
 import cats.effect.{ Effect, Resource }
 import cats.implicits._
@@ -28,10 +29,11 @@ import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableC
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
 import ch.chuv.lren.woken.messages.datasets.{ DatasetId, TableId }
+import ch.chuv.lren.woken.messages.query.{ UserFeedback, UserFeedbacks, UserWarning }
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import ch.chuv.lren.woken.messages.query.filters._
-import ch.chuv.lren.woken.messages.variables.SqlType
+import ch.chuv.lren.woken.messages.variables.{ SqlType, VariableMetaData }
 import doobie.util.log.LogHandler
 import doobie.util.update.Update0
 import sup.HealthCheck
@@ -134,6 +136,49 @@ trait FeaturesTableRepository[F[_]] extends Repository[F] {
   def features(query: FeaturesQuery): F[(Headers, Stream[JsObject])]
 
   /**
+    * Validate the fields in the actual table against their metadata
+    *
+    * @param variables Full list of variables for the table as defined in the metadata
+    */
+  def validateFields(variables: List[VariableMetaData])(
+      implicit effect: Effect[F]
+  ): F[Validated[NonEmptyList[(VariableMetaData, UserFeedback)], UserFeedbacks]] = {
+    val variableNames = variables.map(_.toId.code).toSet
+    val headerNames   = columns.map(_.name).toSet
+    val unknownHeaders =
+      headerNames.diff(variableNames).filterNot(c => table.primaryKey.exists(_.name == c))
+    val unknownVariables = variableNames.diff(headerNames)
+    unknownVariables.toList.toNel
+      .fold(
+        unknownHeaders
+          .map { h =>
+            val msg = s"Column $h in table ${table.table.toString} is not described in the metadata"
+            UserWarning(msg): UserFeedback
+          }
+          .toList
+          .valid[NonEmptyList[(VariableMetaData, UserFeedback)]]
+      )(
+        unknowVarsNel =>
+          unknowVarsNel
+            .map(
+              v =>
+                variables
+                  .find(_.code == v)
+                  .getOrElse(throw new IllegalStateException("This variable should exist"))
+            )
+            .map(
+              varMeta =>
+                (varMeta,
+                 UserWarning(
+                   s"Variable ${varMeta.code} does not exist in table ${table.table.toString}"
+                 ))
+            )
+            .invalid
+      )
+      .pure[F]
+  }
+
+  /**
     *
     * @param filters Filters always applied on the queries
     * @param newFeatures New features to create, can be used in machine learning tasks
@@ -147,6 +192,7 @@ trait FeaturesTableRepository[F[_]] extends Repository[F] {
       otherColumns: List[TableColumn],
       prefills: List[PrefillExtendedFeaturesTable]
   ): Validation[Resource[F, FeaturesTableRepository[F]]]
+
 }
 
 object FeaturesTableRepository {

@@ -608,7 +608,12 @@
       "code": "sample_data"
     }
   ],
-  "feedback": [],
+  "feedback": [
+    {
+      "msg": "Missing variables score_math_course1,score_math_course2",
+      "severity": "info"
+    }
+  ],
   "jobId": "*",
   "node": "local",
   "query": {
@@ -627,7 +632,11 @@
     "covariablesMustExist": true,
     "datasets": [],
     "grouping": [],
-    "targetTable": "sample_data",
+    "targetTable": {
+      "database": "features",
+      "dbSchema": "public",
+      "name": "sample_data"
+    },
     "user": {
       "code": "test1"
     },

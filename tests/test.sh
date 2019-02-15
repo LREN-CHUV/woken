@@ -44,7 +44,7 @@ fi
 if [[ $NO_SUDO || -n "$CIRCLECI" ]]; then
   DOCKER="docker"
   DOCKER_COMPOSE="docker-compose"
-elif groups $USER | grep &>/dev/null '\bdocker\b'; then
+elif groups "$USER" | grep &>/dev/null '\bdocker\b'; then
   DOCKER="docker"
   DOCKER_COMPOSE="docker-compose"
 else
