@@ -136,7 +136,7 @@ class QueryToJobServiceTest
       val query = MiningQuery(
         user = user,
         variables = List(VariableId("score_test1")),
-        covariables = List(VariableId("lefthippocampus")),
+        covariables = List(VariableId("stress_before_test1")),
         covariablesMustExist = false,
         grouping = Nil,
         filters = None,
@@ -170,15 +170,36 @@ class QueryToJobServiceTest
       val maybeJob = queryToJobService.miningQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe invalid
-      maybeJob.invalidValue.head shouldBe "Found 1 out of 2 variables. Missing unknown"
+      maybeJob.invalidValue.head shouldBe "Variable unknown do not exist in node testNode and table sample_data"
       maybeJob.invalidValue.size shouldBe 1
     }
 
-    "fail when the covariable is unknown yet must exist" in {
+    "fail when no covariables can be found" in {
       val query = MiningQuery(
         user = user,
         variables = List(VariableId("score_test1")),
-        covariables = List(VariableId("unknown")),
+        covariables = List(VariableId("unknown1"), VariableId("unknown2")),
+        covariablesMustExist = false,
+        grouping = Nil,
+        filters = None,
+        targetTable = Some(sampleDataTableId),
+        algorithm = AlgorithmSpec("knn", Nil, None),
+        datasets = TreeSet(),
+        executionPlan = None
+      )
+
+      val maybeJob = queryToJobService.miningQuery2Job(query).unsafeRunSync()
+
+      maybeJob shouldBe invalid
+      maybeJob.invalidValue.head shouldBe "Covariables unknown1,unknown2 do not exist in node testNode and table sample_data"
+      maybeJob.invalidValue.size shouldBe 1
+    }
+
+    "fail when a covariable is unknown yet all must exist" in {
+      val query = MiningQuery(
+        user = user,
+        variables = List(VariableId("score_test1")),
+        covariables = List(VariableId("stress_before_test1"), VariableId("unknown")),
         covariablesMustExist = true,
         grouping = Nil,
         filters = None,
@@ -191,7 +212,7 @@ class QueryToJobServiceTest
       val maybeJob = queryToJobService.miningQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe invalid
-      maybeJob.invalidValue.head shouldBe "Found 1 out of 2 variables. Missing unknown"
+      maybeJob.invalidValue.head shouldBe "Covariable unknown do not exist in node testNode and table sample_data"
       maybeJob.invalidValue.size shouldBe 1
     }
 
@@ -243,7 +264,7 @@ class QueryToJobServiceTest
 
       job.query.sql shouldBe """SELECT "score_test1","stress_before_test1" FROM "sample_data" WHERE "score_test1" IS NOT NULL AND "stress_before_test1" IS NOT NULL"""
 
-      feedback shouldBe List(UserInfo("Missing variables stress_before_test1"))
+      feedback shouldBe Nil
     }
 
     "create a DockerJob for a kNN algorithm on a table with several datasets" in {
@@ -293,7 +314,7 @@ class QueryToJobServiceTest
 
       job.query.sql shouldBe """SELECT "apoe4","lefthippocampus" FROM "cde_features_a" WHERE "apoe4" IS NOT NULL AND "lefthippocampus" IS NOT NULL AND "dataset" IN ('desd-synthdata')"""
 
-      feedback shouldBe List(UserInfo("Missing variables lefthippocampus"))
+      feedback shouldBe Nil
     }
 
     "drop the unknown covariables that do not need to exist" in {
@@ -340,7 +361,9 @@ class QueryToJobServiceTest
 
       job.query.sql shouldBe """SELECT "apoe4","lefthippocampus" FROM "cde_features_a" WHERE "apoe4" IS NOT NULL AND "lefthippocampus" IS NOT NULL AND "dataset" IN ('desd-synthdata')"""
 
-      feedback shouldBe List(UserInfo("Missing variables lefthippocampus"))
+      feedback shouldBe List(
+        UserInfo("Covariable unknown do not exist in node testNode and table cde_features_a")
+      )
     }
 
     "create a ValidationJob for a validation algorithm" in {
@@ -372,7 +395,7 @@ class QueryToJobServiceTest
         'metadata (List(CdeVariables.apoe4, CdeVariables.leftHipocampus))
       )
 
-      feedback shouldBe List(UserInfo("Missing variables lefthippocampus"))
+      feedback shouldBe Nil
     }
   }
 
@@ -448,7 +471,7 @@ class QueryToJobServiceTest
         queryToJobService.experimentQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe invalid
-      maybeJob.invalidValue.head shouldBe "Found 1 out of 2 variables. Missing unknown"
+      maybeJob.invalidValue.head shouldBe "Variable unknown do not exist in node testNode and table cde_features_a"
       maybeJob.invalidValue.size shouldBe 1
     }
 
@@ -473,7 +496,7 @@ class QueryToJobServiceTest
         queryToJobService.experimentQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe invalid
-      maybeJob.invalidValue.head shouldBe "Found 1 out of 2 variables. Missing unknown"
+      maybeJob.invalidValue.head shouldBe "Covariable unknown do not exist in node testNode and table cde_features_a"
       maybeJob.invalidValue.size shouldBe 1
     }
 

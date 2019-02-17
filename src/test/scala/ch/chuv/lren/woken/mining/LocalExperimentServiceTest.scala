@@ -37,11 +37,11 @@ import scala.language.postfixOps
 import ch.chuv.lren.woken.config.{ AlgorithmsConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.core.model.AlgorithmDefinition
 import ch.chuv.lren.woken.dao.VariablesMetaRepository
-
 import ExperimentQuerySupport._
 
 import scala.collection.immutable.TreeSet
 import ch.chuv.lren.woken.config.ConfigurationInstances._
+import org.scalamock.scalatest.MockFactory
 
 /**
   * Experiment flow should always complete with success, but the error is reported inside the response.
@@ -53,6 +53,7 @@ class LocalExperimentServiceTest
     with ValidatedMatchers
     with ValidatedValues
     with BeforeAndAfterAll
+    with MockFactory
     with JsonUtils
     with LazyLogging {
 
@@ -80,8 +81,11 @@ class LocalExperimentServiceTest
   val queryToJobService: QueryToJobService[IO] =
     QueryToJobService[IO](featuresService, variablesMetaService, jobsConf, algorithmLookup)
 
+  val algorithmExecutor: AlgorithmExecutor[IO] = mock[AlgorithmExecutor[IO]]
+  (algorithmExecutor.node _).expects().anyNumberOfTimes().returns("local")
+
   lazy val service: LocalExperimentService[IO] =
-    LocalExperimentService[IO](TestServices.algorithmExecutor,
+    LocalExperimentService[IO](algorithmExecutor,
                                TestServices.wokenWorker,
                                featuresService,
                                TestServices.jobResultService,

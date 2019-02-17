@@ -126,7 +126,7 @@ case class DatabaseServices[F[_]: ConcurrentEffect: ContextShift: Timer](
   }
 
   private def tableFieldsShouldMatchMetadata(table: FeaturesTableService[F],
-                                              variables: VariablesMeta): F[Unit] =
+                                             variables: VariablesMeta): F[Unit] =
     table
       .validateFields(variables.allVariables())
       .map { validation =>

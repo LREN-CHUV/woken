@@ -20,12 +20,9 @@ package ch.chuv.lren.woken.service
 import java.util.UUID
 
 import cats.data._
-import cats.data.NonEmptyList._
-import cats.data.Validated._
 import cats.effect.{ Async, Effect }
 import cats.implicits._
 import ch.chuv.lren.woken.config.JobsConfiguration
-import ch.chuv.lren.woken.core.features.Queries
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.core.model._
 import ch.chuv.lren.woken.core.model.jobs.{ ExperimentJob, _ }
@@ -33,7 +30,7 @@ import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.dao.VariablesMetaRepository
 import ch.chuv.lren.woken.messages.datasets.TableId
 import ch.chuv.lren.woken.messages.query._
-import ch.chuv.lren.woken.messages.variables.{ VariableId, VariableMetaData }
+import ch.chuv.lren.woken.messages.variables.{ FeatureIdentifier, VariableId, VariableMetaData }
 import com.typesafe.scalalogging.LazyLogging
 import shapeless.{ ::, HNil }
 
@@ -222,80 +219,114 @@ class QueryToJobServiceImpl[F[_]: Effect](
     val jobId         = UUID.randomUUID().toString
     val featuresTable = query.targetTable.getOrElse(jobsConfiguration.defaultFeaturesTable)
 
-    def prepareFeedback(oldVars: FeatureIdentifiers,
+    def missingVariablesMessage(variableType: String, missing: FeatureIdentifiers): String = {
+      val missingFields = missing.map(_.id).mkString_(",")
+      val plural        = if (missing.length > 1) "s" else ""
+      s"$variableType$plural $missingFields do not exist in node ${jobsConfiguration.node} and table ${featuresTable.name}"
+    }
+
+    def prepareFeedback(variableType: String,
+                        requestedVars: FeatureIdentifiers,
                         existingVars: FeatureIdentifiers): UserFeedbacks =
-      oldVars
-        .intersect(existingVars)
+      requestedVars
+        .diff(existingVars)
         .toNel
         .fold[UserFeedbacks](Nil)(
           missing => {
-            val missingFields = missing.map(Queries.toField).mkString_(",")
-            List(UserInfo(s"Missing variables $missingFields"))
+            val missingMsg = missingVariablesMessage(variableType, missing.toList)
+            List(UserInfo(missingMsg))
           }
         )
 
+    // Fetch the metadata for variables
     variablesMetaService.get(featuresTable).map { variablesMetaO =>
       val variablesMeta: Validation[VariablesMeta] = Validated.fromOption(
         variablesMetaO,
         NonEmptyList(s"Cannot find metadata for table ${featuresTable.toString}", Nil)
       )
 
-      val validatedQueryWithFeedback: Validation[(Q, UserFeedbacks)] = variablesMeta.map { v =>
-        // Take only the covariables (and groupings) known to exist on the target table
-        val existingCovariables = v
-          .filterVariables { v: VariableId =>
-            query.covariables.contains(v)
-          }
-          .map(_.toId)
-        if (query.covariablesMustExist && (existingCovariables.size != query.covariables.size)) {
-          (query, prepareFeedback(existingCovariables, query.covariables))
-        } else {
+      variablesMeta
+        .andThen { vars =>
+          def filterExisting(requestedVars: FeatureIdentifiers): List[VariableId] =
+            vars
+              .filterVariables { v: VariableId =>
+                requestedVars.contains(v)
+              }
+              .map(_.toId)
 
-          val covariablesFeedback = prepareFeedback(query.covariables, existingCovariables)
+          def findMissing(
+              requestedVars: FeatureIdentifiers
+          ): Option[NonEmptyList[FeatureIdentifier]] =
+            requestedVars.diff(filterExisting(requestedVars)).toNel
 
-          val existingGroupings = v
-            .filterVariables { v: VariableId =>
-              query.grouping.contains(v)
+          def ensureVariablesExists(variableType: String, requestedVars: FeatureIdentifiers)
+            : Validation[FeatureIdentifiers] =
+            findMissing(requestedVars).fold(requestedVars.validNel[String])(
+              missing =>
+                missingVariablesMessage(variableType, missing.toList).invalidNel[FeatureIdentifiers]
+            )
+
+          // Check the target variable
+          ensureVariablesExists("Variable", query.variables)
+            .andThen { _ =>
+              // Check corariables
+              if (query.covariablesMustExist)
+                ensureVariablesExists("Covariable", query.covariables)
+                  .map(covars => (covars, List.empty[UserFeedback]))
+              else {
+                val existingCovars = filterExisting(query.covariables)
+                val covariablesFeedback =
+                  prepareFeedback("Covariable", query.covariables, existingCovars)
+                if (query.covariables.nonEmpty && existingCovars.isEmpty)
+                  covariablesFeedback.map(_.msg).mkString(",").invalidNel
+                else
+                  (existingCovars, covariablesFeedback).validNel[String]
+              }
             }
-            .map(_.toId)
-          val groupingsFeedback = prepareFeedback(query.grouping, existingGroupings)
+            .andThen {
+              // Check groupings
+              case (existingCovariables, covariablesFeedback) =>
+                val existingGroupings = filterExisting(query.grouping)
+                val groupingsFeedback =
+                  prepareFeedback("Grouping", query.grouping, existingGroupings)
+                val combinedFeedback = covariablesFeedback ++ groupingsFeedback
+                if (query.grouping.nonEmpty && existingGroupings.isEmpty)
+                  groupingsFeedback.map(_.msg).mkString(",").invalidNel
+                else
+                  (existingCovariables, existingGroupings, combinedFeedback).validNel[String]
+            }
+            .andThen {
+              // Update query
+              case (existingCovariables, existingGroupings, existanceFeedback) =>
+                // TODO: looks like a good use case for lenses
+                val updatedQuery: Q = query match {
+                  case q: MiningQuery =>
+                    q.copy(covariables = existingCovariables,
+                            grouping = existingGroupings,
+                            targetTable = Some(featuresTable))
+                      .asInstanceOf[Q]
+                  case q: ExperimentQuery =>
+                    q.copy(covariables = existingCovariables,
+                            grouping = existingGroupings,
+                            targetTable = Some(featuresTable))
+                      .asInstanceOf[Q]
+                }
 
-          val feedback: UserFeedbacks = covariablesFeedback ++ groupingsFeedback
-
-          // TODO: looks like a good use case for lenses
-          val updatedQuery: Q = query match {
-            case q: MiningQuery =>
-              q.copy(covariables = existingCovariables,
-                      grouping = existingGroupings,
-                      targetTable = Some(featuresTable))
-                .asInstanceOf[Q]
-            case q: ExperimentQuery =>
-              q.copy(covariables = existingCovariables,
-                      grouping = existingGroupings,
-                      targetTable = Some(featuresTable))
-                .asInstanceOf[Q]
-          }
-
-          (updatedQuery, feedback)
+                (updatedQuery, existanceFeedback).validNel[String]
+            }
         }
-      }
-
-      val validatedQuery: Validation[Q] = validatedQueryWithFeedback.map(_._1)
-
-      val mq: Validation[(VariablesMeta, Q)] =
-        (variablesMeta, validatedQuery) mapN Tuple2.apply
-
-      val metadata: Validation[List[VariableMetaData]] = mq.andThen {
-        case (v, q) =>
-          v.selectVariables(q.allVars)
-      }
-
-      val feedback: UserFeedbacks = validatedQueryWithFeedback.map(_._2).getOrElse(Nil)
-
-      (metadata, validatedQuery) mapN Tuple2.apply map {
-        case (m, q) =>
-          jobId :: featuresTable :: m :: q :: feedback :: HNil
-      }
+        .andThen {
+          case (q, feedback) =>
+            variablesMeta
+              .andThen { meta =>
+                // Get the metadata associated with the variables
+                meta.selectVariables(q.allVars)
+              }
+              .map { m =>
+                // Build the PreparedQuery
+                jobId :: featuresTable :: m :: q :: feedback :: HNil
+              }
+        }
     }
   }
 
