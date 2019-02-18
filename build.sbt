@@ -133,7 +133,7 @@ lazy val library =
       val diff            = "2.0.1"
       val acyclic         = "0.1.8"
       val wokenMessages   = "3.0.0"
-      val sup             = "0.2.1"
+      val sup             = "0.3.0"
       val sttpBackend     = "1.5.10"
     }
     object ExclusionRules {
