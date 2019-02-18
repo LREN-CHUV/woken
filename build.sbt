@@ -121,7 +121,7 @@ lazy val library =
       val disruptor       = "3.4.2"
       val scalaLogging    = "3.9.0"
       val cats            = "1.6.0"
-      val kittens         = "1.2.0"
+      val kittens         = "1.2.1"
       val catsScalaTest   = "2.4.0"
       val treelog         = "1.4.6"
       val config          = "1.3.3"
@@ -133,7 +133,7 @@ lazy val library =
       val diff            = "2.0.1"
       val acyclic         = "0.1.8"
       val wokenMessages   = "3.0.0"
-      val sup             = "0.2.0"
+      val sup             = "0.2.1"
       val sttpBackend     = "1.5.10"
     }
     object ExclusionRules {
