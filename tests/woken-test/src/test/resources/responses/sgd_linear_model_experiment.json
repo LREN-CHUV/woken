@@ -136,19 +136,19 @@
                 "coeff": [
                   0.0
                 ],
-                "const": -1.0
+                "const": -0.99535
               },
               {
                 "coeff": [
                   0.0
                 ],
-                "const": -1.00232
+                "const": -1.00001
               },
               {
                 "coeff": [
                   0.0
                 ],
-                "const": 0.99901
+                "const": 1.00176
               }
             ],
             "rollback": false,
@@ -393,7 +393,7 @@
         "metadata": {
           "X": "{\"lefthippocampus\":{\"count\":1718.0,\"mean\":3.639566982e-16,\"std\":1.0002911632,\"min\":-6.1997481189,\"25%\":-0.1756647944,\"50%\":-0.1756647944,\"75%\":-0.1049179598,\"max\":5.934008706}}",
           "coef_": "[[0.0],[0.0],[0.0]]",
-          "intercept_": "[-1.0000031388,-1.0023242685,0.9990074004]",
+          "intercept_": "[-0.9953530895,-1.0000142047,1.0017627612]",
           "score": "0.6670547148",
           "y": "{\"count\":1718,\"unique\":3,\"top\":\"Other\",\"freq\":1146}"
         },
@@ -405,6 +405,29 @@
       "feedback": [],
       "jobId": "*",
       "node": "local",
+      "query": {
+        "algorithm": {
+          "code": "sgdLinearModel",
+          "parameters": [
+            {
+              "code": "alpha",
+              "value": "0.25"
+            },
+            {
+              "code": "penalty",
+              "value": "l1"
+            }
+          ]
+        },
+        "covariables": [],
+        "covariablesMustExist": false,
+        "datasets": [],
+        "grouping": [],
+        "user": {
+          "code": "system"
+        },
+        "variables": []
+      },
       "timestamp": 0.0,
       "type": "application/pfa+json"
     }
@@ -417,7 +440,12 @@
       "code": "qqni-synthdata"
     }
   ],
-  "feedback": [],
+  "feedback": [
+    {
+      "msg": "Missing variables lefthippocampus",
+      "severity": "info"
+    }
+  ],
   "jobId": "*",
   "node": "local",
   "query": {
@@ -464,7 +492,11 @@
       ]
     },
     "grouping": [],
-    "targetTable": "cde_features_mixed",
+    "targetTable": {
+      "database": "features",
+      "dbSchema": "public",
+      "name": "cde_features_mixed"
+    },
     "testingDatasets": [],
     "trainingDatasets": [],
     "user": {

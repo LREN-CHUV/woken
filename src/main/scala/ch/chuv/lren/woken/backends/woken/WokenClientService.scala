@@ -101,11 +101,11 @@ case class WokenClientService(node: String)(implicit val system: ActorSystem,
            Unmarshal(response)
              .to[QueryResult])
             .mapN((_, _))
-            .map(rq => (rq._1, rq._2.copy(query = Some(query))))
+            .map(rq => (rq._1, rq._2.copy(query = query)))
         case (url, query, failure) =>
           failure.discardEntityBytes()
           (url,
-           QueryResult(None,
+           QueryResult("",
                        node,
                        Set(),
                        Nil,
@@ -114,7 +114,7 @@ case class WokenClientService(node: String)(implicit val system: ActorSystem,
                        Some("dispatch"),
                        None,
                        Some(failure.entity.toString),
-                       Some(query))).pure[Future]
+                       query)).pure[Future]
       }
       .map(identity)
 

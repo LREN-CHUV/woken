@@ -42,13 +42,10 @@ if pgrep -lf sshuttle > /dev/null ; then
 fi
 
 if [[ $NO_SUDO || -n "$CIRCLECI" ]]; then
-  DOCKER="docker"
   DOCKER_COMPOSE="docker-compose -f docker-compose-ci.yml"
-elif groups $USER | grep &>/dev/null '\bdocker\b'; then
-  DOCKER="docker"
+elif groups "$USER" | grep &>/dev/null '\bdocker\b'; then
   DOCKER_COMPOSE="docker-compose -f docker-compose-ci.yml"
 else
-  DOCKER="sudo docker"
   DOCKER_COMPOSE="sudo docker-compose -f docker-compose-ci.yml"
 fi
 
@@ -100,6 +97,7 @@ done
 
 $DOCKER_COMPOSE up -d woken
 $DOCKER_COMPOSE run wait_woken
+
 $DOCKER_COMPOSE up -d wokenvalidation
 $DOCKER_COMPOSE run wait_wokenvalidation
 

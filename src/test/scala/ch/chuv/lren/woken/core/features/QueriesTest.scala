@@ -17,7 +17,7 @@
 
 package ch.chuv.lren.woken.core.features
 
-import ch.chuv.lren.woken.core.model.database.TableId
+import ch.chuv.lren.woken.messages.datasets.TableId
 import ch.chuv.lren.woken.messages.query.{ AlgorithmSpec, CodeValue, MiningQuery, UserId }
 import org.scalatest.{ Matchers, WordSpec }
 import ch.chuv.lren.woken.messages.query.filters._
@@ -54,7 +54,7 @@ class QueriesTest extends WordSpec with Matchers {
       executionPlan = None
     )
 
-    val inputTable = TableId("test_db", None, "inputTable")
+    val inputTable = TableId("test_db", "inputTable")
 
     "generate the SQL query" ignore {
       val featuresQuery = query.features(inputTable, None)

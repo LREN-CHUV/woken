@@ -6,6 +6,6 @@ http -v --verify=no -a admin:WoKeN --timeout 180 POST http://localhost:8087/mini
          grouping:='[]' \
          covariables:='[{"code":"subjectage"}, {"code":"leftcuncuneus"}]' \
          covariablesMustExist:=true \
-         targetTable='cde_features_a' \
+         targetTable:='{"name":"cde_features_a"}' \
          algorithms:='[{"code":"naiveBayes", "parameters": []}]' \
          validations:='[{"code":"kfold", "name": "kfold", "parameters": [{"code": "k", "value": "2"}]}]'

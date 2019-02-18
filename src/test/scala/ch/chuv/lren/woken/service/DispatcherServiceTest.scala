@@ -22,7 +22,7 @@ import akka.stream.ActorMaterializer
 import akka.testkit.TestKit
 import com.typesafe.config.{ Config, ConfigFactory }
 import ch.chuv.lren.woken.backends.woken.WokenClientService
-import ch.chuv.lren.woken.config.DatasetsConfiguration
+import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.messages.remoting.{ BasicAuthentication, RemoteLocation }
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
@@ -42,10 +42,11 @@ class DispatcherServiceTest
     .withFallback(ConfigFactory.load("test.conf"))
     .resolve()
 
-  val wokenService = WokenClientService("test")
+  val wokenService    = WokenClientService("test")
+  val datasetsService = ConfBasedDatasetService(config, WokenConfiguration(config).jobs)
 
   val dispatcherService: DispatcherService =
-    DispatcherService(DatasetsConfiguration.datasets(config), wokenService)
+    DispatcherService(datasetsService, wokenService)
 
   "Dispatcher service" should {
     "identify locations to dispatch to from a list of datasets" in {

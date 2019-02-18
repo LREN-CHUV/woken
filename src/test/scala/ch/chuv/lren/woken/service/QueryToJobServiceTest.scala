@@ -21,7 +21,6 @@ import cats.effect.IO
 import cats.scalatest.{ ValidatedMatchers, ValidatedValues }
 import ch.chuv.lren.woken.config.{ AlgorithmsConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.core.features.FeaturesQuery
-import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.core.model._
 import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
@@ -30,6 +29,7 @@ import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.query.filters._
 import ch.chuv.lren.woken.messages.variables._
+import ch.chuv.lren.woken.config.ConfigurationInstances._
 import com.typesafe.config.{ Config, ConfigFactory }
 import org.scalatest.{ Matchers, WordSpec }
 
@@ -53,11 +53,10 @@ class QueryToJobServiceTest
     JobsConfiguration("testNode",
                       "admin",
                       "http://chronos",
-                      "features_db",
-                      "Sample",
-                      "Sample",
-                      "results_db",
-                      "meta_db",
+                      featuresDb,
+                      sampleDataTableId,
+                      wokenDb,
+                      metaDb,
                       0.5,
                       512)
 
@@ -121,7 +120,7 @@ class QueryToJobServiceTest
         covariablesMustExist = false,
         grouping = Nil,
         filters = None,
-        targetTable = Some("unknown"),
+        targetTable = Some(unknownTableId),
         algorithm = AlgorithmSpec("knn", List(CodeValue("k", "5")), None),
         datasets = TreeSet(),
         executionPlan = None
@@ -130,18 +129,18 @@ class QueryToJobServiceTest
       val maybeJob = queryToJobService.miningQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe invalid
-      maybeJob.invalidValue.head shouldBe "Cannot find metadata for table unknown"
+      maybeJob.invalidValue.head shouldBe "Cannot find metadata for table unknown.public.unknown"
     }
 
     "fail when the algorithm is unknown" in {
       val query = MiningQuery(
         user = user,
         variables = List(VariableId("score_test1")),
-        covariables = List(VariableId("lefthippocampus")),
+        covariables = List(VariableId("stress_before_test1")),
         covariablesMustExist = false,
         grouping = Nil,
         filters = None,
-        targetTable = Some("Sample"),
+        targetTable = Some(sampleDataTableId),
         algorithm = AlgorithmSpec("unknown", Nil, None),
         datasets = TreeSet(),
         executionPlan = None
@@ -162,7 +161,7 @@ class QueryToJobServiceTest
         covariablesMustExist = true,
         grouping = Nil,
         filters = None,
-        targetTable = Some("Sample"),
+        targetTable = Some(sampleDataTableId),
         algorithm = AlgorithmSpec("knn", Nil, None),
         datasets = TreeSet(),
         executionPlan = None
@@ -171,19 +170,19 @@ class QueryToJobServiceTest
       val maybeJob = queryToJobService.miningQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe invalid
-      maybeJob.invalidValue.head shouldBe "Found 1 out of 2 variables. Missing unknown"
+      maybeJob.invalidValue.head shouldBe "Variable unknown do not exist in node testNode and table sample_data"
       maybeJob.invalidValue.size shouldBe 1
     }
 
-    "fail when the covariable is unknown yet must exist" in {
+    "fail when no covariables can be found" in {
       val query = MiningQuery(
         user = user,
         variables = List(VariableId("score_test1")),
-        covariables = List(VariableId("unknown")),
-        covariablesMustExist = true,
+        covariables = List(VariableId("unknown1"), VariableId("unknown2")),
+        covariablesMustExist = false,
         grouping = Nil,
         filters = None,
-        targetTable = Some("Sample"),
+        targetTable = Some(sampleDataTableId),
         algorithm = AlgorithmSpec("knn", Nil, None),
         datasets = TreeSet(),
         executionPlan = None
@@ -192,7 +191,28 @@ class QueryToJobServiceTest
       val maybeJob = queryToJobService.miningQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe invalid
-      maybeJob.invalidValue.head shouldBe "Found 1 out of 2 variables. Missing unknown"
+      maybeJob.invalidValue.head shouldBe "Covariables unknown1,unknown2 do not exist in node testNode and table sample_data"
+      maybeJob.invalidValue.size shouldBe 1
+    }
+
+    "fail when a covariable is unknown yet all must exist" in {
+      val query = MiningQuery(
+        user = user,
+        variables = List(VariableId("score_test1")),
+        covariables = List(VariableId("stress_before_test1"), VariableId("unknown")),
+        covariablesMustExist = true,
+        grouping = Nil,
+        filters = None,
+        targetTable = Some(sampleDataTableId),
+        algorithm = AlgorithmSpec("knn", Nil, None),
+        datasets = TreeSet(),
+        executionPlan = None
+      )
+
+      val maybeJob = queryToJobService.miningQuery2Job(query).unsafeRunSync()
+
+      maybeJob shouldBe invalid
+      maybeJob.invalidValue.head shouldBe "Covariable unknown do not exist in node testNode and table sample_data"
       maybeJob.invalidValue.size shouldBe 1
     }
 
@@ -207,7 +227,7 @@ class QueryToJobServiceTest
         covariablesMustExist = true,
         grouping = Nil,
         filters = None,
-        targetTable = Some("Sample"),
+        targetTable = Some(sampleDataTableId),
         algorithm = AlgorithmSpec("knn", List(CodeValue("k", "5")), None),
         datasets = TreeSet(DatasetId("Sample")),
         executionPlan = None
@@ -220,7 +240,6 @@ class QueryToJobServiceTest
 
       val job: DockerJob = maybeJob.value.job.asInstanceOf[MiningJob].dockerJob
       val feedback       = maybeJob.value.feedback
-      val table          = TableId("features_db", None, "Sample")
 
       job.jobId should not be empty
       job.algorithmDefinition.dockerImage should startWith("hbpmip/python-knn")
@@ -231,7 +250,7 @@ class QueryToJobServiceTest
             List("score_test1"),
             List("stress_before_test1"),
             List(),
-            table,
+            sampleDataTableId,
             scoreStressTest1Filter,
             None,
             None
@@ -243,7 +262,7 @@ class QueryToJobServiceTest
         'metadata (List(SampleVariables.score_test1, SampleVariables.stress_before_test1))
       )
 
-      job.query.sql shouldBe """SELECT "score_test1","stress_before_test1" FROM "Sample" WHERE "score_test1" IS NOT NULL AND "stress_before_test1" IS NOT NULL"""
+      job.query.sql shouldBe """SELECT "score_test1","stress_before_test1" FROM "sample_data" WHERE "score_test1" IS NOT NULL AND "stress_before_test1" IS NOT NULL"""
 
       feedback shouldBe Nil
     }
@@ -259,7 +278,7 @@ class QueryToJobServiceTest
         covariablesMustExist = true,
         grouping = Nil,
         filters = None,
-        targetTable = Some("cde_features_a"),
+        targetTable = Some(cdeFeaturesATableId),
         algorithm = AlgorithmSpec("knn", List(CodeValue("k", "5")), None),
         datasets = TreeSet(DatasetId("desd-synthdata")),
         executionPlan = None
@@ -272,7 +291,6 @@ class QueryToJobServiceTest
 
       val job: DockerJob = maybeJob.value.job.asInstanceOf[MiningJob].dockerJob
       val feedback       = maybeJob.value.feedback
-      val table          = TableId("features_db", None, "cde_features_a")
 
       job.jobId should not be empty
       job.algorithmDefinition.dockerImage should startWith("hbpmip/python-knn")
@@ -282,7 +300,7 @@ class QueryToJobServiceTest
             List("apoe4"),
             List("lefthippocampus"),
             List(),
-            table,
+            cdeFeaturesATableId,
             apoe4LeftHippDesdFilter,
             None,
             None
@@ -307,7 +325,7 @@ class QueryToJobServiceTest
         covariablesMustExist = false,
         grouping = Nil,
         filters = None,
-        targetTable = Some("cde_features_a"),
+        targetTable = Some(cdeFeaturesATableId),
         algorithm = AlgorithmSpec("knn", List(CodeValue("k", "5")), None),
         datasets = TreeSet(DatasetId("desd-synthdata")),
         executionPlan = None
@@ -320,7 +338,6 @@ class QueryToJobServiceTest
 
       val job: DockerJob = maybeJob.value.job.asInstanceOf[MiningJob].dockerJob
       val feedback       = maybeJob.value.feedback
-      val table          = TableId("features_db", None, "cde_features_a")
 
       job.jobId should not be empty
       job.algorithmDefinition.dockerImage should startWith("hbpmip/python-knn")
@@ -330,7 +347,7 @@ class QueryToJobServiceTest
             List("apoe4"),
             List("lefthippocampus"),
             List(),
-            table,
+            cdeFeaturesATableId,
             apoe4LeftHippDesdFilter,
             None,
             None
@@ -344,7 +361,9 @@ class QueryToJobServiceTest
 
       job.query.sql shouldBe """SELECT "apoe4","lefthippocampus" FROM "cde_features_a" WHERE "apoe4" IS NOT NULL AND "lefthippocampus" IS NOT NULL AND "dataset" IN ('desd-synthdata')"""
 
-      feedback shouldBe List(UserInfo("Missing variables lefthippocampus"))
+      feedback shouldBe List(
+        UserInfo("Covariable unknown do not exist in node testNode and table cde_features_a")
+      )
     }
 
     "create a ValidationJob for a validation algorithm" in {
@@ -355,12 +374,11 @@ class QueryToJobServiceTest
         covariablesMustExist = true,
         grouping = Nil,
         filters = None,
-        targetTable = Some("cde_features_a"),
+        targetTable = Some(cdeFeaturesATableId),
         algorithm = AlgorithmSpec(ValidationJob.algorithmCode, Nil, None),
         datasets = TreeSet(DatasetId("desd-synthdata")),
         executionPlan = None
       )
-      val table = TableId("features_db", None, "cde_features_a")
 
       val maybeJob = queryToJobService.miningQuery2Job(query).unsafeRunSync()
 
@@ -391,7 +409,7 @@ class QueryToJobServiceTest
         covariablesMustExist = false,
         grouping = Nil,
         filters = None,
-        targetTable = Some("unknown"),
+        targetTable = Some(unknownTableId),
         algorithms = List(AlgorithmSpec("knn", List(CodeValue("k", "5")), None)),
         trainingDatasets = TreeSet(),
         testingDatasets = TreeSet(),
@@ -404,7 +422,7 @@ class QueryToJobServiceTest
         queryToJobService.experimentQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe invalid
-      maybeJob.invalidValue.head shouldBe "Cannot find metadata for table unknown"
+      maybeJob.invalidValue.head shouldBe "Cannot find metadata for table unknown.public.unknown"
     }
 
     "fail when the algorithm is unknown" in {
@@ -415,7 +433,7 @@ class QueryToJobServiceTest
         covariablesMustExist = false,
         grouping = Nil,
         filters = None,
-        targetTable = Some("cde_features_a"),
+        targetTable = Some(cdeFeaturesATableId),
         algorithms = List(AlgorithmSpec("unknown", Nil, None)),
         trainingDatasets = TreeSet(),
         testingDatasets = TreeSet(),
@@ -440,7 +458,7 @@ class QueryToJobServiceTest
         covariablesMustExist = true,
         grouping = Nil,
         filters = None,
-        targetTable = Some("cde_features_a"),
+        targetTable = Some(cdeFeaturesATableId),
         algorithms = List(AlgorithmSpec("knn", Nil, None)),
         trainingDatasets = TreeSet(),
         testingDatasets = TreeSet(),
@@ -453,7 +471,7 @@ class QueryToJobServiceTest
         queryToJobService.experimentQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe invalid
-      maybeJob.invalidValue.head shouldBe "Found 1 out of 2 variables. Missing unknown"
+      maybeJob.invalidValue.head shouldBe "Variable unknown do not exist in node testNode and table cde_features_a"
       maybeJob.invalidValue.size shouldBe 1
     }
 
@@ -465,7 +483,7 @@ class QueryToJobServiceTest
         covariablesMustExist = true,
         grouping = Nil,
         filters = None,
-        targetTable = Some("cde_features_a"),
+        targetTable = Some(cdeFeaturesATableId),
         algorithms = List(AlgorithmSpec("knn", Nil, None)),
         trainingDatasets = TreeSet(),
         testingDatasets = TreeSet(),
@@ -478,7 +496,7 @@ class QueryToJobServiceTest
         queryToJobService.experimentQuery2Job(query).unsafeRunSync()
 
       maybeJob shouldBe invalid
-      maybeJob.invalidValue.head shouldBe "Found 1 out of 2 variables. Missing unknown"
+      maybeJob.invalidValue.head shouldBe "Covariable unknown do not exist in node testNode and table cde_features_a"
       maybeJob.invalidValue.size shouldBe 1
     }
 
@@ -490,7 +508,7 @@ class QueryToJobServiceTest
         covariablesMustExist = true,
         grouping = Nil,
         filters = None,
-        targetTable = Some("cde_features_a"),
+        targetTable = Some(cdeFeaturesATableId),
         algorithms = List(AlgorithmSpec("knn", List(CodeValue("k", "5")), None)),
         trainingDatasets = TreeSet(DatasetId("desd-synthdata")),
         testingDatasets = TreeSet(),
@@ -498,7 +516,6 @@ class QueryToJobServiceTest
         validations = Nil,
         executionPlan = None
       )
-      val table = TableId("features_db", None, "cde_features_a")
 
       val maybeJob =
         queryToJobService.experimentQuery2Job(query).unsafeRunSync()
@@ -509,12 +526,10 @@ class QueryToJobServiceTest
 
       job.jobId should not be empty
       job should have(
-        'inputTable (table),
+        'inputTable (cdeFeaturesATableId),
         'query (query.copy(filters = apoe4LeftHippDesdFilter)),
         'metadata (List(CdeVariables.apoe4, CdeVariables.leftHipocampus))
       )
-      // ExperimentQuery(UserId(test),List(VariableId(apoe4)),List(VariableId(lefthippocampus)),true,List(),None,Some(cde_features_a),Set(DatasetId(desd-synthdata)),Set(),List(AlgorithmSpec(knn,List(CodeValue(k,5)),None)),Set(),List(),None), instead of its expected value
-      // ExperimentQuery(UserId(test),List(VariableId(apoe4)),List(VariableId(lefthippocampus)),true,List(),Some(CompoundFilterRule(AND,List(SingleFilterRule(apoe4,apoe4,string,text,is_not_null,List()), SingleFilterRule(lefthippocampus,lefthippocampus,string,text,is_not_null,List()), SingleFilterRule(dataset,dataset,string,text,in,List(desd-synthdata))))),Some(cde_features_a),Set(DatasetId(desd-synthdata)),Set(),List(AlgorithmSpec(knn,List(CodeValue(k,5)),None)),Set(),List(),None), on object ExperimentJob(06a5f472-f836-4fc9-b9d5-13a1ef49d100,TableId(features_db,None,cde_features_a),ExperimentQuery(UserId(test),List(VariableId(apoe4)),List(VariableId(lefthippocampus)),true,List(),None,Some(cde_features_a),Set(DatasetId(desd-synthdata)),Set(),List(AlgorithmSpec(knn,List(CodeValue(k,5)),None)),Set(),List(),None),Map(AlgorithmSpec(knn,List(CodeValue(k,5)),None) -> AlgorithmDefinition(knn,hbpmip/python-knn:0.4.0,true,false,false,Docker,ExecutionPlan(List(ExecutionStep(map,map,SelectDataset(training),Compute(compute-local)), ExecutionStep(reduce,reduce,PreviousResults(map),Compute(compute-global)))))),List(VariableMetaData(apoe4,ApoE4,polynominal,Some(int),Some(adni-merge),Some(Apolipoprotein E (APOE) e4 allele: is the strongest risk factor for Late Onset Alzheimer Disease (LOAD). At least one copy of APOE-e4 ),None,Some(List(EnumeratedValue(0,0), EnumeratedValue(1,1), EnumeratedValue(2,2))),None,None,None,None,Set()), VariableMetaData(lefthippocampus,Left Hippocampus,real,None,Some(lren-nmm-volumes),Some(),Some(cm3),None,None,None,None,None,Set())))
     }
 
     "drop the unknown covariables that do not need to exist" in {
@@ -525,7 +540,7 @@ class QueryToJobServiceTest
         covariablesMustExist = false,
         grouping = Nil,
         filters = None,
-        targetTable = Some("cde_features_a"),
+        targetTable = Some(cdeFeaturesATableId),
         algorithms = List(AlgorithmSpec("knn", List(CodeValue("k", "5")), None)),
         trainingDatasets = TreeSet(DatasetId("desd-synthdata")),
         testingDatasets = TreeSet(),
@@ -533,7 +548,6 @@ class QueryToJobServiceTest
         validations = Nil,
         executionPlan = None
       )
-      val table = TableId("features_db", None, "cde_features_a")
 
       val maybeJob =
         queryToJobService.experimentQuery2Job(query).unsafeRunSync()
@@ -544,7 +558,7 @@ class QueryToJobServiceTest
 
       job.jobId should not be empty
       job should have(
-        'inputTable (table),
+        'inputTable (cdeFeaturesATableId),
         'query (
           query.copy(covariables = List(VariableId("lefthippocampus")),
                      filters = apoe4LeftHippDesdFilter)
@@ -561,7 +575,7 @@ class QueryToJobServiceTest
         covariablesMustExist = true,
         grouping = Nil,
         filters = None,
-        targetTable = Some("cde_features_a"),
+        targetTable = Some(cdeFeaturesATableId),
         algorithms = List(AlgorithmSpec(ValidationJob.algorithmCode, Nil, None)),
         trainingDatasets = TreeSet(DatasetId("desd-synthdata")),
         testingDatasets = TreeSet(),

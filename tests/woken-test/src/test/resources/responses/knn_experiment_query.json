@@ -20,7 +20,9 @@
   ],
   "covariablesMustExist": true,
   "grouping": [],
-  "targetTable": "sample_data",
+  "targetTable": {
+    "name": "sample_data"
+  },
   "user": {
     "code": "user1"
   },

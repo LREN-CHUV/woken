@@ -22,8 +22,9 @@ import cats.data.NonEmptyList
 import cats.effect._
 import cats.implicits._
 import ch.chuv.lren.woken.config.{ DatabaseConfiguration, WokenConfiguration, configurationFailed }
-import ch.chuv.lren.woken.core.model.database.TableId
+import ch.chuv.lren.woken.core.model.VariablesMeta
 import ch.chuv.lren.woken.dao._
+import ch.chuv.lren.woken.messages.datasets.Dataset
 import com.typesafe.scalalogging.Logger
 import doobie.hikari.HikariTransactor
 import org.slf4j.LoggerFactory
@@ -49,43 +50,91 @@ case class DatabaseServices[F[_]: ConcurrentEffect: ContextShift: Timer](
   def validate(): F[Unit] = {
 
     logger.info("Check configuration of datasets...")
+    logger.info(datasetService.datasets().values.filter(_.location.isEmpty).toString())
 
     implicit val FPlus: Monoid[F[Unit]] = new Monoid[F[Unit]] {
       def empty: F[Unit]                           = Effect[F].pure(())
-      def combine(x: F[Unit], y: F[Unit]): F[Unit] = x.handleErrorWith(_ => y)
+      def combine(x: F[Unit], y: F[Unit]): F[Unit] = x.flatMap(_ => y)
     }
 
+    // Validate local datasets
     Monoid
-      .combineAll(datasetService.datasets().filter(_.location.isEmpty).map { dataset =>
-        Monoid.combineAll(dataset.tables.map {
-          qualifiedTableName =>
+      .combineAll(datasetService.datasets().values.filter(_.location.isEmpty).map { dataset =>
+        Monoid
+          .combineAll(dataset.tables.map { table =>
             {
-              val table = TableId(config.jobs.featuresDb, qualifiedTableName)
-
               featuresService
                 .featuresTable(table)
                 .fold[F[Unit]](
                   { error: NonEmptyList[String] =>
-                    val errMsg = error.mkString_("", ",", "")
+                    val errMsg = error.mkString_(",")
                     logger.error(errMsg)
                     Effect[F].raiseError(new IllegalStateException(errMsg))
                   }, { table: FeaturesTableService[F] =>
-                    table.count(dataset.dataset).map { count =>
-                      if (count == 0) {
-                        val error =
-                          s"Table ${table.table} contains no value for dataset ${dataset.dataset.code}"
-                        logger.error(error)
-                        throw new IllegalStateException(error)
-                      }
-                    }
+                    validateTable(dataset, table)
                   }
                 )
             }
-        })
+          })
+          .map(
+            _ => {
+              val tables = dataset.tables.map(_.toString).mkString(",")
+              logger.info(
+                s"Dataset ${dataset.id.code} (${dataset.label}) registered locally on tables $tables"
+              )
+            }
+          )
       })
       .map(_ => logger.info("[OK] Datasets are valid"))
 
   }
+
+  private def validateTable(dataset: Dataset, table: FeaturesTableService[F]): F[Unit] =
+    for {
+      _         <- tableShouldContainRowsForDataset(dataset, table)
+      variables <- tableShouldHaveMetadataDefined(table)
+      _         <- tableFieldsShouldMatchMetadata(table, variables)
+    } yield ()
+
+  private def tableShouldContainRowsForDataset(dataset: Dataset,
+                                               table: FeaturesTableService[F]): F[Unit] =
+    table
+      .count(dataset.id)
+      .flatMap[Unit] { count =>
+        if (count == 0) {
+          val error =
+            s"Table ${table.table} contains no value for dataset ${dataset.id.code}"
+          logger.error(error)
+          Effect[F].raiseError(new IllegalStateException(error))
+        } else ().pure[F]
+      }
+
+  private def tableShouldHaveMetadataDefined(table: FeaturesTableService[F]): F[VariablesMeta] = {
+    val tableId = table.table.table
+    variablesMetaService
+      .get(tableId)
+      .flatMap(
+        metaO =>
+          metaO.fold(
+            Effect[F].raiseError[VariablesMeta](
+              new IllegalStateException(
+                s"Cannot find metadata for table ${tableId.toString}"
+              )
+            )
+          )(_.pure[F])
+      )
+  }
+
+  private def tableFieldsShouldMatchMetadata(table: FeaturesTableService[F],
+                                             variables: VariablesMeta): F[Unit] =
+    table
+      .validateFields(variables.allVariables())
+      .map { validation =>
+        validation.fold(
+          err => Effect[F].raiseError(new IllegalStateException(err.map(_._2.msg).mkString_(", "))),
+          warnings => Effect[F].delay(warnings.foreach(w => logger.warn(w.msg)))
+        )
+      }
 
   def close(): F[Unit] = Effect[F].pure(())
 
@@ -142,10 +191,7 @@ object DatabaseServices {
 
       val fsIO: F[FeaturesService[F]] = wokenIO.flatMap { wokenRepository =>
         mkService(t.featuresTransactor, config.featuresDb) { xa =>
-          FeaturesRepositoryDAO(xa,
-                                config.featuresDb.database,
-                                config.featuresDb.tables,
-                                wokenRepository).map {
+          FeaturesRepositoryDAO(xa, config.featuresDb, wokenRepository).map {
             _.map { FeaturesService.apply[F] }
           }
         }.map(_.valueOr(configurationFailed))
@@ -155,7 +201,7 @@ object DatabaseServices {
         Sync[F].delay(MetadataRepositoryDAO(xa).variablesMeta)
       }
 
-      val datasetService          = ConfBasedDatasetService(config.config)
+      val datasetService          = ConfBasedDatasetService(config.config, config.jobs)
       val algorithmLibraryService = AlgorithmLibraryService()
 
       val servicesIO = for {

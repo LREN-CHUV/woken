@@ -40,21 +40,21 @@ class FeaturesTableRepositoryDAOTest
     .withQueryHandler { e: QueryExecution =>
       e.sql.trim match {
 
-        case """SELECT count(*) FROM "Sample"""" =>
+        case """SELECT count(*) FROM "sample_data"""" =>
           rowList1(classOf[Int]) :+ 99
 
-        case """SELECT count(*) FROM "Sample" WHERE "score_test1" >= 2 AND "cognitive_task2" < 9""" =>
+        case """SELECT count(*) FROM "sample_data" WHERE "score_test1" >= 2 AND "cognitive_task2" < 9""" =>
           rowList1(classOf[Int]) :+ 5
 
-        case """SELECT count(*) FROM "Sample" WHERE "score_test1" < 0""" =>
+        case """SELECT count(*) FROM "sample_data" WHERE "score_test1" < 0""" =>
           rowList1(classOf[Int]) :+ 0
 
-        case """SELECT "college_math" , count(*) FROM "Sample"  GROUP BY "college_math"""" =>
+        case """SELECT "college_math" , count(*) FROM "sample_data"  GROUP BY "college_math"""" =>
           (rowList2(classOf[String], classOf[Int])
             :+ ("0", 47) // tuple as row
             :+ ("1", 52))
 
-        case """SELECT "college_math" , count(*) FROM "Sample" WHERE "score_test1" >= 2 GROUP BY "college_math"""" =>
+        case """SELECT "college_math" , count(*) FROM "sample_data" WHERE "score_test1" >= 2 GROUP BY "college_math"""" =>
           (rowList2(classOf[String], classOf[Int])
             :+ ("0", 12) // tuple as row
             :+ ("1", 22))

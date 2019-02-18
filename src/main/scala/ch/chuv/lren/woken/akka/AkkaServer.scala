@@ -26,7 +26,7 @@ import cats.effect._
 import ch.chuv.lren.woken.backends.faas.chronos.ChronosExecutor
 import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.backends.worker.WokenWorker
-import ch.chuv.lren.woken.config.{ DatasetsConfiguration, WokenConfiguration }
+import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.errors.BugsnagErrorReporter
 import ch.chuv.lren.woken.service._
 import com.typesafe.scalalogging.Logger
@@ -64,7 +64,7 @@ class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
   val backendServices: BackendServices[F] = {
     val wokenService: WokenClientService = WokenClientService(config.jobs.node)
     val dispatcherService: DispatcherService =
-      DispatcherService(DatasetsConfiguration.datasets(config.config), wokenService)
+      DispatcherService(databaseServices.datasetService, wokenService)
     val wokenWorker = WokenWorker[F](pubSub, cluster)
     val algorithmExecutor = ChronosExecutor(system,
                                             chronosHttp,

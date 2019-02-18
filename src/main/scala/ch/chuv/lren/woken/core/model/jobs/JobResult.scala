@@ -29,6 +29,8 @@ import spray.json._
 import APIJsonProtocol._
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 
+import scala.collection.immutable.TreeSet
+
 /**
   * Result produced during the execution of an algorithm
   */
@@ -161,9 +163,20 @@ case class ExperimentJobResult(jobId: String,
     import queryProtocol._
 
     // Concatenate results
+    val system = UserId("system")
     JsArray(
       results.map { r =>
-        val obj = r._2.asQueryResult(None, Set(), List()).toJson.asJsObject
+        val dummyQuery = MiningQuery(system,
+                                     Nil,
+                                     Nil,
+                                     covariablesMustExist = false,
+                                     Nil,
+                                     None,
+                                     None,
+                                     TreeSet(),
+                                     r._1,
+                                     None)
+        val obj = r._2.asQueryResult(dummyQuery, Set(), List()).toJson.asJsObject
         JsObject(obj.fields + ("algorithmSpec" -> r._1.toJson))
       }.toVector
     )
@@ -281,13 +294,13 @@ case class SerializedModelJobResult(jobId: String,
 object JobResult {
 
   def asQueryResult(jobResult: JobResult,
-                    query: Option[Query],
+                    query: Query,
                     dataProvenance: DataProvenance,
                     feedback: UserFeedbacks): QueryResult =
     jobResult match {
       case pfa: PfaJobResult =>
         QueryResult(
-          jobId = Some(pfa.jobId),
+          jobId = pfa.jobId,
           node = pfa.node,
           dataProvenance = dataProvenance,
           feedback = feedback,
@@ -300,7 +313,7 @@ object JobResult {
         )
       case pfa: ExperimentJobResult =>
         QueryResult(
-          jobId = Some(pfa.jobId),
+          jobId = pfa.jobId,
           node = pfa.node,
           dataProvenance = dataProvenance,
           feedback = feedback,
@@ -313,7 +326,7 @@ object JobResult {
         )
       case v: JsonDataJobResult =>
         QueryResult(
-          jobId = Some(v.jobId),
+          jobId = v.jobId,
           node = v.node,
           dataProvenance = dataProvenance,
           feedback = feedback,
@@ -326,7 +339,7 @@ object JobResult {
         )
       case v: OtherDataJobResult =>
         QueryResult(
-          jobId = Some(v.jobId),
+          jobId = v.jobId,
           node = v.node,
           dataProvenance = dataProvenance,
           feedback = feedback,
@@ -339,7 +352,7 @@ object JobResult {
         )
       case v: SerializedModelJobResult =>
         QueryResult(
-          jobId = Some(v.jobId),
+          jobId = v.jobId,
           node = v.node,
           dataProvenance = dataProvenance,
           feedback = feedback,
@@ -352,7 +365,7 @@ object JobResult {
         )
       case e: ErrorJobResult =>
         QueryResult(
-          jobId = e.jobId,
+          jobId = e.jobId.getOrElse("?"),
           node = e.node,
           dataProvenance = dataProvenance,
           feedback = feedback,
@@ -366,7 +379,7 @@ object JobResult {
     }
 
   implicit class ToQueryResult(val jobResult: JobResult) extends AnyVal {
-    def asQueryResult(query: Option[Query],
+    def asQueryResult(query: Query,
                       dataProvenance: Set[DatasetId],
                       feedback: List[UserFeedback]): QueryResult =
       JobResult.asQueryResult(jobResult, query, dataProvenance, feedback)
@@ -384,7 +397,7 @@ object JobResult {
           .getOrElse(Map())
 
         PfaJobResult(
-          jobId = queryResult.jobId.getOrElse(""),
+          jobId = queryResult.jobId,
           node = queryResult.node,
           timestamp = queryResult.timestamp,
           algorithm = queryResult.algorithm.getOrElse(""),
@@ -398,14 +411,14 @@ object JobResult {
           .getOrElse(Map())
 
         ExperimentJobResult(
-          jobId = queryResult.jobId.getOrElse(""),
+          jobId = queryResult.jobId,
           node = queryResult.node,
           timestamp = queryResult.timestamp,
           results = results
         )
       case Shapes.error =>
         ErrorJobResult(
-          jobId = queryResult.jobId,
+          jobId = Some(queryResult.jobId),
           node = queryResult.node,
           timestamp = queryResult.timestamp,
           algorithm = queryResult.algorithm,
@@ -414,7 +427,7 @@ object JobResult {
 
       case shape if Shapes.visualisationJsonResults.contains(shape) =>
         JsonDataJobResult(
-          jobId = queryResult.jobId.getOrElse(""),
+          jobId = queryResult.jobId,
           node = queryResult.node,
           timestamp = queryResult.timestamp,
           algorithm = queryResult.algorithm.getOrElse(""),
@@ -424,7 +437,7 @@ object JobResult {
 
       case shape if Shapes.visualisationOtherResults.contains(shape) =>
         OtherDataJobResult(
-          jobId = queryResult.jobId.getOrElse(""),
+          jobId = queryResult.jobId,
           node = queryResult.node,
           timestamp = queryResult.timestamp,
           algorithm = queryResult.algorithm.getOrElse(""),

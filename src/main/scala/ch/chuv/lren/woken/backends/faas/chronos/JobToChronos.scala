@@ -17,7 +17,7 @@
 
 package ch.chuv.lren.woken.backends.faas.chronos
 
-import ch.chuv.lren.woken.config.{ DatabaseConfiguration, JobsConfiguration }
+import ch.chuv.lren.woken.config.{ DatabaseConfiguration, DatabaseId, JobsConfiguration }
 import ch.chuv.lren.woken.core.model.jobs.DockerJob
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import cats.implicits._
@@ -44,7 +44,7 @@ object JobToChronos {
   def apply(job: DockerJob,
             dockerBridgeNetwork: Option[String],
             jobsConf: JobsConfiguration,
-            jdbcConfF: String => Validation[DatabaseConfiguration]): Validation[ChronosJob] = {
+            jdbcConfF: DatabaseId => Validation[DatabaseConfiguration]): Validation[ChronosJob] = {
 
     val container = dockerBridgeNetwork.fold(
       Container(`type` = ContainerType.DOCKER, image = job.algorithmDefinition.dockerImage)
@@ -85,7 +85,7 @@ object JobToChronos {
       )
     }
 
-    val inputDb  = jdbcConfF(job.query.dbTable.database)
+    val inputDb  = jdbcConfF(DatabaseId(job.query.dbTable.database))
     val outputDb = jdbcConfF(jobsConf.resultDb)
 
     (inputDb, outputDb) mapN buildChronosJob

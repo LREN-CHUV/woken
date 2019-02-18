@@ -41,6 +41,7 @@ import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.core.json._
 import ch.chuv.lren.woken.core.json.yaml.Yaml
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
+import ch.chuv.lren.woken.messages.datasets.TableId
 import spray.json._
 import sup.HealthCheck
 
@@ -228,7 +229,8 @@ class ResultsCacheRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
     val function         = result.algorithm
 
     // Extract fields that require validation
-    val tableNameV: Validation[String] = query.targetTable.toValidNel[String]("Empty table name")
+    val tableNameV: Validation[String] =
+      query.targetTable.map(_.toString).toValidNel[String]("Empty table name")
     val queryJsonV: Validation[JsObject] = {
       if (query.variables.length + query.covariables.length + query.grouping.length > 30)
         "High dimension query".invalidNel[JsObject]
@@ -268,7 +270,7 @@ class ResultsCacheRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
 
   override def get(
       node: String,
-      table: String,
+      table: TableId,
       tableContentsHash: Option[String],
       userQuery: WokenQuery
   ): F[Option[QueryResult]] = {
@@ -279,6 +281,7 @@ class ResultsCacheRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
         "High dimension query".invalidNel[JsObject]
       else query.toJson.asJsObject.validNel[String]
     }
+    val tableName = table.toString
 
     queryJsonV.fold(
       err => {
@@ -287,7 +290,7 @@ class ResultsCacheRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
       },
       queryJson => {
         val filterBase =
-          fr"""WHERE "node" = $node AND "table_name" = $table AND "query" = $queryJson"""
+          fr"""WHERE "node" = $node AND "table_name" = $tableName AND "query" = $queryJson"""
 
         val filter = tableContentsHash.fold(filterBase)(
           hash => filterBase ++ fr"""AND "table_content_hash" =""" ++ frConst(hash)
@@ -300,14 +303,14 @@ class ResultsCacheRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
           resultOp =>
             resultOp.fold {
               logger.info(
-                s"Could not find matching result in the cache for node $node, table $table, query ${queryJson.compactPrint}"
+                s"Could not find matching result in the cache for node $node, table $tableName, query ${queryJson.compactPrint}"
               )
               Option.empty[QueryResult].pure[F]
             } { result =>
               val updateTs
                 : Fragment = fr"""UPDATE "results_cache" SET "last_used" = now()""" ++ filter
               // Restore user query, as result may come from another user
-              updateTs.update.run.transact(xa).map(_ => Some(result.copy(query = Some(userQuery))))
+              updateTs.update.run.transact(xa).map(_ => Some(result.copy(query = userQuery)))
             }
         }
       }

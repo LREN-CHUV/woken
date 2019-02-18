@@ -108,10 +108,10 @@ class MiningQueriesActor[F[_]: Effect](
     case mine: Mine =>
       val initiator = if (mine.replyTo == Actor.noSender) sender() else mine.replyTo
       // Define the target table if user did not specify it
-      val query =
-        if (mine.query.targetTable.isEmpty)
-          mine.query.copy(targetTable = Some(config.jobs.featuresTable))
-        else mine.query
+      val query: MiningQuery = mine.query.targetTable
+        .fold(mine.query.copy(targetTable = Some(config.jobs.defaultFeaturesTable)))(
+          _ => mine.query
+        )
       val jobValidatedF = queryToJobService.miningQuery2Job(query)
       val doIt: F[QueryResult] = jobValidatedF.flatMap { jv =>
         jv.fold(
@@ -203,7 +203,7 @@ class MiningQueriesActor[F[_]: Effect](
           remoteMapFlow(query)
             .mapAsync(parallelism = 1) {
               case List()        => Future(noResult(query, Set(), Nil))
-              case List(result)  => Future(result.copy(query = Some(query)))
+              case List(result)  => Future(result.copy(query = query))
               case listOfResults => gatherAndReduce(query, listOfResults, None)
             }
             .log("Result of mining on remote node")
@@ -235,7 +235,7 @@ class MiningQueriesActor[F[_]: Effect](
 
           remoteMapFlow(mapQuery)
             .mapAsync(parallelism = 5) {
-              case List(result) => Future(result.copy(query = Some(query)))
+              case List(result) => Future(result.copy(query = query))
               case mapResults   => gatherAndReduce(query, mapResults, reduceQuery)
             }
             .runWith(Sink.last)
@@ -249,8 +249,7 @@ class MiningQueriesActor[F[_]: Effect](
                                   job: MiningJob): F[QueryResult] = {
     val dockerJob = job.dockerJob
     val node      = config.jobs.node
-    // TODO: add support for table schema
-    val table = dockerJob.query.dbTable.name
+    val table     = dockerJob.query.dbTable
     // TODO: use table content hash
 
     // Check the cache first
@@ -274,12 +273,12 @@ class MiningQueriesActor[F[_]: Effect](
       // Containerised algorithms that can produce more than one result (e.g. PFA model + images) are ignored
       val results = r.results match {
         case List()       => noResult(query, Set(), feedback)
-        case List(result) => result.asQueryResult(Some(query), prov, feedback)
+        case List(result) => result.asQueryResult(query, prov, feedback)
         case result :: _ =>
           val msg =
             s"Discarded additional results returned by algorithm ${dockerJob.algorithmDefinition.code}"
           logger.warn(msg)
-          result.asQueryResult(Some(query), prov, feedback :+ UserWarning(msg))
+          result.asQueryResult(query, prov, feedback :+ UserWarning(msg))
       }
 
       results.error match {
@@ -313,7 +312,7 @@ class MiningQueriesActor[F[_]: Effect](
           .map {
             case (job: ValidationJob[F], Right(score)) =>
               QueryResult(
-                Some(job.jobId),
+                job.jobId,
                 config.jobs.node,
                 prov,
                 feedback,
@@ -322,11 +321,11 @@ class MiningQueriesActor[F[_]: Effect](
                 Some(ValidationJob.algorithmCode),
                 Some(score.toJson),
                 None,
-                Some(query)
+                query
               )
             case (job: ValidationJob[F], Left(error)) =>
               QueryResult(
-                Some(job.jobId),
+                job.jobId,
                 config.jobs.node,
                 prov,
                 feedback,
@@ -335,7 +334,7 @@ class MiningQueriesActor[F[_]: Effect](
                 Some(ValidationJob.algorithmCode),
                 None,
                 Some(error),
-                Some(query)
+                query
               )
           }
           .fromFutureWithGuarantee(
@@ -348,7 +347,7 @@ class MiningQueriesActor[F[_]: Effect](
         )
         // No local datasets match the query, return an empty result
         QueryResult(
-          Some(job.jobId),
+          job.jobId,
           config.jobs.node,
           prov,
           feedback,
@@ -357,7 +356,7 @@ class MiningQueriesActor[F[_]: Effect](
           Some(ValidationJob.algorithmCode),
           None,
           None,
-          Some(query)
+          query
         ).pure[F]
     }
   }

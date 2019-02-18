@@ -24,11 +24,12 @@ import spray.json._
 import cats.data.{ NonEmptyList, Validated }
 import cats.effect.{ Effect, Resource }
 import cats.implicits._
+import ch.chuv.lren.woken.config.DatabaseConfiguration
 import ch.chuv.lren.woken.core.features.FeaturesQuery
-import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn, TableId }
+import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn }
 import ch.chuv.lren.woken.core.model.database.sqlUtils._
 import ch.chuv.lren.woken.core.fp.runNow
-import ch.chuv.lren.woken.messages.datasets.DatasetId
+import ch.chuv.lren.woken.messages.datasets.{ DatasetId, TableId }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
 import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
 import ch.chuv.lren.woken.messages.query.filters.FilterRule
@@ -43,14 +44,13 @@ import scala.language.higherKinds
 
 class FeaturesRepositoryDAO[F[_]: Effect] private (
     val xa: Transactor[F],
-    override val database: String,
-    override val tables: Set[FeaturesTableDescription],
+    override val database: DatabaseConfiguration,
     val wokenRepository: WokenRepository[F]
 ) extends FeaturesRepository[F] {
 
   override def featuresTable(table: TableId): F[Option[FeaturesTableRepository[F]]] =
-    tables
-      .find(_.table.same(table))
+    database.tables
+      .get(table)
       .map(
         t =>
           FeaturesTableRepositoryDAO[F](xa, t, wokenRepository)
@@ -66,15 +66,14 @@ object FeaturesRepositoryDAO {
 
   def apply[F[_]: Effect](
       xa: Transactor[F],
-      database: String,
-      tables: Set[FeaturesTableDescription],
+      database: DatabaseConfiguration,
       wokenRepository: WokenRepository[F]
   ): F[Validation[FeaturesRepositoryDAO[F]]] = {
 
     case class Check(schema: String, table: String, column: String)
 
     def columnCheck(table: FeaturesTableDescription, column: TableColumn): Check =
-      Check(table.table.schemaOrPublic, table.table.name, column.name)
+      Check(table.table.dbSchema, table.table.name, column.name)
 
     // TODO: add "and is_identity='YES'" to the check. Problem: our tables don't have their primary key properly defined
     def checkPrimaryKey(check: Check): Fragment = sql"""
@@ -87,21 +86,23 @@ object FeaturesRepositoryDAO {
         WHERE table_schema=${check.schema} and table_name=${check.table} and column_name=${check.column}"""
 
     val empty: List[F[Option[String]]] = Nil
-    val checks: List[F[Option[String]]] = tables
-      .filter(_.validateSchema)
+    val checks: List[F[Option[String]]] = database.tables
+      .filter(_._2.validateSchema)
       .map { table =>
-        val checkPk: List[F[Option[String]]] = table.primaryKey.map { pk =>
-          checkPrimaryKey(columnCheck(table, pk)).query[Int].to[List].transact(xa).map { test =>
-            if (test.nonEmpty) None
-            else
-              Some(s"Primary key ${pk.name} not found in table ${table.quotedName}")
+        val tableDescription = table._2
+        val checkPk: List[F[Option[String]]] = tableDescription.primaryKey.map { pk =>
+          checkPrimaryKey(columnCheck(tableDescription, pk)).query[Int].to[List].transact(xa).map {
+            test =>
+              if (test.nonEmpty) None
+              else
+                Some(s"Primary key ${pk.name} not found in table ${table._2.quotedName}")
           }
         }
 
         val checkDataset: List[F[Option[String]]] =
-          table.datasetColumn.fold(empty) { datasetColumn =>
+          tableDescription.datasetColumn.fold(empty) { datasetColumn =>
             val c =
-              checkDatasetColumn(columnCheck(table, datasetColumn))
+              checkDatasetColumn(columnCheck(tableDescription, datasetColumn))
                 .query[Int]
                 .to[List]
                 .transact(xa)
@@ -109,7 +110,7 @@ object FeaturesRepositoryDAO {
                   if (test.nonEmpty) None
                   else
                     Some(
-                      s"Dataset column ${datasetColumn.name} not found in table ${table.quotedName}"
+                      s"Dataset column ${datasetColumn.name} not found in table ${tableDescription.quotedName}"
                     )
                 }
             List(c)
@@ -123,7 +124,7 @@ object FeaturesRepositoryDAO {
       .map(_.flatten)
 
     errors.map {
-      case Nil                 => new FeaturesRepositoryDAO(xa, database, tables, wokenRepository).validNel[String]
+      case Nil                 => new FeaturesRepositoryDAO(xa, database, wokenRepository).validNel[String]
       case error :: moreErrors => Validated.Invalid(NonEmptyList(error, moreErrors))
     }
 

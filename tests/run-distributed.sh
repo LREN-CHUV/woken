@@ -9,7 +9,9 @@
 #   --no-frontend: do not start the frontend
 #
 
-set -e
+set -o pipefail  # trace ERR through pipes
+set -o errtrace  # trace ERR through 'time command' and other functions
+set -o errexit   ## set -e : exit the script if any statement returns a non-true return value
 
 get_script_dir () {
      SOURCE="${BASH_SOURCE[0]}"
@@ -49,17 +51,26 @@ if pgrep -lf sshuttle > /dev/null ; then
   exit 1
 fi
 
-if groups "$USER" | grep &>/dev/null '\bdocker\b'; then
-  DOCKER="docker"
+if [[ $NO_SUDO || -n "$CIRCLECI" ]]; then
+  DOCKER_COMPOSE="docker-compose -f docker-compose-federation.yml"
+elif groups "$USER" | grep &>/dev/null '\bdocker\b'; then
   DOCKER_COMPOSE="docker-compose -f docker-compose-federation.yml"
 else
-  DOCKER="sudo docker"
   DOCKER_COMPOSE="sudo docker-compose -f docker-compose-federation.yml"
 fi
 
-trap '$DOCKER_COMPOSE rm -f' SIGINT SIGQUIT
+function _cleanup() {
+  local error_code="$?"
+  echo "Stopping the containers..."
+  $DOCKER_COMPOSE stop | true
+  $DOCKER_COMPOSE down | true
+  $DOCKER_COMPOSE rm -f > /dev/null 2> /dev/null | true
+  exit $error_code
+}
+trap _cleanup SIGINT SIGQUIT
 
 export HOST=$(hostname)
+export TEST_ARGS="${test_args}"
 
 echo "Remove old running containers (if any)..."
 $DOCKER_COMPOSE kill
@@ -122,24 +133,30 @@ done
 echo "The Algorithm Factory is now running on your system"
 
 if [ $tests == 1 ]; then
-    echo
-    echo "Testing HTTP web services..."
+  echo
+  echo "Testing HTTP web services..."
 
-    ./http/query-knn-distributed.sh
+  ./http/query-knn-distributed.sh
 
-    echo
-    echo "Testing Akka API..."
+  echo
+  echo "Testing Akka API..."
 
-  $DOCKER_COMPOSE run wokencentraltest ${test_args}
+  mkdir -p woken-test/target/responses
+  $DOCKER_COMPOSE up wokentest ${test_args} | tee test.log
+
 fi
 
 if [ $frontend == 1 ]; then
-    echo
-    echo "Now that's up to you to play with the user interface..."
+  $DOCKER_COMPOSE up -d portalbackend
+  $DOCKER_COMPOSE run wait_portal_backend
+  $DOCKER_COMPOSE up -d frontend
 
-    $DOCKER_COMPOSE up -d portalbackend
-
-    $DOCKER_COMPOSE run wait_portal_backend
-
-    $DOCKER_COMPOSE up -d frontend
+  echo ""
+  echo "System up!"
+  echo "Useful URLs:"
+  echo "  http://frontend/ : the Web portal"
+  echo "  http://localhost:8080/services/swagger-ui.html : Swagger admin interface for backend"
+  echo "  http://localhost:8087 : Swagger admin interface for Woken Central"
+  echo "  http://localhost:18087 : Swagger admin interface for Woken Node 1"
+  echo "  http://localhost:28087 : Swagger admin interface for Woken Node 2"
 fi

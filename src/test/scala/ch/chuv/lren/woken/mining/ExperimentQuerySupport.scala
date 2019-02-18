@@ -17,20 +17,9 @@
 
 package ch.chuv.lren.woken.mining
 
-import java.util.UUID
-
-import cats.implicits._
-import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableId }
-import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.messages.variables.VariableId
-import ch.chuv.lren.woken.Predefined.Algorithms.{
-  anovaDefinition,
-  anovaFactorial,
-  knnDefinition,
-  knnWithK5
-}
-import ch.chuv.lren.woken.core.model.jobs.ExperimentJob
+import ch.chuv.lren.woken.config.ConfigurationInstances._
 
 import scala.collection.immutable.TreeSet
 
@@ -44,7 +33,7 @@ object ExperimentQuerySupport {
       covariablesMustExist = false,
       grouping = Nil,
       filters = None,
-      targetTable = Some("Sample"),
+      targetTable = Some(sampleDataTableId),
       algorithms = List(AlgorithmSpec(algorithm, parameters, None)),
       validations = List(ValidationSpec("kfold", List(CodeValue("k", "2")))),
       trainingDatasets = TreeSet(),
@@ -61,31 +50,13 @@ object ExperimentQuerySupport {
       covariablesMustExist = false,
       grouping = Nil,
       filters = None,
-      targetTable = Some("Sample"),
+      targetTable = Some(sampleDataTableId),
       algorithms = algorithms,
       validations = List(ValidationSpec("kfold", List(CodeValue("k", "2")))),
       trainingDatasets = TreeSet(),
       testingDatasets = TreeSet(),
       validationDatasets = TreeSet(),
       executionPlan = None
-    )
-
-  def experimentQuery2job(query: ExperimentQuery): Validation[ExperimentJob] =
-    ExperimentJob.mkValid(
-      UUID.randomUUID().toString,
-      query,
-      FeaturesTableDescription(TableId("features_db", None, query.targetTable.getOrElse("Sample")),
-                               Nil,
-                               None,
-                               validateSchema = false,
-                               None,
-                               0.67),
-      Nil, { spec =>
-        Map(knnWithK5 -> knnDefinition, anovaFactorial -> anovaDefinition)
-          .get(spec)
-          .toRight("Missing algorithm")
-          .toValidatedNel[String]
-      }
     )
 
 }

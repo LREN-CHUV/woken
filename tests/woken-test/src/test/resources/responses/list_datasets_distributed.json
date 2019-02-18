@@ -2,32 +2,48 @@
   "datasets": [
     {
       "anonymisationLevel": "Depersonalised",
-      "dataset": {
+      "description": "Node 2 dataset",
+      "id": {
         "code": "nida-synthdata"
       },
-      "description": "Node 2 dataset",
       "label": "NIDA",
       "location": {
         "url": "http://wokennode2:8087"
       },
       "tables": [
-        "cde_features_b",
-        "cde_features_mixed"
+        {
+          "database": "features",
+          "dbSchema": "public",
+          "name": "cde_features_b"
+        },
+        {
+          "database": "features",
+          "dbSchema": "public",
+          "name": "cde_features_mixed"
+        }
       ]
     },
     {
       "anonymisationLevel": "Depersonalised",
-      "dataset": {
+      "description": "Node 1 dataset",
+      "id": {
         "code": "desd-synthdata"
       },
-      "description": "Node 1 dataset",
       "label": "DESD",
       "location": {
         "url": "http://wokennode1:8087"
       },
       "tables": [
-        "cde_features_a",
-        "cde_features_mixed"
+        {
+          "database": "features",
+          "dbSchema": "public",
+          "name": "cde_features_a"
+        },
+        {
+          "database": "features",
+          "dbSchema": "public",
+          "name": "cde_features_mixed"
+        }
       ]
     }
   ]

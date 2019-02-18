@@ -160,16 +160,16 @@ class ExtendedFeaturesTableRepositoryDAOTest
       xa => {
         val wokenRepository = new WokenInMemoryRepository[IO]()
         val sourceTable =
-          new FeaturesTableRepositoryDAO[IO](xa, sampleTable, sampleHeaders, wokenRepository)
+          new FeaturesTableRepositoryDAO[IO](xa, churnTable, churnHeaders, wokenRepository)
         val extendedTableFromNoKeyTable = ExtendedFeaturesTableRepositoryDAO
           .apply[IO](sourceTable, None, Nil, Nil, Nil, wokenRepository.nextTableSeqNumber)
         extendedTableFromNoKeyTable should haveInvalid(
-          "Extended features table expects a primary key of one column for table Sample"
+          "Extended features table expects a primary key of one column for table churn"
         )
         sourceTable
       }
     ) { dao =>
-      dao.table.table.name shouldBe "Sample"
+      dao.table.table.name shouldBe "churn"
     }
 
     "create an extended table without any new columns and use it" in withRepositoryResource[

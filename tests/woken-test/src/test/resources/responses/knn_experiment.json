@@ -1411,6 +1411,25 @@
       "feedback": [],
       "jobId": "*",
       "node": "local",
+      "query": {
+        "algorithm": {
+          "code": "knn",
+          "parameters": [
+            {
+              "code": "k",
+              "value": "5"
+            }
+          ]
+        },
+        "covariables": [],
+        "covariablesMustExist": false,
+        "datasets": [],
+        "grouping": [],
+        "user": {
+          "code": "system"
+        },
+        "variables": []
+      },
       "timestamp": 0.0,
       "type": "application/pfa+json"
     }
@@ -1420,7 +1439,12 @@
       "code": "sample_data"
     }
   ],
-  "feedback": [],
+  "feedback": [
+    {
+      "msg": "Missing variables score_test1,college_math",
+      "severity": "info"
+    }
+  ],
   "jobId": "*",
   "node": "local",
   "query": {
@@ -1474,7 +1498,11 @@
       ]
     },
     "grouping": [],
-    "targetTable": "sample_data",
+    "targetTable": {
+      "database": "features",
+      "dbSchema": "public",
+      "name": "sample_data"
+    },
     "testingDatasets": [],
     "trainingDatasets": [],
     "user": {

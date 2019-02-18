@@ -5,7 +5,7 @@ version: '3.0'
 
 services:
   zookeeper:
-    image: zookeeper:3.4.11
+    image: zookeeper:3.4.13
     hostname: zookeeper
     ports:
       - '2181:2181'
@@ -212,7 +212,7 @@ services:
       - db
 
   woken_db_setup:
-    image: "hbpmip/woken-db-setup:1.3.2"
+    image: "hbpmip/woken-db-setup:1.3.3"
     container_name: "woken-db-setup"
     restart: "no"
     environment:
@@ -225,7 +225,7 @@ services:
       - db
 
   woken1_db_setup:
-    image: "hbpmip/woken-db-setup:1.3.2"
+    image: "hbpmip/woken-db-setup:1.3.3"
     container_name: "woken-db-setup"
     restart: "no"
     environment:
@@ -238,7 +238,7 @@ services:
       - db
 
   woken2_db_setup:
-    image: "hbpmip/woken-db-setup:1.3.2"
+    image: "hbpmip/woken-db-setup:1.3.3"
     container_name: "woken-db-setup"
     restart: "no"
     environment:
@@ -294,13 +294,17 @@ services:
       CLUSTER_NAME: woken-node1
       WOKEN_PORT_8088_TCP_ADDR: wokennode1
       DOCKER_BRIDGE_NETWORK: "tests_default"
+      LOG_LEVEL: DEBUG
       KAMON_ENABLED: "yes"
       KAMON_SERVICE_NAME: "woken-node-1"
       ZIPKIN_ENABLED: "yes"
       PROMETHEUS_ENABLED: "yes"
       SIGAR_SYSTEM_METRICS: "no"
       JVM_SYSTEM_METRICS: "no"
-      LOG_LEVEL: DEBUG
+      RELEASE_STAGE: "dev"
+      DATACENTER_LOCATION: "${HOST}-node1"
+      CONTAINER_ORCHESTRATION: "docker-compose"
+      JAVA_OPTIONS: "-agentlib:jdwp=transport=dt_socket,address=*:8000,server=y,suspend=n -Dcom.sun.management.jmxremote.port=3333 -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false"
     links:
       - zipkin
       - wokenprometheus
@@ -319,7 +323,7 @@ services:
       - chronos
 
   wokenvalidationnode1:
-    image: hbpmip/woken-validation:2.6.4
+    image: hbpmip/woken-validation:2.6.5
     ports:
       - "18081:8081"
       - "18082:8082"
@@ -328,13 +332,16 @@ services:
       CLUSTER_IP: wokenvalidationnode1
       CLUSTER_NAME: woken-node1
       WOKEN_PORT_8088_TCP_ADDR: wokennode1
+      LOG_LEVEL: DEBUG
       KAMON_ENABLED: "yes"
       KAMON_SERVICE_NAME: "woken-validation-node-1"
       ZIPKIN_ENABLED: "yes"
       PROMETHEUS_ENABLED: "yes"
       SIGAR_SYSTEM_METRICS: "no"
       JVM_SYSTEM_METRICS: "no"
-      LOG_LEVEL: DEBUG
+      RELEASE_STAGE: "dev"
+      DATACENTER_LOCATION: "${HOST}-node1"
+      CONTAINER_ORCHESTRATION: "docker-compose"
     links:
       - zipkin
       - wokenprometheus
@@ -364,13 +371,16 @@ services:
       CLUSTER_NAME: woken-node2
       WOKEN_PORT_8088_TCP_ADDR: wokennode2
       DOCKER_BRIDGE_NETWORK: "tests_default"
+      LOG_LEVEL: DEBUG
       KAMON_ENABLED: "yes"
       KAMON_SERVICE_NAME: "woken-node-2"
       ZIPKIN_ENABLED: "yes"
       PROMETHEUS_ENABLED: "yes"
       SIGAR_SYSTEM_METRICS: "no"
       JVM_SYSTEM_METRICS: "no"
-      LOG_LEVEL: DEBUG
+      RELEASE_STAGE: "dev"
+      DATACENTER_LOCATION: "${HOST}-node2"
+      CONTAINER_ORCHESTRATION: "docker-compose"
     links:
       - zipkin
       - wokenprometheus
@@ -389,7 +399,7 @@ services:
       - chronos
 
   wokenvalidationnode2:
-    image: hbpmip/woken-validation:2.6.4
+    image: hbpmip/woken-validation:2.6.5
     ports:
       - "28081:8081"
       - "28082:8082"
@@ -398,13 +408,16 @@ services:
       CLUSTER_IP: wokenvalidationnode2
       CLUSTER_NAME: woken-node2
       WOKEN_PORT_8088_TCP_ADDR: wokennode2
+      LOG_LEVEL: DEBUG
       KAMON_ENABLED: "yes"
       KAMON_SERVICE_NAME: "woken-validation-node-2"
       ZIPKIN_ENABLED: "yes"
       PROMETHEUS_ENABLED: "yes"
       SIGAR_SYSTEM_METRICS: "no"
       JVM_SYSTEM_METRICS: "no"
-      LOG_LEVEL: DEBUG
+      RELEASE_STAGE: "dev"
+      DATACENTER_LOCATION: "${HOST}-node2"
+      CONTAINER_ORCHESTRATION: "docker-compose"
     links:
       - zipkin
     depends_on:
@@ -433,13 +446,16 @@ services:
       CLUSTER_NAME: woken-central
       WOKEN_PORT_8088_TCP_ADDR: wokencentral
       DOCKER_BRIDGE_NETWORK: "tests_default"
+      LOG_LEVEL: DEBUG
       KAMON_ENABLED: "yes"
       KAMON_SERVICE_NAME: "woken-central"
       ZIPKIN_ENABLED: "yes"
       PROMETHEUS_ENABLED: "yes"
       SIGAR_SYSTEM_METRICS: "no"
       JVM_SYSTEM_METRICS: "no"
-      LOG_LEVEL: DEBUG
+      RELEASE_STAGE: "dev"
+      DATACENTER_LOCATION: "$HOST"
+      CONTAINER_ORCHESTRATION: "docker-compose"
     links:
       - zipkin
       - wokenprometheus
@@ -475,7 +491,7 @@ services:
       - wokencentral
 
   portalbackend:
-    image: hbpmip/portal-backend:2.9.0
+    image: hbpmip/portal-backend:2.9.2
     restart: "no"
     ports:
       - "65440:8080"
@@ -509,6 +525,9 @@ services:
       LOGGING_LEVEL_WEB: DEBUG
       LOGGING_LEVEL_HIBERNATE: WARN
       SESSION_TIMEOUT: 2592000
+      RELEASE_STAGE: "dev"
+      DATACENTER_LOCATION: "$HOST"
+      CONTAINER_ORCHESTRATION: "docker-compose"
     depends_on:
       - db
       - wokencentral
@@ -523,7 +542,7 @@ services:
       - portalbackend
 
   frontend:
-    image: hbpmip/portal-frontend:2.13.4
+    image: hbpmip/portal-frontend:2.15.1
     depends_on:
       - portalbackend
     ports:
@@ -536,7 +555,7 @@ services:
       PORTAL_BACKEND_CONTEXT: services
       MODE: federation
       INSTANCE_NAME: DEV
-      VERSION: "2.9.0-dev (Woken dev, Validation 2.6.1, Backend 2.9.1, Frontend 2.13.4)"
+      VERSION: "2.9.0-dev (Woken dev, Validation 2.6.4, Backend 2.9.2, Frontend 2.15.1)"
 
 networks:
   default:

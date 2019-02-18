@@ -21,6 +21,7 @@ import com.typesafe.config.Config
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
 import cats.data.Validated._
 import cats.implicits._
+import ch.chuv.lren.woken.messages.datasets.TableId
 
 /**
   * Configuration for the jobs executing algorithms on this node
@@ -28,7 +29,8 @@ import cats.implicits._
   * @param node Name of the current node used for computations
   * @param owner Owner of the job, can be an email address
   * @param chronosServerUrl URL to Chronos server used to launch Docker containers in the Mesos cluster
-  * @param featuresDb Configuration alias of the database containing features
+  * @param defaultFeaturesDatabase Default database to use when looking for a table containing features
+  * @param defaultFeaturesTable Pointer to the table containing features
   * @param resultDb Configuration alias of the database used to store results
   * @param defaultJobMemory Default memory in Mb allocated to a job
   * @param defaultJobCpus Default share of CPUs allocated to a job
@@ -37,11 +39,10 @@ final case class JobsConfiguration(
     node: String,
     owner: String,
     chronosServerUrl: String,
-    featuresDb: String,
-    featuresTable: String,
-    metadataKeyForFeaturesTable: String,
-    resultDb: String,
-    metaDb: String,
+    defaultFeaturesDatabase: DatabaseId,
+    defaultFeaturesTable: TableId,
+    resultDb: DatabaseId,
+    metaDb: DatabaseId,
     defaultJobCpus: Double,
     defaultJobMemory: Int
 )
@@ -56,22 +57,25 @@ object JobsConfiguration {
       val node             = jobs.validateString("node")
       val owner            = jobs.validateString("owner")
       val chronosServerUrl = jobs.validateString("chronosServerUrl")
-      val featuresDb       = jobs.validateString("featuresDb")
-      val featuresTable    = jobs.validateString("featuresTable")
-      val metadataKeyForFeaturesTable: Validation[String] =
-        jobs.validateString("metadataKeyForFeaturesTable").orElse(featuresTable)
-      val resultDb = jobs.validateString("resultDb")
-      val metaDb   = jobs.validateString("metaDb")
+      val defaultFeaturesDatabase: Validation[DatabaseId] =
+        jobs.validateString("defaults.features.database").map(DatabaseId)
+      val defaultFeaturesTable: Validation[TableId] = jobs
+        .validateConfig("defaults.features.table")
+        .andThen(
+          tableConfig => defaultFeaturesDatabase.andThen(db => tableIdConfig(db, tableConfig))
+        )
+      val resultDb: Validation[DatabaseId] = jobs.validateString("resultDb").map(DatabaseId)
+      val metaDb: Validation[DatabaseId]   = jobs.validateString("metaDb").map(DatabaseId)
       val cpus: Validation[Double] =
-        jobs.validateDouble("defaultJobCpus").orElse(0.5.validNel[String])
-      val mem: Validation[Int] = jobs.validateInt("defaultJobMemory").orElse(512.validNel[String])
+        jobs.validateDouble("defaults.job.cpus").orElse(0.5.validNel[String])
+      val mem: Validation[Int] =
+        jobs.validateInt("defaults.job.memory").orElse(512.validNel[String])
 
       (node,
        owner,
        chronosServerUrl,
-       featuresDb,
-       featuresTable,
-       metadataKeyForFeaturesTable,
+       defaultFeaturesDatabase,
+       defaultFeaturesTable,
        resultDb,
        metaDb,
        cpus,
@@ -79,4 +83,13 @@ object JobsConfiguration {
     }
   }
 
+  private def tableIdConfig(defaultFeatureDatabase: DatabaseId,
+                            tableConfig: Config): Validation[TableId] = {
+    val name   = tableConfig.validateString("name")
+    val schema = tableConfig.validateOptionalString("schema").map(_.getOrElse("public"))
+    val database =
+      tableConfig.validateOptionalString("database").map(_.getOrElse(defaultFeatureDatabase.code))
+
+    (database, schema, name) mapN TableId.apply
+  }
 }

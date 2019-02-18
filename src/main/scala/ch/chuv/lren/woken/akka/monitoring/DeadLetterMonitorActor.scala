@@ -19,7 +19,7 @@ package ch.chuv.lren.woken.akka.monitoring
 
 import akka.actor.{ Actor, DeadLetter, Props }
 import com.typesafe.scalalogging.LazyLogging
-import org.slf4j.MarkerFactory
+import ch.chuv.lren.woken.errors._
 
 object DeadLetterMonitorActor {
   def props: Props = Props(new DeadLetterMonitorActor())
@@ -30,7 +30,7 @@ class DeadLetterMonitorActor extends Actor with LazyLogging {
   @SuppressWarnings(Array("org.wartremover.warts.Any", "org.wartremover.warts.NonUnitStatements"))
   def receive: Receive = {
     case d: DeadLetter =>
-      logger.error(MarkerFactory.getMarker("SKIP_REPORTING"), s"Saw dead letter $d")
+      logger.error(SKIP_REPORTING_MARKER, s"Saw dead letter $d")
 
     case _ =>
       logger.debug("DeadLetterMonitorActor: got a message")

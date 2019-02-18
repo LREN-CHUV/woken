@@ -46,8 +46,8 @@ lazy val `woken` =
           library.kamonSigar,
           library.akkaHttpSwagger,
           library.swaggerScala,
-          library.swaggerJaxrs,
           library.swaggerUI,
+          library.javaxWsRs,
           library.sprayJson,
           library.slf4j,
           library.log4jSlf4j,
@@ -98,12 +98,14 @@ lazy val library =
       val scalaCheck      = "1.14.0"
       val scalaTest       = "3.0.5"
       val scalaMock       = "4.1.0"
-      val akka            = "2.5.20"
+      val akka            = "2.5.21"
       val akkaHttp        = "10.1.7"
       val akkaHttpCors    = "0.3.4"
       val akkaManagement  = "0.20.0"
       val akkaHttpSwagger = "2.0.1"
       val swaggerScala    = "2.0.3"
+      val swaggerUI       = "3.20.5"
+      val javaxWsRs       = "2.1.1"
       val kamon           = "1.1.5"
       val kamonAkka       = "1.1.3"
       val kamonAkkaRemote = "1.1.0"
@@ -113,15 +115,13 @@ lazy val library =
       val kamonSystemMetrics = "1.0.1"
       val kamonSigar      = "1.6.6-rev002"
       val bugsnag         = "3.4.1"
-      val swaggerJaxrs    = "1.5.21"
-      val swaggerUI       = "3.20.5"
       val sprayJson       = "1.3.5"
       val slf4j           = "1.7.25"
-      val log4j           = "2.11.1"
+      val log4j           = "2.11.2"
       val disruptor       = "3.4.2"
       val scalaLogging    = "3.9.0"
       val cats            = "1.6.0"
-      val kittens         = "1.2.0"
+      val kittens         = "1.2.1"
       val catsScalaTest   = "2.4.0"
       val treelog         = "1.4.6"
       val config          = "1.3.3"
@@ -132,7 +132,7 @@ lazy val library =
       val dockerTestKit   = "0.9.8"
       val diff            = "2.0.1"
       val acyclic         = "0.1.8"
-      val wokenMessages   = "2.9.5"
+      val wokenMessages   = "3.0.0"
       val sup             = "0.2.1"
       val sttpBackend     = "1.5.9"
     }
@@ -163,6 +163,8 @@ lazy val library =
     val akkaManagementClusterHttp: ModuleID =  "com.lightbend.akka.management" %% "akka-management-cluster-http" % Version.akkaManagement excludeAll ExclusionRules.excludeAkkaClusterSharding
     val akkaHttpSwagger: ModuleID = "com.github.swagger-akka-http"   %% "swagger-akka-http" % Version.akkaHttpSwagger
     val swaggerScala: ModuleID = "com.github.swagger-akka-http"   %% "swagger-scala-module" % Version.swaggerScala
+    val swaggerUI: ModuleID    = "org.webjars"        % "swagger-ui"      % Version.swaggerUI
+    val javaxWsRs: ModuleID    = "javax.ws.rs"        % "javax.ws.rs-api" % Version.javaxWsRs
 
     // Kamon
     val kamon: ModuleID        = "io.kamon" %% "kamon-core" % Version.kamon excludeAll ExclusionRules.excludeLogback
@@ -175,8 +177,6 @@ lazy val library =
     val kamonSigar: ModuleID   = "io.kamon"           % "sigar-loader" % Version.kamonSigar
     val bugsnag: ModuleID      = "com.bugsnag"       % "bugsnag"       % Version.bugsnag excludeAll ExclusionRules.excludeJackson
 
-    val swaggerJaxrs: ModuleID  = "io.swagger"        % "swagger-jaxrs" % Version.swaggerJaxrs
-    val swaggerUI: ModuleID    = "org.webjars"        % "swagger-ui"   % Version.swaggerUI
     val sprayJson: ModuleID    = "io.spray"          %% "spray-json"   % Version.sprayJson
     val slf4j: ModuleID        = "org.slf4j"          % "slf4j-api"    % Version.slf4j
     val log4jSlf4j: ModuleID   = "org.apache.logging.log4j" % "log4j-slf4j-impl" % Version.log4j
@@ -305,6 +305,8 @@ val aopMerge: MergeStrategy = new MergeStrategy {
 val customMergeStrategy: String => MergeStrategy = {
   case PathList("META-INF", "aop.xml") =>
     aopMerge
+  case PathList("module-info.class") =>
+    MergeStrategy.discard
   case PathList("META-INF", "io.netty.versions.properties") =>
     MergeStrategy.first
   case s =>

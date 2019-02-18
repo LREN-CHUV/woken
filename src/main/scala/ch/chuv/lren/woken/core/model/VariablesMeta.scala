@@ -20,6 +20,7 @@ package ch.chuv.lren.woken.core.model
 import ch.chuv.lren.woken.messages.variables.{ GroupMetaData, VariableId, VariableMetaData }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import cats.syntax.validated._
+import ch.chuv.lren.woken.messages.datasets.TableId
 
 // TODO: source field in VariablesMeta has unclear semantics and purpose.
 
@@ -35,7 +36,7 @@ import cats.syntax.validated._
 case class VariablesMeta(id: Int,
                          source: String,
                          hierarchy: GroupMetaData,
-                         targetFeaturesTable: String,
+                         targetFeaturesTable: TableId,
                          defaultHistogramGroupings: List[VariableId]) {
 
   /**

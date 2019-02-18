@@ -22,7 +22,6 @@ import java.util.UUID
 import akka.actor.{ ActorSystem, Props }
 import akka.stream.ActorMaterializer
 import akka.testkit.{ ImplicitSender, TestKit }
-import com.typesafe.config.{ Config, ConfigFactory }
 import ch.chuv.lren.woken.config._
 import ch.chuv.lren.woken.config.ConfigurationInstances._
 import ch.chuv.lren.woken.backends.woken.WokenClientService
@@ -30,15 +29,13 @@ import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.service._
-import ch.chuv.lren.woken.messages.datasets.{ Dataset, DatasetId, DatasetsQuery, DatasetsResponse }
+import ch.chuv.lren.woken.messages.datasets._
 import ch.chuv.lren.woken.messages.datasets.AnonymisationLevel._
 import ch.chuv.lren.woken.messages.variables.VariableId
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import org.scalatest.tagobjects.Slow
-import cats.data.Validated._
 import cats.effect.{ Effect, IO }
 import cats.syntax.validated._
-import ch.chuv.lren.woken.core.model.database.TableId
 import ch.chuv.lren.woken.core.model.jobs.{ DockerJob, ExperimentJob }
 import ch.chuv.lren.woken.messages.remoting.RemoteLocation
 
@@ -60,12 +57,10 @@ class MasterRouterTest
 
   import ch.chuv.lren.woken.service.TestServices._
 
-  val tableId = TableId("test_db", None, "features_table")
-
   def experimentQuery2job(query: ExperimentQuery): Validation[ExperimentJob] =
     ExperimentJob(
       jobId = UUID.randomUUID().toString,
-      inputTable = tableId,
+      inputTable = featuresTableId,
       query = query,
       metadata = Nil,
       queryAlgorithms = Map()
@@ -74,7 +69,7 @@ class MasterRouterTest
   def miningQuery2job(query: MiningQuery): Validation[DockerJob] = {
     val featuresQuery = query
       .filterNulls(variablesCanBeNull = true, covariablesCanBeNull = true)
-      .features(tableId, None)
+      .features(featuresTableId, None)
 
     DockerJob(
       jobId = UUID.randomUUID().toString,
@@ -110,29 +105,16 @@ class MasterRouterTest
 
   }
 
-  val tsConfig: Config = ConfigFactory
-    .parseResourcesAnySyntax("remoteDatasets.conf")
-    .withFallback(ConfigFactory.load("test.conf"))
-    .resolve()
-
-  val appConfig: AppConfiguration = AppConfiguration
-    .read(tsConfig)
-    .valueOr(
-      e => throw new IllegalStateException(s"Invalid configuration: ${e.toList.mkString(", ")}")
-    )
-
-  val jdbcConfigs: String => Validation[DatabaseConfiguration] = _ => Valid(noDbConfig)
-
-  val config: WokenConfiguration = WokenConfiguration(tsConfig)
+  val config: WokenConfiguration = centralNodeConfig
 
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   val wokenService: WokenClientService = WokenClientService("test")
 
-  val dispatcherService: DispatcherService =
-    DispatcherService(DatasetsConfiguration.datasets(config.config), wokenService)
-
   val databaseServices: DatabaseServices[IO] = TestServices.databaseServices(config)
+
+  val dispatcherService: DispatcherService =
+    DispatcherService(databaseServices.datasetService, wokenService)
 
   val user: UserId = UserId("test")
 
@@ -147,7 +129,7 @@ class MasterRouterTest
 
     "starts new experiments" ignore {
 
-      val limit = appConfig.masterRouterConfig.experimentActorsLimit
+      val limit = config.app.masterRouterConfig.experimentActorsLimit
 
       (1 to limit).foreach { _ =>
         router ! ExperimentQuery(
@@ -182,7 +164,7 @@ class MasterRouterTest
 
     "not start new experiments over the limit of concurrent experiments, then recover" taggedAs Slow ignore {
 
-      val limit    = appConfig.masterRouterConfig.experimentActorsLimit
+      val limit    = config.app.masterRouterConfig.experimentActorsLimit
       val overflow = limit * 2
 
       (1 to overflow).foreach { _ =>
@@ -277,7 +259,7 @@ class MasterRouterTest
         covariablesMustExist = false,
         grouping = Nil,
         filters = None,
-        targetTable = Some("sample_data"),
+        targetTable = Some(sampleDataTableId),
         algorithm = AlgorithmSpec("knn", List(CodeValue("k", "5")), None),
         datasets = TreeSet(),
         executionPlan = None
@@ -294,29 +276,35 @@ class MasterRouterTest
 
     "return available datasets" in {
 
-      router ! DatasetsQuery(Some("DATA"))
+      router ! DatasetsQuery(Some(cdeFeaturesATableId.name))
 
       within(5 seconds) {
         val msg = expectMsgType[DatasetsResponse]
         val expected = Set(
-          Dataset(DatasetId("remoteData1"),
-                  "Remote dataset #1",
-                  "Remote dataset #1",
-                  List("DATA"),
-                  Depersonalised,
-                  Some(RemoteLocation("http://service.remote/1", None))),
-          Dataset(DatasetId("remoteData2"),
-                  "Remote dataset #2",
-                  "Remote dataset #2",
-                  List("DATA"),
-                  Depersonalised,
-                  Some(RemoteLocation("http://service.remote/2", None))),
-          Dataset(DatasetId("remoteData3"),
-                  "Remote dataset #3",
-                  "Remote dataset #3",
-                  List("DATA"),
-                  Depersonalised,
-                  Some(RemoteLocation("wss://service.remote/3", None)))
+          Dataset(
+            DatasetId("remoteData1"),
+            "Remote dataset #1",
+            "Remote dataset #1",
+            List(cdeFeaturesATableId),
+            Depersonalised,
+            Some(RemoteLocation("http://service.remote/1", None))
+          ),
+          Dataset(
+            DatasetId("remoteData2"),
+            "Remote dataset #2",
+            "Remote dataset #2",
+            List(cdeFeaturesATableId),
+            Depersonalised,
+            Some(RemoteLocation("http://service.remote/2", None))
+          ),
+          Dataset(
+            DatasetId("remoteData3"),
+            "Remote dataset #3",
+            "Remote dataset #3",
+            List(cdeFeaturesATableId),
+            Depersonalised,
+            Some(RemoteLocation("wss://service.remote/3", None))
+          )
         )
 
         msg.datasets shouldBe expected

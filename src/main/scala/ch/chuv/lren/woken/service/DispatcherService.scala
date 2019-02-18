@@ -24,7 +24,6 @@ import cats.effect.Effect
 import cats.implicits._
 import ch.chuv.lren.woken.core.fp._
 import ch.chuv.lren.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryResult }
-import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import com.typesafe.scalalogging.{ LazyLogging, Logger }
 import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.core.model.VariablesMeta
@@ -63,30 +62,28 @@ trait DispatcherService {
 /**
   * Creates flows that dispatch queries to local or remote Woken workers according to the datasets
   *
-  * @param allDatasets All datasets known to this Woken instance
+  * @param datasetService The service providing datasets
   * @param wokenClientService The client service used to dispatch calls to other Woken instances
   * @author Ludovic Claude <ludovic.claude@chuv.ch>
   */
-class DispatcherServiceImpl(val allDatasets: Map[DatasetId, Dataset],
+class DispatcherServiceImpl(val datasetService: DatasetService,
                             val wokenClientService: WokenClientService)
     extends DispatcherService
     with LazyLogging {
 
-  override lazy val localDatasets: Set[DatasetId] = allDatasets.filter {
-    case (_, dataset) => dataset.location.isEmpty
-  }.keySet
+  override lazy val localDatasets: Set[DatasetId] = datasetService
+    .datasets()
+    .filter {
+      case (_, dataset) => dataset.location.isEmpty
+    }
+    .keySet
 
   override def dispatchTo(dataset: DatasetId): Option[RemoteLocation] =
-    if (allDatasets.isEmpty)
-      None
-    else
-      allDatasets.get(dataset).flatMap(_.location)
+    datasetService.datasets().get(dataset).flatMap(_.location)
 
   override def dispatchTo(datasets: Set[DatasetId]): (Set[RemoteLocation], Boolean) = {
     logger.whenDebugEnabled(
-      logger.debug(
-        s"Dispatch to datasets [${datasets.map(_.code).mkString(",")}] knowing [${allDatasets.keys.map(_.code).mkString(",")}]"
-      )
+      logger.debug(s"Dispatch to datasets [${datasets.map(_.code).mkString(",")}]")
     )
     val maybeLocations = datasets.map(dispatchTo)
     val local          = maybeLocations.isEmpty || maybeLocations.contains(None)
@@ -163,17 +160,17 @@ class DispatcherServiceImpl(val allDatasets: Map[DatasetId, Dataset],
   ): Flow[VariablesForDatasetsQuery, VariablesForDatasetsQR, NotUsed] =
     Flow[VariablesForDatasetsQuery]
       .map[VariablesForDatasetsQR] { q =>
-        val datasets: Set[Dataset] = datasetService
+        val datasets: Iterable[Dataset] = datasetService
           .datasets()
+          .values
           .filter(_.location.isEmpty)
-          .filter(ds => q.datasets.isEmpty || q.datasets.contains(ds.dataset))
+          .filter(ds => q.datasets.isEmpty || q.datasets.contains(ds.id))
         val mergedVariables = datasets
           .map { ds =>
             val varsForDs = ds.tables
-              .map(_.toUpperCase) // TODO: table name should not always be uppercase
-              .flatMap(v => runNow(variablesMetaService.get(v)))
+              .flatMap(tableId => runNow(variablesMetaService.get(tableId)))
               .flatMap(_.allVariables())
-              .map(_.copy(datasets = Set(ds.dataset)))
+              .map(_.copy(datasets = Set(ds.id)))
             varsForDs.toSet
           }
           .foldLeft(Set[VariableMetaData]()) {
@@ -190,16 +187,7 @@ object DispatcherService {
 
   private val logger = Logger("DispatcherService")
 
-  private[service] def loadDatasets(
-      datasets: Validation[Map[DatasetId, Dataset]]
-  ): Map[DatasetId, Dataset] =
-    datasets.fold({ e =>
-      logger.info(s"No datasets configured: $e")
-      Map[DatasetId, Dataset]()
-    }, identity)
-
-  def apply(datasets: Validation[Map[DatasetId, Dataset]],
-            wokenService: WokenClientService): DispatcherService =
-    new DispatcherServiceImpl(loadDatasets(datasets), wokenService)
+  def apply(datasetsService: DatasetService, wokenService: WokenClientService): DispatcherService =
+    new DispatcherServiceImpl(datasetsService, wokenService)
 
 }

@@ -26,6 +26,7 @@ import ch.chuv.lren.woken.messages.variables.{ GroupMetaData, variablesProtocol 
 import sup.HealthCheck
 import ch.chuv.lren.woken.core.model.database.FeaturesTableDescription
 import ch.chuv.lren.woken.core.model.VariablesMeta
+import ch.chuv.lren.woken.messages.datasets.TableId
 import variablesProtocol._
 
 import scala.collection.mutable
@@ -36,11 +37,17 @@ class VariablesMetaRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
 
   implicit val groupMetaDataMeta: Meta[GroupMetaData] = codecMeta[GroupMetaData]
 
-  // TODO: use a real cache, for example ScalaCache + Caffeine
-  val variablesMetaCache: mutable.Map[String, VariablesMeta] =
-    new mutable.WeakHashMap[String, VariablesMeta]()
+  implicit val han: LogHandler = LogHandler.jdkLogHandler
 
-  override def put(v: VariablesMeta): F[VariablesMeta] =
+  // TODO: use a real cache, for example ScalaCache + Caffeine
+  val variablesMetaCache: mutable.Map[TableId, VariablesMeta] =
+    new mutable.WeakHashMap[TableId, VariablesMeta]()
+
+  override def put(v: VariablesMeta): F[VariablesMeta] = {
+    // TODO: add database and schema to the values
+    val database = v.targetFeaturesTable.database
+    val schema   = v.targetFeaturesTable.dbSchema
+    val table    = v.targetFeaturesTable.name
     sql"""
         INSERT INTO meta_variables (source,
                              hierarchy,
@@ -48,7 +55,7 @@ class VariablesMetaRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
                              histogram_groupings)
               VALUES (${v.source},
                       ${v.hierarchy},
-                      ${v.targetFeaturesTable},
+                      $table,
                       ${v.defaultHistogramGroupings})
       """.update
       .withUniqueGeneratedKeys[VariablesMeta]("id",
@@ -57,18 +64,23 @@ class VariablesMetaRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
                                               "target_table",
                                               "histogram_groupings")
       .transact(xa)
+  }
 
-  override def get(targetFeaturesTable: String): F[Option[VariablesMeta]] = {
-    val table = targetFeaturesTable.toUpperCase
-    val v     = variablesMetaCache.get(table)
+  override def get(targetFeaturesTable: TableId): F[Option[VariablesMeta]] = {
+    val database = targetFeaturesTable.database
+    val schema   = targetFeaturesTable.dbSchema
+    val table    = targetFeaturesTable.name
+    val v        = variablesMetaCache.get(targetFeaturesTable)
 
+    // TODO: add database and schema to the where clause
+    // TODO: collapse database,schema,table into a TableId in the Doobie mappings
     v.fold(
-      sql"SELECT id, source, hierarchy, target_table, histogram_groupings FROM meta_variables WHERE target_table=$table"
+      sql"SELECT id, source, hierarchy, 'features' as database, 'public' as db_schema, target_table as name, histogram_groupings FROM meta_variables WHERE upper(target_table)=upper($table)"
         .query[VariablesMeta]
         .option
         .transact(xa)
         .map { r: Option[VariablesMeta] =>
-          r.foreach(variablesMetaCache.put(table, _))
+          r.foreach(variablesMetaCache.put(targetFeaturesTable, _))
           r
         }
     )(Option(_).pure[F])
@@ -83,7 +95,7 @@ class TablesCatalogRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
 
   override def put(table: FeaturesTableDescription): F[FeaturesTableDescription] = ???
 
-  override def get(table: String): F[Option[FeaturesTableDescription]] = ???
+  override def get(table: TableId): F[Option[FeaturesTableDescription]] = ???
 
   override def healthCheck: HealthCheck[F, Id] = validate(xa)
 }

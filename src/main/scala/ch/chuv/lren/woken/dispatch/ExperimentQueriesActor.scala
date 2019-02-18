@@ -175,7 +175,7 @@ class ExperimentQueriesActor[F[_]: Effect](
         mapFlow(job.query, job.queryAlgorithms, prov, feedback)
           .mapAsync(parallelism = 1) {
             case List()        => Future(noResult(job.query, Set(), feedback))
-            case List(result)  => Future(result.copy(query = Some(query)))
+            case List(result)  => Future(result.copy(query = query))
             case listOfResults => gatherAndReduce(query, listOfResults, None)
           }
           .log("Result of experiment")
@@ -217,7 +217,7 @@ class ExperimentQueriesActor[F[_]: Effect](
         mapFlow(mapQuery, job.queryAlgorithms, prov, feedback)
           .mapAsync(parallelism = 1) {
             case List()       => Future(noResult(query, Set(), feedback))
-            case List(result) => Future(result.copy(query = Some(query)))
+            case List(result) => Future(result.copy(query = query))
             case mapResults =>
               gatherAndReduce(query, mapResults, reduceQuery)
           }
@@ -243,7 +243,7 @@ class ExperimentQueriesActor[F[_]: Effect](
               .named("remote-validation-of-distributed-experiment")
               .via(remoteValidationFlow)
               .map[QueryResult] { r =>
-                r.experimentResult.asQueryResult(Some(mapQuery),
+                r.experimentResult.asQueryResult(mapQuery,
                                                  prov ++ r.dataProvenance,
                                                  feedback ++ r.feedback)
               }
@@ -289,7 +289,7 @@ class ExperimentQueriesActor[F[_]: Effect](
               .named("remote-validation-of-local-experiment")
               .via(remoteValidationFlow)
               .map[QueryResult] { r =>
-                r.experimentResult.asQueryResult(Some(r.query), r.dataProvenance, r.feedback)
+                r.experimentResult.asQueryResult(r.query, r.dataProvenance, r.feedback)
               }
               .log("Final result of experiment")
               .withAttributes(debugElements)

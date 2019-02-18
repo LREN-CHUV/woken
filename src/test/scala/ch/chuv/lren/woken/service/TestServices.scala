@@ -24,12 +24,14 @@ import ch.chuv.lren.woken.backends.faas.AlgorithmExecutor
 import ch.chuv.lren.woken.backends.worker.WokenWorker
 import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.core.model.VariablesMeta
-import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableId }
+import ch.chuv.lren.woken.core.model.database.FeaturesTableDescription
 import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
 import ch.chuv.lren.woken.dao._
 import ch.chuv.lren.woken.errors.ErrorReporter
+import ch.chuv.lren.woken.messages.datasets.TableId
 import ch.chuv.lren.woken.messages.variables.{ GroupMetaData, VariableId }
 import ch.chuv.lren.woken.messages.variables.variablesProtocol._
+import ch.chuv.lren.woken.config.ConfigurationInstances._
 import org.scalamock.scalatest.MockFactory
 import spray.json.JsObject
 
@@ -51,24 +53,24 @@ object TestServices extends JsonUtils with FeaturesTableTestSupport with MockFac
       1,
       "churn",
       churnHierarchy,
-      "CHURN",
+      churnDataTableId,
       List("state", "custserv_calls", "churn").map(VariableId)
     )
 
     val sampleHierarchy     = loadJson("/metadata/sample_variables.json").convertTo[GroupMetaData]
-    val sampleVariablesMeta = VariablesMeta(2, "sample", sampleHierarchy, "Sample", Nil)
+    val sampleVariablesMeta = VariablesMeta(2, "sample", sampleHierarchy, sampleDataTableId, Nil)
 
     val cdeHierarchy = loadJson("/metadata/mip_cde_variables.json").convertTo[GroupMetaData]
     val cdeGroupings =
       List("dataset", "gender", "agegroup", "alzheimerbroadcategory").map(VariableId)
     val featuresAVariablesMeta =
-      VariablesMeta(3, "cde_features_a", cdeHierarchy, "CDE_FEATURES_A", cdeGroupings)
+      VariablesMeta(3, "cde_features_a", cdeHierarchy, cdeFeaturesATableId, cdeGroupings)
     val featuresBVariablesMeta =
-      VariablesMeta(4, "cde_features_b", cdeHierarchy, "CDE_FEATURES_B", cdeGroupings)
+      VariablesMeta(4, "cde_features_b", cdeHierarchy, cdeFeaturesBTableId, cdeGroupings)
     val featuresCVariablesMeta =
-      VariablesMeta(5, "cde_features_c", cdeHierarchy, "CDE_FEATURES_C", cdeGroupings)
+      VariablesMeta(5, "cde_features_c", cdeHierarchy, cdeFeaturesCTableId, cdeGroupings)
     val featuresMixedVariablesMeta =
-      VariablesMeta(6, "cde_features_mixed", cdeHierarchy, "CDE_FEATURES_MIXED", cdeGroupings)
+      VariablesMeta(6, "cde_features_mixed", cdeHierarchy, cdeFeaturesMixedTableId, cdeGroupings)
 
     val metaService = new MetadataInMemoryRepository[IO]().variablesMeta
 
@@ -84,20 +86,23 @@ object TestServices extends JsonUtils with FeaturesTableTestSupport with MockFac
 
   lazy val algorithmLibraryService: AlgorithmLibraryService = AlgorithmLibraryService()
 
-  val tables: Set[FeaturesTableDescription] = Set(sampleTable, cdeTable)
+  val tables: Map[TableId, FeaturesTableDescription] =
+    Set(sampleTable, cdeTable).map(t => (t.table, t)).toMap
   val tablesContent: Map[TableId, (Headers, List[JsObject])] = Map(
     sampleTable.table -> (sampleHeaders -> sampleData),
     cdeTable.table    -> (cdeHeaders    -> cdeData)
   )
 
   lazy val featuresService: FeaturesService[IO] = FeaturesService(
-    new FeaturesInMemoryRepository[IO](database, tables, tablesContent)
+    new FeaturesInMemoryRepository[IO](featuresDbConfiguration, tablesContent)
   )
 
-  val featuresTableId = TableId("features_db", None, "Sample")
+  val emptyFeaturesTableId = TableId(featuresDb.code, "empty_table")
+  val emptyFeatureTable =
+    FeaturesTableDescription(emptyFeaturesTableId, Nil, None, validateSchema = false, None, 0.67)
 
   lazy val emptyFeaturesTableService: FeaturesTableService[IO] = new FeaturesTableServiceImpl(
-    new FeaturesTableInMemoryRepository[IO](featuresTableId, Nil, None, Nil)
+    new FeaturesTableInMemoryRepository[IO](emptyFeatureTable, Nil, None, Nil)
   )
 
   implicit val ec: ExecutionContext                       = ExecutionContext.global
@@ -105,7 +110,7 @@ object TestServices extends JsonUtils with FeaturesTableTestSupport with MockFac
   implicit lazy val defaultTimer: Timer[IO]               = cats.effect.IO.timer(ec)
 
   def databaseServices(config: WokenConfiguration): DatabaseServices[IO] = {
-    val datasetService: DatasetService = ConfBasedDatasetService(config.config)
+    val datasetService: DatasetService = ConfBasedDatasetService(config.config, config.jobs)
     val queryToJobService = QueryToJobService(featuresService,
                                               localVariablesMetaService,
                                               config.jobs,

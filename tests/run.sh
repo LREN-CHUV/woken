@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 #
-# Start Woken and its full environment
+# Start Woken and its full environment (Algorithm Factory)
 #
 # Option:
 #   --no-tests: skip the test suite
@@ -56,11 +56,18 @@ if [[ $NO_SUDO || -n "$CIRCLECI" ]]; then
 elif groups "$USER" | grep &>/dev/null '\bdocker\b'; then
   DOCKER_COMPOSE="docker-compose"
 else
-  DOCKER="sudo docker"
   DOCKER_COMPOSE="sudo docker-compose"
 fi
 
-trap '$DOCKER_COMPOSE rm -f' SIGINT SIGQUIT
+function _cleanup() {
+  local error_code="$?"
+  echo "Stopping the containers..."
+  $DOCKER_COMPOSE stop | true
+  $DOCKER_COMPOSE down | true
+  $DOCKER_COMPOSE rm -f > /dev/null 2> /dev/null | true
+  exit $error_code
+}
+trap _cleanup SIGINT SIGQUIT
 
 export HOST=$(hostname)
 export TEST_ARGS="${test_args}"
@@ -118,26 +125,28 @@ done
 echo "The Algorithm Factory is now running on your system"
 
 if [ $tests == 1 ]; then
-    echo
-    echo "Testing HTTP web services..."
+  echo
+  echo "Testing HTTP web services..."
 
-    ./http/query-experiment.sh
+  ./http/query-experiment.sh
 
-    echo
-    echo "Testing Akka API..."
+  echo
+  echo "Testing Akka API..."
 
-    mkdir -p woken-test/target/responses
-    $DOCKER_COMPOSE up wokentest | tee test.log
+  mkdir -p woken-test/target/responses
+  $DOCKER_COMPOSE up wokentest | tee test.log
 
 fi
 
 if [ $frontend == 1 ]; then
-    echo
-    echo "Now that's up to you to play with the user interface..."
+  $DOCKER_COMPOSE up -d portalbackend
+  $DOCKER_COMPOSE run wait_portal_backend
+  $DOCKER_COMPOSE up -d frontend
 
-    $DOCKER_COMPOSE up -d portalbackend
-
-    $DOCKER_COMPOSE run wait_portal_backend
-
-    $DOCKER_COMPOSE up -d frontend
+  echo ""
+  echo "System up!"
+  echo "Useful URLs:"
+  echo "  http://frontend/ : the Web portal"
+  echo "  http://localhost:8080/services/swagger-ui.html : Swagger admin interface for backend"
+  echo "  http://localhost:8087 : Swagger admin interface for Woken"
 fi

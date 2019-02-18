@@ -18,25 +18,29 @@
 package ch.chuv.lren.woken.dao
 
 import cats.Id
+import cats.data.{ NonEmptyList, Validated }
 import cats.effect.concurrent.Ref
 import cats.effect.{ Effect, Resource }
 import cats.implicits._
+import ch.chuv.lren.woken.config.DatabaseConfiguration
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.fp.runNow
-import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn, TableId }
+import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
-import ch.chuv.lren.woken.messages.datasets.DatasetId
+import ch.chuv.lren.woken.messages.datasets.{ DatasetId, TableId }
+import ch.chuv.lren.woken.messages.query.{ UserFeedback, UserFeedbacks, UserWarning }
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import ch.chuv.lren.woken.messages.query.filters._
-import ch.chuv.lren.woken.messages.variables.SqlType
+import ch.chuv.lren.woken.messages.variables.{ SqlType, VariableMetaData }
 import doobie.util.log.LogHandler
 import doobie.util.update.Update0
 import sup.HealthCheck
 
 import scala.collection.concurrent.TrieMap
 import scala.language.higherKinds
+import scala.util.{ Failure, Success, Try }
 
 /**
   * The interface to Features database
@@ -46,14 +50,9 @@ import scala.language.higherKinds
 trait FeaturesRepository[F[_]] extends Repository[F] {
 
   /**
-    * @return the name of the database as defined in the configuration
+    * @return the database as defined in the configuration
     */
-  def database: String
-
-  /**
-    * @return the list of features tables available in the database
-    */
-  def tables: Set[FeaturesTableDescription]
+  def database: DatabaseConfiguration
 
   /**
     * Provides the interface to a features table
@@ -137,6 +136,49 @@ trait FeaturesTableRepository[F[_]] extends Repository[F] {
   def features(query: FeaturesQuery): F[(Headers, Stream[JsObject])]
 
   /**
+    * Validate the fields in the actual table against their metadata
+    *
+    * @param variables Full list of variables for the table as defined in the metadata
+    */
+  def validateFields(variables: List[VariableMetaData])(
+      implicit effect: Effect[F]
+  ): F[Validated[NonEmptyList[(VariableMetaData, UserFeedback)], UserFeedbacks]] = {
+    val variableNames = variables.map(_.toId.code).toSet
+    val headerNames   = columns.map(_.name).toSet
+    val unknownHeaders =
+      headerNames.diff(variableNames).filterNot(c => table.primaryKey.exists(_.name == c))
+    val unknownVariables = variableNames.diff(headerNames)
+    unknownVariables.toList.toNel
+      .fold(
+        unknownHeaders
+          .map { h =>
+            val msg = s"Column $h in table ${table.table.toString} is not described in the metadata"
+            UserWarning(msg): UserFeedback
+          }
+          .toList
+          .valid[NonEmptyList[(VariableMetaData, UserFeedback)]]
+      )(
+        unknowVarsNel =>
+          unknowVarsNel
+            .map(
+              v =>
+                variables
+                  .find(_.code == v)
+                  .getOrElse(throw new IllegalStateException("This variable should exist"))
+            )
+            .map(
+              varMeta =>
+                (varMeta,
+                 UserWarning(
+                   s"Variable ${varMeta.code} does not exist in table ${table.table.toString}"
+                 ))
+            )
+            .invalid
+      )
+      .pure[F]
+  }
+
+  /**
     *
     * @param filters Filters always applied on the queries
     * @param newFeatures New features to create, can be used in machine learning tasks
@@ -150,6 +192,7 @@ trait FeaturesTableRepository[F[_]] extends Repository[F] {
       otherColumns: List[TableColumn],
       prefills: List[PrefillExtendedFeaturesTable]
   ): Validation[Resource[F, FeaturesTableRepository[F]]]
+
 }
 
 object FeaturesTableRepository {
@@ -159,8 +202,7 @@ object FeaturesTableRepository {
 }
 
 class FeaturesInMemoryRepository[F[_]: Effect](
-    override val database: String,
-    override val tables: Set[FeaturesTableDescription],
+    override val database: DatabaseConfiguration,
     val tablesContent: Map[TableId, (Headers, List[JsObject])]
 ) extends FeaturesRepository[F] {
 
@@ -168,11 +210,11 @@ class FeaturesInMemoryRepository[F[_]: Effect](
 
   override def featuresTable(table: TableId): F[Option[FeaturesTableRepository[F]]] = {
     cache.get(table).orElse {
-      tables.find(_.table == table).map { t =>
+      database.tables.get(table).map { t =>
         val (headers, data) = tablesContent.getOrElse(table, Nil -> Nil)
         cache.getOrElseUpdate(
           table,
-          new FeaturesTableInMemoryRepository[F](table, headers, t.datasetColumn, data)
+          new FeaturesTableInMemoryRepository[F](t, headers, t.datasetColumn, data)
         )
       }
     }
@@ -182,7 +224,7 @@ class FeaturesInMemoryRepository[F[_]: Effect](
 
 }
 
-class FeaturesTableInMemoryRepository[F[_]: Effect](val tableId: TableId,
+class FeaturesTableInMemoryRepository[F[_]: Effect](override val table: FeaturesTableDescription,
                                                     override val columns: List[TableColumn],
                                                     val datasetColumn: Option[TableColumn],
                                                     val dataFeatures: List[JsObject])
@@ -191,13 +233,10 @@ class FeaturesTableInMemoryRepository[F[_]: Effect](val tableId: TableId,
   import FeaturesTableRepository.Headers
   import spray.json._
 
-  override val table =
-    FeaturesTableDescription(tableId, Nil, datasetColumn, validateSchema = false, None, 0.0)
-
   override def count: F[Int] = dataFeatures.size.pure[F]
 
   override def count(dataset: DatasetId): F[Int] =
-    datasetColumn.fold(if (dataset.code == tableId.name) count else 0.pure[F])(
+    datasetColumn.fold(if (dataset.code == table.table.name) count else 0.pure[F])(
       ds =>
         dataFeatures
           .count(
@@ -207,13 +246,19 @@ class FeaturesTableInMemoryRepository[F[_]: Effect](val tableId: TableId,
     )
 
   override def count(filters: Option[FilterRule]): F[Int] = filters.fold(count) { f =>
-    filter(dataFeatures, f).size.pure[F]
+    filter(dataFeatures, f) match {
+      case Success(value)     => value.size.pure[F]
+      case Failure(exception) => exception.raiseError[F, Int]
+    }
   }
 
   override def countGroupBy(groupByColumn: TableColumn,
                             filters: Option[FilterRule]): F[Map[String, Int]] =
     filters.fold(countGroupBy(dataFeatures, groupByColumn)) { f =>
-      countGroupBy(filter(dataFeatures, f), groupByColumn)
+      filter(dataFeatures, f) match {
+        case Success(value)     => countGroupBy(value, groupByColumn)
+        case Failure(exception) => exception.raiseError[F, Map[String, Int]]
+      }
     }
 
   private def countGroupBy(data: List[JsObject], groupByColumn: TableColumn): F[Map[String, Int]] =
@@ -223,29 +268,36 @@ class FeaturesTableInMemoryRepository[F[_]: Effect](val tableId: TableId,
       .pure[F]
 
   @SuppressWarnings(Array("org.wartremover.warts.Throw", "org.wartremover.warts.TraversableOps"))
-  private def filter(data: List[JsObject], filters: FilterRule): List[JsObject] = filters match {
-    case SingleFilterRule(_, field, _, _, operator, value) =>
-      operator match {
-        case Operator.equal     => data.filter(_.fields(field).toString == value.head.toString)
-        case Operator.notEqual  => data.filter(_.fields(field).toString != value.head.toString)
-        case Operator.isNull    => data.filter(_.fields(field) == JsNull)
-        case Operator.isNotNull => data.filter(_.fields(field) != JsNull)
-        case _                  => throw new NotImplementedError(s"Filter on operator $operator is not implemented")
-      }
-    case CompoundFilterRule(condition, rules) =>
-      condition match {
-        case Condition.and =>
-          rules.map(filter(data, _)).foldRight(data)((filtered, curr) => curr.intersect(filtered))
-        case Condition.or =>
-          rules
-            .map(filter(data, _))
-            .foldRight(data)((filtered, curr) => curr.union(filtered.diff(curr)))
-      }
+  private def filter(data: List[JsObject], filters: FilterRule): Try[List[JsObject]] = Try {
+    filters match {
+      case SingleFilterRule(_, field, _, _, operator, value) =>
+        operator match {
+          case Operator.equal     => data.filter(_.fields(field).toString == value.head.toString)
+          case Operator.notEqual  => data.filter(_.fields(field).toString != value.head.toString)
+          case Operator.isNull    => data.filter(_.fields(field) == JsNull)
+          case Operator.isNotNull => data.filter(_.fields(field) != JsNull)
+          case _ =>
+            throw new NotImplementedError(s"Filter on operator $operator is not implemented")
+        }
+      case CompoundFilterRule(condition, rules) =>
+        condition match {
+          case Condition.and =>
+            rules
+              .map(filter(data, _))
+              .foldRight(data)((filtered, curr) => curr.intersect(filtered.getOrElse(List.empty)))
+          case Condition.or =>
+            rules
+              .map(filter(data, _))
+              .foldRight(data)(
+                (filtered, curr) => curr.union(filtered.getOrElse(List.empty).diff(curr))
+              )
+        }
+    }
   }
 
   override def datasets(filters: Option[FilterRule]): F[Set[DatasetId]] =
     datasetColumn.fold(
-      count(filters).map(n => if (n == 0) Set[DatasetId]() else Set(DatasetId(tableId.name)))
+      count(filters).map(n => if (n == 0) Set[DatasetId]() else Set(DatasetId(table.table.name)))
     ) { _ =>
       val datasets: Set[DatasetId] = Set()
       datasets.pure[F]
@@ -291,7 +343,11 @@ object ExtendedFeaturesTableInMemoryRepository {
       nextTableSeqNumber: () => F[Int]
   ): Validation[Resource[F, ExtendedFeaturesTableInMemoryRepository[F]]] = {
     val pk = sourceTable.table.primaryKey.headOption
-      .getOrElse(throw new Exception("Expected a single primary key"))
+      .getOrElse(
+        throw new Exception(
+          s"Expected a primary key with one column in table ${sourceTable.table.table.toString}"
+        )
+      )
     val rndColumn           = TableColumn("_rnd", SqlType.numeric)
     val newColumns          = newFeatures ++ otherColumns
     val extTableColumns     = newFeatures ++ List(rndColumn)

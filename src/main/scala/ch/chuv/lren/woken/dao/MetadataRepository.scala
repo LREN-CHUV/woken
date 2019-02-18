@@ -22,6 +22,7 @@ import cats.implicits._
 import sup.HealthCheck
 import ch.chuv.lren.woken.core.model.database.FeaturesTableDescription
 import ch.chuv.lren.woken.core.model.VariablesMeta
+import ch.chuv.lren.woken.messages.datasets.TableId
 
 import scala.collection.concurrent.TrieMap
 import scala.language.higherKinds
@@ -42,7 +43,7 @@ trait VariablesMetaRepository[F[_]] extends Repository[F] {
 
   def put(variablesMeta: VariablesMeta): F[VariablesMeta]
 
-  def get(targetFeaturesTable: String): F[Option[VariablesMeta]]
+  def get(targetFeaturesTable: TableId): F[Option[VariablesMeta]]
 
 }
 
@@ -50,7 +51,7 @@ trait TablesCatalogRepository[F[_]] extends Repository[F] {
 
   def put(table: FeaturesTableDescription): F[FeaturesTableDescription]
 
-  def get(table: String): F[Option[FeaturesTableDescription]]
+  def get(table: TableId): F[Option[FeaturesTableDescription]]
 
 }
 
@@ -58,29 +59,29 @@ class MetadataInMemoryRepository[F[_]: Applicative] extends MetadataRepository[F
 
   override val variablesMeta: VariablesMetaRepository[F] = new VariablesMetaRepository[F] {
 
-    private val cache = new TrieMap[String, VariablesMeta]
+    private val cache = new TrieMap[TableId, VariablesMeta]
 
     override def put(variablesMeta: VariablesMeta): F[VariablesMeta] = {
-      val _ = cache.put(variablesMeta.targetFeaturesTable.toUpperCase, variablesMeta)
+      val _ = cache.put(variablesMeta.targetFeaturesTable, variablesMeta)
       variablesMeta.pure[F]
     }
 
-    override def get(targetFeaturesTable: String): F[Option[VariablesMeta]] =
-      cache.get(targetFeaturesTable.toUpperCase).pure[F]
+    override def get(targetFeaturesTable: TableId): F[Option[VariablesMeta]] =
+      cache.get(targetFeaturesTable).pure[F]
 
     override def healthCheck: HealthCheck[F, Id] = HealthCheck.liftFBoolean(true.pure[F])
   }
 
   override val tablesCatalog: TablesCatalogRepository[F] = new TablesCatalogRepository[F] {
 
-    private val cache = new TrieMap[String, FeaturesTableDescription]
+    private val cache = new TrieMap[TableId, FeaturesTableDescription]
 
     override def put(table: FeaturesTableDescription): F[FeaturesTableDescription] = {
-      val _ = cache.put(table.table.name, table)
+      val _ = cache.put(table.table, table)
       table.pure[F]
     }
 
-    override def get(table: String): F[Option[FeaturesTableDescription]] =
+    override def get(table: TableId): F[Option[FeaturesTableDescription]] =
       cache.get(table).pure[F]
 
     override def healthCheck: HealthCheck[F, Id] = HealthCheck.liftFBoolean(true.pure[F])

@@ -24,6 +24,7 @@ import ch.chuv.lren.woken.messages.variables._
 import org.scalatest.{ Matchers, WordSpec }
 import spray.json._
 import variablesProtocol._
+import ch.chuv.lren.woken.config.ConfigurationInstances._
 
 class VariablesMetaTest extends WordSpec with Matchers with JsonUtils {
 
@@ -35,7 +36,7 @@ class VariablesMetaTest extends WordSpec with Matchers with JsonUtils {
         VariablesMeta(1,
                       "test",
                       json.convertTo[GroupMetaData],
-                      "sample_data",
+                      sampleDataTableId,
                       List("state", "custserv_calls", "churn").map(VariableId))
 
       val selectedMeta =
@@ -86,7 +87,7 @@ class VariablesMetaTest extends WordSpec with Matchers with JsonUtils {
           1,
           "test",
           json.convertTo[GroupMetaData],
-          "mip_cde_features",
+          cdeFeaturesATableId,
           List("dataset", "gender", "agegroup", "alzheimerbroadcategory").map(VariableId)
         )
 
@@ -123,7 +124,7 @@ class VariablesMetaTest extends WordSpec with Matchers with JsonUtils {
         VariablesMeta(1,
                       "test",
                       json.convertTo[GroupMetaData],
-                      "sample_data",
+                      sampleDataTableId,
                       List("state", "custserv_calls", "churn").map(VariableId))
 
       val selectedMeta =

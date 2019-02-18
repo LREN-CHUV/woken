@@ -79,10 +79,9 @@ trait QueriesActor[Q <: Query, F[_]] extends Actor with LazyLogging {
         // TODO: cannot support a case where the same algorithm is used, but with different execution plans
           .filter { r =>
             logger.info(
-              s"Check that algorithms in query ${r.query
-                .map(algorithmsOfQuery)} are in the reduce query algorithms ${algorithms.map(_.toString).mkString(",")}"
+              s"Check that algorithms in query ${algorithmsOfQuery(r.query)} are in the reduce query algorithms ${algorithms.map(_.toString).mkString(",")}"
             )
-            r.query.fold(false) {
+            r.query match {
               case q: MiningQuery => algorithms.exists(_.code == q.algorithm.code)
               case q: ExperimentQuery =>
                 q.algorithms.exists { qAlgorithm =>
@@ -137,10 +136,10 @@ trait QueriesActor[Q <: Query, F[_]] extends Actor with LazyLogging {
       }
       .map {
         case Nil          => noResult(initialQuery, Set(), List())
-        case List(result) => result.copy(query = Some(initialQuery))
+        case List(result) => result.copy(query = initialQuery)
         case results =>
           QueryResult(
-            jobId = None,
+            jobId = results.map(_.jobId).mkString("+").take(128),
             node = config.jobs.node,
             dataProvenance = results.toSet[QueryResult].flatMap(_.dataProvenance),
             feedback = results.flatMap(_.feedback),
@@ -149,7 +148,7 @@ trait QueriesActor[Q <: Query, F[_]] extends Actor with LazyLogging {
             algorithm = None,
             data = Some(results.toJson),
             error = None,
-            query = Some(initialQuery)
+            query = initialQuery
           )
       }
 
@@ -159,7 +158,7 @@ trait QueriesActor[Q <: Query, F[_]] extends Actor with LazyLogging {
                                  dataProvenance: DataProvenance,
                                  feedback: UserFeedbacks): QueryResult =
     ErrorJobResult(None, config.jobs.node, OffsetDateTime.now(), None, "No results")
-      .asQueryResult(Some(initialQuery), dataProvenance, feedback)
+      .asQueryResult(initialQuery, dataProvenance, feedback)
 
   private[dispatch] def reportResult(initiator: ActorRef)(
       queryResult: QueryResult,
@@ -180,7 +179,7 @@ trait QueriesActor[Q <: Query, F[_]] extends Actor with LazyLogging {
                                     feedback: UserFeedbacks): QueryResult = {
     logger.error(s"Cannot complete query because of ${e.getMessage}", e)
     ErrorJobResult(None, config.jobs.node, OffsetDateTime.now(), None, e.toString)
-      .asQueryResult(Some(initialQuery), dataProvenance, feedback)
+      .asQueryResult(initialQuery, dataProvenance, feedback)
   }
 
   private[dispatch] def errorMsgResult(initialQuery: Q,
@@ -189,7 +188,7 @@ trait QueriesActor[Q <: Query, F[_]] extends Actor with LazyLogging {
                                        feedback: UserFeedbacks): QueryResult = {
     logger.error(s"Cannot complete query $initialQuery, cause $errorMessage")
     ErrorJobResult(None, config.jobs.node, OffsetDateTime.now(), None, errorMessage)
-      .asQueryResult(Some(initialQuery), dataProvenance, feedback)
+      .asQueryResult(initialQuery, dataProvenance, feedback)
   }
 
   private[dispatch] def algorithmsOfQuery(query: Query): List[AlgorithmSpec] = query match {

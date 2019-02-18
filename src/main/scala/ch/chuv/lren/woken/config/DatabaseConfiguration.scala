@@ -17,6 +17,7 @@
 
 package ch.chuv.lren.woken.config
 
+import cats.data.NonEmptyList
 import doobie._
 import doobie.implicits._
 import doobie.hikari._
@@ -24,12 +25,15 @@ import cats.implicits._
 import cats.effect._
 import cats.data.Validated._
 import com.typesafe.config.Config
-import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn, TableId }
+import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
+import ch.chuv.lren.woken.messages.datasets.TableId
 import ch.chuv.lren.woken.messages.query.UserId
 import ch.chuv.lren.woken.messages.variables.SqlType
 
 import scala.language.higherKinds
+
+final case class DatabaseId(code: String)
 
 /**
   * Connection configuration for a database
@@ -41,26 +45,30 @@ import scala.language.higherKinds
   * @param host Database host
   * @param port Database port
   * @param database Name of the database, default to the user name
+  * @param schema Schema of the db, defaults to public
   * @param user Database user
   * @param password Database password
   */
-final case class DatabaseConfiguration(dbiDriver: String,
+final case class DatabaseConfiguration(id: DatabaseId,
+                                       dbiDriver: String,
                                        dbApiDriver: String,
                                        jdbcDriver: String,
                                        jdbcUrl: String,
                                        host: String,
                                        port: Int,
                                        database: String,
+                                       schema: String,
                                        user: String,
                                        password: String,
                                        poolSize: Int,
-                                       tables: Set[FeaturesTableDescription])
+                                       tables: Map[TableId, FeaturesTableDescription])
 
 object DatabaseConfiguration {
 
-  def read(config: Config, path: List[String]): Validation[DatabaseConfiguration] = {
+  def read(config: Config, path: NonEmptyList[String]): Validation[DatabaseConfiguration] = {
 
-    val dbConfig = config.validateConfig(path.mkString("."))
+    val dbConfig = config.validateConfig(path.mkString_("."))
+    val dbId     = path.last.validNel[String].map(DatabaseId)
 
     dbConfig.andThen { db =>
       val dbiDriver: Validation[String] =
@@ -75,6 +83,7 @@ object DatabaseConfiguration {
       val user                         = db.validateString("user")
       val password                     = db.validateString("password")
       val database: Validation[String] = db.validateString("database")
+      val schema: Validation[String]   = db.validateString("schema").orElse("public".validNel)
       val poolSize: Validation[Int] =
         db.validateInt("pool_size").orElse(10.validNel)
 
@@ -85,24 +94,28 @@ object DatabaseConfiguration {
 
       val tableFactory: String => Validation[FeaturesTableDescription] =
         table =>
-          liftOption(path.lastOption).andThen { tableName =>
-            readTable(db, List("tables", table), tableName)
+          dbId.andThen { id =>
+            readTable(db, List("tables", table), id.code)
         }
 
-      val tables: Validation[Set[FeaturesTableDescription]] = {
+      val tables: Validation[Map[TableId, FeaturesTableDescription]] = {
         tableNames.andThen { names: Set[String] =>
           val m: Set[Validation[FeaturesTableDescription]] = names.map(tableFactory)
-          m.toList.sequence[Validation, FeaturesTableDescription].map(_.toSet)
+          m.toList
+            .sequence[Validation, FeaturesTableDescription]
+            .map(l => l.map(d => (d.table, d)).toMap)
         }
       }
 
-      (dbiDriver,
+      (dbId,
+       dbiDriver,
        dbApiDriver,
        jdbcDriver,
        jdbcUrl,
        host,
        port,
        database,
+       schema,
        user,
        password,
        poolSize,
@@ -145,7 +158,8 @@ object DatabaseConfiguration {
         }
         .orElse(None.validNel)
 
-      val schema: Validation[Option[String]] = table.validateOptionalString("schema")
+      val schema: Validation[String] =
+        table.validateOptionalString("schema").map(_.getOrElse("public"))
       val validateSchema: Validation[Boolean] =
         table.validateBoolean("validateSchema").orElse(true.validNel[String])
       val seed: Validation[Double]          = table.validateDouble("seed").orElse(0.67.validNel)
@@ -156,8 +170,8 @@ object DatabaseConfiguration {
     }
   }
 
-  def factory(config: Config): String => Validation[DatabaseConfiguration] =
-    dbAlias => read(config, List("db", dbAlias))
+  def factory(config: Config): DatabaseId => Validation[DatabaseConfiguration] =
+    dbAlias => read(config, NonEmptyList("db", List(dbAlias.code)))
 
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
   def dbTransactor[F[_]: Effect: ContextShift](

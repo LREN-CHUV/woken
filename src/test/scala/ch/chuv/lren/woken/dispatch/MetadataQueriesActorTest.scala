@@ -22,7 +22,7 @@ import akka.stream.ActorMaterializer
 import akka.testkit.{ ImplicitSender, TestKit, TestProbe }
 import akka.util.Timeout
 import ch.chuv.lren.woken.backends.woken.WokenClientService
-import ch.chuv.lren.woken.config.DatasetsConfiguration
+import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.dispatch.MetadataQueriesActor.VariablesForDatasets
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.messages.variables.{
@@ -105,10 +105,10 @@ class MetadataQueriesActorTest
 
     val wokenService: WokenClientService = WokenClientService("test")
 
-    val dispatcherService: DispatcherService =
-      DispatcherService(DatasetsConfiguration.datasets(config), wokenService)
+    val datasetService: DatasetService =
+      ConfBasedDatasetService(config, WokenConfiguration(config).jobs)
 
-    val datasetService: DatasetService = ConfBasedDatasetService(config)
+    val dispatcherService: DispatcherService = DispatcherService(datasetService, wokenService)
 
     system.actorOf(
       MetadataQueriesActor.props(dispatcherService, datasetService, localVariablesMetaService)

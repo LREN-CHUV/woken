@@ -5,7 +5,7 @@ version: '3.0'
 
 services:
   zookeeper:
-    image: zookeeper:3.4.11
+    image: zookeeper:3.4.13
     hostname: zookeeper
     ports:
       - '2181:2181'
@@ -148,7 +148,7 @@ services:
       - db
 
   sample_meta_db_setup:
-    image: "hbpmip/sample-meta-db-setup:0.6.0"
+    image: "hbpmip/sample-meta-db-setup:0.6.1"
     container_name: "sample-meta-db-setup"
     restart: "no"
     environment:
@@ -174,7 +174,7 @@ services:
       - db
 
   woken_db_setup:
-    image: "hbpmip/woken-db-setup:1.3.2"
+    image: "hbpmip/woken-db-setup:1.3.3"
     container_name: "woken-db-setup"
     restart: "no"
     environment:
@@ -191,10 +191,15 @@ services:
       context: ./woken
       dockerfile: Dockerfile
     ports:
+      # Web API
       - "8087:8087"
+      # Akka cluster
       - "8088:8088"
       - "9095:9095"
+      # Remote Java debugging with JDWP
       - "8000:8000"
+      # JMX
+      - "3333:3333"
     environment:
       CLUSTER_PORT: 8088
       CLUSTER_IP: woken
@@ -206,7 +211,10 @@ services:
       PROMETHEUS_ENABLED: "yes"
       SIGAR_SYSTEM_METRICS: "no"
       JVM_SYSTEM_METRICS: "no"
-      JAVA_OPTS: "-agentlib:jdwp=transport=dt_socket,address=8000,server=y,suspend=n"
+      RELEASE_STAGE: "ci"
+      DATACENTER_LOCATION: "CircleCI"
+      CONTAINER_ORCHESTRATION: "docker-compose"
+      JAVA_OPTIONS: "-agentlib:jdwp=transport=dt_socket,address=*:8000,server=y,suspend=n -Dcom.sun.management.jmxremote.port=3333 -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false"
     depends_on:
       - chronos
       - db
@@ -222,7 +230,7 @@ services:
       - chronos
 
   wokenvalidation:
-    image: hbpmip/woken-validation:2.6.4
+    image: hbpmip/woken-validation:2.6.5
     ports:
       - "8081:8081"
       - "8082:8082"
@@ -231,6 +239,14 @@ services:
       CLUSTER_IP: wokenvalidation
       WOKEN_PORT_8088_TCP_ADDR: woken
       LOG_LEVEL: DEBUG
+      KAMON_ENABLED: "yes"
+      ZIPKIN_ENABLED: "yes"
+      PROMETHEUS_ENABLED: "yes"
+      SIGAR_SYSTEM_METRICS: "no"
+      JVM_SYSTEM_METRICS: "no"
+      RELEASE_STAGE: "ci"
+      DATACENTER_LOCATION: "CircleCI"
+      CONTAINER_ORCHESTRATION: "docker-compose"
     depends_on:
       - woken
 
@@ -241,8 +257,7 @@ services:
       TARGETS: "wokenvalidation:8081"
       TIMEOUT: 60
     depends_on:
-      - woken
-      - chronos
+      - wokenvalidation
 
   wokentest:
     build:

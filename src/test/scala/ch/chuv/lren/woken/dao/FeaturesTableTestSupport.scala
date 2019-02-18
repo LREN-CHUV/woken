@@ -16,19 +16,31 @@
  */
 
 package ch.chuv.lren.woken.dao
-import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn, TableId }
+
+import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn }
+import ch.chuv.lren.woken.config.ConfigurationInstances._
 import ch.chuv.lren.woken.messages.variables.SqlType
 import spray.json.{ JsNumber, JsObject, JsString }
 
 trait FeaturesTableTestSupport {
 
-  val database = "features_db"
-  val sampleTable = FeaturesTableDescription(TableId(database, None, "Sample"),
-                                             Nil,
-                                             None,
-                                             validateSchema = false,
-                                             None,
-                                             0.67)
+  val churnTable =
+    FeaturesTableDescription(churnDataTableId, Nil, None, validateSchema = false, None, 0.67)
+  val churnHeaders = List(
+    TableColumn("state", SqlType.char),
+    TableColumn("account_length", SqlType.int),
+    TableColumn("area_code", SqlType.int),
+    TableColumn("phone", SqlType.varchar),
+    TableColumn("intl_plan", SqlType.char)
+  )
+
+  val sampleTable =
+    FeaturesTableDescription(sampleDataTableId,
+                             List(TableColumn("ID", SqlType.int)),
+                             None,
+                             validateSchema = false,
+                             None,
+                             0.67)
   val sampleHeaders = List(
     TableColumn("ID", SqlType.int),
     TableColumn("stress_before_test1", SqlType.numeric),
@@ -49,7 +61,7 @@ trait FeaturesTableTestSupport {
   )
 
   val cdeTable = FeaturesTableDescription(
-    TableId(database, None, "cde_features_a"),
+    cdeFeaturesATableId,
     List(TableColumn("subjectcode", SqlType.varchar)),
     Some(TableColumn("dataset", SqlType.varchar)),
     validateSchema = false,
