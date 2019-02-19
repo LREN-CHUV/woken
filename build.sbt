@@ -104,7 +104,7 @@ lazy val library =
       val akkaManagement  = "0.20.0"
       val akkaHttpSwagger = "2.0.1"
       val swaggerScala    = "2.0.3"
-      val swaggerUI       = "3.20.5"
+      val swaggerUI       = "3.20.8"
       val javaxWsRs       = "2.1.1"
       val kamon           = "1.1.5"
       val kamonAkka       = "1.1.3"
@@ -133,8 +133,8 @@ lazy val library =
       val diff            = "2.0.1"
       val acyclic         = "0.1.8"
       val wokenMessages   = "3.0.0"
-      val sup             = "0.2.1"
-      val sttpBackend     = "1.5.10"
+      val sup             = "0.3.0"
+      val sttpBackend     = "1.5.11"
     }
     object ExclusionRules {
       val excludeLogback = ExclusionRule(organization = "ch.qos.logback", name = "logback-classic")
