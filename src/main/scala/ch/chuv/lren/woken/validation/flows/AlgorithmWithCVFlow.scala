@@ -148,7 +148,9 @@ case class AlgorithmWithCVFlow[F[_]: Effect](
           case fatal => Effect[F].raiseError(fatal)
         }
 
-        runLater(algorithmExecutor.execute(subJob).map(response => (job, response)), errorRecovery)
+        runLater(algorithmExecutor.execute(subJob).map { response: AlgorithmResults =>
+          (job, response)
+        }, errorRecovery)
       }
       .log("Learned from available local data")
       .withAttributes(debugElements)

@@ -43,8 +43,9 @@ import com.typesafe.scalalogging.LazyLogging
 import spray.json.JsValue
 
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ ExecutionContext, Future }
 import scala.language.{ higherKinds, postfixOps }
+import scala.util.control.NonFatal
 
 object CrossValidationFlow {
 
@@ -64,7 +65,7 @@ object CrossValidationFlow {
 
   private[CrossValidationFlow] case class FoldContext[R, F[_]: Effect](
       job: Job[F],
-      response: R,
+      response: Either[String, R],
       partition: PartioningQueries,
       targetMetaData: VariableMetaData
   )
@@ -111,7 +112,11 @@ case class CrossValidationFlow[F[_]: Effect](
         val (job, partition) = f
         runLater(localJobForFold(job, partition))
       }
-      .mapAsync(parallelism)(r => runLater(handleFoldJobResponse(r)))
+      .mapAsync[FoldContext[ValidationQuery, F]](parallelism)(
+        r =>
+          r.response.fold(err => foldContextError[ValidationQuery](r, err).pure[Future],
+                          ar => runLater(handleFoldJobResponse(r, ar)))
+      )
       .mapAsync(parallelism)(r => runLater(validateFold(r)))
       .mapAsync(parallelism)(r => runLater(scoreFoldValidationResponse(r)))
       .log("Fold result")
@@ -155,6 +160,9 @@ case class CrossValidationFlow[F[_]: Effect](
       .log("Cross validation result")
       .withAttributes(debugElements)
 
+  private def foldContextError[R](from: FoldContext[_, F], error: String): FoldContext[R, F] =
+    FoldContext[R, F](from.job, Left(error), from.partition, from.targetMetaData)
+
   private def targetMetadata(job: Job[F]): VariableMetaData =
     job.query.dbVariables.headOption
       .flatMap { v =>
@@ -183,16 +191,27 @@ case class CrossValidationFlow[F[_]: Effect](
       .map[FoldContext[AlgorithmResults, F]](
         response =>
           FoldContext[AlgorithmResults, F](job = job,
-                                           response = response,
+                                           response = Right(response),
                                            partition = partition,
                                            targetMetaData = targetMetadata(job))
       )
+      .recover {
+        case NonFatal(e) =>
+          val msg =
+            s"Failed to execute training for algorithm ${job.algorithm} and fold ${partition.fold}"
+          logger.warn(msg, e)
+          FoldContext[AlgorithmResults, F](job = job,
+                                           response = Left(e.getMessage),
+                                           partition = partition,
+                                           targetMetaData = targetMetadata(job))
+      }
   }
 
   private def handleFoldJobResponse(
-      context: FoldContext[AlgorithmResults, F]
+      context: FoldContext[AlgorithmResults, F],
+      results: AlgorithmResults
   ): F[FoldContext[ValidationQuery, F]] = {
-    val queryF: F[ValidationQuery] = context.response match {
+    val queryF: F[ValidationQuery] = results match {
       case AlgorithmResults(_, List(pfa: PfaJobResult)) =>
         // Prepare the results for validation
         logger.debug("Received result from local method.")
@@ -233,7 +252,7 @@ case class CrossValidationFlow[F[_]: Effect](
     queryF.map(
       r =>
         FoldContext[ValidationQuery, F](job = context.job,
-                                        response = r,
+                                        response = Right(r),
                                         partition = context.partition,
                                         targetMetaData = context.targetMetaData)
     )
@@ -243,15 +262,18 @@ case class CrossValidationFlow[F[_]: Effect](
       context: FoldContext[ValidationQuery, F]
   ): F[FoldContext[ValidationResult, F]] = {
     implicit val askTimeout: Timeout = Timeout(5 minutes)
-    val validationQuery              = context.response
-    val validationResult             = wokenWorker.validate(validationQuery)
-    validationResult.map(
-      r =>
-        FoldContext[ValidationResult, F](job = context.job,
-                                         response = r,
-                                         partition = context.partition,
-                                         targetMetaData = context.targetMetaData)
-    )
+    context.response match {
+      case Right(validationQuery) =>
+        val validationResult = wokenWorker.validate(validationQuery)
+        validationResult.map(
+          r =>
+            FoldContext[ValidationResult, F](job = context.job,
+                                             response = Right(r),
+                                             partition = context.partition,
+                                             targetMetaData = context.targetMetaData)
+        )
+      case Left(err) => foldContextError[ValidationResult](context, err).pure[F]
+    }
   }
 
   private def scoreFoldValidationResponse(
@@ -261,7 +283,11 @@ case class CrossValidationFlow[F[_]: Effect](
 
     val fold = context.partition.fold
     val resultsV: Validation[NonEmptyList[JsValue]] = Validated
-      .fromEither(context.response.result.leftMap(e => NonEmptyList(e, Nil)))
+      .fromEither(context.response.leftMap(e => NonEmptyList(e, Nil)))
+      .andThen(
+        validationResult =>
+          Validated.fromEither(validationResult.result.leftMap(e => NonEmptyList(e, Nil)))
+      )
       .andThen { v: List[JsValue] =>
         Validated.fromOption(v.toNel, NonEmptyList(s"No results on fold $fold", Nil))
       }

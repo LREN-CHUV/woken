@@ -30,7 +30,7 @@ import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.service.{ FeaturesService, QueryToJobService, TestServices }
 import com.typesafe.scalalogging.LazyLogging
-import org.scalatest.{ BeforeAndAfterAll, EitherValues, Matchers, WordSpecLike }
+import org.scalatest._
 import cats.scalatest.{ ValidatedMatchers, ValidatedValues }
 import ch.chuv.lren.woken.backends.faas.{
   AlgorithmExecutor,
@@ -58,6 +58,7 @@ class LocalExperimentServiceTest
     with ValidatedMatchers
     with ValidatedValues
     with EitherValues
+    with OptionValues
     with BeforeAndAfterAll
     with MockFactory
     with JsonUtils
@@ -80,7 +81,7 @@ class LocalExperimentServiceTest
 
   "Experiment flow" should {
 
-    "complete with an error response in case of a query containing a failing algorithm (anova, non predictive)" in {
+    "complete with an error response when executing a failing algorithm (anova, non predictive)" in {
       val algorithmExecutor = mock[AlgorithmExecutor[IO]]
       (algorithmExecutor.node _).expects().anyNumberOfTimes().returns("testNode")
       (algorithmExecutor.execute _)
@@ -92,14 +93,32 @@ class LocalExperimentServiceTest
 
       val experimentResult = runExperimentTest(anovaAlgorithmQuery, algorithmExecutor)
 
-      // TODO: check the error message in the result
-      println(experimentResult)
-      // Right(LocalExperimentResponse(JobInProgress(ExperimentJob(bbd5343c-0180-49a0-9396-f97dcfa15afc,features_db.public.sample_data,ExperimentQuery(UserId(test1),List(VariableId(cognitive_task2)),List(VariableId(score_test1), VariableId(college_math)),false,List(),Some(CompoundFilterRule(AND,List(SingleFilterRule(cognitive_task2,cognitive_task2,string,text,is_not_null,List()), SingleFilterRule(score_test1,score_test1,string,text,is_not_null,List()), SingleFilterRule(college_math,college_math,string,text,is_not_null,List())))),Some(features_db.public.sample_data),TreeSet(),TreeSet(),List(AlgorithmSpec(anova,List(CodeValue(design,factorial)),None)),TreeSet(),List(ValidationSpec(kfold,List(CodeValue(k,3)))),None),Map(AlgorithmSpec(anova,List(CodeValue(design,factorial)),None) -> AlgorithmDefinition(anova,hbpmip/python-anova:0.4.5,false,false,false,Docker,ExecutionPlan(List(ExecutionStep(scatter,map,SelectDataset(training),Compute(compute)), ExecutionStep(gather,gather,PreviousResults(scatter),Fold))))),List(VariableMetaData(cognitive_task2,Cognitive Task 2,real,None,Some(test),Some(),None,None,None,None,None,None,Set()), VariableMetaData(score_test1,Score Test 1,real,None,Some(test),Some(),None,None,None,None,None,None,Set()), VariableMetaData(college_math,College Math,real,None,Some(test),Some(),None,None,None,None,None,None,Set()))),Set(),List()),Right(ExperimentJobResult(bbd5343c-0180-49a0-9396-f97dcfa15afc,testNode,Map(AlgorithmSpec(anova,List(CodeValue(design,factorial)),None) -> ErrorJobResult(Some(efc518ee-e6c5-4c49-949c-37f7dfddfd74),testNode,2019-02-19T19:25:17.872085+01:00,Some(anova),No response)),2019-02-19T19:25:17.876077+01:00))))
-      experimentResult.isRight shouldBe true
-      val response = experimentResult.right.value.result
-      response.isRight shouldBe true
-      val resultsPerAlgorithm = response.right.value.results
-      resultsPerAlgorithm.isEmpty shouldBe false
+      val resultsPerAlgorithm = expectSuccessfulExperiment(experimentResult)
+
+      resultsPerAlgorithm.size shouldBe 1
+      resultsPerAlgorithm.get(anovaFactorial).value shouldBe an[ErrorJobResult]
+    }
+
+    "complete with an error response when executing a failing algorithm (knn, predictive)" in {
+      val algorithmExecutor = mock[AlgorithmExecutor[IO]]
+      (algorithmExecutor.node _).expects().anyNumberOfTimes().returns("testNode")
+      (algorithmExecutor.execute _)
+        .expects(where { job: DockerJob =>
+          job.algorithmDefinition.code == "knn"
+        })
+        .anyNumberOfTimes()
+        .returns(IO.raiseError(new TimeoutException("No response")))
+
+      val experimentResult = runExperimentTest(knnAlgorithmCdeQuery, algorithmExecutor)
+
+      val resultsPerAlgorithm = expectSuccessfulExperiment(experimentResult)
+
+      resultsPerAlgorithm.size shouldBe 1
+      val knnResult = resultsPerAlgorithm.get(knnWithK5).value
+      knnResult shouldBe an[ErrorJobResult]
+      knnResult should have(
+        'error ("No response")
+      )
     }
 
     "complete with success in case of a valid query on Anova algorithm (non predictive)" in {
