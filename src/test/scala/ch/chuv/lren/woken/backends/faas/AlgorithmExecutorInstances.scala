@@ -25,13 +25,13 @@ import cats.implicits._
 import ch.chuv.lren.woken.backends.faas.AlgorithmExecutor.TaggedS
 import ch.chuv.lren.woken.core.model.jobs.{ DockerJob, ErrorJobResult, PfaJobResult }
 import sup.{ Health, HealthCheck, mods }
-import spray.json._
+import ch.chuv.lren.woken.Predefined.Jobs._
 
 object AlgorithmExecutorInstances {
 
   def algorithmFailingWithError(errorMessage: String): AlgorithmExecutor[IO] =
     new AlgorithmExecutor[IO] {
-      override def node: String = "TestNode"
+      override def node: String = "testNode"
       override def execute(job: DockerJob): IO[AlgorithmResults] =
         errorResponse(job, errorMessage).pure[IO]
       override def healthCheck: HealthCheck[IO, TaggedS] =
@@ -40,22 +40,17 @@ object AlgorithmExecutorInstances {
 
   def expectedAlgorithm(expectedAlgorithm: String): AlgorithmExecutor[IO] =
     new AlgorithmExecutor[IO] {
-      override def node: String = "TestNode"
-      private val pfa =
-        """
-           {
-             "input": {},
-             "output": {},
-             "action": [],
-             "cells": {}
-           }
-        """.stripMargin.parseJson.asJsObject
+      override def node: String = "testNode"
       override def execute(job: DockerJob): IO[AlgorithmResults] =
         if (job.algorithmSpec.code == expectedAlgorithm) {
           AlgorithmResults(
             job,
             List(
-              PfaJobResult(job.jobId, "testNode", OffsetDateTime.now(), job.algorithmSpec.code, pfa)
+              PfaJobResult(job.jobId,
+                           "testNode",
+                           OffsetDateTime.now(),
+                           job.algorithmSpec.code,
+                           dummyPfa)
             )
           ).pure[IO]
         } else
@@ -73,21 +68,15 @@ object AlgorithmExecutorInstances {
         */
       override def node: String = "DummyTestNode"
 
-      private val pfa =
-        """
-           {
-             "input": {},
-             "output": {},
-             "action": [],
-             "cells": {}
-           }
-        """.stripMargin.parseJson.asJsObject
-
       override def execute(job: DockerJob): IO[AlgorithmResults] =
         AlgorithmResults(
           job,
           List(
-            PfaJobResult(job.jobId, "testNode", OffsetDateTime.now(), job.algorithmSpec.code, pfa)
+            PfaJobResult(job.jobId,
+                         "testNode",
+                         OffsetDateTime.now(),
+                         job.algorithmSpec.code,
+                         dummyPfa)
           )
         ).pure[IO]
 

@@ -25,13 +25,11 @@ import ch.chuv.lren.woken.core.model.database.TableColumn
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.messages.query.filters._
 import ch.chuv.lren.woken.messages.variables.SqlType
+import ch.chuv.lren.woken.Predefined.FeaturesTable._
+
 import org.scalatest.{ Matchers, WordSpec }
 
-class FeaturesTableRepositoryDAOTest
-    extends WordSpec
-    with Matchers
-    with DAOTest
-    with FeaturesTableTestSupport {
+class FeaturesTableRepositoryDAOTest extends WordSpec with Matchers with DAOTest {
 
   val wokenRepository = new WokenInMemoryRepository[IO]()
 

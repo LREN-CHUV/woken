@@ -23,22 +23,22 @@ import ch.chuv.lren.woken.JsonUtils
 import ch.chuv.lren.woken.backends.faas.AlgorithmExecutor
 import ch.chuv.lren.woken.backends.worker.WokenWorker
 import ch.chuv.lren.woken.config.WokenConfiguration
-import ch.chuv.lren.woken.core.model.VariablesMeta
 import ch.chuv.lren.woken.core.model.database.FeaturesTableDescription
 import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
 import ch.chuv.lren.woken.dao._
 import ch.chuv.lren.woken.errors.ErrorReporter
 import ch.chuv.lren.woken.messages.datasets.TableId
-import ch.chuv.lren.woken.messages.variables.{ GroupMetaData, VariableId }
-import ch.chuv.lren.woken.messages.variables.variablesProtocol._
 import ch.chuv.lren.woken.config.ConfigurationInstances._
+import ch.chuv.lren.woken.Predefined.FeaturesTable._
+import ch.chuv.lren.woken.Predefined.VariablesMetas._
+
 import org.scalamock.scalatest.MockFactory
 import spray.json.JsObject
 
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
-object TestServices extends JsonUtils with FeaturesTableTestSupport with MockFactory {
+object TestServices extends JsonUtils with MockFactory {
 
   lazy val wokenRepository: WokenRepository[IO]               = new WokenInMemoryRepository[IO]()
   lazy val jobResultService: JobResultRepository[IO]          = wokenRepository.jobResults
@@ -48,29 +48,6 @@ object TestServices extends JsonUtils with FeaturesTableTestSupport with MockFac
     new MetadataInMemoryRepository[IO]().variablesMeta
 
   lazy val localVariablesMetaService: VariablesMetaRepository[IO] = {
-    val churnHierarchy = loadJson("/metadata/churn_variables.json").convertTo[GroupMetaData]
-    val churnVariablesMeta = new VariablesMeta(
-      1,
-      "churn",
-      churnHierarchy,
-      churnDataTableId,
-      List("state", "custserv_calls", "churn").map(VariableId)
-    )
-
-    val sampleHierarchy     = loadJson("/metadata/sample_variables.json").convertTo[GroupMetaData]
-    val sampleVariablesMeta = VariablesMeta(2, "sample", sampleHierarchy, sampleDataTableId, Nil)
-
-    val cdeHierarchy = loadJson("/metadata/mip_cde_variables.json").convertTo[GroupMetaData]
-    val cdeGroupings =
-      List("dataset", "gender", "agegroup", "alzheimerbroadcategory").map(VariableId)
-    val featuresAVariablesMeta =
-      VariablesMeta(3, "cde_features_a", cdeHierarchy, cdeFeaturesATableId, cdeGroupings)
-    val featuresBVariablesMeta =
-      VariablesMeta(4, "cde_features_b", cdeHierarchy, cdeFeaturesBTableId, cdeGroupings)
-    val featuresCVariablesMeta =
-      VariablesMeta(5, "cde_features_c", cdeHierarchy, cdeFeaturesCTableId, cdeGroupings)
-    val featuresMixedVariablesMeta =
-      VariablesMeta(6, "cde_features_mixed", cdeHierarchy, cdeFeaturesMixedTableId, cdeGroupings)
 
     val metaService = new MetadataInMemoryRepository[IO]().variablesMeta
 

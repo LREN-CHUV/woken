@@ -22,6 +22,7 @@ import acolyte.jdbc.RowLists.rowList1
 import acolyte.jdbc._
 import cats.effect.IO
 import cats.scalatest.{ ValidatedMatchers, ValidatedValues }
+import ch.chuv.lren.woken.Predefined.FeaturesTable._
 import ch.chuv.lren.woken.messages.query.{ CodeValue, ValidationSpec }
 import ch.chuv.lren.woken.messages.query.filters.{ InputType, Operator, SingleFilterRule }
 import ch.chuv.lren.woken.validation.KFoldFeaturesSplitterDefinition
@@ -31,7 +32,6 @@ class ExtendedFeaturesTableRepositoryDAOTest
     extends WordSpec
     with Matchers
     with DAOTest
-    with FeaturesTableTestSupport
     with ValidatedMatchers
     with ValidatedValues {
 

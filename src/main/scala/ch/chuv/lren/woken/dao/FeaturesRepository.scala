@@ -34,6 +34,7 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import ch.chuv.lren.woken.messages.query.filters._
 import ch.chuv.lren.woken.messages.variables.{ SqlType, VariableMetaData }
+import ch.chuv.lren.woken.validation.KFoldFeaturesSplitterDefinition
 import doobie.util.log.LogHandler
 import doobie.util.update.Update0
 import sup.HealthCheck
@@ -276,6 +277,13 @@ class FeaturesTableInMemoryRepository[F[_]: Effect](override val table: Features
           case Operator.notEqual  => data.filter(_.fields(field).toString != value.head.toString)
           case Operator.isNull    => data.filter(_.fields(field) == JsNull)
           case Operator.isNotNull => data.filter(_.fields(field) != JsNull)
+          case Operator.in =>
+            data.filter { row =>
+              row.fields(field) match {
+                case JsString(v) => value.contains(v)
+                case _           => false
+              }
+            }
           case _ =>
             throw new NotImplementedError(s"Filter on operator $operator is not implemented")
         }
@@ -366,7 +374,9 @@ object ExtendedFeaturesTableInMemoryRepository {
       extViewColumns,
       extTable,
       newFeatures,
-      rndColumn
+      otherColumns,
+      rndColumn,
+      prefills
     )
 
     Resource.make(Effect[F].delay(repository))(_ => Effect[F].delay(())).valid
@@ -381,7 +391,9 @@ class ExtendedFeaturesTableInMemoryRepository[F[_]: Effect] private (
     val viewColumns: List[TableColumn],
     val extTable: FeaturesTableDescription,
     val newFeatures: List[TableColumn],
-    val rndColumn: TableColumn
+    val otherColumns: List[TableColumn],
+    val rndColumn: TableColumn,
+    val prefills: List[PrefillExtendedFeaturesTable]
 ) extends FeaturesTableRepository[F] {
 
   /**
@@ -421,7 +433,22 @@ class ExtendedFeaturesTableInMemoryRepository[F[_]: Effect] private (
     */
   override def countGroupBy(groupByColumn: TableColumn,
                             filters: Option[FilterRule]): F[Map[String, Int]] =
-    sourceTable.countGroupBy(groupByColumn, filters)
+    // Simple heuristic to regenerate the windows created by KFoldFeaturesSplitter
+    if (otherColumns.contains(groupByColumn)) {
+      prefills
+        .flatMap {
+          case p: KFoldFeaturesSplitterDefinition => Some(p.numFolds)
+          case _: KFoldFeaturesSplitterDefinition => None
+        }
+        .map { numFolds =>
+          count(filters).map { total =>
+            Range.inclusive(1, numFolds).map(f => f.toString -> total / numFolds).toMap
+          }
+        }
+        .head
+    } else {
+      sourceTable.countGroupBy(groupByColumn, filters)
+    }
 
   /**
     * @return all headers of the table

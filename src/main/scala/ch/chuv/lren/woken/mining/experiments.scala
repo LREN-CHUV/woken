@@ -126,7 +126,7 @@ case class LocalExperimentService[F[_]: Effect](
 
       ((featuresTableServiceV, splitterDefsV) mapN Tuple2.apply).fold(
         err => {
-          val msg = s"""Invalid definition of cross-validations: ${err.mkString_("", ",", "")}"""
+          val msg = s"""Invalid definition of cross-validations: ${err.mkString_(",")}"""
           errorResult(job, msg).pure[F]
         },
         fa => {
@@ -139,7 +139,7 @@ case class LocalExperimentService[F[_]: Effect](
 
           r.recoverWith(recoverErrors(job))
             .flatMap { response =>
-              // Intercalate a side effect to store the result
+              // Intersperse a side effect to store the result
               jobResultService.put(response.result.fold(r => r, r => r)).map(_ => response)
             }
         }
@@ -150,9 +150,11 @@ case class LocalExperimentService[F[_]: Effect](
       job: ExperimentJobInProgress
   ): PartialFunction[Throwable, F[LocalExperimentResponse]] = {
     case NonFatal(e) =>
-      val msg = s"Cannot complete experiment ${job.job.jobId}: ${e.getMessage}"
-      logger.error(msg, e)
-      errorResult(job, msg).pure[F]
+      Effect[F].delay {
+        val msg = s"Cannot complete experiment ${job.job.jobId}: ${e.getMessage}"
+        logger.error(msg, e)
+        errorResult(job, msg)
+      }
   }
 
   private def errorResult(job: ExperimentJobInProgress, msg: String): LocalExperimentResponse = {
@@ -263,7 +265,7 @@ case class LocalExperimentService[F[_]: Effect](
                   case Left(err) =>
                     val msg =
                       s"""Invalid folding of extended features table: ${err
-                        .mkString_("", ",", "")}"""
+                        .mkString_(",")}"""
                     errorResult(job, msg).pure[F]
                   case Right(_) =>
                     executeExperimentFlow(extendedJobInProgress, splitters, extendedFeaturesTable)
@@ -459,7 +461,9 @@ private[mining] case class LocalExperimentFlow[F[_]: Effect](
 
   private def extractResult(response: AlgorithmResults): JobResult = {
     val algorithm = response.job.algorithmSpec
-    logger.info(s"Extract result from response: ${response.results}")
+    logger.whenDebugEnabled(
+      logger.debug(s"Extract result from response: ${response.results}")
+    )
     response.results.headOption match {
       case Some(model) => model
       case None =>

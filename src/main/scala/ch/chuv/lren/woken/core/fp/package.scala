@@ -29,6 +29,8 @@ package object fp {
 
   def runNow[F[_]: Effect, M](m: F[M]): M           = Effect[F].toIO(m).unsafeRunSync()
   def runLater[F[_]: Effect, M](m: F[M]): Future[M] = Effect[F].toIO(m).unsafeToFuture()
+  def runLater[F[_]: Effect, M](m: F[M], errorRecovery: Throwable => F[M]): Future[M] =
+    Effect[F].toIO(m).handleErrorWith(t => Effect[F].toIO(errorRecovery(t))).unsafeToFuture()
 
   def fromFuture[F[_]: Effect, R](f: => Future[R]): F[R] = implicitly[LiftIO[F]].liftIO(
     IO.fromFuture(IO(f))

@@ -62,6 +62,16 @@ object ConfigurationInstances {
                       metaDb,
                       0.5,
                       512)
+  val jobsConf =
+    JobsConfiguration("testNode",
+                      "admin",
+                      "http://chronos",
+                      featuresDb,
+                      sampleDataTableId,
+                      wokenDb,
+                      metaDb,
+                      0.5,
+                      512)
 
   lazy val localNodeConfigSource: Config = ConfigFactory
     .parseResourcesAnySyntax("localDatasets.conf")

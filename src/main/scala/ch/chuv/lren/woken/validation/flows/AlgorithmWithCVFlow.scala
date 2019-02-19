@@ -41,6 +41,7 @@ import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
+import scala.util.control.NonFatal
 
 object AlgorithmWithCVFlow {
 
@@ -136,7 +137,18 @@ case class AlgorithmWithCVFlow[F[_]: Effect](
         val subJob =
           DockerJob(subJobId, job.query, job.algorithm, job.algorithmDefinition, job.metadata)
 
-        runLater(algorithmExecutor.execute(subJob).map(response => (job, response)))
+        val errorRecovery: Throwable => F[(AlgorithmWithCVFlow.Job[F], AlgorithmResults)] = {
+          case NonFatal(t) =>
+            val errorResult = ErrorJobResult(Some(subJobId),
+                                             algorithmExecutor.node,
+                                             OffsetDateTime.now(),
+                                             Some(subJob.algorithmDefinition.code),
+                                             t.getMessage)
+            (job, AlgorithmResults(subJob, List(errorResult))).pure[F]
+          case fatal => Effect[F].raiseError(fatal)
+        }
+
+        runLater(algorithmExecutor.execute(subJob).map(response => (job, response)), errorRecovery)
       }
       .log("Learned from available local data")
       .withAttributes(debugElements)
@@ -181,10 +193,6 @@ case class AlgorithmWithCVFlow[F[_]: Effect](
                             job.featuresTableService,
                             job.algorithm,
                             job.algorithmDefinition)
-
-// TODO: keep?
-  private def nodeOf(spec: ValidationSpec): Option[String] =
-    spec.parameters.find(_.code == "node").map(_.value)
 
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
   private def buildResponse: Flow[(AlgorithmResults, ValidationResults), ResultResponse, NotUsed] =

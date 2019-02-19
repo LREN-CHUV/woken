@@ -29,20 +29,16 @@ import ch.chuv.lren.woken.Predefined.Algorithms.{
   knnWithK5
 }
 import ch.chuv.lren.woken.config.ConfigurationInstances._
+import ch.chuv.lren.woken.messages.variables.VariableId
+import ch.chuv.lren.woken.Predefined.FeaturesTable._
+
 import cats.implicits._
 import cats.scalatest.{ ValidatedMatchers, ValidatedValues }
-import ch.chuv.lren.woken.dao.FeaturesTableTestSupport
-import ch.chuv.lren.woken.messages.variables.VariableId
-import org.scalatest.{ Matchers, WordSpec }
 
+import org.scalatest.{ Matchers, WordSpec }
 import scala.collection.immutable.TreeSet
 
-class ExperimentJobTest
-    extends WordSpec
-    with Matchers
-    with ValidatedMatchers
-    with ValidatedValues
-    with FeaturesTableTestSupport {
+class ExperimentJobTest extends WordSpec with Matchers with ValidatedMatchers with ValidatedValues {
 
   val user: UserId = UserId("test")
 
