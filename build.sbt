@@ -132,7 +132,7 @@ lazy val library =
       val dockerTestKit   = "0.9.8"
       val diff            = "2.0.1"
       val acyclic         = "0.1.8"
-      val wokenMessages   = "3.0.0"
+      val wokenMessages   = "3.0.1"
       val sup             = "0.3.0"
       val sttpBackend     = "1.5.11"
     }
