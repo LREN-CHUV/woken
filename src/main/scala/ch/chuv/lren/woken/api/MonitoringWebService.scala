@@ -18,7 +18,7 @@
 package ch.chuv.lren.woken.api
 
 import akka.cluster.{ Cluster, MemberStatus }
-import akka.http.scaladsl.model.{ StatusCodes, Uri }
+import akka.http.scaladsl.model.{ StatusCode, StatusCodes, Uri }
 import akka.http.scaladsl.server.{ Directives, Route }
 import akka.http.scaladsl.model.StatusCodes._
 import akka.management.cluster.{ ClusterHealthCheck, ClusterHttpManagementRoutes }
@@ -29,7 +29,7 @@ import cats.effect.Effect
 import ch.chuv.lren.woken.api.swagger.MonitoringServiceApi
 import ch.chuv.lren.woken.config.{ AppConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.service.{ BackendServices, DatabaseServices }
-import ch.chuv.lren.woken.core.fp.runNow
+import ch.chuv.lren.woken.core.fp.runLater
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import sup.data.Report._
@@ -37,6 +37,9 @@ import sup.data.{ HealthReporter, Tagged }
 
 import scala.language.higherKinds
 import scala.collection.JavaConverters._
+import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.ExecutionContext.global
+import scala.util.{ Failure, Success }
 
 /**
   *  Monitoring API
@@ -64,31 +67,42 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
   private val allChecks =
     HealthReporter.fromChecks(databaseServices.healthChecks, backendServices.healthChecks)
 
+  implicit val ec: ExecutionContext = global
+
   def health: Route = pathPrefix("health") {
     pathEndOrSingleSlash {
       get {
-        val up = runNow(allChecks.check).value.health.isHealthy
-        (cluster.state.leader.nonEmpty,
-         !appConfig.disableWorkers,
-         cluster.state.members.size < 2,
-         up) match {
-          case (true, true, true, true) =>
-            complete("UP - Expected at least one worker (Woken validation server) in the cluster")
-          case (true, _, _, true) => complete("UP")
-          case (false, _, _, _) =>
-            val msg = "No leader elected for the cluster"
-            logger.warn(msg)
-            complete((StatusCodes.InternalServerError, msg))
-          case (_, _, _, false) =>
-            val report = runNow(allChecks.check.map(_.value))
-            val msg =
-              s"${report.health}: \n${report.checks.toList.filter(!_.health.isHealthy).mkString("\n")}"
-            logger.warn(msg)
-            complete((StatusCodes.InternalServerError, msg))
+        onComplete(delayedHealthChecks) {
+          case Success(r) => complete(r)
+          case Failure(ex) =>
+            complete((InternalServerError, s"An error occurred: ${ex.getMessage}"))
         }
       }
     } ~ dbHealth ~ backendHealth ~ clusterHealth
   }
+
+  private def delayedHealthChecks: Future[(StatusCode, String)] =
+    runLater(allChecks.check).flatMap { healthResult =>
+      val up = healthResult.value.health.isHealthy
+      (cluster.state.leader.nonEmpty, !appConfig.disableWorkers, cluster.state.members.size < 2, up) match {
+        case (true, true, true, true) =>
+          (StatusCodes.OK,
+           "UP - Expected at least one worker (Woken validation server) in the cluster")
+            .pure[Future]
+        case (true, _, _, true) => (StatusCodes.OK, "UP").pure[Future]
+        case (false, _, _, _) =>
+          val msg = "No leader elected for the cluster"
+          logger.warn(msg)
+          (StatusCodes.InternalServerError, msg).pure[Future]
+        case (_, _, _, false) =>
+          runLater(allChecks.check.map(_.value)).map { report =>
+            val msg =
+              s"${report.health}: \n${report.checks.toList.filter(!_.health.isHealthy).mkString("\n")}"
+            logger.warn(msg)
+            (StatusCodes.InternalServerError, msg)
+          }
+      }
+    }
 
   def readiness: Route = pathPrefix("readiness") {
     get {
@@ -121,26 +135,28 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
 
   def backendHealth: Route = pathPrefix("backend") {
     get {
-      if (runNow(backendServices.healthChecks.check).value.health.isHealthy) {
-        complete(OK)
-      } else {
-        complete(
-          (StatusCodes.InternalServerError,
-           runNow(backendServices.healthChecks.check.map(_.value.show)))
-        )
+      onComplete(runLater(backendServices.healthChecks.check)) {
+        case Success(checks) =>
+          if (checks.value.health.isHealthy)
+            complete(OK)
+          else
+            complete((StatusCodes.InternalServerError, checks.value.show))
+        case Failure(ex) =>
+          complete((InternalServerError, s"An error occurred: ${ex.getMessage}"))
       }
     }
   }
 
   def dbHealth: Route = pathPrefix("db") {
     get {
-      if (runNow(databaseServices.healthChecks.check).value.health.isHealthy) {
-        complete(OK)
-      } else {
-        complete(
-          (StatusCodes.InternalServerError,
-           runNow(databaseServices.healthChecks.check.map(_.value.show)))
-        )
+      onComplete(runLater(databaseServices.healthChecks.check)) {
+        case Success(checks) =>
+          if (checks.value.health.isHealthy)
+            complete(OK)
+          else
+            complete((StatusCodes.InternalServerError, checks.value.show))
+        case Failure(ex) =>
+          complete((InternalServerError, s"An error occurred: ${ex.getMessage}"))
       }
     }
   }
