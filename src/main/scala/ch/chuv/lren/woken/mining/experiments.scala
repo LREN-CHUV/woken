@@ -129,22 +129,28 @@ case class LocalExperimentService[F[_]: Effect](
           val msg = s"""Invalid definition of cross-validations: ${err.mkString_(",")}"""
           errorResult(job, msg).pure[F]
         },
-        fa => {
-          val (featuresTableService, splitterDefs) = fa
-          val r: F[LocalExperimentResponse] =
-            if (splitterDefs.isEmpty)
-              executeExperimentFlow(job, Nil, featuresTableService)
-            else
-              executeExtendedExperimentFlow(job, splitterDefs, featuresTableService)
-
-          r.recoverWith(recoverErrors(job))
-            .flatMap { response =>
-              // Intersperse a side effect to store the result
-              jobResultService.put(response.result.fold(r => r, r => r)).map(_ => response)
-            }
-        }
+        tableAndSplits => safeExecutionOfExperiment(job, tableAndSplits)
       )
     }
+
+  private def safeExecutionOfExperiment(
+      job: ExperimentJobInProgress,
+      tableAndSplits: (FeaturesTableService[F], List[FeaturesSplitterDefinition])
+  ): F[LocalExperimentResponse] = {
+
+    val (featuresTableService, splitterDefs) = tableAndSplits
+    val r: F[LocalExperimentResponse] =
+      if (splitterDefs.isEmpty)
+        executeExperimentFlow(job, Nil, featuresTableService)
+      else
+        prepareAndExecuteExtendedExperimentFlow(job, splitterDefs, featuresTableService)
+
+    r.recoverWith(recoverErrors(job))
+      .flatMap { response =>
+        // Intersperse a side effect to store the result
+        jobResultService.put(response.result.fold(r => r, r => r)).map(_ => response)
+      }
+  }
 
   private def recoverErrors(
       job: ExperimentJobInProgress
@@ -229,7 +235,7 @@ case class LocalExperimentService[F[_]: Effect](
       .fromFuture
   }
 
-  private def executeExtendedExperimentFlow(
+  private def prepareAndExecuteExtendedExperimentFlow(
       job: ExperimentJobInProgress,
       splitterDefs: List[FeaturesSplitterDefinition],
       featuresTableService: FeaturesTableService[F]
@@ -247,37 +253,46 @@ case class LocalExperimentService[F[_]: Effect](
           errorResult(job, msg).pure[F]
         },
         (extendedFeaturesTableR: Resource[F, FeaturesTableService[F]]) => {
-          extendedFeaturesTableR.use[LocalExperimentResponse] {
-            extendedFeaturesTable =>
-              val splitters = splitterDefs.map {
-                FeaturesSplitter(_, extendedFeaturesTable)
-              }
-
-              val extTable = extendedFeaturesTable.table.table
-              val extendedJob = job.job.copy(
-                inputTable = extTable,
-                query = job.job.query.copy(targetTable = Some(extTable))
-              )
-              val extendedJobInProgress: ExperimentJobInProgress = job.copy(job = extendedJob)
-
-              validateFolds(extendedJob, splitterDefs, extendedFeaturesTable)
-                .flatMap {
-                  case Left(err) =>
-                    val msg =
-                      s"""Invalid folding of extended features table: ${err
-                        .mkString_(",")}"""
-                    errorResult(job, msg).pure[F]
-                  case Right(_) =>
-                    executeExperimentFlow(extendedJobInProgress, splitters, extendedFeaturesTable)
-                }
-                .map { r =>
-                  // Restore the original job in the response
-                  r.copy(jobInProgress = job)
-                }
-
+          logger.info("Use extended features table")
+          extendedFeaturesTableR.use[LocalExperimentResponse] { extendedFeaturesTable =>
+            executeExtendedExperimentFlow(job, splitterDefs, extendedFeaturesTable)
           }
         }
       )
+
+  private def executeExtendedExperimentFlow(
+      job: ExperimentJobInProgress,
+      splitterDefs: List[FeaturesSplitterDefinition],
+      extendedFeaturesTable: FeaturesTableService[F]
+  ): F[LocalExperimentResponse] = {
+    val splitters = splitterDefs.map {
+      FeaturesSplitter(_, extendedFeaturesTable)
+    }
+
+    val extTable = extendedFeaturesTable.table.table
+    val extendedJob = job.job.copy(
+      inputTable = extTable,
+      query = job.job.query.copy(targetTable = Some(extTable))
+    )
+    val extendedJobInProgress: ExperimentJobInProgress = job.copy(job = extendedJob)
+
+    logger.info("Validate folds created in extended feature table")
+    validateFolds(extendedJob, splitterDefs, extendedFeaturesTable)
+      .flatMap {
+        case Left(err) =>
+          val msg =
+            s"""Invalid folding of extended features table: ${err
+              .mkString_(",")}"""
+          errorResult(job, msg).pure[F]
+        case Right(_) =>
+          logger.info("Execute experiment backed by extended feature table")
+          executeExperimentFlow(extendedJobInProgress, splitters, extendedFeaturesTable)
+      }
+      .map { r =>
+        // Restore the original job in the response
+        r.copy(jobInProgress = job)
+      }
+  }
 }
 
 private[mining] object LocalExperimentFlow extends LazyLogging {
