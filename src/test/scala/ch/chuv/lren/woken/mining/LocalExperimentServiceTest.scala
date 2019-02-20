@@ -197,7 +197,7 @@ class LocalExperimentServiceTest
       LocalExperimentService[IO](algorithmExecutor,
                                  TestServices.wokenWorker,
                                  featuresService,
-                                 TestServices.jobResultService,
+                                 TestServices.wokenRepository,
                                  system)
 
     val job: IO[Validation[ExperimentJobInProgress]] =
@@ -239,7 +239,7 @@ class LocalExperimentServiceTest
     LocalExperimentService[IO](algorithmExecutor,
                                TestServices.wokenWorker,
                                featuresService,
-                               TestServices.jobResultService,
+                               TestServices.wokenRepository,
                                system)
 
 }

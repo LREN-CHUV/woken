@@ -40,9 +40,7 @@ import scala.language.higherKinds
 
 object TestServices extends JsonUtils with MockFactory {
 
-  lazy val wokenRepository: WokenRepository[IO]               = new WokenInMemoryRepository[IO]()
-  lazy val jobResultService: JobResultRepository[IO]          = wokenRepository.jobResults
-  lazy val resultsCacheRepository: ResultsCacheRepository[IO] = wokenRepository.resultsCache
+  lazy val wokenRepository: WokenRepository[IO] = new WokenInMemoryRepository[IO]()
 
   lazy val emptyVariablesMetaService: VariablesMetaRepository[IO] =
     new MetadataInMemoryRepository[IO]().variablesMeta
@@ -95,8 +93,7 @@ object TestServices extends JsonUtils with MockFactory {
     DatabaseServices(
       config,
       featuresService,
-      jobResultService,
-      resultsCacheRepository,
+      wokenRepository,
       localVariablesMetaService,
       queryToJobService,
       datasetService,

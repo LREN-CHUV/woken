@@ -36,7 +36,7 @@ import ch.chuv.lren.woken.core.features.Queries._
 import ch.chuv.lren.woken.core.model.AlgorithmDefinition
 import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
-import ch.chuv.lren.woken.dao.JobResultRepository
+import ch.chuv.lren.woken.dao.WokenRepository
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.mining.LocalExperimentFlow.LocalExperimentJob
 import ch.chuv.lren.woken.service.{ FeaturesService, FeaturesTableService }
@@ -72,7 +72,7 @@ case class LocalExperimentService[F[_]: Effect](
     algorithmExecutor: AlgorithmExecutor[F],
     wokenWorker: WokenWorker[F],
     featuresService: FeaturesService[F],
-    jobResultService: JobResultRepository[F],
+    wokenDatabase: WokenRepository[F],
     system: ActorSystem
 )(implicit ctx: ActorRefFactory, ec: ExecutionContext)
     extends LazyLogging {
@@ -148,7 +148,7 @@ case class LocalExperimentService[F[_]: Effect](
     r.recoverWith(recoverErrors(job))
       .flatMap { response =>
         // Intersperse a side effect to store the result
-        jobResultService.put(response.result.fold(r => r, r => r)).map(_ => response)
+        wokenDatabase.jobResults.put(response.result.fold(r => r, r => r)).map(_ => response)
       }
   }
 
@@ -240,25 +240,28 @@ case class LocalExperimentService[F[_]: Effect](
       splitterDefs: List[FeaturesSplitterDefinition],
       featuresTableService: FeaturesTableService[F]
   ): F[LocalExperimentResponse] =
-    featuresTableService
-      .createExtendedFeaturesTable(job.job.query.filters,
-                                   Nil,
-                                   splitterDefs.map(_.splitColumn),
-                                   splitterDefs)
-      .fold(
-        err => {
-          val msg =
-            s"""Invalid definition of extended features table: ${err
-              .mkString_("", ",", "")}"""
-          errorResult(job, msg).pure[F]
-        },
-        (extendedFeaturesTableR: Resource[F, FeaturesTableService[F]]) => {
-          logger.info("Use extended features table")
-          extendedFeaturesTableR.use[LocalExperimentResponse] { extendedFeaturesTable =>
-            executeExtendedExperimentFlow(job, splitterDefs, extendedFeaturesTable)
+    wokenDatabase.nextTableSeqNumber().flatMap { extendedTableNumber =>
+      featuresTableService
+        .createExtendedFeaturesTable(job.job.query.filters,
+                                     Nil,
+                                     splitterDefs.map(_.splitColumn),
+                                     splitterDefs,
+                                     extendedTableNumber)
+        .fold(
+          err => {
+            val msg =
+              s"""Invalid definition of extended features table: ${err
+                .mkString_("", ",", "")}"""
+            errorResult(job, msg).pure[F]
+          },
+          (extendedFeaturesTableR: Resource[F, FeaturesTableService[F]]) => {
+            logger.info("Use extended features table")
+            extendedFeaturesTableR.use[LocalExperimentResponse] { extendedFeaturesTable =>
+              executeExtendedExperimentFlow(job, splitterDefs, extendedFeaturesTable)
+            }
           }
-        }
-      )
+        )
+    }
 
   private def executeExtendedExperimentFlow(
       job: ExperimentJobInProgress,

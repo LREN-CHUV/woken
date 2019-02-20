@@ -182,7 +182,8 @@ trait FeaturesTableRepository[F[_]] extends Repository[F] {
       filters: Option[FilterRule],
       newFeatures: List[TableColumn],
       otherColumns: List[TableColumn],
-      prefills: List[PrefillExtendedFeaturesTable]
+      prefills: List[PrefillExtendedFeaturesTable],
+      extendedTableNumber: Int
   ): Validation[Resource[F, FeaturesTableRepository[F]]]
 
 }

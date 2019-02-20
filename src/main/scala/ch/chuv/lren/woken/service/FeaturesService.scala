@@ -112,7 +112,8 @@ trait FeaturesTableService[F[_]] {
       filters: Option[FilterRule],
       newFeatures: List[TableColumn],
       otherColumns: List[TableColumn],
-      prefills: List[PrefillExtendedFeaturesTable]
+      prefills: List[PrefillExtendedFeaturesTable],
+      extendedTableNumber: Int
   ): Validation[Resource[F, FeaturesTableService[F]]]
 
 }
@@ -183,17 +184,22 @@ class FeaturesTableServiceImpl[F[_]: Effect](repository: FeaturesTableRepository
       filters: Option[FilterRule],
       newFeatures: List[TableColumn],
       otherColumns: List[TableColumn],
-      prefills: List[PrefillExtendedFeaturesTable]
+      prefills: List[PrefillExtendedFeaturesTable],
+      extendedTableNumber: Int
   ): Validation[Resource[F, FeaturesTableService[F]]] =
     repository
-      .createExtendedFeaturesTable(filters, newFeatures, otherColumns, prefills)
+      .createExtendedFeaturesTable(filters,
+                                   newFeatures,
+                                   otherColumns,
+                                   prefills,
+                                   extendedTableNumber)
       .map(
-        _.flatMap(
-          extendedTable =>
-            Resource.make(
-              Effect[F].delay(new FeaturesTableServiceImpl(extendedTable): FeaturesTableService[F])
-            )(_ => Effect[F].delay(()))
-        )
+        _.flatMap { extendedTable =>
+          Resource.make(
+            Effect[F]
+              .delay(new FeaturesTableServiceImpl(extendedTable): FeaturesTableService[F])
+          )(_ => Effect[F].delay(()))
+        }
       )
 
 }

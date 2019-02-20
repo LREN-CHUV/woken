@@ -31,8 +31,6 @@ import org.scalatest.{ Matchers, WordSpec }
 
 class FeaturesTableRepositoryDAOTest extends WordSpec with Matchers with DAOTest {
 
-  val wokenRepository = new WokenInMemoryRepository[IO]()
-
   val sampleTableHandler: ScalaCompositeHandler = AcolyteDSL.handleStatement
     .withQueryDetection("^SELECT ") // regex test from beginning
     .withQueryHandler { e: QueryExecution =>
@@ -81,7 +79,7 @@ class FeaturesTableRepositoryDAOTest extends WordSpec with Matchers with DAOTest
 
     "count all records in the table" in withRepository[FeaturesTableRepositoryDAO[IO]](
       sampleTableHandler,
-      xa => new FeaturesTableRepositoryDAO[IO](xa, sampleTable, sampleHeaders, wokenRepository)
+      xa => new FeaturesTableRepositoryDAO[IO](xa, sampleTable, sampleHeaders)
     ) { dao =>
       dao.count.unsafeRunSync() shouldBe 99
     }
@@ -90,7 +88,7 @@ class FeaturesTableRepositoryDAOTest extends WordSpec with Matchers with DAOTest
       FeaturesTableRepositoryDAO[IO]
     ](
       sampleTableHandler,
-      xa => new FeaturesTableRepositoryDAO[IO](xa, sampleTable, sampleHeaders, wokenRepository)
+      xa => new FeaturesTableRepositoryDAO[IO](xa, sampleTable, sampleHeaders)
     ) { dao =>
       dao.count(DatasetId(sampleTable.table.name)).unsafeRunSync() shouldBe 99
       dao.count(DatasetId("other")).unsafeRunSync() shouldBe 0
@@ -100,14 +98,14 @@ class FeaturesTableRepositoryDAOTest extends WordSpec with Matchers with DAOTest
       FeaturesTableRepositoryDAO[IO]
     ](
       cdeTableHandler,
-      xa => new FeaturesTableRepositoryDAO[IO](xa, cdeTable, cdeHeaders, wokenRepository)
+      xa => new FeaturesTableRepositoryDAO[IO](xa, cdeTable, cdeHeaders)
     ) { dao =>
       dao.count(DatasetId("datasetA")).unsafeRunSync() shouldBe 5
     }
 
     "count all records matching a filter" in withRepository[FeaturesTableRepositoryDAO[IO]](
       sampleTableHandler,
-      xa => new FeaturesTableRepositoryDAO[IO](xa, sampleTable, sampleHeaders, wokenRepository)
+      xa => new FeaturesTableRepositoryDAO[IO](xa, sampleTable, sampleHeaders)
     ) { dao =>
       val filter = CompoundFilterRule(
         Condition.and,
@@ -132,7 +130,7 @@ class FeaturesTableRepositoryDAOTest extends WordSpec with Matchers with DAOTest
 
     "count records grouped by a field" in withRepository[FeaturesTableRepositoryDAO[IO]](
       sampleTableHandler,
-      xa => new FeaturesTableRepositoryDAO[IO](xa, sampleTable, sampleHeaders, wokenRepository)
+      xa => new FeaturesTableRepositoryDAO[IO](xa, sampleTable, sampleHeaders)
     ) { dao =>
       dao.countGroupBy(TableColumn("college_math", SqlType.int), None).unsafeRunSync() shouldBe Map(
         "0" -> 47,
@@ -155,7 +153,7 @@ class FeaturesTableRepositoryDAOTest extends WordSpec with Matchers with DAOTest
       FeaturesTableRepositoryDAO[IO]
     ](
       sampleTableHandler,
-      xa => new FeaturesTableRepositoryDAO[IO](xa, sampleTable, sampleHeaders, wokenRepository)
+      xa => new FeaturesTableRepositoryDAO[IO](xa, sampleTable, sampleHeaders)
     ) { dao =>
       dao.datasets(None).unsafeRunSync() shouldBe Set(DatasetId(sampleTable.table.name))
 
@@ -173,7 +171,7 @@ class FeaturesTableRepositoryDAOTest extends WordSpec with Matchers with DAOTest
       FeaturesTableRepositoryDAO[IO]
     ](
       cdeTableHandler,
-      xa => new FeaturesTableRepositoryDAO[IO](xa, cdeTable, cdeHeaders, wokenRepository)
+      xa => new FeaturesTableRepositoryDAO[IO](xa, cdeTable, cdeHeaders)
     ) { dao =>
       val filter =
         SingleFilterRule("apoe4", "apoe4", "number", InputType.number, Operator.equal, List("1"))

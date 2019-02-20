@@ -18,26 +18,25 @@
 package ch.chuv.lren.woken.dao
 
 import cats.Id
-import cats.effect.{Effect, Resource}
-import cats.effect.concurrent.Ref
+import cats.effect.{ Effect, Resource }
 import cats.implicits._
 import ch.chuv.lren.woken.config.DatabaseConfiguration
 import ch.chuv.lren.woken.core.fp.runNow
 import ch.chuv.lren.woken.core.features.FeaturesQuery
-import ch.chuv.lren.woken.core.model.database.{FeaturesTableDescription, TableColumn}
+import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
-import ch.chuv.lren.woken.messages.datasets.{DatasetId, TableId}
+import ch.chuv.lren.woken.messages.datasets.{ DatasetId, TableId }
 import ch.chuv.lren.woken.messages.query.filters._
 import ch.chuv.lren.woken.messages.variables.SqlType
-import ch.chuv.lren.woken.validation.{FeaturesSplitterDefinition, KFoldFeaturesSplitterDefinition}
+import ch.chuv.lren.woken.validation.{ FeaturesSplitterDefinition, KFoldFeaturesSplitterDefinition }
 import sup.HealthCheck
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 
 import scala.collection.concurrent.TrieMap
 import scala.language.higherKinds
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 class FeaturesInMemoryRepository[F[_]: Effect](
     override val database: DatabaseConfiguration,
@@ -151,13 +150,12 @@ class FeaturesTableInMemoryRepository[F[_]: Effect](override val table: Features
   override def features(query: FeaturesQuery): F[(Headers, Stream[JsObject])] =
     (columns, dataFeatures.toStream).pure[F]
 
-  private val genNumber: F[Ref[F, Int]] = Ref.of[F, Int](0)
-
   override def createExtendedFeaturesTable(
       filters: Option[FilterRule],
       newFeatures: List[TableColumn],
       otherColumns: List[TableColumn],
-      prefills: List[PrefillExtendedFeaturesTable]
+      prefills: List[PrefillExtendedFeaturesTable],
+      nextExtendedTableNumber: Int
   ): Validation[Resource[F, FeaturesTableRepository[F]]] =
     ExtendedFeaturesTableInMemoryRepository
       .apply(
@@ -165,11 +163,8 @@ class FeaturesTableInMemoryRepository[F[_]: Effect](override val table: Features
         filters,
         newFeatures,
         otherColumns,
-        prefills, { () =>
-          genNumber.flatMap { g =>
-            g.modify(x => (x + 1, x))
-          }
-        }
+        prefills,
+        nextExtendedTableNumber
       )
       .map(r => r.map[FeaturesTableRepository[F]](t => t))
 
@@ -185,7 +180,7 @@ object ExtendedFeaturesTableInMemoryRepository {
       newFeatures: List[TableColumn],
       otherColumns: List[TableColumn],
       prefills: List[PrefillExtendedFeaturesTable],
-      nextTableSeqNumber: () => F[Int]
+      extendedTableNumber: Int
   ): Validation[Resource[F, ExtendedFeaturesTableInMemoryRepository[F]]] = {
     val pk = sourceTable.table.primaryKey.headOption
       .getOrElse(
@@ -193,12 +188,11 @@ object ExtendedFeaturesTableInMemoryRepository {
           s"Expected a primary key with one column in table ${sourceTable.table.table.toString}"
         )
       )
-    val rndColumn           = TableColumn("_rnd", SqlType.numeric)
-    val newColumns          = newFeatures ++ otherColumns
-    val extTableColumns     = newFeatures ++ List(rndColumn)
-    val extViewColumns      = newColumns ++ extTableColumns.filter(_ != pk)
-    val extendedTableNumber = runNow(nextTableSeqNumber())
-    val table               = sourceTable.table
+    val rndColumn       = TableColumn("_rnd", SqlType.numeric)
+    val newColumns      = newFeatures ++ otherColumns
+    val extTableColumns = newFeatures ++ List(rndColumn)
+    val extViewColumns  = newColumns ++ extTableColumns.filter(_ != pk)
+    val table           = sourceTable.table
     val extTable = table.copy(
       table = table.table.copy(name = s"${table.table.name}__$extendedTableNumber"),
       validateSchema = false
@@ -275,7 +269,7 @@ class ExtendedFeaturesTableInMemoryRepository[F[_]: Effect] private (
       prefills
         .flatMap {
           case p: KFoldFeaturesSplitterDefinition => Some(p.numFolds)
-          case _: FeaturesSplitterDefinition => None
+          case _: FeaturesSplitterDefinition      => None
         }
         .map { numFolds =>
           count(filters).map { total =>
@@ -307,7 +301,8 @@ class ExtendedFeaturesTableInMemoryRepository[F[_]: Effect] private (
       filters: Option[FilterRule],
       newFeatures: List[TableColumn],
       otherColumns: List[TableColumn],
-      prefills: List[PrefillExtendedFeaturesTable]
+      prefills: List[PrefillExtendedFeaturesTable],
+      extendedTableNumber: Int
   ): Validation[Resource[F, FeaturesTableRepository[F]]] =
     "Impossible to extend an extended table".invalidNel
 

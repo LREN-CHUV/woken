@@ -36,8 +36,7 @@ import scala.language.higherKinds
 case class DatabaseServices[F[_]: ConcurrentEffect: ContextShift: Timer](
     config: WokenConfiguration,
     featuresService: FeaturesService[F],
-    jobResultService: JobResultRepository[F],
-    resultsCacheService: ResultsCacheRepository[F],
+    wokenRepository: WokenRepository[F],
     variablesMetaService: VariablesMetaRepository[F],
     queryToJobService: QueryToJobService[F],
     datasetService: DatasetService,
@@ -46,6 +45,8 @@ case class DatabaseServices[F[_]: ConcurrentEffect: ContextShift: Timer](
 
   import DatabaseServices.logger
 
+  def jobResultService: JobResultRepository[F]       = wokenRepository.jobResults
+  def resultsCacheService: ResultsCacheRepository[F] = wokenRepository.resultsCache
   @SuppressWarnings(Array("org.wartremover.warts.Throw"))
   def validate(): F[Unit] = {
 
@@ -182,13 +183,6 @@ object DatabaseServices {
         Sync[F].delay(WokenRepositoryDAO(xa))
       }
 
-      val jrsIO: F[JobResultRepository[F]] = wokenIO.map { wokenRepository =>
-        wokenRepository.jobResults
-      }
-      val rcsIO: F[ResultsCacheRepository[F]] = wokenIO.map { wokenRepository =>
-        wokenRepository.resultsCache
-      }
-
       val fsIO: F[FeaturesService[F]] = wokenIO.flatMap { wokenRepository =>
         mkService(t.featuresTransactor, config.featuresDb) { xa =>
           FeaturesRepositoryDAO(xa, config.featuresDb, wokenRepository).map {
@@ -206,8 +200,7 @@ object DatabaseServices {
 
       val servicesIO = for {
         featuresService      <- fsIO
-        jobResultService     <- jrsIO
-        resultsCacheService  <- rcsIO
+        wokenService         <- wokenIO
         variablesMetaService <- vmsIO
         queryToJobService = QueryToJobService(featuresService,
                                               variablesMetaService,
@@ -216,8 +209,7 @@ object DatabaseServices {
       } yield
         DatabaseServices[F](config,
                             featuresService,
-                            jobResultService,
-                            resultsCacheService,
+                            wokenService,
                             variablesMetaService,
                             queryToJobService,
                             datasetService,

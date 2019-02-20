@@ -23,6 +23,7 @@ import acolyte.jdbc._
 import cats.effect.IO
 import cats.scalatest.{ ValidatedMatchers, ValidatedValues }
 import ch.chuv.lren.woken.Predefined.FeaturesTable._
+import ch.chuv.lren.woken.core.fp.runNow
 import ch.chuv.lren.woken.messages.query.{ CodeValue, ValidationSpec }
 import ch.chuv.lren.woken.messages.query.filters.{ InputType, Operator, SingleFilterRule }
 import ch.chuv.lren.woken.validation.KFoldFeaturesSplitterDefinition
@@ -160,9 +161,9 @@ class ExtendedFeaturesTableRepositoryDAOTest
       xa => {
         val wokenRepository = new WokenInMemoryRepository[IO]()
         val sourceTable =
-          new FeaturesTableRepositoryDAO[IO](xa, churnTable, churnHeaders, wokenRepository)
+          new FeaturesTableRepositoryDAO[IO](xa, churnTable, churnHeaders)
         val extendedTableFromNoKeyTable = ExtendedFeaturesTableRepositoryDAO
-          .apply[IO](sourceTable, None, Nil, Nil, Nil, wokenRepository.nextTableSeqNumber)
+          .apply[IO](sourceTable, None, Nil, Nil, Nil, runNow(wokenRepository.nextTableSeqNumber()))
         extendedTableFromNoKeyTable should haveInvalid(
           "Extended features table expects a primary key of one column for table churn"
         )
@@ -181,9 +182,9 @@ class ExtendedFeaturesTableRepositoryDAOTest
       xa => {
         val wokenRepository = new WokenInMemoryRepository[IO]()
         val sourceTable =
-          new FeaturesTableRepositoryDAO[IO](xa, cdeTable, cdeHeaders, wokenRepository)
+          new FeaturesTableRepositoryDAO[IO](xa, cdeTable, cdeHeaders)
         ExtendedFeaturesTableRepositoryDAO
-          .apply[IO](sourceTable, None, Nil, Nil, Nil, wokenRepository.nextTableSeqNumber)
+          .apply[IO](sourceTable, None, Nil, Nil, Nil, runNow(wokenRepository.nextTableSeqNumber()))
           .value
       }
     ) { dao =>
@@ -199,11 +200,16 @@ class ExtendedFeaturesTableRepositoryDAOTest
       xa => {
         val wokenRepository = new WokenInMemoryRepository[IO]()
         val sourceTable =
-          new FeaturesTableRepositoryDAO[IO](xa, cdeTable, cdeHeaders, wokenRepository)
+          new FeaturesTableRepositoryDAO[IO](xa, cdeTable, cdeHeaders)
         val filter =
           SingleFilterRule("apoe4", "apoe4", "number", InputType.number, Operator.equal, List("2"))
         ExtendedFeaturesTableRepositoryDAO
-          .apply[IO](sourceTable, Some(filter), Nil, Nil, Nil, wokenRepository.nextTableSeqNumber)
+          .apply[IO](sourceTable,
+                     Some(filter),
+                     Nil,
+                     Nil,
+                     Nil,
+                     runNow(wokenRepository.nextTableSeqNumber()))
           .value
       }
     ) { dao =>
@@ -219,7 +225,7 @@ class ExtendedFeaturesTableRepositoryDAOTest
       xa => {
         val wokenRepository = new WokenInMemoryRepository[IO]()
         val sourceTable =
-          new FeaturesTableRepositoryDAO[IO](xa, cdeTable, cdeHeaders, wokenRepository)
+          new FeaturesTableRepositoryDAO[IO](xa, cdeTable, cdeHeaders)
         val filter =
           SingleFilterRule("apoe4", "apoe4", "number", InputType.number, Operator.equal, List("2"))
         val validationSpec = ValidationSpec("kfold", List(CodeValue("k", "5")))
@@ -233,7 +239,7 @@ class ExtendedFeaturesTableRepositoryDAOTest
                      newFeatures,
                      Nil,
                      prefills,
-                     wokenRepository.nextTableSeqNumber)
+                     runNow(wokenRepository.nextTableSeqNumber()))
           .value
       }
     ) { dao =>

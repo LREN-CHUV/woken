@@ -98,7 +98,7 @@ class ExperimentQueriesActor[F[_]: Effect](
     backendServices.algorithmExecutor,
     backendServices.wokenWorker,
     databaseServices.featuresService,
-    databaseServices.jobResultService,
+    databaseServices.wokenRepository,
     context.system
   )
 

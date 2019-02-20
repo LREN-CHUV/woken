@@ -28,7 +28,6 @@ import ch.chuv.lren.woken.config.DatabaseConfiguration
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn }
 import ch.chuv.lren.woken.core.model.database.sqlUtils._
-import ch.chuv.lren.woken.core.fp.runNow
 import ch.chuv.lren.woken.messages.datasets.{ DatasetId, TableId }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
 import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
@@ -44,8 +43,7 @@ import scala.language.higherKinds
 
 class FeaturesRepositoryDAO[F[_]: Effect] private (
     val xa: Transactor[F],
-    override val database: DatabaseConfiguration,
-    val wokenRepository: WokenRepository[F]
+    override val database: DatabaseConfiguration
 ) extends FeaturesRepository[F] {
 
   override def featuresTable(table: TableId): F[Option[FeaturesTableRepository[F]]] =
@@ -53,7 +51,7 @@ class FeaturesRepositoryDAO[F[_]: Effect] private (
       .get(table)
       .map(
         t =>
-          FeaturesTableRepositoryDAO[F](xa, t, wokenRepository)
+          FeaturesTableRepositoryDAO[F](xa, t)
             .map(r => r: FeaturesTableRepository[F])
       )
       .sequence
@@ -124,7 +122,7 @@ object FeaturesRepositoryDAO {
       .map(_.flatten)
 
     errors.map {
-      case Nil                 => new FeaturesRepositoryDAO(xa, database, wokenRepository).validNel[String]
+      case Nil                 => new FeaturesRepositoryDAO(xa, database).validNel[String]
       case error :: moreErrors => Validated.Invalid(NonEmptyList(error, moreErrors))
     }
 
@@ -244,8 +242,7 @@ abstract class BaseFeaturesTableRepositoryDAO[F[_]: Effect] extends FeaturesTabl
 class FeaturesTableRepositoryDAO[F[_]: Effect] private[dao] (
     override val xa: Transactor[F],
     override val table: FeaturesTableDescription,
-    override val columns: FeaturesTableRepository.Headers,
-    val wokenRepository: WokenRepository[F]
+    override val columns: FeaturesTableRepository.Headers
 ) extends BaseFeaturesTableRepositoryDAO[F] {
 
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
@@ -253,15 +250,16 @@ class FeaturesTableRepositoryDAO[F[_]: Effect] private[dao] (
       filters: Option[FilterRule],
       newFeatures: List[TableColumn],
       otherColumns: List[TableColumn],
-      prefills: List[PrefillExtendedFeaturesTable]
+      prefills: List[PrefillExtendedFeaturesTable],
+      extendedTableNumber: Int
   ): Validation[Resource[F, FeaturesTableRepository[F]]] =
     ExtendedFeaturesTableRepositoryDAO(this,
                                        filters,
                                        newFeatures,
                                        otherColumns,
                                        prefills,
-                                       wokenRepository.nextTableSeqNumber)
-      .map(r => r.map[FeaturesTableRepository[F]](t => t))
+                                       extendedTableNumber)
+      .map(_.map[FeaturesTableRepository[F]](t => t))
 
   override def healthCheck: HealthCheck[F, Id] = validate(xa)
 }
@@ -269,14 +267,13 @@ class FeaturesTableRepositoryDAO[F[_]: Effect] private[dao] (
 object FeaturesTableRepositoryDAO {
 
   def apply[F[_]: Effect](xa: Transactor[F],
-                          table: FeaturesTableDescription,
-                          wokenRepository: WokenRepository[F]): F[FeaturesTableRepositoryDAO[F]] = {
+                          table: FeaturesTableDescription): F[FeaturesTableRepositoryDAO[F]] = {
     implicit val han: LogHandler = LogHandler.jdkLogHandler
 
     HC.prepareStatement(s"SELECT * FROM ${table.quotedName} LIMIT 1")(prepareHeaders)
       .transact(xa)
       .map { headers =>
-        new FeaturesTableRepositoryDAO(xa, table, headers, wokenRepository)
+        new FeaturesTableRepositoryDAO(xa, table, headers)
       }
   }
 
@@ -350,7 +347,8 @@ class ExtendedFeaturesTableRepositoryDAO[F[_]: Effect] private (
       filters: Option[FilterRule],
       newFeatures: List[TableColumn],
       otherColumns: List[TableColumn],
-      prefills: List[PrefillExtendedFeaturesTable]
+      prefills: List[PrefillExtendedFeaturesTable],
+      extendedTableNumber: Int
   ): Validation[Resource[F, FeaturesTableRepository[F]]] =
     "Impossible to extend an extended table".invalidNel
 
@@ -367,7 +365,7 @@ object ExtendedFeaturesTableRepositoryDAO {
       newFeatures: List[TableColumn],
       otherColumns: List[TableColumn],
       prefills: List[PrefillExtendedFeaturesTable],
-      nextTableSeqNumber: () => F[Int]
+      extendedTableNumber: Int
   ): Validation[Resource[F, ExtendedFeaturesTableRepositoryDAO[F]]] = {
 
     val xa       = sourceTable.xa
@@ -384,34 +382,34 @@ object ExtendedFeaturesTableRepositoryDAO {
     val rndColumn  = TableColumn("_rnd", SqlType.numeric)
     val newColumns = newFeatures ++ otherColumns
 
-    val validatedDao = extractPk.map { pk =>
-      val extendedTableNumber = runNow(nextTableSeqNumber())
-      val daoC = for {
-        extTable <- createExtendedTable(sourceTable.table,
-                                        pk,
-                                        filters,
-                                        rndColumn,
-                                        newColumns,
-                                        extendedTableNumber)
-        _ <- prefills
-          .map(_.prefillExtendedTableSql(sourceTable.table, extTable, rndColumn).run)
-          .sequence
-        extViewCols <- createExtendedView(sourceTable.table,
+    val validatedDao: Validated[NonEmptyList[String], F[ExtendedFeaturesTableRepositoryDAO[F]]] =
+      extractPk.map { pk =>
+        val daoC = for {
+          extTable <- createExtendedTable(sourceTable.table,
                                           pk,
-                                          sourceTable.columns,
                                           filters,
-                                          extTable,
                                           rndColumn,
-                                          newColumns)
-      } yield
-        new ExtendedFeaturesTableRepositoryDAO(sourceTable,
-                                               extViewCols._1,
-                                               extViewCols._2,
-                                               extTable,
-                                               newColumns,
-                                               rndColumn)
-      daoC.transact(seededXa)
-    }
+                                          newColumns,
+                                          extendedTableNumber)
+          _ <- prefills
+            .map(_.prefillExtendedTableSql(sourceTable.table, extTable, rndColumn).run)
+            .sequence
+          extViewCols <- createExtendedView(sourceTable.table,
+                                            pk,
+                                            sourceTable.columns,
+                                            filters,
+                                            extTable,
+                                            rndColumn,
+                                            newColumns)
+        } yield
+          new ExtendedFeaturesTableRepositoryDAO(sourceTable,
+                                                 extViewCols._1,
+                                                 extViewCols._2,
+                                                 extTable,
+                                                 newColumns,
+                                                 rndColumn)
+        daoC.transact(seededXa)
+      }
 
     validatedDao.map { dao =>
       Resource.make(dao)(_.close()).flatMap { f: ExtendedFeaturesTableRepositoryDAO[F] =>
