@@ -31,9 +31,9 @@ import ch.chuv.lren.woken.messages.query.{
   QueryResult,
   queryProtocol
 }
+
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.{ Failure, Success, Try }
-
 import spray.json._
 import queryProtocol._
 import akka.stream.{ ActorAttributes, Supervision }
@@ -43,6 +43,8 @@ import ch.chuv.lren.woken.messages.variables.{
   VariablesForDatasetsResponse
 }
 import com.typesafe.scalalogging.LazyLogging
+
+import scala.util.control.NonFatal
 
 trait WebsocketSupport {
   this: LazyLogging =>
@@ -138,15 +140,13 @@ trait WebsocketSupport {
       .map { jsonEncodedString =>
         Try {
           jsonEncodedString.parseJson.convertTo[ExperimentQuery]
+        }.recoverWith {
+          case NonFatal(e) =>
+            logger.error(s"Cannot deserialize Json as experiment query: $jsonEncodedString", e)
+            Failure(e)
         }
       }
-      .filter {
-        case Success(_) => true
-        case Failure(err) =>
-          logger.error("Cannot deserialize Json as experiment query", err)
-          false
-
-      }
+      .filter(_.isSuccess)
       .mapAsync(parallelism = 3) {
         case Success(query) =>
           (masterRouter ? query).mapTo[QueryResult]
@@ -172,15 +172,13 @@ trait WebsocketSupport {
       .map { jsonEncodedString =>
         Try {
           jsonEncodedString.parseJson.convertTo[MiningQuery]
+        }.recoverWith {
+          case NonFatal(e) =>
+            logger.error(s"Cannot deserialize Json as mining query: $jsonEncodedString", e)
+            Failure(e)
         }
       }
-      .filter {
-        case Success(_) => true
-        case Failure(err) =>
-          logger.error("Cannot deserialize Json as mining query", err)
-          false
-
-      }
+      .filter(_.isSuccess)
       .withAttributes(ActorAttributes.supervisionStrategy(decider))
       .mapAsync(parallelism = 3) {
         case Success(query) =>
