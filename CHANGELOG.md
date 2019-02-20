@@ -2,7 +2,7 @@
 # Changelog
 
 
-## 2.9.0 - 2019-01-22
+## [https://github.com/LREN-CHUV/woken/compare/2.8.0...2.9.0](2.9.0) - 2019-01-22
 
 * Update algorithms
    * hbpmip/python-anova:0.4.5
@@ -22,7 +22,7 @@
    * hbpmip/python-jsi-hedwig:1.0.9
 * Update Woken-validation to 2.6.0
 * API: /cluster - expose Akka management checks
-* SPI: Describe tables in the configutation
+* SPI: Describe tables in the configuration
 * Do not always require covariables to exist for distributed queries
 * Stream support for websocket client
 * Better descriptions of algorithms
@@ -50,7 +50,7 @@
 * __fix__ Refactor and fix cross-validation: use a temporary table in Postgres to create the random k-folds
 * __fix__ Fix filtering queries
 
-## 2.8.0 - 2018-05-23
+## [https://github.com/LREN-CHUV/woken/compare/2.7.0...2.8.0](2.8.0) - 2018-05-23
 
 * New algorithms
    * hbpmip/python-distributed-kmeans:0.2.1 distributed
@@ -86,7 +86,7 @@
 * __fix__ improve shuffling during K-fold cross validation
 * __fix__ Fix query for cross validation
 
-2.7.0 - 2018-05-15
+## [https://github.com/LREN-CHUV/woken/compare/2.6.0...2.7.0](2.7.0) - 2018-05-15
 
 * New algorithms
    * hbpmip/python-distributed-pca:0.3.1
@@ -114,7 +114,7 @@
 * __fix__ Change type for algo ggparci to features_extraction
 * __fix__ Naive Bayes: configure only for classification
 
-## 2.6.0 - 2018-05-01
+## [https://github.com/LREN-CHUV/woken/compare/2.5.0...2.6.0](2.6.0) - 2018-05-01
 
 * Update algorithms
    * hbpmip/python-anova:0.4.2
@@ -155,7 +155,7 @@
 * __fix__ Increase size of payloads for messages exchanged between Woken and the portal or validation workers
 * __fix__ Metadata queries: support exhaustive argument
 
-## 2.5.0 - 2018-04-19
+## [https://github.com/LREN-CHUV/woken/compare/2.4.0...2.0.0](2.5.0) - 2018-04-19
 
 * New algorithms
    * hbpmip/python-knn:0.2.3
@@ -191,7 +191,7 @@
 * __fix__ Fix count features
 * __fix__ Handle tables without a 'dataset' column
 
-## 2.4.0 - 2018-03-16
+## [https://github.com/LREN-CHUV/woken/compare/2.3.0...2.4.0](2.4.0) - 2018-03-16
 
 * Update algorithms
    * hbpmip/java-rapidminer-knn:0.2.2
@@ -225,7 +225,7 @@
 * __fix__ Stabilisation of mining and experiment queries
 * __doc__ Usage for this application
 
-## 2.3.0 - 2018-02-20
+## [https://github.com/LREN-CHUV/woken/compare/2.2.0...2.3.0](2.3.0) - 2018-02-20
 
 * Update Woken validation to 2.1.6
 * Update algorithms
@@ -246,42 +246,37 @@
 * __dev__ Refactor VariablesMeta, Shapes and document JobResults
 * __dev__ Rebrand top level package to ch.chuv.lren.woken
 
-## 2.2.0 - 2018-01-16
+## [https://github.com/LREN-CHUV/woken/compare/2.1.0...2.2.0](2.2.0) - 2018-01-16
 
 * Distributed datamining
 * Distributed experiments
 * Add support for Websockets to connect to remote Woken instances
+* Clarify and update configuration
 * __dev__ Rely on Akka streams for all distributed functionality, also for experiments
 * __dev__ Update to Akka 2.5.9
 
-## 2.1.1 - 2017-12-14
-
-* Clarify and update configuration
-
-## 2.1.0 - 2017-12-11
+## [https://github.com/LREN-CHUV/woken/compare/2.0.0...2.1.0](2.1.0) - 2017-12-11
 
 * Requires Chronos 3.0.2 and Zookeeper 3.4.8
 * Deep code refactoring, backend by more unit tests
 * Monitor jobs on Chronos, track failures and report errors on those jobs
-* __dev__ Configuration uses Cats Validation
-* __dev__ Favor immutable data structures
-
-## 2.0.2 - 2017-10-23
-
-* Update Akka to 2.3.16
-
-## 2.0.1 - 2017-10-13
-
 * Move cross-validation module to its own project (woken-validation)
 * Extract woken-messages library and make it a dependency
 * Add a MasterRouter actor, use Akka to communicate with Portal backend
 * Pass variables metatada to algorithms as PARAM_meta variable
+* __dev__ Configuration uses Cats Validation
+* __dev__ Favor immutable data structures
+* __dev__ Update Akka to 2.3.16
 
-## 2.0.0 - 2016-09-22
+## [https://github.com/LREN-CHUV/woken/compare/1.0.0...2.0.0](2.0.0) - 2016-09-22
 
 * Add support for experiments
 * Add cross-validation module
 
-## 1.0.0 - 2016-03-22
+## [https://github.com/LREN-CHUV/woken/compare/c8f18660...1.0.0](1.0.0) - 2016-03-22
 
 * First stable version
+
+## 0.0.0 - 2015-09-13
+
+* Start project
