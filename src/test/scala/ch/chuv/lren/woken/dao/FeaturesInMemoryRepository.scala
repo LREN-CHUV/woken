@@ -18,26 +18,26 @@
 package ch.chuv.lren.woken.dao
 
 import cats.Id
-import cats.effect.{ Effect, Resource }
+import cats.effect.{Effect, Resource}
 import cats.effect.concurrent.Ref
 import cats.implicits._
 import ch.chuv.lren.woken.config.DatabaseConfiguration
 import ch.chuv.lren.woken.core.fp.runNow
 import ch.chuv.lren.woken.core.features.FeaturesQuery
-import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn }
+import ch.chuv.lren.woken.core.model.database.{FeaturesTableDescription, TableColumn}
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
-import ch.chuv.lren.woken.messages.datasets.{ DatasetId, TableId }
+import ch.chuv.lren.woken.messages.datasets.{DatasetId, TableId}
 import ch.chuv.lren.woken.messages.query.filters._
 import ch.chuv.lren.woken.messages.variables.SqlType
-import ch.chuv.lren.woken.validation.KFoldFeaturesSplitterDefinition
+import ch.chuv.lren.woken.validation.{FeaturesSplitterDefinition, KFoldFeaturesSplitterDefinition}
 import sup.HealthCheck
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 
 import scala.collection.concurrent.TrieMap
 import scala.language.higherKinds
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 class FeaturesInMemoryRepository[F[_]: Effect](
     override val database: DatabaseConfiguration,
@@ -275,7 +275,7 @@ class ExtendedFeaturesTableInMemoryRepository[F[_]: Effect] private (
       prefills
         .flatMap {
           case p: KFoldFeaturesSplitterDefinition => Some(p.numFolds)
-          case _: KFoldFeaturesSplitterDefinition => None
+          case _: FeaturesSplitterDefinition => None
         }
         .map { numFolds =>
           count(filters).map { total =>
