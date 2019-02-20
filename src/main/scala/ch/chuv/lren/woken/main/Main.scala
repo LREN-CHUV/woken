@@ -17,7 +17,7 @@
 
 package ch.chuv.lren.woken.main
 
-import cats.effect.{ExitCode, IO, IOApp}
+import cats.effect.{ ExitCode, IO, IOApp }
 import ch.chuv.lren.woken.config.mainConfig
 import ch.chuv.lren.woken.errors
 import com.typesafe.scalalogging.Logger

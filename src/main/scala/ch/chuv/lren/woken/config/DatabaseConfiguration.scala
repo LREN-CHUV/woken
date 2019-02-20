@@ -25,7 +25,7 @@ import cats.implicits._
 import cats.effect._
 import cats.data.Validated._
 import com.typesafe.config.Config
-import ch.chuv.lren.woken.core.model.database.{FeaturesTableDescription, TableColumn}
+import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn }
 import ch.chuv.lren.woken.core.threads
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
 import ch.chuv.lren.woken.messages.datasets.TableId
