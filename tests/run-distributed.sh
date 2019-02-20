@@ -40,7 +40,7 @@ do
     tests=0
     echo "INFO: --no-tests option detected !"
   fi
-  if [[ "-&&ll-tests" == "$param" ]]; then
+  if [[ "--all-tests" == "$param" ]]; then
     test_args=""
     echo "INFO: --all-tests option detected !"
   fi

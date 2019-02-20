@@ -21,6 +21,8 @@
   "covariablesMustExist": true,
   "grouping": [],
   "targetTable": {
+    "database": "features",
+    "dbSchema": "public",
     "name": "sample_data"
   },
   "user": {
