@@ -52,16 +52,6 @@ else
   DOCKER_COMPOSE="sudo docker-compose -f docker-compose-ci.yml"
 fi
 
-function _cleanup() {
-  local error_code="$?"
-  echo "Stopping the containers..."
-  $DOCKER_COMPOSE stop | true
-  $DOCKER_COMPOSE down | true
-  $DOCKER_COMPOSE rm -f > /dev/null 2> /dev/null | true
-  exit $error_code
-}
-trap _cleanup EXIT INT TERM
-
 export TEST_ARGS="${test_args}"
 
 echo "Remove old running containers (if any)..."
@@ -126,7 +116,3 @@ if [[ "$exit_code" != "0" ]]; then
   exit 1
 fi
 echo "[OK] All integration tests passed."
-
-echo
-# Cleanup
-_cleanup

@@ -89,7 +89,7 @@ case class Monitoring[F[_]: ConcurrentEffect: Timer](core: CoreSystem, config: W
 
   def unbind(): F[Unit] = Sync[F].defer {
     logger.info("Stop monitoring")
-    logger.warn("Stopping here", new Exception())
+    logger.warn("Stopping here", new Exception("Stopping system"))
 
     val kamonConfig       = config.config.getConfig("kamon")
     val hostSystemMetrics = kamonConfig.getBoolean("system-metrics.host.enabled")
