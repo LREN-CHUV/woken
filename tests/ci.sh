@@ -16,7 +16,7 @@ set -o errexit   ## set -e : exit the script if any statement returns a non-true
 get_script_dir () {
      SOURCE="${BASH_SOURCE[0]}"
 
-     while [ -h "$SOURCE" ]; do
+     while [[ -h "$SOURCE" ]]; do
           DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
           SOURCE="$( readlink "$SOURCE" )"
           [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
@@ -30,7 +30,7 @@ cd "$(get_script_dir)"
 test_args="testOnly -- -l org.scalatest.tags.Slow"
 for param in "$@"
 do
-  if [ "--all" == "$param" ]; then
+  if [[ "-&&ll" == "$param" ]]; then
     test_args=""
     echo "INFO: ---all option detected !"
   fi
@@ -121,7 +121,7 @@ $DOCKER_COMPOSE up wokentest
 
 exit_code="$($DOCKER inspect tests_wokentest_1 --format='{{.State.ExitCode}}')"
 
-if [ "$exit_code" != "0" ]; then
+if [[ "$exit_code" != "0" ]]; then
   echo "Integration tests failed!"
   exit 1
 fi

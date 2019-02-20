@@ -16,7 +16,7 @@ set -o errexit   ## set -e : exit the script if any statement returns a non-true
 get_script_dir () {
      SOURCE="${BASH_SOURCE[0]}"
 
-     while [ -h "$SOURCE" ]; do
+     while [[ -h "$SOURCE" ]]; do
           DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
           SOURCE="$( readlink "$SOURCE" )"
           [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
@@ -32,15 +32,15 @@ tests=1
 test_args="testOnly -- -l org.scalatest.tags.Slow"
 for param in "$@"
 do
-  if [ "--no-frontend" == "$param" ]; then
+  if [[ "--no-frontend" == "$param" ]]; then
     frontend=0
     echo "INFO: --no-frontend option detected !"
   fi
-  if [ "--no-tests" == "$param" ]; then
+  if [[ "--no-tests" == "$param" ]]; then
     tests=0
     echo "INFO: --no-tests option detected !"
   fi
-  if [ "--all-tests" == "$param" ]; then
+  if [[ "-&&ll-tests" == "$param" ]]; then
     test_args=""
     echo "INFO: --all-tests option detected !"
   fi

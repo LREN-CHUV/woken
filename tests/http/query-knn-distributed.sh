@@ -7,5 +7,5 @@ http -v --verify=no -a admin:WoKeN --timeout 180 POST http://localhost:8087/mini
          covariables:='[{"code":"leftcaudate"}]' \
          covariablesMustExist:=true \
          datasets:='[{"code":"desd-synthdata"},{"code":"qqni-synthdata"}]' \
-         targetTable:='{database": "features", "dbSchema": "public", "name":"cde_features_mixed"}' \
+         targetTable:='{"database": "features", "dbSchema": "public", "name":"cde_features_mixed"}' \
          algorithm:='{"code":"knn", "name": "KNN", "parameters": []}'
