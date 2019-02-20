@@ -440,12 +440,7 @@
       "code": "qqni-synthdata"
     }
   ],
-  "feedback": [
-    {
-      "msg": "Missing variables lefthippocampus",
-      "severity": "info"
-    }
-  ],
+  "feedback": [],
   "jobId": "*",
   "node": "local",
   "query": {

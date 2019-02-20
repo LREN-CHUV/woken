@@ -124,7 +124,7 @@ done
 
 echo "The Algorithm Factory is now running on your system"
 
-if [ $tests == 1 ]; then
+if [[ $tests == 1 ]]; then
   echo
   echo "Testing HTTP web services..."
 
@@ -138,7 +138,7 @@ if [ $tests == 1 ]; then
 
 fi
 
-if [ $frontend == 1 ]; then
+if [[ $frontend == 1 ]]; then
   $DOCKER_COMPOSE up -d portalbackend
   $DOCKER_COMPOSE run wait_portal_backend
   $DOCKER_COMPOSE up -d frontend

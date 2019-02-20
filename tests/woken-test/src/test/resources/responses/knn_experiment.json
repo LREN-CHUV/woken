@@ -1439,12 +1439,7 @@
       "code": "sample_data"
     }
   ],
-  "feedback": [
-    {
-      "msg": "Missing variables score_test1,college_math",
-      "severity": "info"
-    }
-  ],
+  "feedback": [],
   "jobId": "*",
   "node": "local",
   "query": {

@@ -46,12 +46,7 @@
       "code": "sample_data"
     }
   ],
-  "feedback": [
-    {
-      "msg": "Missing variables score_math_course1,score_math_course2",
-      "severity": "info"
-    }
-  ],
+  "feedback": [],
   "jobId": "*",
   "node": "local",
   "query": {
