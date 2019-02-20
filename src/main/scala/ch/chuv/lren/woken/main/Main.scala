@@ -17,13 +17,12 @@
 
 package ch.chuv.lren.woken.main
 
-import cats.effect.{ ExitCode, IO, IOApp }
+import cats.effect.{ExitCode, IO, IOApp}
 import ch.chuv.lren.woken.config.mainConfig
+import ch.chuv.lren.woken.errors
 import com.typesafe.scalalogging.Logger
-import org.apache.logging.log4j.core.config.plugins.util.PluginManager
 import org.slf4j.LoggerFactory
 
-import scala.collection.JavaConverters._
 import scala.io.StdIn
 
 /**
@@ -46,8 +45,7 @@ object Main extends IOApp {
 
   def run(args: List[String]): IO[ExitCode] = {
     // Report automatically all errors to Bugsnag
-    // TODO: use errors.reportErrorsToBugsnag()
-    PluginManager.addPackages(List("ch.chuv.lren.woken.errors").asJavaCollection)
+    errors.reportErrorsToBugsnag()
 
     val config = mainConfig.unsafeRunSync()
 

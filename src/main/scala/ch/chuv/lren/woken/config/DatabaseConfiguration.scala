@@ -25,7 +25,8 @@ import cats.implicits._
 import cats.effect._
 import cats.data.Validated._
 import com.typesafe.config.Config
-import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn }
+import ch.chuv.lren.woken.core.model.database.{FeaturesTableDescription, TableColumn}
+import ch.chuv.lren.woken.core.threads
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
 import ch.chuv.lren.woken.messages.datasets.TableId
 import ch.chuv.lren.woken.messages.query.UserId
@@ -181,9 +182,9 @@ object DatabaseConfiguration {
     // is where nonblocking operations will be executed.
     for {
       // our connect EC
-      ce <- ExecutionContexts.fixedThreadPool[F](size = 2)
+      ce <- threads.fixedThreadPool[F](size = 2)
       // our transaction EC
-      te <- ExecutionContexts.cachedThreadPool[F]
+      te <- threads.cachedThreadPool[F]
 
       xa <- HikariTransactor.newHikariTransactor[F](driverClassName = dbConfig.jdbcDriver,
                                                     url = dbConfig.jdbcUrl,

@@ -17,6 +17,7 @@
 
 package ch.chuv.lren.woken.api
 
+import akka.actor.ActorSystem
 import akka.cluster.{ Cluster, MemberStatus }
 import akka.http.scaladsl.model.{ StatusCode, StatusCodes, Uri }
 import akka.http.scaladsl.server.{ Directives, Route }
@@ -37,8 +38,8 @@ import sup.data.{ HealthReporter, Tagged }
 
 import scala.language.higherKinds
 import scala.collection.JavaConverters._
-import scala.concurrent.{ ExecutionContext, Future }
-import scala.concurrent.ExecutionContext.global
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
 import scala.util.{ Failure, Success }
 
 /**
@@ -59,15 +60,16 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
                                          appConfig: AppConfiguration,
                                          jobsConfig: JobsConfiguration,
                                          databaseServices: DatabaseServices[F],
-                                         backendServices: BackendServices[F])
-    extends MonitoringServiceApi
+                                         backendServices: BackendServices[F])(
+    implicit val system: ActorSystem
+) extends MonitoringServiceApi
     with Directives
     with LazyLogging {
 
   private val allChecks =
     HealthReporter.fromChecks(databaseServices.healthChecks, backendServices.healthChecks)
 
-  implicit val ec: ExecutionContext = global
+  implicit val executionContext: ExecutionContext = system.dispatcher
 
   def health: Route = pathPrefix("health") {
     pathEndOrSingleSlash {
