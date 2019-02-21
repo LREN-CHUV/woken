@@ -30,7 +30,7 @@ cd "$(get_script_dir)"
 test_args="testOnly -- -l org.scalatest.tags.Slow"
 for param in "$@"
 do
-  if [[ "-&&ll" == "$param" ]]; then
+  if [[ "--all" == "$param" ]]; then
     test_args=""
     echo "INFO: ---all option detected !"
   fi

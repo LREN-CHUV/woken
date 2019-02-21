@@ -29,7 +29,11 @@ import ch.chuv.lren.woken.monitoring.KamonSupport
 import com.typesafe.config.{Config, ConfigFactory}
 import ch.chuv.lren.woken.messages.datasets._
 import ch.chuv.lren.woken.messages.query._
-import ch.chuv.lren.woken.messages.variables.{VariableId, VariablesForDatasetsQuery, VariablesForDatasetsResponse}
+import ch.chuv.lren.woken.messages.variables.{
+  VariableId,
+  VariablesForDatasetsQuery,
+  VariablesForDatasetsResponse
+}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
@@ -198,7 +202,8 @@ class WokenAkkaAPITest
         // k-NN is not deterministic, cannot check exactly its results
         val skippedTags = List("codebook")
         save(approximate(json), "/responses/knn_data_mining.json")
-        assertResult(approximate(expected, skippedTags))(approximate(json, skippedTags))
+        assertResult(approximate(expected, skippedTags))(
+          approximate(json, skippedTags))
       }
 
       "uses a histogram                    [visualisation, highcharts]" in {
@@ -311,7 +316,8 @@ class WokenAkkaAPITest
         val expected =
           loadJson("/responses/correlation_heatmap_data_mining.json")
 
-        save(approximate(json), "/responses/correlation_heatmap_data_mining.json")
+        save(approximate(json),
+             "/responses/correlation_heatmap_data_mining.json")
         assertResult(approximate(expected))(approximate(json))
       }
 
