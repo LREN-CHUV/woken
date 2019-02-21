@@ -34,11 +34,21 @@ jobs:
           name: "Build the project"
           command: ./build.sh
       - run:
+          name: "Extract the test results from the build image"
+          command: |
+            mkdir -p test-results/unit-tests/
+            docker tag $(docker images --filter "label=build=true" -q) wokenbuild:latest
+            $id=$(docker create wokenbuild)
+            docker cp -r ${id}:target/test-reports/* ./test-results/unit-tests/
+            docker rm -vf $id
+      - store_test_results:
+          path: test-results/
+      - run:
           name: "Run integration tests"
           command: ./tests/ci.sh --all
       - store_test_results:
-          path: woken-test/target/test-results/
+          path: test-results/
       - store_artifacts:
-          path: woken-test/target/test-results/
+          path: test-results/
       - store_artifacts:
           path: logs/

@@ -40,6 +40,7 @@ import spray.json._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.collection.immutable.Seq
+import JsonHelpers._
 
 class WokenWebSocketAPITest
     extends WordSpec

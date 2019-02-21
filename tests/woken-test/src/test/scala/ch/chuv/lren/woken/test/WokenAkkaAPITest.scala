@@ -41,6 +41,7 @@ import org.scalatest.TryValues._
 import org.scalatest.tagobjects.Slow
 import spray.json._
 import queryProtocol._
+import JsonHelpers._
 
 import scala.collection.immutable.TreeSet
 import scala.concurrent.{Await, ExecutionContextExecutor, Future}

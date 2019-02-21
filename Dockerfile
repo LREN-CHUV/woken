@@ -1,5 +1,5 @@
 # Verified with http://hadolint.lukasmartinelli.ch/
-FROM hbpmip/scala-base-build:1.2.6-6 as scala-build-env
+FROM hbpmip/scala-base-build:1.2.6-8 as scala-build-env
 
 # First caching layer: build.sbt and sbt configuration
 COPY build.sbt /build/
@@ -21,6 +21,7 @@ COPY dev/ /build/dev/
 COPY .*.cfg .*ignore .*.yaml .*.conf .gitattributes *.md *.sh *.yml *.json *.txt Dockerfile LICENSE /build/
 
 RUN /check-sources.sh
+LABEL build=true
 
 RUN sbt -mem 1500 test assembly
 
