@@ -15,6 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+// Portions of code copied from Doobie, under Apache2.0 copyright
+
 package ch.chuv.lren.woken.core
 
 import java.util.concurrent.{ ExecutorService, Executors }

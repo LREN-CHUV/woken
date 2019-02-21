@@ -23,10 +23,7 @@ import com.typesafe.scalalogging.Logger
 import scala.concurrent.Future
 import scala.language.higherKinds
 
-package object fp {
-
-  import acyclic.pkg
-
+object fp {
   def runNow[F[_]: Effect, M](m: F[M]): M           = Effect[F].toIO(m).unsafeRunSync()
   def runLater[F[_]: Effect, M](m: F[M]): Future[M] = Effect[F].toIO(m).unsafeToFuture()
   def runLater[F[_]: Effect, M](m: F[M], errorRecovery: Throwable => F[M]): Future[M] =
@@ -55,4 +52,5 @@ package object fp {
     def fromFutureWithGuarantee[F[_]: Effect](finalizer: ExitCase[Throwable] => IO[Unit]): F[R] =
       fp.fromFutureWithGuarantee(f, finalizer)
   }
+
 }

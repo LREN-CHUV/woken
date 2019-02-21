@@ -24,16 +24,14 @@ import ch.chuv.lren.woken.backends.faas.AlgorithmExecutor
 import ch.chuv.lren.woken.backends.worker.WokenWorker
 import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.core.model.database.FeaturesTableDescription
-import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
 import ch.chuv.lren.woken.dao._
 import ch.chuv.lren.woken.errors.ErrorReporter
 import ch.chuv.lren.woken.messages.datasets.TableId
 import ch.chuv.lren.woken.config.ConfigurationInstances._
-import ch.chuv.lren.woken.Predefined.FeaturesTable._
+import ch.chuv.lren.woken.Predefined.FeaturesDatabase._
 import ch.chuv.lren.woken.Predefined.VariablesMetas._
 
 import org.scalamock.scalatest.MockFactory
-import spray.json.JsObject
 
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
@@ -60,13 +58,6 @@ object TestServices extends JsonUtils with MockFactory {
   }
 
   lazy val algorithmLibraryService: AlgorithmLibraryService = AlgorithmLibraryService()
-
-  val tables: Map[TableId, FeaturesTableDescription] =
-    Set(sampleTable, cdeTable).map(t => (t.table, t)).toMap
-  val tablesContent: Map[TableId, (Headers, List[JsObject])] = Map(
-    sampleTable.table -> (sampleHeaders -> sampleData),
-    cdeTable.table    -> (cdeHeaders    -> cdeData)
-  )
 
   lazy val featuresService: FeaturesService[IO] = FeaturesService(
     new FeaturesInMemoryRepository[IO](featuresDbConfiguration, tablesContent)

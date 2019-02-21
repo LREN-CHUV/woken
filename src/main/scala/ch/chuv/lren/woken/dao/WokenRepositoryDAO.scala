@@ -40,6 +40,7 @@ import ch.chuv.lren.woken.core.model.database.sqlUtils._
 import ch.chuv.lren.woken.core.model.jobs._
 import ch.chuv.lren.woken.core.json._
 import ch.chuv.lren.woken.core.json.yaml.Yaml
+import ch.chuv.lren.woken.core.logging
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
 import ch.chuv.lren.woken.messages.datasets.TableId
 import spray.json._
@@ -69,6 +70,8 @@ case class WokenRepositoryDAO[F[_]: Effect](xa: Transactor[F]) extends WokenRepo
 class JobResultRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
     extends JobResultRepository[F]
     with LazyLogging {
+
+  implicit val han: LogHandler = logging.doobieLogHandler
 
   type JobResultColumns =
     (String, String, OffsetDateTime, Shape, Option[String], Option[String], Option[String])
@@ -214,6 +217,8 @@ class ResultsCacheRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
     extends ResultsCacheRepository[F] {
 
   private val systemUser = UserId("woken")
+
+  implicit val han: LogHandler = logging.doobieLogHandler
 
   override def put(result: QueryResult, userQuery: WokenQuery): F[Unit] = {
 

@@ -30,7 +30,7 @@ import ch.chuv.lren.woken.Predefined.Algorithms.{
 }
 import ch.chuv.lren.woken.config.ConfigurationInstances._
 import ch.chuv.lren.woken.messages.variables.VariableId
-import ch.chuv.lren.woken.Predefined.FeaturesTable._
+import ch.chuv.lren.woken.Predefined.FeaturesDatabase._
 
 import cats.implicits._
 import cats.scalatest.{ ValidatedMatchers, ValidatedValues }

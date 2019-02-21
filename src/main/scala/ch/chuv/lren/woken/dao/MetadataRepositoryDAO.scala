@@ -22,6 +22,7 @@ import doobie.implicits._
 import cats._
 import cats.effect.Effect
 import cats.implicits._
+import ch.chuv.lren.woken.core.logging
 import ch.chuv.lren.woken.messages.variables.{ GroupMetaData, variablesProtocol }
 import sup.HealthCheck
 import ch.chuv.lren.woken.core.model.database.FeaturesTableDescription
@@ -37,7 +38,7 @@ class VariablesMetaRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
 
   implicit val groupMetaDataMeta: Meta[GroupMetaData] = codecMeta[GroupMetaData]
 
-  implicit val han: LogHandler = LogHandler.jdkLogHandler
+  implicit val han: LogHandler = logging.doobieLogHandler
 
   // TODO: use a real cache, for example ScalaCache + Caffeine
   val variablesMetaCache: mutable.Map[TableId, VariablesMeta] =

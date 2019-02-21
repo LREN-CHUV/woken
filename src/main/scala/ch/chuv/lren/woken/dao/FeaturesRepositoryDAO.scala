@@ -26,6 +26,7 @@ import cats.effect.{ Effect, Resource }
 import cats.implicits._
 import ch.chuv.lren.woken.config.DatabaseConfiguration
 import ch.chuv.lren.woken.core.features.FeaturesQuery
+import ch.chuv.lren.woken.core.logging
 import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn }
 import ch.chuv.lren.woken.core.model.database.sqlUtils._
 import ch.chuv.lren.woken.messages.datasets.{ DatasetId, TableId }
@@ -61,6 +62,8 @@ class FeaturesRepositoryDAO[F[_]: Effect] private (
 }
 
 object FeaturesRepositoryDAO {
+
+  implicit val han: LogHandler = logging.doobieLogHandler
 
   def apply[F[_]: Effect](
       xa: Transactor[F],
@@ -133,7 +136,7 @@ object FeaturesRepositoryDAO {
 abstract class BaseFeaturesTableRepositoryDAO[F[_]: Effect] extends FeaturesTableRepository[F] {
   def xa: Transactor[F]
 
-  implicit val han: LogHandler = LogHandler.jdkLogHandler
+  implicit val han: LogHandler = logging.doobieLogHandler
 
   protected lazy val defaultDataset: DatasetId = DatasetId(table.table.name)
 
@@ -268,7 +271,7 @@ object FeaturesTableRepositoryDAO {
 
   def apply[F[_]: Effect](xa: Transactor[F],
                           table: FeaturesTableDescription): F[FeaturesTableRepositoryDAO[F]] = {
-    implicit val han: LogHandler = LogHandler.jdkLogHandler
+    implicit val han: LogHandler = logging.doobieLogHandler
 
     HC.prepareStatement(s"SELECT * FROM ${table.quotedName} LIMIT 1")(prepareHeaders)
       .transact(xa)
@@ -357,7 +360,7 @@ class ExtendedFeaturesTableRepositoryDAO[F[_]: Effect] private (
 
 object ExtendedFeaturesTableRepositoryDAO {
 
-  implicit val han: LogHandler = LogHandler.jdkLogHandler
+  implicit val han: LogHandler = logging.doobieLogHandler
 
   def apply[F[_]: Effect](
       sourceTable: FeaturesTableRepositoryDAO[F],

@@ -24,7 +24,7 @@ import cats.effect.Effect
 import cats.implicits._
 import ch.chuv.lren.woken.core.fp._
 import ch.chuv.lren.woken.messages.query.{ ExperimentQuery, MiningQuery, QueryResult }
-import com.typesafe.scalalogging.{ LazyLogging, Logger }
+import com.typesafe.scalalogging.Logger
 import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.core.model.VariablesMeta
 import ch.chuv.lren.woken.dao.VariablesMetaRepository
@@ -68,8 +68,9 @@ trait DispatcherService {
   */
 class DispatcherServiceImpl(val datasetService: DatasetService,
                             val wokenClientService: WokenClientService)
-    extends DispatcherService
-    with LazyLogging {
+    extends DispatcherService {
+
+  private val logger = Logger("woken.DispatcherService")
 
   override lazy val localDatasets: Set[DatasetId] = datasetService
     .datasets()
@@ -136,7 +137,9 @@ class DispatcherServiceImpl(val datasetService: DatasetService,
     Flow[VariablesForDatasetsQuery]
       .map(q => {
         val target = dispatchTo(q.datasets)
-        logger.info(s"Target datasets $target")
+        logger.whenDebugEnabled(
+          logger.debug(s"Target datasets $target")
+        )
         target._1.map(location => location -> q)
       })
       .mapConcat(identity)
@@ -184,8 +187,6 @@ class DispatcherServiceImpl(val datasetService: DatasetService,
 }
 
 object DispatcherService {
-
-  private val logger = Logger("DispatcherService")
 
   def apply(datasetsService: DatasetService, wokenService: WokenClientService): DispatcherService =
     new DispatcherServiceImpl(datasetsService, wokenService)

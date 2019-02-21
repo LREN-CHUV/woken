@@ -33,7 +33,8 @@ import ch.chuv.lren.woken.core.model.jobs.{
   PfaJobResult,
   ValidationJob
 }
-import ch.chuv.lren.woken.messages.datasets.DatasetId
+import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
+import ch.chuv.lren.woken.messages.datasets.{ DatasetId, TableId }
 import ch.chuv.lren.woken.messages.variables.{ GroupMetaData, VariableId }
 import ch.chuv.lren.woken.messages.variables.variablesProtocol._
 import spray.json._
@@ -294,7 +295,7 @@ object Predefined {
 
   }
 
-  object FeaturesTable {
+  object FeaturesDatabase {
     val churnTable =
       FeaturesTableDescription(churnDataTableId, Nil, None, validateSchema = false, None, 0.67)
     val churnHeaders = List(
@@ -352,6 +353,13 @@ object Predefined {
                        cdeRow("p004", 1, 1.45),
                        cdeRow("p005", 0, 1.68),
                        cdeRow("p006", 1, 1.62))
+
+    val tables: Map[TableId, FeaturesTableDescription] =
+      Set(sampleTable, cdeTable).map(t => (t.table, t)).toMap
+    val tablesContent: Map[TableId, (Headers, List[JsObject])] = Map(
+      sampleTable.table -> (sampleHeaders -> sampleData),
+      cdeTable.table    -> (cdeHeaders    -> cdeData)
+    )
 
     private def cdeRow(id: String, apoe4: Int, leftHippocampus: Double) =
       JsObject("subjectcode"     -> JsString(id),
