@@ -24,11 +24,13 @@ import java.io.File
 import java.io.PrintWriter
 
 import ch.chuv.lren.woken.messages.datasets.TableId
+import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection.immutable.TreeSet
 import scala.io.Source
+import scala.util.Try
 
-trait Queries {
+trait Queries extends LazyLogging {
 
   val sampleTable: TableId = tableId("sample_data")
   val cdeFeaturesATableId: TableId = tableId("cde_features_a")
@@ -37,24 +39,24 @@ trait Queries {
   val cdeFeaturesMixedTableId: TableId = tableId("cde_features_mixed")
 
   def experimentQuery(
-      algorithm: String,
-      parameters: List[CodeValue],
-      variables: List[VariableId] = List(VariableId("cognitive_task2")),
-      covariables: List[VariableId] =
-        List(VariableId("score_test1"), VariableId("college_math")),
-      targetTable: Option[TableId] = Some(sampleTable)): Query =
+                       algorithm: String,
+                       parameters: List[CodeValue],
+                       variables: List[VariableId] = List(VariableId("cognitive_task2")),
+                       covariables: List[VariableId] =
+                       List(VariableId("score_test1"), VariableId("college_math")),
+                       targetTable: Option[TableId] = Some(sampleTable)): Query =
     multipleExperimentQuery(algorithms =
-                              List(AlgorithmSpec(algorithm, parameters, None)),
-                            variables = variables,
-                            covariables = covariables,
-                            targetTable = targetTable)
+      List(AlgorithmSpec(algorithm, parameters, None)),
+      variables = variables,
+      covariables = covariables,
+      targetTable = targetTable)
 
   def multipleExperimentQuery(
-      algorithms: List[AlgorithmSpec],
-      variables: List[VariableId] = List(VariableId("cognitive_task2")),
-      covariables: List[VariableId] =
-        List(VariableId("score_test1"), VariableId("college_math")),
-      targetTable: Option[TableId] = Some(sampleTable)): Query =
+                               algorithms: List[AlgorithmSpec],
+                               variables: List[VariableId] = List(VariableId("cognitive_task2")),
+                               covariables: List[VariableId] =
+                               List(VariableId("score_test1"), VariableId("college_math")),
+                               targetTable: Option[TableId] = Some(sampleTable)): Query =
     ExperimentQuery(
       user = UserId("test1"),
       variables = variables,
@@ -84,26 +86,26 @@ trait Queries {
   }
 
   def save(json: String, file: String): Unit = {
-    if (sys.env.get("CIRCLECI").isEmpty) {
+    if (sys.env.getOrElse("CIRCLECI", "").isEmpty) Try {
       new File("/responses").mkdirs()
       val writer = new PrintWriter(new File(file))
 
       writer.write(json)
       writer.close()
-    }
+    }.recover { case t => logger.warn("Cannot save result", t) }
   }
 
   class ApproximatePrinter(val skippedTags: List[String])
-      extends SortedPrinter {
+    extends SortedPrinter {
 
     override protected def printObject(members: Map[String, JsValue],
                                        sb: java.lang.StringBuilder,
                                        indent: Int): Unit = {
       val filteredMembers = members
         .map {
-          case ("jobId", _)     => "jobId" -> JsString("*")
+          case ("jobId", _) => "jobId" -> JsString("*")
           case ("timestamp", _) => "timestamp" -> JsNumber(0.0)
-          case (k, v)           => k -> v
+          case (k, v) => k -> v
         }
         .filter {
           case ("@", comment) if comment.toString.startsWith("\"PrettyPFA") =>
@@ -118,8 +120,8 @@ trait Queries {
     override protected def printLeaf(j: JsValue,
                                      sb: java.lang.StringBuilder): Unit =
       j match {
-        case JsNull  => sb.append("null")
-        case JsTrue  => sb.append("true")
+        case JsNull => sb.append("null")
+        case JsTrue => sb.append("true")
         case JsFalse => sb.append("false")
         case JsNumber(x) =>
           val approx = f"$x%1.5f"
@@ -128,7 +130,7 @@ trait Queries {
           else
             sb.append(approx)
         case JsString(x) => printString(x, sb)
-        case _           => throw new IllegalStateException
+        case _ => throw new IllegalStateException
       }
 
   }
