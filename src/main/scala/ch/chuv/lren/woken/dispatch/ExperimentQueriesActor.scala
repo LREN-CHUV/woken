@@ -155,7 +155,9 @@ class ExperimentQueriesActor[F[_]: Effect](
     val feedback = jobInProgress.feedback
     val prov     = jobInProgress.dataProvenance
 
-    if (feedback.nonEmpty) logger.info(s"Feedback: ${feedback.mkString(", ")}")
+    if (feedback.nonEmpty)
+      logger.info(s"Feedback: ${feedback.mkString(", ")}")
+
     dispatcherService.dispatchTo(query.trainingDatasets) match {
 
       // Local execution of the experiment on a worker node or a standalone node

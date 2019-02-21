@@ -37,10 +37,11 @@ import java.util.concurrent.Executor
 
 import acolyte.jdbc.{ AbstractCompositeHandler, AcolyteDSL }
 import cats.effect.{ ContextShift, IO, Resource }
+import com.typesafe.scalalogging.LazyLogging
 import doobie.util.ExecutionContexts
 import doobie.util.transactor.Transactor
 
-trait DAOTest {
+trait DAOTest extends LazyLogging {
 
   def withRepository[DAO <: Repository[IO]](
       sqlHandler: AbstractCompositeHandler[_],
@@ -81,7 +82,7 @@ trait DAOTest {
       override def getAutoCommit: Boolean                         = conn.getAutoCommit
       override def commit(): Unit                                 = conn.commit()
       override def rollback(): Unit                               = conn.rollback()
-      override def close(): Unit                                  = println("Connection close() called")
+      override def close(): Unit                                  = logger.debug("Connection close() called")
       override def isClosed: Boolean                              = conn.isClosed
       override def getMetaData: DatabaseMetaData                  = conn.getMetaData
       override def setReadOnly(b: Boolean): Unit                  = conn.setReadOnly(b)

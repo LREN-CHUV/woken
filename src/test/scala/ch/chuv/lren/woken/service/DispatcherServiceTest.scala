@@ -20,15 +20,14 @@ package ch.chuv.lren.woken.service
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.testkit.TestKit
-import com.typesafe.config.{ Config, ConfigFactory }
 import ch.chuv.lren.woken.backends.woken.WokenClientService
-import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.messages.remoting.{ BasicAuthentication, RemoteLocation }
+import ch.chuv.lren.woken.config.ConfigurationInstances._
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 
 class DispatcherServiceTest
-    extends TestKit(ActorSystem("DispatcherServiceSpec"))
+    extends TestKit(ActorSystem("DispatcherServiceSpec", centralNodeConfigSource))
     with WordSpecLike
     with Matchers
     with BeforeAndAfterAll {
@@ -37,13 +36,8 @@ class DispatcherServiceTest
 
   implicit val mat: ActorMaterializer = ActorMaterializer()
 
-  val config: Config = ConfigFactory
-    .parseResourcesAnySyntax("remoteDatasets.conf")
-    .withFallback(ConfigFactory.load("test.conf"))
-    .resolve()
-
   val wokenService    = WokenClientService("test")
-  val datasetsService = ConfBasedDatasetService(config, WokenConfiguration(config).jobs)
+  val datasetsService = ConfBasedDatasetService(centralNodeConfigSource, centralNodeConfig.jobs)
 
   val dispatcherService: DispatcherService =
     DispatcherService(datasetsService, wokenService)

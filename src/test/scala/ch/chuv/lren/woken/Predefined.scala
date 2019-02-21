@@ -78,6 +78,9 @@ object Predefined {
       engine = AlgorithmEngine.Docker,
       distributedExecutionPlan = ExecutionPlan.scatterGather
     )
+
+    val kfolds3Validations = List(ValidationSpec("kfold", List(CodeValue("k", "3"))))
+
   }
 
   object Filters {
@@ -139,7 +142,7 @@ object Predefined {
         filters = None,
         targetTable = Some(sampleDataTableId),
         algorithms = algorithms,
-        validations = List(ValidationSpec("kfold", List(CodeValue("k", "3")))),
+        validations = kfolds3Validations,
         trainingDatasets = TreeSet(),
         testingDatasets = TreeSet(),
         validationDatasets = TreeSet(),
@@ -180,14 +183,15 @@ object Predefined {
         filters = None,
         targetTable = Some(cdeFeaturesATableId),
         algorithms = List(AlgorithmSpec(algorithm, parameters, None)),
-        validations = List(ValidationSpec("kfold", List(CodeValue("k", "3")))),
+        validations = kfolds3Validations,
         trainingDatasets = TreeSet(DatasetId("desd-synthdata")),
         testingDatasets = TreeSet(),
         validationDatasets = TreeSet(),
         executionPlan = None
       )
 
-    val knnAlgorithmCdeQuery: ExperimentQuery = cdeExperimentQuery("knn", List(CodeValue("k", "5")))
+    val knnAlgorithmCdeQuery: ExperimentQuery =
+      cdeExperimentQuery(knnWithK5.code, knnWithK5.parameters)
 
     val withUnknownCovariablesQuery: ExperimentQuery = knnAlgorithmCdeQuery.copy(
       covariables = List(VariableId("lefthippocampus"), VariableId("unknown")),
@@ -201,6 +205,7 @@ object Predefined {
 
   object MiningQueries {
     import Users._
+    import Algorithms._
 
     val knnAlgorithmQuery = MiningQuery(
       user = user1,
@@ -210,7 +215,7 @@ object Predefined {
       grouping = Nil,
       filters = None,
       targetTable = Some(sampleDataTableId),
-      algorithm = AlgorithmSpec("knn", List(CodeValue("k", "5")), None),
+      algorithm = knnWithK5,
       datasets = TreeSet(DatasetId("Sample")),
       executionPlan = None
     )

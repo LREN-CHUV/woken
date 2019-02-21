@@ -78,10 +78,10 @@ case class LocalExperimentService[F[_]: Effect](
     extends LazyLogging {
   val decider: Supervision.Decider = {
     case err: RuntimeException =>
-      logger.error("Runtime error detected", err)
+      logger.error(s"Runtime error detected: ${err.getMessage}", err)
       Supervision.Resume
     case err =>
-      logger.error("Unknown error. Stopping the stream.", err)
+      logger.error(s"Unknown error ${err.getMessage}. Stopping current processing.", err)
       Supervision.Stop
   }
 
@@ -119,10 +119,11 @@ case class LocalExperimentService[F[_]: Effect](
           defineSplitters(job.job.query.validations)
         } else Nil.validNel[String]
 
+      val algorithmsMsg =
+        s"${algorithms.map(al => s"${al.code} ${al.parametersAsMap.mkString(",")}").mkString(",")}"
       logger.info(
-        s"Start new experiment job $job ${if (containsPredictiveAlgorithms) "with" else "without"} predictive algorithms"
+        s"Start new experiment job with ${if (containsPredictiveAlgorithms) "predictive" else ""} algorithms $algorithmsMsg"
       )
-      logger.info(s"List of algorithms: ${algorithms.mkString(",")}")
 
       ((featuresTableServiceV, splitterDefsV) mapN Tuple2.apply).fold(
         err => {
@@ -216,9 +217,11 @@ case class LocalExperimentService[F[_]: Effect](
       .single(LocalExperimentJob(job.job, featuresTableService, splitters))
       .via(experimentFlow)
       .map { results =>
-        logger.info("Experiment - build final response")
-        logger.info(s"Algorithms: $algorithms")
-        logger.debug(s"Results: $results")
+        logger.info("Return result from local experiment")
+        logger.whenDebugEnabled {
+          logger.debug(s"Algorithms: $algorithms")
+          logger.debug(s"Results: $results")
+        }
 
         assert(results.size == algorithms.size, "There should be as many results as algorithms")
         assert(results.keySet equals algorithms.toSet,
@@ -427,7 +430,9 @@ private[mining] case class LocalExperimentFlow[F[_]: Effect](
                                   featuresQuery,
                                   a.splitters,
                                   job.metadata)
-        logger.info(s"Prepared mining query sub job $subJob")
+        logger.whenDebugEnabled(
+          logger.debug(s"Prepared mining query sub job $subJob")
+        )
         AlgorithmInExperimentJob(job, algorithmSpec, subJob)
       }
       .named("prepare-mining-query")

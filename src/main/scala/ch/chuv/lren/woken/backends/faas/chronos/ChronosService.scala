@@ -90,7 +90,9 @@ class ChronosService(jobsConfig: JobsConfiguration) extends Actor with LazyLoggi
 
       implicit val timeout: Timeout = Timeout(30.seconds)
 
-      logger.debug(s"Send job to Chronos: ${chronosJobFormat.write(job).prettyPrint}")
+      logger.whenDebugEnabled(
+        logger.debug(s"Send job to Chronos: ${chronosJobFormat.write(job).prettyPrint}")
+      )
 
       val originalSender             = originator
       val chronosUrl                 = Uri(jobsConfig.chronosServerUrl)

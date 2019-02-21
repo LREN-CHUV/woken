@@ -52,7 +52,7 @@ import org.scalamock.scalatest.MockFactory
   * Experiment flow should always complete with success, but the error is reported inside the response.
   */
 class LocalExperimentServiceTest
-    extends TestKit(ActorSystem("ExperimentFlowTest"))
+    extends TestKit(ActorSystem("LocalExperimentServiceTest", localNodeConfigSource))
     with WordSpecLike
     with Matchers
     with ValidatedMatchers
@@ -89,14 +89,18 @@ class LocalExperimentServiceTest
           job.algorithmDefinition.code == "anova"
         })
         .anyNumberOfTimes()
-        .returns(IO.raiseError(new TimeoutException("No response")))
+        .returns(IO.raiseError(new TimeoutException("Oh noes, she did not call me back!")))
 
       val experimentResult = runExperimentTest(anovaAlgorithmQuery, algorithmExecutor)
 
       val resultsPerAlgorithm = expectSuccessfulExperiment(experimentResult)
 
       resultsPerAlgorithm.size shouldBe 1
-      resultsPerAlgorithm.get(anovaFactorial).value shouldBe an[ErrorJobResult]
+      val anovaResult = resultsPerAlgorithm.get(anovaFactorial).value
+      anovaResult shouldBe an[ErrorJobResult]
+      anovaResult should have(
+        'error ("Oh noes, she did not call me back!")
+      )
     }
 
     "complete with an error response when executing a failing algorithm (knn, predictive)" in {
@@ -107,7 +111,7 @@ class LocalExperimentServiceTest
           job.algorithmDefinition.code == "knn"
         })
         .anyNumberOfTimes()
-        .returns(IO.raiseError(new TimeoutException("No response")))
+        .returns(IO.raiseError(new TimeoutException("Oh noes, she did not call me back!")))
 
       val experimentResult = runExperimentTest(knnAlgorithmCdeQuery, algorithmExecutor)
 
@@ -117,7 +121,7 @@ class LocalExperimentServiceTest
       val knnResult = resultsPerAlgorithm.get(knnWithK5).value
       knnResult shouldBe an[ErrorJobResult]
       knnResult should have(
-        'error ("No response")
+        'error ("Oh noes, she did not call me back!")
       )
     }
 
@@ -159,7 +163,7 @@ class LocalExperimentServiceTest
         .expects(where { job: DockerJob =>
           job.algorithmDefinition.code == "knn"
         })
-        .once()
+        .repeat(count = 4) // 3 folds + 1 full training
         .returns(IO.delay(AlgorithmResults(knnDockerJob, List(knnJobResult))))
 
       val resp = runExperimentTest(knnAlgorithmCdeQuery, algorithmExecutor)

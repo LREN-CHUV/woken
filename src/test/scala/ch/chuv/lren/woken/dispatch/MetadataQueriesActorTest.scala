@@ -23,6 +23,7 @@ import akka.testkit.{ ImplicitSender, TestKit, TestProbe }
 import akka.util.Timeout
 import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.config.WokenConfiguration
+import ch.chuv.lren.woken.config.ConfigurationInstances._
 import ch.chuv.lren.woken.dispatch.MetadataQueriesActor.VariablesForDatasets
 import ch.chuv.lren.woken.messages.datasets.DatasetId
 import ch.chuv.lren.woken.messages.variables.{
@@ -39,7 +40,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class MetadataQueriesActorTest
-    extends TestKit(ActorSystem("MetadataQueriesActorSpec"))
+    extends TestKit(ActorSystem("MetadataQueriesActorSpec", localNodeConfigSource))
     with ImplicitSender
     with WordSpecLike
     with Matchers
@@ -63,7 +64,7 @@ class MetadataQueriesActorTest
       testProbe.send(queriesActor, VariablesForDatasets(query, Actor.noSender))
       testProbe.expectMsgPF(20 seconds, "error") {
         case response: VariablesForDatasetsResponse =>
-          logger.info(s"${response.variables.toList.sortBy(_.code).take(20)}")
+          logger.debug(s"${response.variables.toList.sortBy(_.code).take(20)}")
           response.variables should have size 199
       }
     }
@@ -76,7 +77,7 @@ class MetadataQueriesActorTest
       testProbe.send(queriesActor, VariablesForDatasets(query, Actor.noSender))
       testProbe.expectMsgPF(20 seconds, "error") {
         case response: VariablesForDatasetsResponse =>
-          logger.info(s"${response.variables.toList.sortBy(_.code).take(20)}")
+          logger.debug(s"${response.variables.toList.sortBy(_.code).take(20)}")
           response.variables should have size 21
           response.variables.filter(_.datasets == churnDatasets) should have size 21
       }
@@ -89,19 +90,14 @@ class MetadataQueriesActorTest
       testProbe.send(queriesActor, VariablesForDatasets(query, Actor.noSender))
       testProbe.expectMsgPF(20 seconds, "error") {
         case response: VariablesForDatasetsResponse =>
-          logger.info(s"${response.variables.toList.sortBy(_.code).take(20)}")
+          logger.debug(s"${response.variables.toList.sortBy(_.code).take(20)}")
           response.variables should have size 0
       }
     }
   }
 
   private def initMetadataQueriesActor(local: Boolean): ActorRef = {
-    val datasetsConfFile = if (local) "localDatasets.conf" else "remoteDatasets.conf"
-
-    val config: Config = ConfigFactory
-      .parseResourcesAnySyntax(datasetsConfFile)
-      .withFallback(ConfigFactory.load("test.conf"))
-      .resolve()
+    val config: Config = if (local) localNodeConfigSource else centralNodeConfigSource
 
     val wokenService: WokenClientService = WokenClientService("test")
 

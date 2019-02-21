@@ -110,7 +110,9 @@ object HttpClient extends DefaultJsonProtocol with SprayJsonSupport with LazyLog
       (r, creds) => r.addHeader(Authorization(BasicHttpCredentials(creds.user, creds.password)))
     )
 
-    logger.info(s"Post: $requestWithAuth")
+    logger.whenDebugEnabled(
+      logger.debug(s"Post: $requestWithAuth")
+    )
     sendReceive(requestWithAuth)
   }
 

@@ -38,6 +38,8 @@ import ch.chuv.lren.woken.messages.query.queryProtocol._
 import ch.chuv.lren.woken.messages.remoting.RemoteLocation
 import com.typesafe.scalalogging.LazyLogging
 
+import scala.util.control.NonFatal
+
 object WebSocketClient
     extends SprayJsonSupport
     with PredefinedToResponseMarshallers
@@ -84,14 +86,17 @@ object WebSocketClient
         .map { jsonEncodedString =>
           Try {
             jsonEncodedString.parseJson.convertTo[QueryResult]
+          }.recoverWith {
+            case NonFatal(e) =>
+              logger.error(s"Cannot deserialize Json as QueryResult: $jsonEncodedString", e)
+              Failure(e)
           }
         }
         .to(Sink.foreach {
           case Success(queryResult) =>
             promise.completeWith(Future.successful((location, queryResult)))
           case Failure(err) =>
-            logger.error("Deserialize failed", err)
-            promise.failure(new RuntimeException(s"Response type format is not supported: $err"))
+            promise.failure(err)
         })
 
     val source: Source[Message, Promise[Option[Message]]] =

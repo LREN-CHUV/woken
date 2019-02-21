@@ -107,7 +107,9 @@ class MetadataQueriesActor[F[_]: Effect](dispatcherService: DispatcherService,
       )
       val zero = (query, VariablesForDatasetsResponse(Set()))
 
-      logger.info(s"Received query $query")
+      logger.whenDebugEnabled(
+        logger.debug(s"Received query $query")
+      )
       Source
         .single(query)
         .via(dispatcherService.dispatchVariablesQueryFlow(datasetService, variablesMetaService))
@@ -123,7 +125,9 @@ class MetadataQueriesActor[F[_]: Effect](dispatcherService: DispatcherService,
         }
         .map[VariablesForDatasetsResponse] { qr =>
           val response = qr._2
-          logger.debug(s"Response $response")
+          logger.whenDebugEnabled(
+            logger.debug(s"Variables for dataset response $response")
+          )
           initiator ! response
           response
         }

@@ -47,7 +47,7 @@ import scala.language.{ higherKinds, postfixOps }
   * Validates correct implementation of the MasterRouter.
   */
 class MasterRouterTest
-    extends TestKit(ActorSystem("MasterActorSpec"))
+    extends TestKit(ActorSystem("MasterActorSpec", centralNodeConfigSource))
     with ImplicitSender
     with WordSpecLike
     with Matchers

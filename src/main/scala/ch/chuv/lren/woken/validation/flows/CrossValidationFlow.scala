@@ -300,8 +300,8 @@ case class CrossValidationFlow[F[_]: Effect](
           .map { jsObj =>
             jsObj.fields.values.toList match {
               case v :: Nil => v
-              case _ =>
-                throw new IllegalStateException("Expected only one value for ground truth")
+              case v =>
+                throw new IllegalStateException(s"Expected only one value for ground truth, got $v")
             }
           }
           .toList

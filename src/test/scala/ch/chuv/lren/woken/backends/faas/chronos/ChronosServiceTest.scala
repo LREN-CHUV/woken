@@ -29,6 +29,7 @@ import ch.chuv.lren.woken.akka.{ CoreActors, CoreSystem, FakeActors }
 import ch.chuv.lren.woken.backends.faas.chronos.ChronosJob._
 import ch.chuv.lren.woken.backends.faas.chronos.ChronosService.Ok
 import ch.chuv.lren.woken.config.WokenConfiguration
+import ch.chuv.lren.woken.config.ConfigurationInstances._
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpec, WordSpecLike }
@@ -54,9 +55,7 @@ class ChronosServiceTest
   type EV = EnvironmentVariable
   val EV: EnvironmentVariable.type = EnvironmentVariable
 
-  override protected lazy val config: WokenConfiguration = WokenConfiguration(
-    ConfigFactory.load("test.conf")
-  )
+  override protected lazy val config: WokenConfiguration = localNodeConfig
 
   /**
     * Construct the ActorSystem we will use in our application

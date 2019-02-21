@@ -3,11 +3,11 @@
   <Appenders>
     <Console name="Console" target="SYSTEM_OUT">
       <PatternLayout
-          pattern="%d{HH:mm:ss.SSS} %highlight{%level}{FATAL=bg_red, ERROR=red, WARN=yellow, INFO=green, DEBUG=blue} %logger{36} - %msg%n"/>
+          pattern="%d{HH:mm:ss.SSS} %highlight{%level}{FATAL=bg_red, ERROR=red, WARN=yellow, INFO=green, DEBUG=blue} %logger{36} - %.1000msg%n"/>
     </Console>
   </Appenders>
   <Loggers>
-    <Root level="DEBUG">
+    <Root level="${sys:LOG_LEVEL:-DEBUG}">
       <AppenderRef ref="Console"/>
     </Root>
     <Logger name="akka.actor.LocalActorRefProvider(akka://woken)" level="INFO">
@@ -40,11 +40,15 @@
     <Logger name="com.zaxxer.hikari" level="WARN">
       <AppenderRef ref="Console"/>
     </Logger>
+    <Logger name="doobie" level="WARN">
+      <AppenderRef ref="Console"/>
+    </Logger>
     <Logger name="io.netty" level="ERROR">
       <AppenderRef ref="Console"/>
     </Logger>
     <Logger name="org.asynchttpclient" level="ERROR">
       <AppenderRef ref="Console"/>
     </Logger>
+
   </Loggers>
 </Configuration>
