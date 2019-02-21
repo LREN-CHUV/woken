@@ -11,5 +11,4 @@ exec ${JAVA} ${JAVA_OPTIONS} -javaagent:/opt/woken/aspectjweaver.jar \
           -Djava.library.path=/lib \
           -Dconfig.file=/opt/woken/config/application.conf \
           -DLog4jContextSelector=org.apache.logging.log4j.core.async.AsyncLoggerContextSelector \
-          -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager \
           -jar /opt/woken/woken.jar

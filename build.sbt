@@ -50,7 +50,6 @@ lazy val `woken` =
           library.javaxWsRs,
           library.sprayJson,
           library.slf4j,
-          library.log4jJul,
           library.log4jSlf4j,
           library.disruptor,
           library.scalaLogging,
@@ -181,7 +180,6 @@ lazy val library =
     val sprayJson: ModuleID    = "io.spray"          %% "spray-json"   % Version.sprayJson
     val slf4j: ModuleID        = "org.slf4j"          % "slf4j-api"    % Version.slf4j
     val log4jSlf4j: ModuleID   = "org.apache.logging.log4j" % "log4j-slf4j-impl" % Version.log4j
-    val log4jJul: ModuleID     = "org.apache.logging.log4j" % "log4j-jul" % Version.log4j
     val disruptor: ModuleID    = "com.lmax"           % "disruptor"    % Version.disruptor
     val scalaLogging: ModuleID = "com.typesafe.scala-logging" %% "scala-logging" % Version.scalaLogging
     val catsCore: ModuleID     = "org.typelevel"     %% "cats-core"    % Version.cats
@@ -252,10 +250,8 @@ lazy val commonSettings =
     wartremoverWarnings in (Compile, compile) ++= Warts.unsafe,
     fork in run := true,
     test in assembly := {},
-    fork in Test := true,
-    parallelExecution in Test := false,
-    Test / javaOptions += "-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager",
-    Test / javaOptions += "-DLOG_LEVEL=info"
+    fork in Test := false,
+    parallelExecution in Test := false
   )
 
 lazy val gitSettings =
