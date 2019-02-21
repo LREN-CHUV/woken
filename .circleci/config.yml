@@ -36,3 +36,9 @@ jobs:
       - run:
           name: "Run integration tests"
           command: ./tests/ci.sh --all
+      - store_test_results:
+          path: woken-test/target/test-results/
+      - store_artifacts:
+          path: woken-test/target/test-results/
+      - store_artifacts:
+          path: logs/

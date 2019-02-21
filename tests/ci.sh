@@ -109,6 +109,14 @@ echo "Running the integration tests..."
 
 $DOCKER_COMPOSE up wokentest
 
+mkdir -p logs
+$DOCKER_COMPOSE logs zookeeper > logs/zookeeper.log
+$DOCKER_COMPOSE logs mesos_master > logs/mesos_master.log
+$DOCKER_COMPOSE logs mesos_slave > logs/mesos_slave.log
+$DOCKER_COMPOSE logs chronos > logs/chronos.log
+$DOCKER_COMPOSE logs woken > logs/woken.log
+$DOCKER_COMPOSE logs wokenvalidation > logs/wokenvalidation.log
+
 exit_code="$($DOCKER inspect tests_wokentest_1 --format='{{.State.ExitCode}}')"
 
 if [[ "$exit_code" != "0" ]]; then
