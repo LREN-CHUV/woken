@@ -37,9 +37,10 @@ jobs:
           name: "Extract the test results from the build image"
           command: |
             mkdir -p test-results/unit-tests/
-            docker tag $(docker images --filter "label=build=true" -q) wokenbuild:latest
-            $id=$(docker create wokenbuild)
-            docker cp -r ${id}:target/test-reports/* ./test-results/unit-tests/
+            docker tag $(docker images --filter "label=build=true" -q | head -n1) wokenbuild:latest
+            id=$(docker create wokenbuild)
+            docker cp ${id}:/build/target/test-reports/ ./test-results/
+            mv ./test-results/test-reports/ ./test-results/unit-tests/
             docker rm -vf $id
       - store_test_results:
           path: test-results/

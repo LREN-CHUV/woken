@@ -107,7 +107,7 @@ echo "The Algorithm Factory is now running on your system"
 echo
 echo "Running the integration tests..."
 mkdir -p test-results/integration-tests/ woken-test/target/responses/
-chmod -r a+rwX test-results/ woken-test/target/
+chmod -R a+rwX test-results/ woken-test/target/
 $DOCKER_COMPOSE up wokentest
 
 mkdir -p logs/
