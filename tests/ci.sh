@@ -111,7 +111,7 @@ chmod -R a+rwX test-results/ woken-test/target/
 $DOCKER_COMPOSE up wokentest
 
 mkdir -p logs/
-chmod -r a+rwX logs/
+chmod -R a+rwX logs/
 $DOCKER_COMPOSE logs zookeeper > logs/zookeeper.log
 $DOCKER_COMPOSE logs mesos_master > logs/mesos_master.log
 $DOCKER_COMPOSE logs mesos_slave > logs/mesos_slave.log
