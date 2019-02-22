@@ -277,11 +277,6 @@ services:
       PROMETHEUS_ENABLED: "yes"
       SIGAR_SYSTEM_METRICS: "no"
       JVM_SYSTEM_METRICS: "no"
-    volumes:
-      # Store the actual responses into the woken-test/target/responses directory
-      - ./woken-test/target/responses/:/responses/
-      # For CI, export the test reports
-      - ./woken-test/target/test-reports/:/build/target/test-reports/
     depends_on:
       - woken
 
