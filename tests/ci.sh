@@ -110,7 +110,7 @@ mkdir -p test-results/integration-tests/ woken-test/target/{responses,test-repor
 chmod -R a+rwX test-results/ woken-test/target/
 $DOCKER_COMPOSE up wokentest
 $DOCKER cp tests_wokentest_1:/build/target .
-cp target/test-reports/*.xml tests-results/integration-tests/
+cp target/test-reports/*.xml test-results/integration-tests/
 mkdir -p responses
 cp target/responses/*.json responses/
 
