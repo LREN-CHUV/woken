@@ -51,7 +51,7 @@ jobs:
           path: test-results/
           destination: test-results
       - store_artifacts:
-          path: woken-test/target/responses/
+          path: responses/
           destination: responses
       - store_artifacts:
           path: logs/

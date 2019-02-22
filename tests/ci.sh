@@ -109,19 +109,16 @@ echo "Running the integration tests..."
 mkdir -p ../test-results/integration-tests/ ../responses/
 $DOCKER_COMPOSE up wokentest
 $DOCKER cp tests_wokentest_1:/build/target .
-ls -lrt .
-ls -lrt target
-cp target/test-reports/*.xml ../test-results/integration-tests/ || true
-cp target/responses/*.json ../responses/ || true
+$DOCKER cp tests_wokentest_1:/responses ..
+cp target/test-reports/TEST-*.xml ../test-results/integration-tests/ || true
 
-mkdir -p logs/
-chmod -R a+rwX logs/
-$DOCKER_COMPOSE logs zookeeper > logs/zookeeper.log
-$DOCKER_COMPOSE logs mesos_master > logs/mesos_master.log
-$DOCKER_COMPOSE logs mesos_slave > logs/mesos_slave.log
-$DOCKER_COMPOSE logs chronos > logs/chronos.log
-$DOCKER_COMPOSE logs woken > logs/woken.log
-$DOCKER_COMPOSE logs wokenvalidation > logs/wokenvalidation.log
+mkdir -p ../logs/
+$DOCKER_COMPOSE logs zookeeper > ../logs/zookeeper.log
+$DOCKER_COMPOSE logs mesos_master > ../logs/mesos_master.log
+$DOCKER_COMPOSE logs mesos_slave > ../logs/mesos_slave.log
+$DOCKER_COMPOSE logs chronos > ../logs/chronos.log
+$DOCKER_COMPOSE logs woken > ../logs/woken.log
+$DOCKER_COMPOSE logs wokenvalidation > ../logs/wokenvalidation.log
 
 exit_code="$($DOCKER inspect tests_wokentest_1 --format='{{.State.ExitCode}}')"
 
