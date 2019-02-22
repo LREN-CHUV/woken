@@ -281,7 +281,7 @@ services:
       # Store the actual responses into the woken-test/target/responses directory
       - ./woken-test/target/responses/:/responses/
       # For CI, export the test reports
-      - ./test-results/integration-tests/:/build/target/test-reports
+      - ./test-results/integration-tests/:/build/target/test-reports/
     depends_on:
       - woken
 
