@@ -39,11 +39,9 @@ jobs:
             mkdir -p test-results/unit-tests/
             docker tag $(docker images --filter "label=build=true" -q | head -n1) wokenbuild:latest
             id=$(docker create wokenbuild)
-            docker cp ${id}:/build/target/test-reports/ ./test-results/
-            mv ./test-results/test-reports ./test-results/unit-tests
+            docker cp ${id}:/build/target/test-reports/ .
+            cp ./test-report/TEST-*.xml ./test-results/unit-tests/
             docker rm -vf $id
-      - store_test_results:
-          path: test-results/
       - run:
           name: "Run integration tests"
           command: ./tests/ci.sh --all
@@ -51,5 +49,10 @@ jobs:
           path: test-results/
       - store_artifacts:
           path: test-results/
+          destination: test-results
+      - store_artifacts:
+          path: woken-test/target/responses/
+          destination: responses
       - store_artifacts:
           path: logs/
+          destination: logs
