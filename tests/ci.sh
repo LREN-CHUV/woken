@@ -109,7 +109,7 @@ echo "Running the integration tests..."
 mkdir -p test-results/integration-tests/ woken-test/target/{responses,test-reports}/
 chmod -R a+rwX test-results/ woken-test/target/
 $DOCKER_COMPOSE up wokentest
-cp woken-test/target/test-reports/TEST-*.xml tests-results/integration-tests/
+cp woken-test/target/test-reports/*.xml tests-results/integration-tests/
 
 mkdir -p logs/
 chmod -R a+rwX logs/
