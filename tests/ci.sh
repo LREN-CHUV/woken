@@ -109,8 +109,8 @@ echo "Running the integration tests..."
 mkdir -p ../test-results/integration-tests/ ../responses/
 $DOCKER_COMPOSE up wokentest
 $DOCKER cp tests_wokentest_1:/build/target .
-$DOCKER cp tests_wokentest_1:/responses ..
-cp target/test-reports/TEST-*.xml ../test-results/integration-tests/ || true
+cp target/responses/*.json .. || echo Cannot export responses
+cp target/test-reports/TEST-*.xml ../test-results/integration-tests/ || echo Cannot export integration test reports
 
 mkdir -p ../logs/
 $DOCKER_COMPOSE logs zookeeper > ../logs/zookeeper.log
