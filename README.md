@@ -10,7 +10,7 @@ An orchestration platform for Docker containers running data mining algorithms.
 
 This project exposes a web interface to execute on demand data mining algorithms defined in Docker containers and implemented using any tool or language (R, Python, Java and more are supported).
 
-It relies on a runtime environment containing [Mesos](http://mesos.apache.org) and [Chronos])(https://mesos.github.io/chronos/) to control and execute the Docker containers over a cluster.
+It relies on a runtime environment containing [Mesos](http://mesos.apache.org) and [Chronos](https://mesos.github.io/chronos/) to control and execute the Docker containers over a cluster.
 
 ## Usage
 
