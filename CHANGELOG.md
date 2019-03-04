@@ -2,7 +2,7 @@
 # Changelog
 
 
-## [https://github.com/LREN-CHUV/woken/compare/2.8.0...2.9.0](2.9.0) - 2019-01-22
+## (https://github.com/LREN-CHUV/woken/compare/2.8.0...2.9.0)[2.9.0] - 2019-01-22
 
 * Update algorithms
    * hbpmip/python-anova:0.4.5
@@ -50,7 +50,7 @@
 * __fix__ Refactor and fix cross-validation: use a temporary table in Postgres to create the random k-folds
 * __fix__ Fix filtering queries
 
-## [https://github.com/LREN-CHUV/woken/compare/2.7.0...2.8.0](2.8.0) - 2018-05-23
+## (https://github.com/LREN-CHUV/woken/compare/2.7.0...2.8.0)[2.8.0] - 2018-05-23
 
 * New algorithms
    * hbpmip/python-distributed-kmeans:0.2.1 distributed
@@ -86,7 +86,7 @@
 * __fix__ improve shuffling during K-fold cross validation
 * __fix__ Fix query for cross validation
 
-## [https://github.com/LREN-CHUV/woken/compare/2.6.0...2.7.0](2.7.0) - 2018-05-15
+## (https://github.com/LREN-CHUV/woken/compare/2.6.0...2.7.0)[2.7.0] - 2018-05-15
 
 * New algorithms
    * hbpmip/python-distributed-pca:0.3.1
@@ -114,7 +114,7 @@
 * __fix__ Change type for algo ggparci to features_extraction
 * __fix__ Naive Bayes: configure only for classification
 
-## [https://github.com/LREN-CHUV/woken/compare/2.5.0...2.6.0](2.6.0) - 2018-05-01
+## (https://github.com/LREN-CHUV/woken/compare/2.5.0...2.6.0)[2.6.0] - 2018-05-01
 
 * Update algorithms
    * hbpmip/python-anova:0.4.2
@@ -155,7 +155,7 @@
 * __fix__ Increase size of payloads for messages exchanged between Woken and the portal or validation workers
 * __fix__ Metadata queries: support exhaustive argument
 
-## [https://github.com/LREN-CHUV/woken/compare/2.4.0...2.0.0](2.5.0) - 2018-04-19
+## (https://github.com/LREN-CHUV/woken/compare/2.4.0...2.0.0)[2.5.0] - 2018-04-19
 
 * New algorithms
    * hbpmip/python-knn:0.2.3
@@ -191,7 +191,7 @@
 * __fix__ Fix count features
 * __fix__ Handle tables without a 'dataset' column
 
-## [https://github.com/LREN-CHUV/woken/compare/2.3.0...2.4.0](2.4.0) - 2018-03-16
+## (https://github.com/LREN-CHUV/woken/compare/2.3.0...2.4.0)[2.4.0] - 2018-03-16
 
 * Update algorithms
    * hbpmip/java-rapidminer-knn:0.2.2
@@ -225,7 +225,7 @@
 * __fix__ Stabilisation of mining and experiment queries
 * __doc__ Usage for this application
 
-## [https://github.com/LREN-CHUV/woken/compare/2.2.0...2.3.0](2.3.0) - 2018-02-20
+## (https://github.com/LREN-CHUV/woken/compare/2.2.0...2.3.0)[2.3.0] - 2018-02-20
 
 * Update Woken validation to 2.1.6
 * Update algorithms
@@ -246,7 +246,7 @@
 * __dev__ Refactor VariablesMeta, Shapes and document JobResults
 * __dev__ Rebrand top level package to ch.chuv.lren.woken
 
-## [https://github.com/LREN-CHUV/woken/compare/2.1.0...2.2.0](2.2.0) - 2018-01-16
+## (https://github.com/LREN-CHUV/woken/compare/2.1.0...2.2.0)[2.2.0] - 2018-01-16
 
 * Distributed datamining
 * Distributed experiments
@@ -255,7 +255,7 @@
 * __dev__ Rely on Akka streams for all distributed functionality, also for experiments
 * __dev__ Update to Akka 2.5.9
 
-## [https://github.com/LREN-CHUV/woken/compare/2.0.0...2.1.0](2.1.0) - 2017-12-11
+## (https://github.com/LREN-CHUV/woken/compare/2.0.0...2.1.0)[2.1.0] - 2017-12-11
 
 * Requires Chronos 3.0.2 and Zookeeper 3.4.8
 * Deep code refactoring, backend by more unit tests
@@ -268,12 +268,12 @@
 * __dev__ Favor immutable data structures
 * __dev__ Update Akka to 2.3.16
 
-## [https://github.com/LREN-CHUV/woken/compare/1.0.0...2.0.0](2.0.0) - 2016-09-22
+## (https://github.com/LREN-CHUV/woken/compare/1.0.0...2.0.0)[2.0.0] - 2016-09-22
 
 * Add support for experiments
 * Add cross-validation module
 
-## [https://github.com/LREN-CHUV/woken/compare/c8f18660...1.0.0](1.0.0) - 2016-03-22
+## (https://github.com/LREN-CHUV/woken/compare/c8f18660...1.0.0)[1.0.0] - 2016-03-22
 
 * First stable version
 
