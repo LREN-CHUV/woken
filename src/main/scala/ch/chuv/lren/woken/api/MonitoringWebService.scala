@@ -19,11 +19,10 @@ package ch.chuv.lren.woken.api
 
 import akka.actor.ActorSystem
 import akka.cluster.{ Cluster, MemberStatus }
-import akka.http.scaladsl.model.{ StatusCode, StatusCodes, Uri }
+import akka.http.scaladsl.model.{ StatusCode, StatusCodes }
 import akka.http.scaladsl.server.{ Directives, Route }
 import akka.http.scaladsl.model.StatusCodes._
-import akka.management.cluster.{ ClusterHealthCheck, ClusterHttpManagementRoutes }
-import akka.management.http.ManagementRouteProviderSettings
+import akka.management.cluster.scaladsl.ClusterHttpManagementRoutes
 import akka.util.Helpers
 import cats.implicits._
 import cats.effect.Effect
@@ -117,11 +116,7 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
 
   val clusterManagementRoutes: Route = ClusterHttpManagementRoutes(cluster)
 
-  val clusterHealthRoutes: Route = pathPrefix("cluster") {
-    new ClusterHealthCheck(cluster.system).routes(new ManagementRouteProviderSettings {
-      override def selfBaseUri: Uri = Uri./
-    })
-  }
+  val clusterHealthRoutes: Route = ClusterHttpManagementRoutes.readOnly(cluster)
 
   private val healthcheckConfig = config.getConfig("akka.management.cluster.http.healthcheck")
   private val readyStates: Set[MemberStatus] =
@@ -150,6 +145,7 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
   }
 
   def dbHealth: Route = pathPrefix("db") {
+
     get {
       onComplete(runLater(databaseServices.healthChecks.check)) {
         case Success(checks) =>

@@ -17,7 +17,8 @@
 
 package ch.chuv.lren.woken.core
 
-import cats.effect.{Effect, ExitCase, IO, LiftIO}
+import cats.effect.{ Effect, ExitCase, IO, LiftIO }
+import cats.implicits._
 import com.typesafe.scalalogging.Logger
 
 import scala.concurrent.Future
@@ -26,14 +27,20 @@ import scala.util.control.NonFatal
 
 object fp {
 
-  def runNow[F[_]: Effect, M](m: F[M]): M           = Effect[F].toIO(m).unsafeRunSync()
+  private val coreLogger: Logger = Logger("woken.core")
+
+  def runNow[F[_]: Effect, M](m: F[M]): M = Effect[F].toIO(m).unsafeRunSync()
 
   def runLater[F[_]: Effect, M](m: F[M]): Future[M] = {
     val errorRecovery: Throwable => F[M] = {
-      case NonFatal(t) => Effect[F].raiseError(t)
+      case NonFatal(t) =>
+        Effect[F]
+          .delay(coreLogger.error("Error in async code", t))
+          .flatMap(_ => Effect[F].raiseError(t))
+
       case fatal => throw fatal
     }
-    runLater(m , errorRecovery)
+    runLater(m, errorRecovery)
   }
 
   def runLater[F[_]: Effect, M](m: F[M], errorRecovery: Throwable => F[M]): Future[M] =

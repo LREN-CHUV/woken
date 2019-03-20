@@ -1,4 +1,5 @@
 .bloop/
+.ensime_cache/
 .idea/
 .settings/
 dev/log/
@@ -9,3 +10,4 @@ tests/woken/lib/
 project/project/
 project/target/
 target/
+*.log

@@ -29,7 +29,7 @@ import com.typesafe.scalalogging.Logger
 import doobie.hikari.HikariTransactor
 import org.slf4j.LoggerFactory
 import sup.data.Tagged
-import sup.{ HealthReporter, mods }
+import sup.{ HealthCheck, HealthReporter, mods }
 
 import scala.language.higherKinds
 
@@ -140,16 +140,17 @@ case class DatabaseServices[F[_]: ConcurrentEffect: ContextShift: Timer](
   def close(): F[Unit] = Effect[F].pure(())
 
   type TaggedS[H] = Tagged[String, H]
-  lazy val healthChecks: HealthReporter[F, NonEmptyList, TaggedS] = {
-    val featuresCheck =
-      featuresService.healthCheck.through[F, TaggedS](mods.tagWith("Features database"))
-    val jobsCheck =
-      jobResultService.healthCheck.through[F, TaggedS](mods.tagWith("Woken jobs database"))
-    val variablesCheck =
-      variablesMetaService.healthCheck.through[F, TaggedS](mods.tagWith("Metadata database"))
 
+  lazy val featuresCheck: HealthCheck[F, TaggedS] =
+    featuresService.healthCheck.through[F, TaggedS](mods.tagWith("Features database"))
+
+  lazy val jobsCheck: HealthCheck[F, TaggedS] =
+    jobResultService.healthCheck.through[F, TaggedS](mods.tagWith("Woken jobs database"))
+  lazy val variablesCheck: HealthCheck[F, TaggedS] =
+    variablesMetaService.healthCheck.through[F, TaggedS](mods.tagWith("Metadata database"))
+
+  lazy val healthChecks: HealthReporter[F, NonEmptyList, TaggedS] =
     HealthReporter.fromChecks(featuresCheck, jobsCheck, variablesCheck)
-  }
 
 }
 
