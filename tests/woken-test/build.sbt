@@ -61,7 +61,7 @@ lazy val library =
       val kamonSigar      = "1.6.6-rev002"
       val sprayJson       = "1.3.5"
       val config          = "1.3.3"
-      val wokenMessages   = "3.0.1"
+      val wokenMessages   = "3.0.2"
     }
     object ExclusionRules {
       val excludeLogback = ExclusionRule(organization = "ch.qos.logback", name = "logback-classic")
