@@ -96,12 +96,12 @@ lazy val library =
   new {
     object Version {
       val scalaCheck      = "1.14.0"
-      val scalaTest       = "3.0.5"
+      val scalaTest       = "3.0.7"
       val scalaMock       = "4.1.0"
       val akka            = "2.5.21"
       val akkaHttp        = "10.1.7"
-      val akkaHttpCors    = "0.3.4"
-      val akkaManagement  = "0.20.0"
+      val akkaHttpCors    = "0.4.0"
+      val akkaManagement  = "1.0.0"
       val akkaHttpSwagger = "2.0.2"
       val swaggerScala    = "2.0.3"
       val swaggerUI       = "3.20.8"
