@@ -305,7 +305,7 @@ val aopMerge: MergeStrategy = new MergeStrategy {
 val customMergeStrategy: String => MergeStrategy = {
   case PathList("META-INF", "aop.xml") =>
     aopMerge
-  case PathList("module-info.class") =>
+  case PathList(ps @ _*) if ps.last equals "module-info.class" =>
     MergeStrategy.discard
   case PathList("META-INF", "io.netty.versions.properties") =>
     MergeStrategy.first
