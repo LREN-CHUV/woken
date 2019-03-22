@@ -18,28 +18,30 @@
 package ch.chuv.lren.woken.api
 
 import akka.actor.ActorSystem
-import akka.cluster.{ Cluster, MemberStatus }
-import akka.http.scaladsl.model.{ StatusCode, StatusCodes }
-import akka.http.scaladsl.server.{ Directives, Route }
+import akka.cluster.{Cluster, MemberStatus}
+import akka.http.scaladsl.model.{StatusCode, StatusCodes}
+import akka.http.scaladsl.server.{Directives, Route}
 import akka.http.scaladsl.model.StatusCodes._
+import akka.management.HealthCheckSettings
 import akka.management.cluster.scaladsl.ClusterHttpManagementRoutes
+import akka.management.scaladsl.HealthChecks
 import akka.util.Helpers
 import cats.implicits._
 import cats.effect.Effect
 import ch.chuv.lren.woken.api.swagger.MonitoringServiceApi
-import ch.chuv.lren.woken.config.{ AppConfiguration, JobsConfiguration }
-import ch.chuv.lren.woken.service.{ BackendServices, DatabaseServices }
+import ch.chuv.lren.woken.config.{AppConfiguration, JobsConfiguration}
+import ch.chuv.lren.woken.service.{BackendServices, DatabaseServices}
 import ch.chuv.lren.woken.core.fp.runLater
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import sup.data.Report._
-import sup.data.{ HealthReporter, Tagged }
+import sup.data.{HealthReporter, Tagged}
 
 import scala.language.higherKinds
 import scala.collection.JavaConverters._
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
-import scala.util.{ Failure, Success }
+import scala.util.{Failure, Success, Try}
 
 /**
   *  Monitoring API
@@ -114,11 +116,39 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
     }
   }
 
-  val clusterManagementRoutes: Route = ClusterHttpManagementRoutes(cluster)
+  val clusterManagementRoutes: Route = ClusterHttpManagementRoutes.readOnly(cluster)
 
-  val clusterHealthRoutes: Route = ClusterHttpManagementRoutes.readOnly(cluster)
+  private val settings: HealthCheckSettings = HealthCheckSettings(
+    system.settings.config.getConfig("akka.management.health-checks")
+  )
 
-  private val healthcheckConfig = config.getConfig("akka.management.cluster.http.healthcheck")
+  private val clusterHealthChecks = HealthChecks(cluster.system, settings)
+
+  private val healthCheckResponse: Try[Boolean] => Route = {
+    case Success(true) => complete(StatusCodes.OK)
+    case Success(false) =>
+      complete(StatusCodes.InternalServerError -> "Not Healthy")
+    case Failure(t) =>
+      complete(
+        StatusCodes.InternalServerError -> s"Health Check Failed: ${t.getMessage}"
+      )
+  }
+
+  override def clusterReady: Route = pathPrefix("cluster" / "ready") {
+    get {
+      onComplete(clusterHealthChecks.ready())(healthCheckResponse)
+    }
+  }
+
+  override def clusterAlive: Route = pathPrefix("cluster" / "alive") {
+    get {
+      onComplete(clusterHealthChecks.alive())(healthCheckResponse)
+    }
+  }
+
+  val clusterHealthRoutes: Route = clusterReady ~ clusterAlive
+
+  private val healthcheckConfig = config.getConfig("akka.management.cluster.health-check")
   private val readyStates: Set[MemberStatus] =
     healthcheckConfig.getStringList("ready-states").asScala.map(memberStatus).toSet
 

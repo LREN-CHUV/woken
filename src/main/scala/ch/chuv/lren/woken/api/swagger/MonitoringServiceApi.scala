@@ -130,4 +130,46 @@ trait MonitoringServiceApi extends Directives {
   @GET
   def readiness: Route
 
+  @Path("/cluster/ready")
+  @Operation(
+    summary = "Check the readiness of the cluster after startup",
+    description = "Check the readiness of the cluster after startup",
+    tags = Array("monitoring"),
+    responses = Array(
+      new ApiResponse(
+        responseCode = "200",
+        description = "Success - cluster is ready",
+        content = Array(
+          new Content(mediaType = "text/plain")
+        )
+      ),
+      new ApiResponse(responseCode = "500",
+                      description = "Failure - cluster is not ready",
+                      content = Array(new Content(mediaType = "text/plain")))
+    )
+  )
+  @GET
+  def clusterReady: Route
+
+  @Path("/cluster/alive")
+  @Operation(
+    summary = "Check iif the cluster is alive",
+    description = "Check if the cluster is alive",
+    tags = Array("monitoring"),
+    responses = Array(
+      new ApiResponse(
+        responseCode = "200",
+        description = "Success - cluster is alive",
+        content = Array(
+          new Content(mediaType = "text/plain")
+        )
+      ),
+      new ApiResponse(responseCode = "500",
+                      description = "Failure - cluster is not alive",
+                      content = Array(new Content(mediaType = "text/plain")))
+    )
+  )
+  @GET
+  def clusterAlive: Route
+
 }

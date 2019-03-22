@@ -64,13 +64,13 @@ class WebServer[F[_]: ConcurrentEffect: ContextShift: Timer](
     )
   }
 
-  def selfChecks(): Unit = {
+  def selfChecks(): Boolean = {
     logger.info("Self checks...")
 
     val b = Await.result(binding, 30.seconds)
 
     val url =
-      s"http${if (config.app.webServicesHttps) "s" else ""}://${config.app.networkInterface}:${config.app.webServicesPort}/cluster/alive"
+      s"http${if (config.app.webServicesHttps) "s" else ""}://${config.app.networkInterface}:${config.app.webServicesPort}/cluster/ready"
     val endpointCheck = checkHealth(url)
     val result: F[Boolean] = endpointCheck.check.flatMap { check =>
       check.value.isHealthy.pure[F]
@@ -78,18 +78,18 @@ class WebServer[F[_]: ConcurrentEffect: ContextShift: Timer](
     val checkResult: Boolean = Effect[F].toIO(result).unsafeRunSync()
     if (checkResult) {
       logger.info(s"[OK] Web server is running on ${b.localAddress}")
+      true
     } else {
-      logger.info(s"[FAIL] Web server is not running on ${b.localAddress}")
-      Effect[F].toIO(unbind()).unsafeRunSync()
+      logger.warn(s"[FAIL] Web server is not running on ${b.localAddress}")
+      false
     }
-
   }
 
   def unbind(): F[Unit] = {
     import core._
 
     Sync[F].defer {
-      logger.warn("Stopping here", new Exception())
+      logger.warn("Stopping here", new Exception(""))
 
       logger.info(s"Shutdown Web server")
 
@@ -116,14 +116,15 @@ object WebServer {
       config: WokenConfiguration
   ): Resource[F, WebServer[F]] =
     // start a new HTTP server with our service actor as the handler
-    Resource.make(Sync[F].delay {
+    Resource.make(Sync[F].defer[WebServer[F]] {
       logger.info(s"Start web server on port ${config.app.webServicesPort}")
       val server =
         new WebServer(akkaServer, config, akkaServer.databaseServices, akkaServer.backendServices)
 
-      server.selfChecks()
-
-      server
+      if (server.selfChecks())
+        Sync[F].delay(server)
+      else
+        Sync[F].raiseError(new Exception("Server failed to start: self-checks did not pass"))
     })(_.unbind())
 
 }
