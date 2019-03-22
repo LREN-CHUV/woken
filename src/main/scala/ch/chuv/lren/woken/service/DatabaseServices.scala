@@ -144,13 +144,14 @@ case class DatabaseServices[F[_]: ConcurrentEffect: ContextShift: Timer](
   lazy val featuresCheck: HealthCheck[F, TaggedS] =
     featuresService.healthCheck.through[F, TaggedS](mods.tagWith("Features database"))
 
-  lazy val jobsCheck: HealthCheck[F, TaggedS] =
+  lazy val wokenCheck: HealthCheck[F, TaggedS] =
     jobResultService.healthCheck.through[F, TaggedS](mods.tagWith("Woken jobs database"))
-  lazy val variablesCheck: HealthCheck[F, TaggedS] =
+
+  lazy val metaCheck: HealthCheck[F, TaggedS] =
     variablesMetaService.healthCheck.through[F, TaggedS](mods.tagWith("Metadata database"))
 
   lazy val healthChecks: HealthReporter[F, NonEmptyList, TaggedS] =
-    HealthReporter.fromChecks(featuresCheck, jobsCheck, variablesCheck)
+    HealthReporter.fromChecks(featuresCheck, wokenCheck, metaCheck)
 
 }
 
@@ -163,7 +164,7 @@ object DatabaseServices {
   private val logger: Logger = Logger(LoggerFactory.getLogger("woken.DatabaseServices"))
 
   case class Transactors[F[_]](featuresTransactor: HikariTransactor[F],
-                               resultsTransactor: HikariTransactor[F],
+                               wokenTransactor: HikariTransactor[F],
                                metaTransactor: HikariTransactor[F])
 
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
@@ -175,12 +176,12 @@ object DatabaseServices {
 
     val transactors: Resource[F, Transactors[F]] = for {
       featuresTransactor <- DatabaseConfiguration.dbTransactor[F](config.featuresDb)
-      resultsTransactor  <- DatabaseConfiguration.dbTransactor[F](config.resultsDb)
+      wokenTransactor    <- DatabaseConfiguration.dbTransactor[F](config.wokenDb)
       metaTransactor     <- DatabaseConfiguration.dbTransactor[F](config.metaDb)
-    } yield Transactors[F](featuresTransactor, resultsTransactor, metaTransactor)
+    } yield Transactors[F](featuresTransactor, wokenTransactor, metaTransactor)
 
     transactors.flatMap { t =>
-      val wokenIO: F[WokenRepository[F]] = mkService(t.resultsTransactor, config.resultsDb) { xa =>
+      val wokenIO: F[WokenRepository[F]] = mkService(t.wokenTransactor, config.wokenDb) { xa =>
         Sync[F].delay(WokenRepositoryDAO(xa))
       }
 

@@ -42,7 +42,7 @@ case class WokenConfiguration(config: Config) {
   val featuresDb: DatabaseConfiguration = databaseConfig(jobs.defaultFeaturesDatabase)
     .valueOr(configurationFailed)
 
-  val resultsDb: DatabaseConfiguration = databaseConfig(DatabaseId("woken"))
+  val wokenDb: DatabaseConfiguration = databaseConfig(DatabaseId("woken"))
     .valueOr(configurationFailed)
 
   val metaDb: DatabaseConfiguration = DatabaseConfiguration

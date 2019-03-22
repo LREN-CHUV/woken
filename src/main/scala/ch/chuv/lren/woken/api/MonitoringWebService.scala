@@ -18,9 +18,9 @@
 package ch.chuv.lren.woken.api
 
 import akka.actor.ActorSystem
-import akka.cluster.{Cluster, MemberStatus}
-import akka.http.scaladsl.model.{StatusCode, StatusCodes}
-import akka.http.scaladsl.server.{Directives, Route}
+import akka.cluster.{ Cluster, MemberStatus }
+import akka.http.scaladsl.model.{ StatusCode, StatusCodes }
+import akka.http.scaladsl.server.{ Directives, Route }
 import akka.http.scaladsl.model.StatusCodes._
 import akka.management.HealthCheckSettings
 import akka.management.cluster.scaladsl.ClusterHttpManagementRoutes
@@ -29,31 +29,36 @@ import akka.util.Helpers
 import cats.implicits._
 import cats.effect.Effect
 import ch.chuv.lren.woken.api.swagger.MonitoringServiceApi
-import ch.chuv.lren.woken.config.{AppConfiguration, JobsConfiguration}
-import ch.chuv.lren.woken.service.{BackendServices, DatabaseServices}
+import ch.chuv.lren.woken.config.{ AppConfiguration, JobsConfiguration }
+import ch.chuv.lren.woken.service.{ BackendServices, DatabaseServices }
 import ch.chuv.lren.woken.core.fp.runLater
+import com.bugsnag.Report
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
+import sup.{ HealthCheck, HealthResult }
 import sup.data.Report._
-import sup.data.{HealthReporter, Tagged}
+import sup.data.{ HealthReporter, Tagged }
 
 import scala.language.higherKinds
 import scala.collection.JavaConverters._
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 /**
   *  Monitoring API
   *
-  *  /readiness : readiness check of the application
-  *  /health : application health
-  *  /health/backend : backend health
-  *  /health/db : database health
-  *  /health/cluster : cluster health
-  *  /cluster/alive : ping works while the cluster seems alive
-  *  /cluster/ready : readiness check of the cluster
-  *  /cluster/members : list members of the cluster
+  *  /readiness          : readiness check of the application
+  *  /health             : application health
+  *  /health/backend     : backend health
+  *  /health/db          : database health
+  *  /health/db/features : features database health
+  *  /health/db/meta     : meta database health
+  *  /health/db/woken    : woken database health
+  *  /health/cluster     : cluster health
+  *  /cluster/alive      : ping works while the cluster seems alive
+  *  /cluster/ready      : readiness check of the cluster
+  *  /cluster/members    : list members of the cluster
   */
 @SuppressWarnings(Array("org.wartremover.warts.Any", "org.wartremover.warts.Throw"))
 class MonitoringWebService[F[_]: Effect](cluster: Cluster,
@@ -175,19 +180,50 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
   }
 
   def dbHealth: Route = pathPrefix("db") {
+    pathEndOrSingleSlash {
 
-    get {
-      onComplete(runLater(databaseServices.healthChecks.check)) {
-        case Success(checks) =>
-          if (checks.value.health.isHealthy)
-            complete(OK)
-          else
-            complete((StatusCodes.InternalServerError, checks.value.show))
-        case Failure(ex) =>
-          complete((InternalServerError, s"An error occurred: ${ex.getMessage}"))
+      get {
+        onComplete(runLater(databaseServices.healthChecks.check)) {
+          case Success(checks) =>
+            if (checks.value.health.isHealthy)
+              complete(OK)
+            else
+              complete((StatusCodes.InternalServerError, checks.value.show))
+          case Failure(ex) =>
+            complete((InternalServerError, s"An error occurred: ${ex.getMessage}"))
+        }
       }
+    } ~ featuresDbHealth ~ metaDbHealth ~ wokenDbHealth
+  }
+
+  override def featuresDbHealth: Route = pathPrefix("features") {
+    get {
+      performCheck(databaseServices.featuresCheck)
     }
   }
+
+  override def metaDbHealth: Route = pathPrefix("meta") {
+    get {
+      performCheck(databaseServices.metaCheck)
+    }
+  }
+
+  override def wokenDbHealth: Route = pathPrefix("woken") {
+    get {
+      performCheck(databaseServices.wokenCheck)
+    }
+  }
+
+  private def performCheck(check: HealthCheck[F, TaggedS]): Route =
+    onComplete(runLater(check.check)) {
+      case Success(checks) =>
+        if (checks.value.health.isHealthy)
+          complete(OK)
+        else
+          complete((StatusCodes.InternalServerError, checks.value.show))
+      case Failure(ex) =>
+        complete((InternalServerError, s"An error occurred: ${ex.getMessage}"))
+    }
 
   val routes: Route = health ~ readiness ~ clusterManagementRoutes ~ clusterHealthRoutes
 

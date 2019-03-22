@@ -90,24 +90,87 @@ trait MonitoringServiceApi extends Directives {
 
   @Path("/health/db")
   @Operation(
-    summary = "Check the health of the database",
-    description = "Check the health of the database",
+    summary = "Check the health of all databases",
+    description = "Check the health of all databases",
     tags = Array("monitoring"),
     responses = Array(
       new ApiResponse(
         responseCode = "200",
-        description = "Success - database is healthy",
+        description = "Success - the databases are healthy",
         content = Array(
           new Content(mediaType = "text/plain")
         )
       ),
       new ApiResponse(responseCode = "500",
-                      description = "Failure - database is not healthy",
+                      description = "Failure - at least one database is not healthy",
                       content = Array(new Content(mediaType = "text/plain")))
     )
   )
   @GET
   def dbHealth: Route
+
+  @Path("/health/db/features")
+  @Operation(
+    summary = "Check the health of the features database",
+    description = "Check the health of the features database",
+    tags = Array("monitoring"),
+    responses = Array(
+      new ApiResponse(
+        responseCode = "200",
+        description = "Success - features database is healthy",
+        content = Array(
+          new Content(mediaType = "text/plain")
+        )
+      ),
+      new ApiResponse(responseCode = "500",
+                      description = "Failure - features database is not healthy",
+                      content = Array(new Content(mediaType = "text/plain")))
+    )
+  )
+  @GET
+  def featuresDbHealth: Route
+
+  @Path("/health/db/meta")
+  @Operation(
+    summary = "Check the health of the meta database",
+    description = "Check the health of the meta database",
+    tags = Array("monitoring"),
+    responses = Array(
+      new ApiResponse(
+        responseCode = "200",
+        description = "Success - meta database is healthy",
+        content = Array(
+          new Content(mediaType = "text/plain")
+        )
+      ),
+      new ApiResponse(responseCode = "500",
+                      description = "Failure - meta database is not healthy",
+                      content = Array(new Content(mediaType = "text/plain")))
+    )
+  )
+  @GET
+  def metaDbHealth: Route
+
+  @Path("/health/db/woken")
+  @Operation(
+    summary = "Check the health of the woken database",
+    description = "Check the health of the woken database",
+    tags = Array("monitoring"),
+    responses = Array(
+      new ApiResponse(
+        responseCode = "200",
+        description = "Success - woken database is healthy",
+        content = Array(
+          new Content(mediaType = "text/plain")
+        )
+      ),
+      new ApiResponse(responseCode = "500",
+                      description = "Failure - woken database is not healthy",
+                      content = Array(new Content(mediaType = "text/plain")))
+    )
+  )
+  @GET
+  def wokenDbHealth: Route
 
   @Path("/readiness")
   @Operation(
