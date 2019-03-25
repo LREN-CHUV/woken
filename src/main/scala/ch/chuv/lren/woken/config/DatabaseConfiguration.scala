@@ -18,6 +18,7 @@
 package ch.chuv.lren.woken.config
 
 import cats.data.NonEmptyList
+import cats.Monad
 import doobie._
 import doobie.implicits._
 import doobie.hikari._
@@ -175,9 +176,9 @@ object DatabaseConfiguration {
     dbAlias => read(config, NonEmptyList("db", List(dbAlias.code)))
 
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
-  def dbTransactor[F[_]: Effect: ContextShift](
+  def dbTransactor[F[_]: Async: ContextShift](
       dbConfig: DatabaseConfiguration
-  )(implicit cs: ContextShift[IO]): Resource[F, HikariTransactor[F]] =
+  ): Resource[F, HikariTransactor[F]] =
     // We need a ContextShift[IO] before we can construct a Transactor[IO]. The passed ExecutionContext
     // is where nonblocking operations will be executed.
     for {
@@ -195,7 +196,7 @@ object DatabaseConfiguration {
       _ <- Resource.liftF {
         xa.configure(
           hx =>
-            Async[F].delay {
+            Sync[F].delay {
               hx.getHikariConfigMXBean.setMaximumPoolSize(dbConfig.poolSize)
               hx.setAutoCommit(false)
           }
@@ -204,7 +205,7 @@ object DatabaseConfiguration {
 
     } yield xa
 
-  def validate[F[_]: Effect: ContextShift](
+  def validate[F[_]: Monad](
       xa: HikariTransactor[F],
       dbConfig: DatabaseConfiguration
   ): F[Validation[HikariTransactor[F]]] =
