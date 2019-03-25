@@ -60,6 +60,7 @@ lazy val `woken` =
           library.doobieCore,
           library.doobiePostgres,
           library.doobieHikari,
+          library.hikariCP,
           library.yaml,
           library.wokenMessages,
           library.healthSupport,
@@ -126,6 +127,7 @@ lazy val library =
       val treelog         = "1.4.6"
       val config          = "1.3.3"
       val doobie          = "0.6.0"
+      val hikariCP        = "3.3.1"
       val acolyte         = "1.0.51"
       val snakeyaml       = "1.24"
       val scalaCache      = "0.21.0"
@@ -191,6 +193,7 @@ lazy val library =
     val doobiePostgres: ModuleID = "org.tpolecat"    %% "doobie-postgres" % Version.doobie
     val doobieHikari: ModuleID = "org.tpolecat"      %% "doobie-hikari" % Version.doobie
     val doobieScalaTest: ModuleID = "org.tpolecat"   %% "doobie-scalatest" % Version.doobie
+    val hikariCP: ModuleID     = "com.zaxxer"         % "HikariCP"     % Version.hikariCP
     val acolyte: ModuleID      = "org.eu.acolyte"    %% "jdbc-scala"   % Version.acolyte
     val yaml: ModuleID         = "org.yaml"           % "snakeyaml"    % Version.snakeyaml
     val scalaCache: ModuleID   = "com.github.cb372"  %% "scalacache-core" % Version.scalaCache
