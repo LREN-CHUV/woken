@@ -37,10 +37,10 @@
     <Logger name="com.wordnik.swagger" level="INFO">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="com.zaxxer.hikari" level="WARN">
+    <Logger name="com.zaxxer.hikari" level="${env:DB_LOG_LEVEL:-WARN}">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="doobie" level="WARN">
+    <Logger name="doobie" level="${env:DB_LOG_LEVEL:-WARN}">
       <AppenderRef ref="Console"/>
     </Logger>
     <Logger name="io.netty" level="ERROR">
