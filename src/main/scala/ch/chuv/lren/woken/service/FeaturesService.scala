@@ -19,7 +19,7 @@ package ch.chuv.lren.woken.service
 
 import cats.Id
 import cats.data.{ NonEmptyList, Validated }
-import cats.effect.{ Effect, Resource }
+import cats.effect.{ Sync, Effect, Resource }
 import cats.syntax.validated._
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn }
@@ -145,7 +145,7 @@ class FeaturesServiceImpl[F[_]: Effect](repository: FeaturesRepository[F])
   override def healthCheck: HealthCheck[F, Id] = repository.healthCheck
 }
 
-class FeaturesTableServiceImpl[F[_]: Effect](repository: FeaturesTableRepository[F])
+class FeaturesTableServiceImpl[F[_]: Sync](repository: FeaturesTableRepository[F])
     extends FeaturesTableService[F] {
 
   override def table: FeaturesTableDescription = repository.table
@@ -195,10 +195,10 @@ class FeaturesTableServiceImpl[F[_]: Effect](repository: FeaturesTableRepository
                                    extendedTableNumber)
       .map(
         _.flatMap { extendedTable =>
-          Resource.make(
-            Effect[F]
+          Resource.liftF(
+            Sync[F]
               .delay(new FeaturesTableServiceImpl(extendedTable): FeaturesTableService[F])
-          )(_ => Effect[F].delay(()))
+          )
         }
       )
 

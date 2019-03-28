@@ -20,6 +20,7 @@ package ch.chuv.lren.woken.service
 import java.util.UUID
 
 import cats.data._
+import cats.Monad
 import cats.effect.{ Async, Effect }
 import cats.implicits._
 import ch.chuv.lren.woken.config.JobsConfiguration
@@ -77,7 +78,7 @@ object QueryToJobService extends LazyLogging {
   type PreparedQuery[Q <: Query] =
     JobId :: FeaturesTable :: List[VariableMetaData] :: Q :: UserFeedbacks :: HNil
 
-  def apply[F[_]: Effect](
+  def apply[F[_]: Monad](
       featuresService: FeaturesService[F],
       variablesMetaService: VariablesMetaRepository[F],
       jobsConfiguration: JobsConfiguration,
@@ -91,7 +92,7 @@ object QueryToJobService extends LazyLogging {
     )
 }
 
-class QueryToJobServiceImpl[F[_]: Effect](
+class QueryToJobServiceImpl[F[_]: Monad](
     featuresService: FeaturesService[F],
     variablesMetaService: VariablesMetaRepository[F],
     jobsConfiguration: JobsConfiguration,
@@ -355,6 +356,6 @@ class QueryToJobServiceImpl[F[_]: Effect](
   }
 
   private def toInvalidF[A](err: NonEmptyList[String]): F[Validation[A]] =
-    Async[F].delay(err.invalid[A])
+    Monad[F].pure(err.invalid[A])
 
 }

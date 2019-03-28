@@ -18,6 +18,7 @@
 package ch.chuv.lren.woken.dao
 
 import cats.data.{ NonEmptyList, Validated }
+import cats.Applicative
 import cats.effect.{ Effect, Resource }
 import cats.implicits._
 import ch.chuv.lren.woken.config.DatabaseConfiguration
@@ -132,9 +133,7 @@ trait FeaturesTableRepository[F[_]] extends Repository[F] {
     *
     * @param variables Full list of variables for the table as defined in the metadata
     */
-  def validateFields(variables: List[VariableMetaData])(
-      implicit effect: Effect[F]
-  ): F[Validated[NonEmptyList[(VariableMetaData, UserFeedback)], UserFeedbacks]] = {
+  def validateFields(variables: List[VariableMetaData])(implicit F: Applicative[F]): F[Validated[NonEmptyList[(VariableMetaData, UserFeedback)], UserFeedbacks]] = {
     val variableNames = variables.map(_.toId.code).toSet
     val headerNames   = columns.map(_.name).toSet
     val unknownHeaders =
