@@ -23,6 +23,7 @@ import java.util.{ Base64, UUID }
 import doobie._
 import doobie.implicits._
 import cats.Id
+import cats.MonadError
 import cats.data.Validated._
 import cats.effect.Effect
 import cats.implicits._
@@ -49,7 +50,7 @@ import sup.HealthCheck
 import scala.language.higherKinds
 import scala.util.Try
 
-case class WokenRepositoryDAO[F[_]: Effect](xa: Transactor[F]) extends WokenRepository[F] {
+case class WokenRepositoryDAO[F[_]](xa: Transactor[F])(implicit F: MonadError[F, Throwable]) extends WokenRepository[F] {
 
   private val genTableNum = sql"""
       SELECT nextval('gen_features_table_seq');
@@ -67,7 +68,7 @@ case class WokenRepositoryDAO[F[_]: Effect](xa: Transactor[F]) extends WokenRepo
 /**
   * Interpreter based on Doobie that provides the operations of the algebra
   */
-class JobResultRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
+class JobResultRepositoryDAO[F[_]](val xa: Transactor[F])(implicit F: MonadError[F, Throwable])
     extends JobResultRepository[F]
     with LazyLogging {
 
@@ -213,7 +214,7 @@ class JobResultRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
   override def healthCheck: HealthCheck[F, Id] = validate(xa)
 }
 
-class ResultsCacheRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
+class ResultsCacheRepositoryDAO[F[_]](val xa: Transactor[F])(implicit F: MonadError[F, Throwable])
     extends ResultsCacheRepository[F] {
 
   private val systemUser = UserId("woken")
