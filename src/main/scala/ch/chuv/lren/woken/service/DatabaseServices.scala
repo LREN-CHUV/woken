@@ -23,6 +23,7 @@ import cats.effect._
 import cats.implicits._
 import ch.chuv.lren.woken.config.{ DatabaseConfiguration, WokenConfiguration, configurationFailed }
 import ch.chuv.lren.woken.core.model.VariablesMeta
+import ch.chuv.lren.woken.core.threads
 import ch.chuv.lren.woken.dao._
 import ch.chuv.lren.woken.messages.datasets.Dataset
 import com.typesafe.scalalogging.Logger
@@ -175,9 +176,16 @@ object DatabaseServices {
     logger.info("Connect to databases...")
 
     val transactors: Resource[F, Transactors[F]] = for {
-      featuresTransactor <- DatabaseConfiguration.dbTransactor[F](config.featuresDb)
-      wokenTransactor    <- DatabaseConfiguration.dbTransactor[F](config.wokenDb)
-      metaTransactor     <- DatabaseConfiguration.dbTransactor[F](config.metaDb)
+      // our connect EC
+      connectEC <- threads.fixedThreadPool[F](size = 7)
+      // our transaction EC
+      transactionEC <- threads.cachedThreadPool[F]
+      featuresTransactor <- DatabaseConfiguration
+        .dbTransactor[F](config.featuresDb, connectEC, transactionEC)
+      wokenTransactor <- DatabaseConfiguration
+        .dbTransactor[F](config.wokenDb, connectEC, transactionEC)
+      metaTransactor <- DatabaseConfiguration
+        .dbTransactor[F](config.metaDb, connectEC, transactionEC)
     } yield Transactors[F](featuresTransactor, wokenTransactor, metaTransactor)
 
     transactors.flatMap { t =>

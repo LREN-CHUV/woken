@@ -18,7 +18,6 @@
 package ch.chuv.lren.woken.config
 
 import cats.data.NonEmptyList
-import doobie._
 import doobie.implicits._
 import doobie.hikari._
 import cats.implicits._
@@ -26,12 +25,12 @@ import cats.effect._
 import cats.data.Validated._
 import com.typesafe.config.Config
 import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn }
-import ch.chuv.lren.woken.core.threads
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
 import ch.chuv.lren.woken.messages.datasets.TableId
 import ch.chuv.lren.woken.messages.query.UserId
 import ch.chuv.lren.woken.messages.variables.SqlType
 
+import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
 final case class DatabaseId(code: String)
@@ -176,22 +175,22 @@ object DatabaseConfiguration {
 
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
   def dbTransactor[F[_]: Effect: ContextShift](
-      dbConfig: DatabaseConfiguration
+      dbConfig: DatabaseConfiguration,
+      connectExecutionContext: ExecutionContext,
+      transactionExecutionContext: ExecutionContext
   )(implicit cs: ContextShift[IO]): Resource[F, HikariTransactor[F]] =
     // We need a ContextShift[IO] before we can construct a Transactor[IO]. The passed ExecutionContext
     // is where nonblocking operations will be executed.
     for {
-      // our connect EC
-      ce <- threads.fixedThreadPool[F](size = 2)
-      // our transaction EC
-      te <- threads.cachedThreadPool[F]
 
-      xa <- HikariTransactor.newHikariTransactor[F](driverClassName = dbConfig.jdbcDriver,
-                                                    url = dbConfig.jdbcUrl,
-                                                    user = dbConfig.user,
-                                                    pass = dbConfig.password,
-                                                    connectEC = ce,
-                                                    transactEC = te)
+      xa <- HikariTransactor.newHikariTransactor[F](
+        driverClassName = dbConfig.jdbcDriver,
+        url = dbConfig.jdbcUrl,
+        user = dbConfig.user,
+        pass = dbConfig.password,
+        connectEC = connectExecutionContext,
+        transactEC = transactionExecutionContext
+      )
       _ <- Resource.liftF {
         xa.configure(
           hx =>

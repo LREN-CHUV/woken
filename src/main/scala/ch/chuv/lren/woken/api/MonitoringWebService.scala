@@ -26,16 +26,16 @@ import akka.management.HealthCheckSettings
 import akka.management.cluster.scaladsl.ClusterHttpManagementRoutes
 import akka.management.scaladsl.HealthChecks
 import akka.util.Helpers
+import cats.Foldable
 import cats.implicits._
 import cats.effect.Effect
 import ch.chuv.lren.woken.api.swagger.MonitoringServiceApi
 import ch.chuv.lren.woken.config.{ AppConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.service.{ BackendServices, DatabaseServices }
 import ch.chuv.lren.woken.core.fp.runLater
-import com.bugsnag.Report
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
-import sup.{ HealthCheck, HealthResult }
+import sup.HealthCheck
 import sup.data.Report._
 import sup.data.{ HealthReporter, Tagged }
 
@@ -183,15 +183,7 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
     pathEndOrSingleSlash {
 
       get {
-        onComplete(runLater(databaseServices.healthChecks.check)) {
-          case Success(checks) =>
-            if (checks.value.health.isHealthy)
-              complete(OK)
-            else
-              complete((StatusCodes.InternalServerError, checks.value.show))
-          case Failure(ex) =>
-            complete((InternalServerError, s"An error occurred: ${ex.getMessage}"))
-        }
+        performCheck(databaseServices.healthChecks)
       }
     } ~ featuresDbHealth ~ metaDbHealth ~ wokenDbHealth
   }
@@ -214,10 +206,12 @@ class MonitoringWebService[F[_]: Effect](cluster: Cluster,
     }
   }
 
-  private def performCheck(check: HealthCheck[F, TaggedS]): Route =
+  private def performCheck[G[_]: Foldable](
+      check: HealthCheck[F, G]
+  )(implicit show: cats.Show[G[sup.Health]]): Route =
     onComplete(runLater(check.check)) {
       case Success(checks) =>
-        if (checks.value.health.isHealthy)
+        if (checks.value.combineAll.isHealthy)
           complete(OK)
         else
           complete((StatusCodes.InternalServerError, checks.value.show))
