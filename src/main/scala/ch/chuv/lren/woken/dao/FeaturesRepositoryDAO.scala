@@ -18,6 +18,8 @@
 package ch.chuv.lren.woken.dao
 
 import cats.Id
+import cats.Monad
+import cats.MonadError
 import doobie._
 import doobie.implicits._
 import spray.json._
@@ -42,10 +44,11 @@ import sup.HealthCheck
 
 import scala.language.higherKinds
 
-class FeaturesRepositoryDAO[F[_]: Effect] private (
+class FeaturesRepositoryDAO[F[_]] private (
     val xa: Transactor[F],
     override val database: DatabaseConfiguration
-) extends FeaturesRepository[F] {
+)(implicit F: MonadError[F, Throwable])
+    extends FeaturesRepository[F] {
 
   override def featuresTable(table: TableId): F[Option[FeaturesTableRepository[F]]] =
     database.tables
@@ -65,11 +68,11 @@ object FeaturesRepositoryDAO {
 
   implicit val han: LogHandler = logging.doobieLogHandler
 
-  def apply[F[_]: Effect](
+  def apply[F[_]](
       xa: Transactor[F],
       database: DatabaseConfiguration,
       wokenRepository: WokenRepository[F]
-  ): F[Validation[FeaturesRepositoryDAO[F]]] = {
+  )(implicit F: MonadError[F, Throwable]): F[Validation[FeaturesRepositoryDAO[F]]] = {
 
     case class Check(schema: String, table: String, column: String)
 
@@ -133,7 +136,7 @@ object FeaturesRepositoryDAO {
 
 }
 
-abstract class BaseFeaturesTableRepositoryDAO[F[_]: Effect] extends FeaturesTableRepository[F] {
+abstract class BaseFeaturesTableRepositoryDAO[F[_]: Monad] extends FeaturesTableRepository[F] {
   def xa: Transactor[F]
 
   implicit val han: LogHandler = logging.doobieLogHandler
@@ -242,11 +245,12 @@ abstract class BaseFeaturesTableRepositoryDAO[F[_]: Effect] extends FeaturesTabl
 
 }
 
-class FeaturesTableRepositoryDAO[F[_]: Effect] private[dao] (
+class FeaturesTableRepositoryDAO[F[_]] private[dao] (
     override val xa: Transactor[F],
     override val table: FeaturesTableDescription,
     override val columns: FeaturesTableRepository.Headers
-) extends BaseFeaturesTableRepositoryDAO[F] {
+)(implicit F: MonadError[F, Throwable])
+    extends BaseFeaturesTableRepositoryDAO[F] {
 
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
   override def createExtendedFeaturesTable(
@@ -262,15 +266,16 @@ class FeaturesTableRepositoryDAO[F[_]: Effect] private[dao] (
                                        otherColumns,
                                        prefills,
                                        extendedTableNumber)
-      .map(_.map[FeaturesTableRepository[F]](t => t))
+      .map(_.widen[FeaturesTableRepository[F]])
 
   override def healthCheck: HealthCheck[F, Id] = validate(xa)
 }
 
 object FeaturesTableRepositoryDAO {
 
-  def apply[F[_]: Effect](xa: Transactor[F],
-                          table: FeaturesTableDescription): F[FeaturesTableRepositoryDAO[F]] = {
+  def apply[F[_]](xa: Transactor[F], table: FeaturesTableDescription)(
+      implicit F: MonadError[F, Throwable]
+  ): F[FeaturesTableRepositoryDAO[F]] = {
     implicit val han: LogHandler = logging.doobieLogHandler
 
     HC.prepareStatement(s"SELECT * FROM ${table.quotedName} LIMIT 1")(prepareHeaders)
@@ -321,14 +326,15 @@ object FeaturesTableRepositoryDAO {
   }
 }
 
-class ExtendedFeaturesTableRepositoryDAO[F[_]: Effect] private (
+class ExtendedFeaturesTableRepositoryDAO[F[_]] private (
     val sourceTable: FeaturesTableRepositoryDAO[F],
     val view: FeaturesTableDescription,
     val viewColumns: List[TableColumn],
     val extTable: FeaturesTableDescription,
     val newFeatures: List[TableColumn],
     val rndColumn: TableColumn
-) extends BaseFeaturesTableRepositoryDAO[F] {
+)(implicit F: MonadError[F, Throwable])
+    extends BaseFeaturesTableRepositoryDAO[F] {
 
   override val xa: Transactor[F]               = sourceTable.xa
   override val table: FeaturesTableDescription = view
@@ -362,13 +368,15 @@ object ExtendedFeaturesTableRepositoryDAO {
 
   implicit val han: LogHandler = logging.doobieLogHandler
 
-  def apply[F[_]: Effect](
+  def apply[F[_]](
       sourceTable: FeaturesTableRepositoryDAO[F],
       filters: Option[FilterRule],
       newFeatures: List[TableColumn],
       otherColumns: List[TableColumn],
       prefills: List[PrefillExtendedFeaturesTable],
       extendedTableNumber: Int
+  )(
+      implicit F: MonadError[F, Throwable]
   ): Validation[Resource[F, ExtendedFeaturesTableRepositoryDAO[F]]] = {
 
     val xa       = sourceTable.xa
@@ -395,8 +403,7 @@ object ExtendedFeaturesTableRepositoryDAO {
                                           newColumns,
                                           extendedTableNumber)
           _ <- prefills
-            .map(_.prefillExtendedTableSql(sourceTable.table, extTable, rndColumn).run)
-            .sequence
+            .traverse(_.prefillExtendedTableSql(sourceTable.table, extTable, rndColumn).run)
           extViewCols <- createExtendedView(sourceTable.table,
                                             pk,
                                             sourceTable.columns,
@@ -415,15 +422,11 @@ object ExtendedFeaturesTableRepositoryDAO {
       }
 
     validatedDao.map { dao =>
-      Resource.make(dao)(_.close()).flatMap { f: ExtendedFeaturesTableRepositoryDAO[F] =>
-        {
-          Resource.make(Effect[F].delay(f))(_ => Effect[F].delay(()))
-        }
-      }
+      Resource.make(dao)(_.close())
     }
   }
 
-  private def createExtendedTable[F[_]: Effect](
+  private def createExtendedTable(
       table: FeaturesTableDescription,
       pk: TableColumn,
       filters: Option[FilterRule],
@@ -470,7 +473,7 @@ object ExtendedFeaturesTableRepositoryDAO {
 
   }
 
-  private def createExtendedView[F[_]: Effect](
+  private def createExtendedView(
       table: FeaturesTableDescription,
       pk: TableColumn,
       tableColumns: List[TableColumn],

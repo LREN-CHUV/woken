@@ -18,6 +18,7 @@
 package ch.chuv.lren.woken
 
 import cats.Id
+import cats.MonadError
 import cats.effect.Effect
 import doobie.util.transactor.Transactor
 import sup.modules.doobie._
@@ -30,7 +31,9 @@ package object dao {
 
   import acyclic.pkg
 
-  def validate[F[_]: Effect](transactor: Transactor[F]): HealthCheck[F, Id] =
+  def validate[F[_]](
+      transactor: Transactor[F]
+  )(implicit F: MonadError[F, Throwable]): HealthCheck[F, Id] =
     connectionCheck(transactor)(timeoutSeconds = Some(5)).through(mods.recoverToSick)
 
 }

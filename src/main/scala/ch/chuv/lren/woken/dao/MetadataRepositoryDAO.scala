@@ -33,7 +33,7 @@ import variablesProtocol._
 import scala.collection.mutable
 import scala.language.higherKinds
 
-class VariablesMetaRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
+class VariablesMetaRepositoryDAO[F[_]](val xa: Transactor[F])(implicit F: MonadError[F, Throwable])
     extends VariablesMetaRepository[F] {
 
   implicit val groupMetaDataMeta: Meta[GroupMetaData] = codecMeta[GroupMetaData]
@@ -91,7 +91,7 @@ class VariablesMetaRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
   override def healthCheck: HealthCheck[F, Id] = validate(xa)
 }
 
-class TablesCatalogRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
+class TablesCatalogRepositoryDAO[F[_]](val xa: Transactor[F])(implicit F: MonadError[F, Throwable])
     extends TablesCatalogRepository[F] {
 
   override def put(table: FeaturesTableDescription): F[FeaturesTableDescription] = ???
@@ -101,7 +101,8 @@ class TablesCatalogRepositoryDAO[F[_]: Effect](val xa: Transactor[F])
   override def healthCheck: HealthCheck[F, Id] = validate(xa)
 }
 
-case class MetadataRepositoryDAO[F[_]: Effect](xa: Transactor[F]) extends MetadataRepository[F] {
+case class MetadataRepositoryDAO[F[_]](xa: Transactor[F])(implicit F: MonadError[F, Throwable])
+    extends MetadataRepository[F] {
 
   override def variablesMeta: VariablesMetaRepository[F] = new VariablesMetaRepositoryDAO[F](xa)
 

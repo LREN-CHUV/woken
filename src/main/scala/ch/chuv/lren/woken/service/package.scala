@@ -29,8 +29,8 @@ package object service {
   /**
     * Return a resource encapsulating all services backed by a database
     */
-  def databaseResource[F[_]: ConcurrentEffect: ContextShift: Timer](config: WokenConfiguration)(
-      implicit cs: ContextShift[IO]
+  def databaseResource[F[_]: ConcurrentEffect: ContextShift: Timer](
+      config: WokenConfiguration
   ): Resource[F, DatabaseServices[F]] = DatabaseServices.resource(config)
 
 }

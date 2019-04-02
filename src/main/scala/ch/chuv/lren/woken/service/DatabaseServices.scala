@@ -34,7 +34,7 @@ import sup.{ HealthCheck, HealthReporter, mods }
 
 import scala.language.higherKinds
 
-case class DatabaseServices[F[_]: ConcurrentEffect: ContextShift: Timer](
+case class DatabaseServices[F[_]](
     config: WokenConfiguration,
     featuresService: FeaturesService[F],
     wokenRepository: WokenRepository[F],
@@ -42,7 +42,7 @@ case class DatabaseServices[F[_]: ConcurrentEffect: ContextShift: Timer](
     queryToJobService: QueryToJobService[F],
     datasetService: DatasetService,
     algorithmLibraryService: AlgorithmLibraryService
-) {
+)(implicit F: Sync[F]) {
 
   import DatabaseServices.logger
 
@@ -55,7 +55,7 @@ case class DatabaseServices[F[_]: ConcurrentEffect: ContextShift: Timer](
     logger.info(datasetService.datasets().values.filter(_.location.isEmpty).toString())
 
     implicit val FPlus: Monoid[F[Unit]] = new Monoid[F[Unit]] {
-      def empty: F[Unit]                           = Effect[F].pure(())
+      def empty: F[Unit]                           = F.unit
       def combine(x: F[Unit], y: F[Unit]): F[Unit] = x.flatMap(_ => y)
     }
 
@@ -71,7 +71,7 @@ case class DatabaseServices[F[_]: ConcurrentEffect: ContextShift: Timer](
                   { error: NonEmptyList[String] =>
                     val errMsg = error.mkString_(",")
                     logger.error(errMsg)
-                    Effect[F].raiseError(new IllegalStateException(errMsg))
+                    F.raiseError(new IllegalStateException(errMsg))
                   }, { table: FeaturesTableService[F] =>
                     validateTable(dataset, table)
                   }
@@ -98,8 +98,10 @@ case class DatabaseServices[F[_]: ConcurrentEffect: ContextShift: Timer](
       _         <- tableFieldsShouldMatchMetadata(table, variables)
     } yield ()
 
-  private def tableShouldContainRowsForDataset(dataset: Dataset,
-                                               table: FeaturesTableService[F]): F[Unit] =
+  private def tableShouldContainRowsForDataset(
+      dataset: Dataset,
+      table: FeaturesTableService[F]
+  ): F[Unit] =
     table
       .count(dataset.id)
       .flatMap[Unit] { count =>
@@ -107,7 +109,7 @@ case class DatabaseServices[F[_]: ConcurrentEffect: ContextShift: Timer](
           val error =
             s"Table ${table.table} contains no value for dataset ${dataset.id.code}"
           logger.error(error)
-          Effect[F].raiseError(new IllegalStateException(error))
+          F.raiseError(new IllegalStateException(error))
         } else ().pure[F]
       }
 
@@ -118,7 +120,7 @@ case class DatabaseServices[F[_]: ConcurrentEffect: ContextShift: Timer](
       .flatMap(
         metaO =>
           metaO.fold(
-            Effect[F].raiseError[VariablesMeta](
+            F.raiseError[VariablesMeta](
               new IllegalStateException(
                 s"Cannot find metadata for table ${tableId.toString}"
               )
@@ -127,18 +129,20 @@ case class DatabaseServices[F[_]: ConcurrentEffect: ContextShift: Timer](
       )
   }
 
-  private def tableFieldsShouldMatchMetadata(table: FeaturesTableService[F],
-                                             variables: VariablesMeta): F[Unit] =
+  private def tableFieldsShouldMatchMetadata(
+      table: FeaturesTableService[F],
+      variables: VariablesMeta
+  ): F[Unit] =
     table
       .validateFields(variables.allVariables())
       .map { validation =>
         validation.fold(
-          err => Effect[F].raiseError(new IllegalStateException(err.map(_._2.msg).mkString_(", "))),
-          warnings => Effect[F].delay(warnings.foreach(w => logger.warn(w.msg)))
+          err => F.raiseError(new IllegalStateException(err.map(_._2.msg).mkString_(", "))),
+          warnings => F.delay(warnings.foreach(w => logger.warn(w.msg)))
         )
       }
 
-  def close(): F[Unit] = Effect[F].pure(())
+  def close(): F[Unit] = F.pure(())
 
   type TaggedS[H] = Tagged[String, H]
 
@@ -164,14 +168,16 @@ object DatabaseServices {
 
   private val logger: Logger = Logger(LoggerFactory.getLogger("woken.DatabaseServices"))
 
-  case class Transactors[F[_]](featuresTransactor: HikariTransactor[F],
-                               wokenTransactor: HikariTransactor[F],
-                               metaTransactor: HikariTransactor[F])
+  case class Transactors[F[_]](
+      featuresTransactor: HikariTransactor[F],
+      wokenTransactor: HikariTransactor[F],
+      metaTransactor: HikariTransactor[F]
+  )
 
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
-  def resource[F[_]: ConcurrentEffect: ContextShift: Timer](
+  def resource[F[_]: Effect: ContextShift: Timer](
       config: WokenConfiguration
-  )(implicit cs: ContextShift[IO]): Resource[F, DatabaseServices[F]] = {
+  ): Resource[F, DatabaseServices[F]] = {
 
     logger.info("Connect to databases...")
 
@@ -212,35 +218,39 @@ object DatabaseServices {
         featuresService      <- fsIO
         wokenService         <- wokenIO
         variablesMetaService <- vmsIO
-        queryToJobService = QueryToJobService(featuresService,
-                                              variablesMetaService,
-                                              config.jobs,
-                                              config.algorithmLookup)
+        queryToJobService = QueryToJobService(
+          featuresService,
+          variablesMetaService,
+          config.jobs,
+          config.algorithmLookup
+        )
       } yield
-        DatabaseServices[F](config,
-                            featuresService,
-                            wokenService,
-                            variablesMetaService,
-                            queryToJobService,
-                            datasetService,
-                            algorithmLibraryService)
+        DatabaseServices[F](
+          config,
+          featuresService,
+          wokenService,
+          variablesMetaService,
+          queryToJobService,
+          datasetService,
+          algorithmLibraryService
+        )
 
-      Resource.make(servicesIO.flatMap(service => service.validate().map(_ => service)))(_.close())
+      Resource.make(servicesIO.flatMap(service => service.validate().as(service)))(_.close())
     }
   }
 
-  private[this] def mkService[F[_]: ConcurrentEffect: ContextShift, M](
+  private[this] def mkService[F[_]: Sync, M](
       transactor: HikariTransactor[F],
       dbConfig: DatabaseConfiguration
   )(
       serviceGen: HikariTransactor[F] => F[M]
-  )(implicit cs: ContextShift[IO]): F[M] =
+  ): F[M] =
     for {
       validatedXa <- DatabaseConfiguration
         .validate(transactor, dbConfig)
         .map(_.valueOr(configurationFailed))
       validatedDb <- serviceGen(validatedXa)
-      _ <- Async[F].delay(
+      _ <- Sync[F].delay(
         logger.info(s"[OK] Connected to database ${dbConfig.database} on ${dbConfig.jdbcUrl}")
       )
     } yield {
