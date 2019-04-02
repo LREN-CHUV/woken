@@ -185,17 +185,14 @@ object DatabaseConfiguration {
     // We need a ContextShift[IO] before we can construct a Transactor[IO]. The passed ExecutionContext
     // is where nonblocking operations will be executed.
     for {
-      // our connect EC
-      ce <- threads.fixedThreadPool[F](size = 2)
-      // our transaction EC
-      te <- threads.cachedThreadPool[F]
-
-      xa <- HikariTransactor.newHikariTransactor[F](driverClassName = dbConfig.jdbcDriver,
-                                                    url = dbConfig.jdbcUrl,
-                                                    user = dbConfig.user,
-                                                    pass = dbConfig.password,
-                                                    connectEC = ce,
-                                                    transactEC = te)
+      xa <- HikariTransactor.newHikariTransactor[F](
+        driverClassName = dbConfig.jdbcDriver,
+        url = dbConfig.jdbcUrl,
+        user = dbConfig.user,
+        pass = dbConfig.password,
+        connectEC = connectExecutionContext,
+        transactEC = transactionExecutionContext
+      )
       _ <- Resource.liftF {
         xa.configure(
           hx =>
