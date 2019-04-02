@@ -19,7 +19,6 @@ package ch.chuv.lren.woken.config
 
 import cats.data.NonEmptyList
 import cats.Monad
-import doobie._
 import doobie.implicits._
 import doobie.hikari._
 import cats.implicits._
@@ -27,7 +26,6 @@ import cats.effect._
 import cats.data.Validated._
 import com.typesafe.config.Config
 import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn }
-import ch.chuv.lren.woken.core.threads
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
 import ch.chuv.lren.woken.messages.datasets.TableId
 import ch.chuv.lren.woken.messages.query.UserId
