@@ -22,7 +22,7 @@ import akka.cluster.pubsub.{ DistributedPubSub, DistributedPubSubMediator }
 import akka.pattern.ask
 import akka.util.Timeout
 import cats.Id
-import cats.effect.Effect
+import cats.effect.{ Effect, Sync }
 import cats.implicits._
 import ch.chuv.lren.woken.core.fp._
 import ch.chuv.lren.woken.messages.{ Ping, Pong }
@@ -40,9 +40,13 @@ object DistributedPubSubHealthCheck {
       timeout: FiniteDuration
   ): HealthCheck[F, Id] =
     HealthCheck.liftFBoolean {
+      lazy val gracePeriod = 5.minutes.fromNow
+
       // Defer computation to return a different result on every execution
-      Effect[F].defer {
-        if (!cluster.state.members.exists(m => m.roles.contains(role))) {
+      Sync[F].defer {
+        if (gracePeriod.hasTimeLeft()) {
+          true.pure[F]
+        } else if (!cluster.state.members.exists(m => m.roles.contains(role))) {
           val clusterRoles = cluster.state.members.flatMap(_.roles).mkString(",")
           logger.warn(
             s"Cannot find a member in the cluster with role $role, found roles $clusterRoles"
