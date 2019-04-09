@@ -98,7 +98,7 @@ lazy val library =
       val scalaCheck      = "1.14.0"
       val scalaTest       = "3.0.7"
       val scalaMock       = "4.1.0"
-      val akka            = "2.5.21"
+      val akka            = "2.5.22"
       val akkaHttp        = "10.1.8"
       val akkaHttpCors    = "0.4.0"
       val akkaManagement  = "1.0.0"
@@ -133,7 +133,7 @@ lazy val library =
       val diff            = "2.0.1"
       val acyclic         = "0.1.8"
       val wokenMessages   = "3.0.2"
-      val sup             = "0.3.0"
+      val sup             = "0.4.0"
       val sttpBackend     = "1.5.12"
     }
     object ExclusionRules {
