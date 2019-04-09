@@ -17,6 +17,8 @@
 
 package ch.chuv.lren.woken.api
 
+import java.time.OffsetDateTime
+
 import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.http.scaladsl.model.ws.{ Message, TextMessage }
@@ -25,12 +27,7 @@ import akka.stream.scaladsl.Flow
 import akka.util.Timeout
 import ch.chuv.lren.woken.config.{ AppConfiguration, JobsConfiguration }
 import ch.chuv.lren.woken.service.AlgorithmLibraryService
-import ch.chuv.lren.woken.messages.query.{
-  ExperimentQuery,
-  MiningQuery,
-  QueryResult,
-  queryProtocol
-}
+import ch.chuv.lren.woken.messages.query._
 
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.{ Failure, Success, Try }
@@ -44,6 +41,7 @@ import ch.chuv.lren.woken.messages.variables.{
 }
 import com.typesafe.scalalogging.LazyLogging
 
+import scala.collection.immutable.TreeSet
 import scala.util.control.NonFatal
 
 trait WebsocketSupport {
@@ -143,10 +141,9 @@ trait WebsocketSupport {
         }.recoverWith {
           case NonFatal(e) =>
             logger.error(s"Cannot deserialize Json as experiment query: $jsonEncodedString", e)
-            Failure(e)
+            throw e
         }
       }
-      .filter(_.isSuccess)
       .mapAsync(parallelism = 3) {
         case Success(query) =>
           (masterRouter ? query).mapTo[QueryResult]
@@ -157,6 +154,38 @@ trait WebsocketSupport {
         val serializedResult = result.toJson.compactPrint
         logger.debug(s"Return response for experiment: $serializedResult")
         TextMessage(serializedResult)
+      }
+      .recover {
+        case t =>
+          val system = UserId("system")
+          val dummyQuery = ExperimentQuery(system,
+                                           Nil,
+                                           Nil,
+                                           covariablesMustExist = false,
+                                           Nil,
+                                           None,
+                                           None,
+                                           TreeSet(),
+                                           TreeSet(),
+                                           Nil,
+                                           TreeSet(),
+                                           Nil,
+                                           None)
+
+          val errorResult = QueryResult(
+            jobId = "?",
+            node = jobsConf.node,
+            dataProvenance = Set(),
+            feedback = Nil,
+            timestamp = OffsetDateTime.now(),
+            `type` = Shapes.error,
+            algorithm = None,
+            data = None,
+            error = Some(t.getMessage),
+            query = dummyQuery
+          )
+
+          TextMessage(errorResult.toJson.compactPrint)
       }
       .log("Result of experiment")
       .named("Experiment WebSocket flow")
@@ -175,10 +204,9 @@ trait WebsocketSupport {
         }.recoverWith {
           case NonFatal(e) =>
             logger.error(s"Cannot deserialize Json as mining query: $jsonEncodedString", e)
-            Failure(e)
+            throw e
         }
       }
-      .filter(_.isSuccess)
       .withAttributes(ActorAttributes.supervisionStrategy(decider))
       .mapAsync(parallelism = 3) {
         case Success(query) =>
@@ -190,6 +218,35 @@ trait WebsocketSupport {
         val serializedResult = result.toJson.compactPrint
         logger.debug(s"Return response for mining: $serializedResult")
         TextMessage(serializedResult)
+      }
+      .recover {
+        case t =>
+          val system = UserId("system")
+          val dummyQuery = MiningQuery(system,
+                                       Nil,
+                                       Nil,
+                                       covariablesMustExist = false,
+                                       Nil,
+                                       None,
+                                       None,
+                                       TreeSet(),
+                                       AlgorithmSpec("unknown", Nil, None),
+                                       None)
+
+          val errorResult = QueryResult(
+            jobId = "?",
+            node = jobsConf.node,
+            dataProvenance = Set(),
+            feedback = Nil,
+            timestamp = OffsetDateTime.now(),
+            `type` = Shapes.error,
+            algorithm = None,
+            data = None,
+            error = Some(t.getMessage),
+            query = dummyQuery
+          )
+
+          TextMessage(errorResult.toJson.compactPrint)
       }
       .log("Result of mining")
       .named("Mining WebSocket flow")
