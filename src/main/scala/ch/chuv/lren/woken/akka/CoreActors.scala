@@ -18,7 +18,7 @@
 package ch.chuv.lren.woken.akka
 
 import akka.actor.{ ActorRef, DeadLetter }
-import akka.pattern.{ Backoff, BackoffSupervisor }
+import akka.pattern.{ BackoffOpts, BackoffSupervisor }
 import akka.stream.{ ActorMaterializer, ActorMaterializerSettings, Supervision }
 import ch.chuv.lren.woken.akka.monitoring.DeadLetterMonitorActor
 import ch.chuv.lren.woken.backends.faas.chronos.ChronosThrottler
@@ -56,7 +56,7 @@ trait CoreActors {
 
   lazy val chronosHttp: ActorRef = {
     val chronosSupervisorProps = BackoffSupervisor.props(
-      Backoff.onFailure(
+      BackoffOpts.onFailure(
         ChronosThrottler.props(config.jobs),
         childName = "chronosThrottler",
         minBackoff = 1 second,

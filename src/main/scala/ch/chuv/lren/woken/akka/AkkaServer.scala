@@ -21,7 +21,7 @@ import akka.actor.{ ActorRef, ActorSystem }
 import akka.cluster.Cluster
 import akka.cluster.client.ClusterClientReceptionist
 import akka.cluster.pubsub.{ DistributedPubSub, DistributedPubSubMediator }
-import akka.pattern.{ Backoff, BackoffSupervisor }
+import akka.pattern.{ BackoffOpts, BackoffSupervisor }
 import cats.effect._
 import ch.chuv.lren.woken.backends.faas.chronos.ChronosExecutor
 import ch.chuv.lren.woken.backends.woken.WokenClientService
@@ -79,7 +79,7 @@ class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
 
   private def mainRouterSupervisorProps =
     BackoffSupervisor.props(
-      Backoff.onFailure(
+      BackoffOpts.onFailure(
         MasterRouter.props(
           config,
           databaseServices,
