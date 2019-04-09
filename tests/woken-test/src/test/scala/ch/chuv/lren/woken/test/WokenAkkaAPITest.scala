@@ -149,7 +149,7 @@ class WokenAkkaAPITest
           timedQuery(VariablesForDatasetsQuery(Set(), exhaustive = false),
                      "list of variables for all datasets")
 
-        response.variables should have size 199
+        response.variables should have size 203
       }
 
       "return only variables for datasets if a set is passed with the query" in {

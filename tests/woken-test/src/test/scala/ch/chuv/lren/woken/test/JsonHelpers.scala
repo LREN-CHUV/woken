@@ -24,12 +24,13 @@ object JsonHelpers extends LazyLogging {
 
   def save(json: String, file: String): Unit = {
     if (sys.env.getOrElse("CIRCLECI", "").isEmpty) Try {
+      logger.info(s"Save result to $file")
       new File("/responses").mkdirs()
       val writer = new PrintWriter(new File(file))
 
       writer.write(json)
       writer.close()
-    }.recover { case _ => logger.debug("Cannot save result") }
+    }.recover { case _ => logger.warn("Cannot save result") }
   }
 
   class ApproximatePrinter(val skippedTags: List[String])

@@ -134,6 +134,7 @@ if [[ $tests == 1 ]]; then
   echo "Testing Akka API..."
 
   mkdir -p woken-test/target/responses
+  chmod a+rw woken-test/target/responses/
   $DOCKER_COMPOSE up wokentest | tee test.log
 
 fi
