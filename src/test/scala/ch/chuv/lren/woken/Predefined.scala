@@ -291,7 +291,7 @@ object Predefined {
     val featuresCVariablesMeta: VariablesMeta =
       VariablesMeta(5, "cde_features_c", cdeHierarchy, cdeFeaturesCTableId, cdeGroupings)
     val featuresMixedVariablesMeta: VariablesMeta =
-      VariablesMeta(6, "cde_features_mixed", cdeHierarchy, cdeFeaturesMixedTableId, cdeGroupings)
+      VariablesMeta(6, "mip_cde_features", cdeHierarchy, cdeFeaturesMixedTableId, cdeGroupings)
 
   }
 

@@ -29,7 +29,7 @@ trait Queries {
   val cdeFeaturesATableId: TableId = tableId("cde_features_a")
   val cdeFeaturesBTableId: TableId = tableId("cde_features_b")
   val cdeFeaturesCTableId: TableId = tableId("cde_features_c")
-  val cdeFeaturesMixedTableId: TableId = tableId("cde_features_mixed")
+  val cdeFeaturesMixedTableId: TableId = tableId("mip_cde_features")
 
   def experimentQuery(
       algorithm: String,

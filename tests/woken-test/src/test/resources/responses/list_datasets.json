@@ -16,7 +16,7 @@
         {
           "database": "features",
           "dbSchema": "public",
-          "name": "cde_features_mixed"
+          "name": "mip_cde_features"
         }
       ]
     }
