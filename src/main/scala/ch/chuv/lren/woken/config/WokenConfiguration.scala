@@ -20,6 +20,7 @@ package ch.chuv.lren.woken.config
 import cats.effect.{ IO, Sync }
 import ch.chuv.lren.woken.core.model.AlgorithmDefinition
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil.Validation
+import ch.chuv.lren.woken.utils.ConfigurationLoader
 import com.typesafe.config.{ Config, ConfigFactory }
 
 /** Global configuration of Woken
@@ -71,22 +72,12 @@ object WokenConfiguration {
   def apply(): IO[WokenConfiguration] = Sync[IO].delay {
 
     val config: Config = {
-      val remotingConfig = ConfigFactory.parseResourcesAnySyntax("akka-remoting.conf").resolve()
-      val remotingImpl   = remotingConfig.getString("remoting.implementation")
-      ConfigFactory
-        .parseString("""
-                     |akka {
-                     |  actor.provider = cluster
-                     |  extensions += "akka.cluster.pubsub.DistributedPubSub"
-                     |  extensions += "akka.cluster.client.ClusterClientReceptionist"
-                     |}
-                   """.stripMargin)
-        .withFallback(ConfigFactory.parseResourcesAnySyntax("akka.conf"))
-        .withFallback(ConfigFactory.parseResourcesAnySyntax(s"akka-$remotingImpl-remoting.conf"))
+      val appConfig = ConfigFactory
+        .parseResourcesAnySyntax("akka.conf")
         .withFallback(ConfigFactory.parseResourcesAnySyntax("kamon.conf"))
-        .withFallback(ConfigFactory.load())
         .withFallback(ConfigFactory.parseResourcesAnySyntax("algorithms.conf"))
-        .resolve()
+
+      ConfigurationLoader.appendClusterConfiguration(appConfig).resolve()
     }
 
     WokenConfiguration(config)
