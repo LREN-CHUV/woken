@@ -13,7 +13,7 @@ set -e
 get_script_dir () {
      SOURCE="${BASH_SOURCE[0]}"
 
-     while [ -h "$SOURCE" ]; do
+     while [[ -h "$SOURCE" ]]; do
           DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
           SOURCE="$( readlink "$SOURCE" )"
           [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
@@ -28,11 +28,11 @@ validation=1
 frontend=1
 for param in "$@"
 do
-  if [ "--no-frontend" == "$param" ]; then
+  if [[ "--no-frontend" == "$param" ]]; then
     frontend=0
     echo "INFO: --no-frontend option detected !"
   fi
-  if [ "--no-validation" == "$param" ]; then
+  if [[ "--no-validation" == "$param" ]]; then
     validation=0
     echo "INFO: --no-validation option detected !"
   fi
@@ -43,7 +43,9 @@ if pgrep -lf sshuttle > /dev/null ; then
   exit 1
 fi
 
-export HOST="$(ip route get 1 | awk '{print $NF;exit}')"
+export HOST="$(ip route get 1 | sed 's/uid .*//' | awk '{print $NF;exit}')"
+echo "Detected localhost IP address as $HOST"
+echo
 
 if groups "$USER" | grep &>/dev/null '\bdocker\b'; then
   DOCKER="docker"
@@ -96,12 +98,12 @@ echo "  Working directory: $(get_script_dir)"
 echo "  Environment variables:"
 echo "      CLUSTER_PORT: 8088"
 echo "      CLUSTER_IP: $HOST"
-echo "      WOKEN_PORT_8088_TCP_ADDR: $HOST
-echo "      DOCKER_BRIDGE_NETWORK: "dev_default"
+echo "      WOKEN_PORT_8088_TCP_ADDR: $HOST"
+echo "      DOCKER_BRIDGE_NETWORK: dev_default"
 echo ""
 read -p "Press enter to continue >"
 
-if [ $validation == 1 ]; then
+if [[ $validation == 1 ]]; then
 
     $DOCKER_COMPOSE up -d wokenvalidation
 
@@ -117,7 +119,7 @@ if [ $validation == 1 ]; then
 
 fi
 
-if [ $frontend == 1 ]; then
+if [[ $frontend == 1 ]]; then
     echo
     echo "Now that's up to you to play with the user interface..."
 
