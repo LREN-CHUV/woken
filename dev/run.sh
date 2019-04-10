@@ -96,7 +96,7 @@ echo "  Working directory: $(get_script_dir)"
 echo "  Environment variables:"
 echo "      CLUSTER_PORT: 8088"
 echo "      CLUSTER_IP: $(hostname)"
-echo "      WOKEN_PORT_8088_TCP_ADDR: woken
+echo "      WOKEN_PORT_8088_TCP_ADDR: $(hostname)
 echo "      DOCKER_BRIDGE_NETWORK: "dev_default"
 echo ""
 read -p "Press enter to continue >"

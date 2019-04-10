@@ -70,7 +70,7 @@ class WebServer[F[_]: ConcurrentEffect: ContextShift: Timer](
     val b = Await.result(binding, 30.seconds)
 
     val url =
-      s"http${if (config.app.webServicesHttps) "s" else ""}://${config.app.networkInterface}:${config.app.webServicesPort}/cluster/ready"
+      s"http${if (config.app.webServicesHttps) "s" else ""}://${config.app.networkInterface}:${config.app.webServicesPort}/readiness"
     val endpointCheck = checkHealth(url)
     val result: F[Boolean] = endpointCheck.check.flatMap { check =>
       check.value.isHealthy.pure[F]
@@ -124,7 +124,7 @@ object WebServer {
       if (server.selfChecks())
         Sync[F].delay(server)
       else
-        Sync[F].raiseError(new Exception("Server failed to start: self-checks did not pass"))
+        Sync[F].raiseError(new Exception("Web server failed to start: self-checks did not pass"))
     })(_.unbind())
 
 }

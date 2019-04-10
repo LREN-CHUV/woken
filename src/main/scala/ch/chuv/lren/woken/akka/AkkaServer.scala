@@ -106,14 +106,18 @@ class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
     monitorDeadLetters()
   }
 
-  def selfChecks(): Unit = {
+  def selfChecks(): Boolean = {
     logger.info("Self checks...")
 
     if (cluster.state.leader.isEmpty) {
-      logger.info("[FAIL] Akka server is not running")
-      Effect[F].toIO(unbind()).unsafeRunSync()
-    } else
+      val seedNodes = config.config.getList("akka.cluster.seed-nodes").unwrapped()
+      logger.error(s"[FAIL] Akka server is not running, it should have connected to seed nodes $seedNodes")
+      println(s"Woken configuration: ${config.config}")
+      false
+    } else {
       logger.info("[OK] Akka server joined the cluster.")
+      true
+    }
   }
 
   def unbind(): F[Unit] =
@@ -137,7 +141,7 @@ object AkkaServer {
       databaseServices: DatabaseServices[F],
       config: WokenConfiguration
   ): Resource[F, AkkaServer[F]] =
-    Resource.make(Sync[F].delay {
+    Resource.make(Sync[F].defer[AkkaServer[F]] {
 
       logger.debug(s"Akka configuration : ${config.config.getConfig("akka")}")
 
@@ -154,8 +158,11 @@ object AkkaServer {
       val server = new AkkaServer[F](databaseServices, config, system, cluster)
 
       server.startActors()
-      server.selfChecks()
 
-      server
+      if (server.selfChecks())
+        Sync[F].delay(server)
+      else
+        Sync[F].raiseError(new Exception("Akka server failed to start: self-checks did not pass"))
+
     })(_.unbind())
 }

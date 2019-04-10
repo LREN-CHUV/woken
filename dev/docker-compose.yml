@@ -248,7 +248,6 @@ services:
       CONTAINER_ORCHESTRATION: "docker-compose"
     depends_on:
       - db
-      - woken
 
   wait_portal_backend:
     image: "waisbrot/wait"
