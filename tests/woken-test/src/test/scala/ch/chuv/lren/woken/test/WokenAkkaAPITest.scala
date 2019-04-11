@@ -29,11 +29,7 @@ import ch.chuv.lren.woken.monitoring.KamonSupport
 import com.typesafe.config.{Config, ConfigFactory}
 import ch.chuv.lren.woken.messages.datasets._
 import ch.chuv.lren.woken.messages.query._
-import ch.chuv.lren.woken.messages.variables.{
-  VariableId,
-  VariablesForDatasetsQuery,
-  VariablesForDatasetsResponse
-}
+import ch.chuv.lren.woken.messages.variables.{VariableId, VariablesForDatasetsQuery, VariablesForDatasetsResponse}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
@@ -42,6 +38,7 @@ import org.scalatest.tagobjects.Slow
 import spray.json._
 import queryProtocol._
 import JsonHelpers._
+import ch.chuv.lren.woken.utils.ConfigurationLoader
 
 import scala.collection.immutable.TreeSet
 import scala.concurrent.{Await, ExecutionContextExecutor, Future}
@@ -58,22 +55,11 @@ class WokenAkkaAPITest
 
   implicit val timeout: Timeout = Timeout(200 seconds)
   lazy val config: Config = {
-    val remotingConfig =
-      ConfigFactory.parseResourcesAnySyntax("akka-remoting.conf").resolve()
-    val remotingImpl = remotingConfig.getString("remoting.implementation")
-    ConfigFactory
-      .parseString("""
-          |akka {
-          |  actor.provider = cluster
-          |  extensions += "akka.cluster.pubsub.DistributedPubSub"
-          |}
-        """.stripMargin)
+    val appConfig = ConfigFactory
+      .parseResourcesAnySyntax("application.conf")
       .withFallback(ConfigFactory.parseResourcesAnySyntax("akka.conf"))
-      .withFallback(ConfigFactory.parseResourcesAnySyntax(
-        s"akka-$remotingImpl-remoting.conf"))
       .withFallback(ConfigFactory.parseResourcesAnySyntax("kamon.conf"))
-      .withFallback(ConfigFactory.load())
-      .resolve()
+    ConfigurationLoader.appendClusterConfiguration(appConfig).resolve()
   }
 
   implicit val system: ActorSystem = ActorSystem("woken", config)

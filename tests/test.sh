@@ -117,6 +117,9 @@ echo "The Algorithm Factory is now running on your system"
 echo
 echo "Testing Akka API..."
 
+mkdir -p woken-test/target/responses
+chmod a+rw woken-test/target/responses/
+
 $DOCKER_COMPOSE up wokentest
 
 exit_code="$($DOCKER inspect tests_wokentest_1 --format='{{.State.ExitCode}}')"
