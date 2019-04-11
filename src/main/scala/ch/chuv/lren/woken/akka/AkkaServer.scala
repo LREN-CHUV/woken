@@ -112,7 +112,6 @@ class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
     if (cluster.state.leader.isEmpty) {
       val seedNodes = config.config.getList("akka.cluster.seed-nodes").unwrapped()
       logger.error(s"[FAIL] Akka server is not running, it should have connected to seed nodes $seedNodes")
-      println(s"Woken configuration: ${config.config}")
       false
     } else {
       logger.info("[OK] Akka server joined the cluster.")
