@@ -236,6 +236,10 @@ services:
       WOKEN_PORT_8088_TCP_ADDR: woken
       DOCKER_BRIDGE_NETWORK: "tests_default"
       LOG_LEVEL: DEBUG
+      #AKKA_LOG_LEVEL: DEBUG
+      #AKKA_REMOTE_LOG_SENT: "on"
+      #AKKA_REMOTE_LOG_RECEIVED: "on"
+      #AKKA_REMOTE_LOG_LIFECYCLE: "on"
       KAMON_ENABLED: "yes"
       ZIPKIN_ENABLED: "yes"
       PROMETHEUS_ENABLED: "yes"
@@ -263,7 +267,7 @@ services:
       - chronos
 
   wokenvalidation:
-    image: hbpmip/woken-validation:2.7.6
+    image: hbpmip/woken-validation:2.7.7
     ports:
       - "8081:8081"
       - "8082:8082"
@@ -272,6 +276,10 @@ services:
       CLUSTER_IP: wokenvalidation
       WOKEN_PORT_8088_TCP_ADDR: woken
       LOG_LEVEL: DEBUG
+      #AKKA_LOG_LEVEL: DEBUG
+      #AKKA_REMOTE_LOG_SENT: "on"
+      #AKKA_REMOTE_LOG_RECEIVED: "on"
+      #AKKA_REMOTE_LOG_LIFECYCLE: "on"
       KAMON_ENABLED: "yes"
       ZIPKIN_ENABLED: "yes"
       PROMETHEUS_ENABLED: "yes"
@@ -319,7 +327,7 @@ services:
       - woken
 
   portalbackend:
-    image: hbpmip/portal-backend:2.9.8
+    image: hbpmip/portal-backend:2.9.9
     restart: "no"
     ports:
       - "65440:8080"
@@ -349,8 +357,13 @@ services:
       WOKEN_PORT_8088_TCP_PORT: 8088
       WOKEN_AKKA_PATH: "/user/entrypoint"
       EXAREME_URL: http://prozac.madgik.di.uoa.gr:9090/mining/query
+      LOG_LEVEL: DEBUG
       LOGGING_LEVEL_WEB: DEBUG
       LOGGING_LEVEL_HIBERNATE: WARN
+      #AKKA_LOG_LEVEL: DEBUG
+      #AKKA_REMOTE_LOG_SENT: "on"
+      #AKKA_REMOTE_LOG_RECEIVED: "on"
+      #AKKA_REMOTE_LOG_LIFECYCLE: "on"
       SESSION_TIMEOUT: 2592000
       RELEASE_STAGE: "dev"
       DATACENTER_LOCATION: "$HOST"

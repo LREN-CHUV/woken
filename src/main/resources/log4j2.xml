@@ -16,19 +16,19 @@
     <Logger name="akka.cluster" level="${env:AKKA_CLUSTER_LOG_LEVEL:-INFO}">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="akka.io" level="INFO">
+    <Logger name="akka.io" level="${env:AKKA_IO_LOG_LEVEL:-INFO}">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="akka.http.impl" level="INFO">
+    <Logger name="akka.http.impl" level="${env:AKKA_HTTP_LOG_LEVEL:-INFO}">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="akka.remote.artery.compress" level="${env:AKKA_CLUSTER_LOG_LEVEL:-INFO}">
+    <Logger name="akka.remote.artery.compress" level="${env:AKKA_REMOTE_LOG_LEVEL:-INFO}">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="akka.remote.artery.tcp" level="${env:AKKA_CLUSTER_LOG_LEVEL:-INFO}">
+    <Logger name="akka.remote.artery.tcp" level="${env:AKKA_REMOTE_LOG_LEVEL:-INFO}">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="akka.stream.impl" level="INFO">
+    <Logger name="akka.stream.impl" level="${env:AKKA_STREAM_LOG_LEVEL:-INFO}">
       <AppenderRef ref="Console"/>
     </Logger>
     <Logger name="com.gettyimages.spray.swagger" level="INFO">
@@ -43,7 +43,7 @@
     <Logger name="doobie" level="${env:DB_LOG_LEVEL:-WARN}">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="io.netty" level="ERROR">
+    <Logger name="io.netty" level="${env:NETTY_LOG_LEVEL:-ERROR}">
       <AppenderRef ref="Console"/>
     </Logger>
     <Logger name="org.asynchttpclient" level="ERROR">

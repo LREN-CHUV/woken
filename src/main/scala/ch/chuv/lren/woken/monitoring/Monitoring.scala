@@ -72,7 +72,7 @@ class MonitoringImpl[F[_]: Async](
 }
 
 class NoMonitoring[F[_]: Async] extends Monitoring[F] {
-  def unbind(): F[Unit]  = Sync[F].unit
+  def unbind(): F[Unit] = Sync[F].unit
 }
 
 object Monitoring {
@@ -110,7 +110,7 @@ object Monitoring {
       Kamon.reconfigure(config.config)
 
       val hostSystemMetrics = kamonConfig.getBoolean("system-metrics.host.enabled")
-      val jvmSystemMetrics = kamonConfig.getBoolean("system-metrics.jvm.enabled")
+      val jvmSystemMetrics  = kamonConfig.getBoolean("system-metrics.jvm.enabled")
 
       if (hostSystemMetrics) {
         logger.info(s"Start Sigar metrics...")
@@ -138,11 +138,11 @@ object Monitoring {
 
       val reporterRegistrations: List[Registration] =
         (if (kamonConfig.getBoolean("prometheus.enabled"))
-          List(Kamon.addReporter(new PrometheusReporter))
-        else Nil) ++
+           List(Kamon.addReporter(new PrometheusReporter))
+         else Nil) ++
           (if (kamonConfig.getBoolean("zipkin.enabled"))
-            List(Kamon.addReporter(new ZipkinReporter))
-          else Nil)
+             List(Kamon.addReporter(new ZipkinReporter))
+           else Nil)
 
       new MonitoringImpl[F](core, config, reporterRegistrations)
     } else {
