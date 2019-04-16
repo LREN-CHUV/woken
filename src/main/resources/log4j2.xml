@@ -7,7 +7,7 @@
     </Console>
   </Appenders>
   <Loggers>
-    <Root level="${env:LOG_LEVEL:-INFO}">
+    <Root level="${env:LOG_LEVEL:-WARN}">
       <AppenderRef ref="Console"/>
     </Root>
     <Logger name="akka.actor.LocalActorRefProvider(akka://woken)" level="INFO">
@@ -29,6 +29,9 @@
       <AppenderRef ref="Console"/>
     </Logger>
     <Logger name="akka.stream.impl" level="${env:AKKA_STREAM_LOG_LEVEL:-INFO}">
+      <AppenderRef ref="Console"/>
+    </Logger>
+    <Logger name="ch.chuv.lren.woken" level="${env:WOKEN_LOG_LEVEL:-INFO">
       <AppenderRef ref="Console"/>
     </Logger>
     <Logger name="com.gettyimages.spray.swagger" level="INFO">

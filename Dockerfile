@@ -57,8 +57,8 @@ ENV HOME=/home/woken \
     VERSION=$VERSION \
     BUILD_DATE=$BUILD_DATE \
     BUGSNAG_KEY=4cfb095348013b4424338126f23da70b
-WORKDIR /home/woken
 
+WORKDIR /home/woken
 ENTRYPOINT ["/run.sh"]
 
 # 8087: Web service API, health checks on http://host:8087/health

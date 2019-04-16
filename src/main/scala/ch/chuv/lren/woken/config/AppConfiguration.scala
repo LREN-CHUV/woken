@@ -24,13 +24,6 @@ import ch.chuv.lren.woken.messages.remoting.BasicAuthentication
 import cats.data.Validated._
 import cats.implicits._
 
-/** Configuration for the router handling incoming web service requests
-  *
-  * @param miningActorsLimit Parallelism for mining queries
-  * @param experimentActorsLimit Parallelism for experiments
-  */
-case class MasterRouterConfig(miningActorsLimit: Int, experimentActorsLimit: Int)
-
 // TODO: review use of the following configuration elements: disableWorkers, jobServiceName
 
 /** Configuration for the application
@@ -41,9 +34,7 @@ case class MasterRouterConfig(miningActorsLimit: Int, experimentActorsLimit: Int
   * @param webServicesPort Port used to expose services of the web API.
   * @param webServicesHttps If true, setup https for the web API.
   * @param disableWorkers If true, disable or ignore worker processes in the cluster (companion Woken validation processes)
-  * @param jobServiceName
   * @param basicAuth Authentication credentials for external access to Woken Web API
-  * @param masterRouterConfig Configuration for the router handling incoming queries
   */
 case class AppConfiguration(
     clusterSystemName: String,
@@ -52,9 +43,7 @@ case class AppConfiguration(
     webServicesPort: Int,
     webServicesHttps: Boolean,
     disableWorkers: Boolean,
-    jobServiceName: String,
-    basicAuth: BasicAuthentication,
-    masterRouterConfig: MasterRouterConfig
+    basicAuth: BasicAuthentication
 )
 
 object AppConfiguration {
@@ -68,7 +57,6 @@ object AppConfiguration {
       val dockerBridgeNetwork = app.validateOptionalString("dockerBridgeNetwork")
       val networkInterface    = app.validateString("networkInterface")
       val port                = app.validateInt("webServicesPort")
-      val jobServiceName      = app.validateString("jobServiceName")
 
       val https: Validation[Boolean] =
         app.validateBoolean("webServicesHttps").orElse(true.validNel[String])
@@ -82,22 +70,15 @@ object AppConfiguration {
           (user, password) mapN BasicAuthentication.apply
       }
 
-      val masterRouterConfig: Validation[MasterRouterConfig] =
-        app.validateConfig("master.router.actors").andThen { c =>
-          val miningActorsLimit     = c.validateInt("mining.limit")
-          val experimentActorsLimit = c.validateInt("experiment.limit")
-          (miningActorsLimit, experimentActorsLimit) mapN MasterRouterConfig.apply
-        }
-
-      (clusterSystemName,
-       dockerBridgeNetwork,
-       networkInterface,
-       port,
-       https,
-       disableWorkers,
-       jobServiceName,
-       basicAuth,
-       masterRouterConfig) mapN AppConfiguration.apply
+      (
+        clusterSystemName,
+        dockerBridgeNetwork,
+        networkInterface,
+        port,
+        https,
+        disableWorkers,
+        basicAuth
+      ) mapN AppConfiguration.apply
     }
   }
 
