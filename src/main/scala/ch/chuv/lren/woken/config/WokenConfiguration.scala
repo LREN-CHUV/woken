@@ -60,12 +60,13 @@ object WokenConfiguration {
     *
     * Order of loading:
     *
-    * 1. Akka configuration hard-coded for clustering (present here to avoid clashes with tests no using a cluster)
-    * 2. Configuration of Akka pre-defined in akka.conf, configurable by environment variables
+    * 1. Configuration of Akka pre-defined in woken.conf, configurable by environment variables
+    * 2. Custom configuration defined in application.conf
     * 3. Configuration of Kamon pre-defined in kamon.conf, configurable by environment variables
-    * 4. Custom configuration defined in application.conf and backed by reference.conf from the libraries
-    * 5. Default configuration for the algorithm library, it can be overriden in application.conf or individual versions
+    * 4. Default configuration for the algorithm library, it can be overriden in application.conf or individual versions
     *    for algorithms can be overriden by environment variables
+    * 5. Common configuration for the Akka cluster, configuration by environment variables
+    * 6. Reference configuration from the libraries
     *
     * @return an IO of WokenConfiguration as access to filesystem is required
     */
@@ -73,7 +74,8 @@ object WokenConfiguration {
 
     val config: Config = {
       val appConfig = ConfigFactory
-        .parseResourcesAnySyntax("akka.conf")
+        .parseResourcesAnySyntax("woken.conf")
+        .withFallback(ConfigFactory.defaultApplication())
         .withFallback(ConfigFactory.parseResourcesAnySyntax("kamon.conf"))
         .withFallback(ConfigFactory.parseResourcesAnySyntax("algorithms.conf"))
 
