@@ -17,7 +17,9 @@
 
 package ch.chuv.lren.woken.akka
 
-import akka.actor.{ Actor, ActorRef, Props }
+import akka.actor.SupervisorStrategy.Restart
+import akka.actor.{ Actor, ActorRef, OneForOneStrategy, Props }
+import akka.routing.{ OptimalSizeExploringResizer, RoundRobinPool }
 import akka.stream.ActorMaterializer
 import cats.effect.Effect
 import ch.chuv.lren.woken.config.WokenConfiguration
@@ -36,8 +38,9 @@ import kamon.Kamon
 
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
+import scala.concurrent.duration._
 
-object MasterRouter {
+object MasterRouter extends LazyLogging {
 
   def props[F[_]: Effect](config: WokenConfiguration,
                           databaseServices: DatabaseServices[F],
@@ -45,6 +48,33 @@ object MasterRouter {
     Props(
       new MasterRouter(config, databaseServices, backendServices)
     )
+
+  def roundRobinPoolProps[F[_]: Effect](config: WokenConfiguration,
+                                        databaseServices: DatabaseServices[F],
+                                        backendServices: BackendServices[F]): Props = {
+
+    val resizer = OptimalSizeExploringResizer(
+      config.config
+        .getConfig("poolResizer.entryPoint")
+        .withFallback(
+          config.config.getConfig("akka.actor.deployment.default.optimal-size-exploring-resizer")
+        )
+    )
+    val masterSupervisorStrategy =
+      OneForOneStrategy(maxNrOfRetries = 10, withinTimeRange = 1.minute) {
+        case e: Exception =>
+          logger.error("Error detected in Master router actor, restarting", e)
+          Restart
+      }
+
+    RoundRobinPool(
+      1,
+      resizer = Some(resizer),
+      supervisorStrategy = masterSupervisorStrategy
+    ).props(
+      props(config, databaseServices, backendServices)
+    )
+  }
 
 }
 
@@ -97,10 +127,12 @@ class MasterRouter[F[_]: Effect](
 
     case query: MiningQuery =>
       mark("MiningQueryRequestReceived")
+      logger.info("Mining query received")
       miningQueriesWorker forward MiningQueriesActor.Mine(query, sender())
 
     case query: ExperimentQuery =>
       mark("ExperimentQueryRequestReceived")
+      logger.info("Experiment query received")
       experimentQueriesWorker forward ExperimentQueriesActor.Experiment(query, sender())
 
     case e =>

@@ -21,7 +21,6 @@ import akka.actor.{ ActorRef, ActorSystem }
 import akka.cluster.Cluster
 import akka.cluster.client.ClusterClientReceptionist
 import akka.cluster.pubsub.{ DistributedPubSub, DistributedPubSubMediator }
-import akka.pattern.{ BackoffOpts, BackoffSupervisor }
 import cats.effect._
 import ch.chuv.lren.woken.backends.faas.chronos.ChronosExecutor
 import ch.chuv.lren.woken.backends.woken.WokenClientService
@@ -31,7 +30,6 @@ import ch.chuv.lren.woken.errors.BugsnagErrorReporter
 import ch.chuv.lren.woken.service._
 import com.typesafe.scalalogging.Logger
 
-import scala.concurrent.duration._
 import scala.language.higherKinds
 import scala.util.{ Failure, Success }
 
@@ -77,26 +75,12 @@ class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
     BackendServices(dispatcherService, algorithmExecutor, wokenWorker, errorReporter)
   }
 
-  private def mainRouterSupervisorProps =
-    BackoffSupervisor.props(
-      BackoffOpts.onFailure(
-        MasterRouter.props(
-          config,
-          databaseServices,
-          backendServices
-        ),
-        childName = "mainRouter",
-        minBackoff = 100.milliseconds,
-        maxBackoff = 1.seconds,
-        randomFactor = 0.2
-      )
-    )
-
   /**
     * Create and start actor that acts as akka entry-point
     */
   val mainRouter: ActorRef =
-    system.actorOf(mainRouterSupervisorProps, name = "entrypoint")
+    system.actorOf(MasterRouter.roundRobinPoolProps(config, databaseServices, backendServices),
+                   name = "entrypoint")
 
   def startActors(): Unit = {
     pubSub.mediator ! DistributedPubSubMediator.Put(mainRouter)
