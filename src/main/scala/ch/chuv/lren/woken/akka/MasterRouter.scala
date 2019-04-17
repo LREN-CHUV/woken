@@ -18,12 +18,13 @@
 package ch.chuv.lren.woken.akka
 
 import akka.actor.SupervisorStrategy.Restart
-import akka.actor.{ Actor, ActorRef, OneForOneStrategy, Props }
+import akka.actor.{ Actor, OneForOneStrategy, Props }
 import akka.routing.{ OptimalSizeExploringResizer, RoundRobinPool }
 import akka.stream.ActorMaterializer
 import cats.effect.Effect
 import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.dispatch.{
+  DispatchActors,
   ExperimentQueriesActor,
   MetadataQueriesActor,
   MiningQueriesActor
@@ -42,16 +43,22 @@ import scala.concurrent.duration._
 
 object MasterRouter extends LazyLogging {
 
-  def props[F[_]: Effect](config: WokenConfiguration,
-                          databaseServices: DatabaseServices[F],
-                          backendServices: BackendServices[F]): Props =
+  def props[F[_]: Effect](
+      config: WokenConfiguration,
+      databaseServices: DatabaseServices[F],
+      backendServices: BackendServices[F],
+      dispatchActors: DispatchActors
+  ): Props =
     Props(
-      new MasterRouter(config, databaseServices, backendServices)
+      new MasterRouter(config, databaseServices, backendServices, dispatchActors)
     )
 
-  def roundRobinPoolProps[F[_]: Effect](config: WokenConfiguration,
-                                        databaseServices: DatabaseServices[F],
-                                        backendServices: BackendServices[F]): Props = {
+  def roundRobinPoolProps[F[_]: Effect](
+      config: WokenConfiguration,
+      databaseServices: DatabaseServices[F],
+      backendServices: BackendServices[F],
+      dispatchActors: DispatchActors
+  ): Props = {
 
     val resizer = OptimalSizeExploringResizer(
       config.config
@@ -72,7 +79,7 @@ object MasterRouter extends LazyLogging {
       resizer = Some(resizer),
       supervisorStrategy = masterSupervisorStrategy
     ).props(
-      props(config, databaseServices, backendServices)
+      props(config, databaseServices, backendServices, dispatchActors)
     )
   }
 
@@ -81,16 +88,13 @@ object MasterRouter extends LazyLogging {
 class MasterRouter[F[_]: Effect](
     val config: WokenConfiguration,
     val databaseServices: DatabaseServices[F],
-    val backendServices: BackendServices[F]
+    val backendServices: BackendServices[F],
+    val dispatchActors: DispatchActors
 ) extends Actor
     with LazyLogging {
 
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val ec: ExecutionContext            = context.dispatcher
-
-  lazy val metadataQueriesWorker: ActorRef   = initMetadataQueriesWorker
-  lazy val miningQueriesWorker: ActorRef     = initMiningQueriesWorker
-  lazy val experimentQueriesWorker: ActorRef = initExperimentQueriesWorker
 
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
   def receive: Receive = {
@@ -117,7 +121,10 @@ class MasterRouter[F[_]: Effect](
       sender ! DatasetsResponse(datasets.map(_.withoutAuthenticationDetails))
 
     case query: VariablesForDatasetsQuery =>
-      metadataQueriesWorker forward MetadataQueriesActor.VariablesForDatasets(query, sender())
+      dispatchActors.metadataQueriesWorker forward MetadataQueriesActor.VariablesForDatasets(
+        query,
+        sender()
+      )
 
     //case MiningQuery(variables, covariables, groups, _, AlgorithmSpec(c, p))
     //    if c == "" || c == "data" =>
@@ -128,46 +135,20 @@ class MasterRouter[F[_]: Effect](
     case query: MiningQuery =>
       mark("MiningQueryRequestReceived")
       logger.info("Mining query received")
-      miningQueriesWorker forward MiningQueriesActor.Mine(query, sender())
+      dispatchActors.miningQueriesWorker forward MiningQueriesActor.Mine(query, sender())
 
     case query: ExperimentQuery =>
       mark("ExperimentQueryRequestReceived")
       logger.info("Experiment query received")
-      experimentQueriesWorker forward ExperimentQueriesActor.Experiment(query, sender())
+      dispatchActors.experimentQueriesWorker forward ExperimentQueriesActor.Experiment(
+        query,
+        sender()
+      )
 
     case e =>
       logger.warn(s"Received unhandled request $e of type ${e.getClass}")
 
   }
-
-  private[akka] def initMetadataQueriesWorker: ActorRef =
-    context.actorOf(
-      MetadataQueriesActor.roundRobinPoolProps(config.config,
-                                               backendServices.dispatcherService,
-                                               databaseServices.datasetService,
-                                               databaseServices.variablesMetaService),
-      name = "metadataQueries"
-    )
-
-  private[akka] def initMiningQueriesWorker: ActorRef =
-    context.actorOf(
-      MiningQueriesActor.roundRobinPoolProps(
-        config,
-        databaseServices,
-        backendServices
-      ),
-      name = "miningQueries"
-    )
-
-  private[akka] def initExperimentQueriesWorker: ActorRef =
-    context.actorOf(
-      ExperimentQueriesActor.roundRobinPoolProps(
-        config,
-        databaseServices,
-        backendServices
-      ),
-      name = "experimentQueries"
-    )
 
   private[akka] def mark(spanKey: String): Unit = {
     val _ = Kamon.currentSpan().mark(spanKey)

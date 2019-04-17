@@ -106,6 +106,8 @@ class MiningQueriesActor[F[_]: Effect](
   override def receive: Receive = {
 
     case mine: Mine =>
+      logger.debug("Received mining request")
+
       val initiator = if (mine.replyTo == Actor.noSender) sender() else mine.replyTo
       // Define the target table if user did not specify it
       val query: MiningQuery = mine.query.targetTable
@@ -158,6 +160,8 @@ class MiningQueriesActor[F[_]: Effect](
     s"Mining for ${query.toJson.compactPrint} failed with error: $error"
 
   private def processJob(query: MiningQuery, jobInProgress: MiningJobInProgress): F[QueryResult] = {
+    logger.debug("Process mining job")
+
     val feedback = jobInProgress.feedback
     if (feedback.nonEmpty) logger.info(s"Feedback: ${feedback.mkString(", ")}")
 
@@ -173,6 +177,7 @@ class MiningQueriesActor[F[_]: Effect](
   }
 
   private def runMiningJob(jobInProgress: MiningJobInProgress, job: MiningJob): F[QueryResult] = {
+    logger.debug("Run mining job")
 
     val query = jobInProgress.job.query
     // Detection of histograms in federation mode
@@ -247,6 +252,8 @@ class MiningQueriesActor[F[_]: Effect](
 
   private def startLocalMiningJob(jobInProgress: MiningJobInProgress,
                                   job: MiningJob): F[QueryResult] = {
+    logger.debug("Start local mining job - check cache")
+
     val dockerJob = job.dockerJob
     val node      = config.jobs.node
     val table     = dockerJob.query.dbTable
@@ -263,7 +270,9 @@ class MiningQueriesActor[F[_]: Effect](
   }
 
   private def doLocalMiningJob(jobInProgress: MiningJobInProgress,
-                               dockerJob: DockerJob): F[QueryResult] =
+                               dockerJob: DockerJob): F[QueryResult] = {
+    logger.debug("Do local mining job")
+
     backendServices.algorithmExecutor.execute(dockerJob).flatMap { r =>
       val query    = jobInProgress.job.query
       val prov     = jobInProgress.dataProvenance
@@ -286,6 +295,7 @@ class MiningQueriesActor[F[_]: Effect](
         case _    => results.pure[F]
       }
     }
+  }
 
   private def remoteMapFlow(mapQuery: MiningQuery) =
     Source

@@ -62,10 +62,12 @@ case class ChronosExecutor[F[_]: Effect](system: ActorSystem,
     */
   override def node: String = jobsConf.node
 
-  override def execute(job: DockerJob): F[AlgorithmResults] =
+  override def execute(job: DockerJob): F[AlgorithmResults] = {
+    logger.debug(s"Execute Docker job for algorithm ${job.algorithmDefinition.code}")
     jobAsync(job).fromFutureWithGuarantee(
       logErrorFinalizer(logger, s"Cannot complete Docker job ${job.toString}")
     )
+  }
 
   override def healthCheck: HealthCheck[F, TaggedS] = {
     val chronosUrl = jobsConf.chronosServerUrl

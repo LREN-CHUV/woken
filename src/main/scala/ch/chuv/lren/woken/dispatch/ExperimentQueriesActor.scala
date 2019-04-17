@@ -108,6 +108,7 @@ class ExperimentQueriesActor[F[_]: Effect](
   override def receive: Receive = {
 
     case experiment: Experiment =>
+      logger.debug("Received experiment")
       val initiator     = if (experiment.replyTo == Actor.noSender) sender() else experiment.replyTo
       val query         = experiment.query
       val jobValidatedF = queryToJobService.experimentQuery2Job(query)
@@ -151,6 +152,8 @@ class ExperimentQueriesActor[F[_]: Effect](
 
   private def processJob(query: ExperimentQuery,
                          jobInProgress: ExperimentJobInProgress): F[QueryResult] = {
+    logger.debug("Start processing experiment")
+
     val job      = jobInProgress.job
     val feedback = jobInProgress.feedback
     val prov     = jobInProgress.dataProvenance

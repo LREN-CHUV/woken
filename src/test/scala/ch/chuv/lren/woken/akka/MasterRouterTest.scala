@@ -19,7 +19,7 @@ package ch.chuv.lren.woken.akka
 
 import java.util.UUID
 
-import akka.actor.{ ActorSystem, Props }
+import akka.actor.{ ActorRef, ActorSystem, Props }
 import akka.stream.ActorMaterializer
 import akka.testkit.{ ImplicitSender, TestKit }
 import ch.chuv.lren.woken.config._
@@ -37,6 +37,7 @@ import org.scalatest.tagobjects.Slow
 import cats.effect.{ Effect, IO }
 import cats.syntax.validated._
 import ch.chuv.lren.woken.core.model.jobs.{ DockerJob, ExperimentJob }
+import ch.chuv.lren.woken.dispatch.DispatchActors
 import ch.chuv.lren.woken.messages.remoting.RemoteLocation
 
 import scala.collection.immutable.TreeSet
@@ -54,8 +55,6 @@ class MasterRouterTest
     with BeforeAndAfterAll {
 
   override def afterAll(): Unit = TestKit.shutdownActorSystem(system)
-
-  import ch.chuv.lren.woken.service.TestServices._
 
   def experimentQuery2job(query: ExperimentQuery): Validation[ExperimentJob] =
     ExperimentJob(
@@ -85,8 +84,9 @@ class MasterRouterTest
   class MasterRouterUnderTest[F[_]: Effect](
       config: WokenConfiguration,
       databaseServices: DatabaseServices[F],
-      backendServices: BackendServices[F]
-  ) extends MasterRouter(config, databaseServices, backendServices) {
+      backendServices: BackendServices[F],
+      override val dispatchActors: DispatchActors
+  ) extends MasterRouter(config, databaseServices, backendServices, dispatchActors) {
 
 //    override def newExperimentActor: ActorRef =
 //      system.actorOf(Props(new FakeExperimentActor()))
@@ -96,10 +96,12 @@ class MasterRouterTest
 
   }
 
-  class RouterWithProbeCoordinator[F[_]: Effect](config: WokenConfiguration,
-                                                 databaseServices: DatabaseServices[F],
-                                                 backendServices: BackendServices[F])
-      extends MasterRouterUnderTest(config, databaseServices, backendServices) {
+  class RouterWithProbeCoordinator[F[_]: Effect](
+      config: WokenConfiguration,
+      databaseServices: DatabaseServices[F],
+      backendServices: BackendServices[F],
+      dispatchActors: DispatchActors
+  ) extends MasterRouterUnderTest(config, databaseServices, backendServices, dispatchActors) {
 
     //override def newCoordinatorActor: ActorRef = coordinatorActor
 
@@ -113,8 +115,14 @@ class MasterRouterTest
 
   val databaseServices: DatabaseServices[IO] = TestServices.databaseServices(config)
 
+  val echoActor: ActorRef = system.actorOf(FakeActors.echoActorProps)
+
   val dispatcherService: DispatcherService =
     DispatcherService(databaseServices.datasetService, wokenService)
+
+  val backendServices: BackendServices[IO] = TestServices.backendServices(system)
+
+  val dispatchActors = new DispatchActors(echoActor, echoActor, echoActor)
 
   val user: UserId = UserId("test")
 
@@ -123,7 +131,7 @@ class MasterRouterTest
     val router =
       system.actorOf(
         Props(
-          new MasterRouterUnderTest(config, databaseServices, backendServices(system))
+          new MasterRouterUnderTest(config, databaseServices, backendServices, dispatchActors)
         )
       )
 
@@ -133,7 +141,7 @@ class MasterRouterTest
 
       val miningRouter = system.actorOf(
         Props(
-          new RouterWithProbeCoordinator(config, databaseServices, backendServices(system))
+          new RouterWithProbeCoordinator(config, databaseServices, backendServices, dispatchActors)
         )
       )
 

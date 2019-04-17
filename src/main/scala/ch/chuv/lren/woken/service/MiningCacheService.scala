@@ -100,7 +100,7 @@ class MiningCacheServiceImpl[F[_]: ConcurrentEffect: ContextShift: Timer](
   }
 
   /**
-    * Run maintainance tasks, to be scheduled regularly as part of preventive maintenance
+    * Run maintenance tasks, to be scheduled regularly as part of preventive maintenance
     */
   override def maintainCache(): Unit =
     runNow(databaseServices.resultsCacheService.clean())

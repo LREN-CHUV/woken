@@ -26,6 +26,7 @@ import ch.chuv.lren.woken.backends.faas.chronos.ChronosExecutor
 import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.backends.worker.WokenWorker
 import ch.chuv.lren.woken.config.WokenConfiguration
+import ch.chuv.lren.woken.dispatch.DispatchActors
 import ch.chuv.lren.woken.errors.BugsnagErrorReporter
 import ch.chuv.lren.woken.service._
 import com.typesafe.scalalogging.Logger
@@ -75,12 +76,16 @@ class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
     BackendServices(dispatcherService, algorithmExecutor, wokenWorker, errorReporter)
   }
 
+  val dispatchActors = DispatchActors(system, config, backendServices, databaseServices)
+
   /**
     * Create and start actor that acts as akka entry-point
     */
   val mainRouter: ActorRef =
-    system.actorOf(MasterRouter.roundRobinPoolProps(config, databaseServices, backendServices),
-                   name = "entrypoint")
+    system.actorOf(
+      MasterRouter.roundRobinPoolProps(config, databaseServices, backendServices, dispatchActors),
+      name = "entrypoint"
+    )
 
   def startActors(): Unit = {
     pubSub.mediator ! DistributedPubSubMediator.Put(mainRouter)
@@ -116,6 +121,7 @@ class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
         }
       }
     }
+
 }
 
 object AkkaServer {

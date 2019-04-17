@@ -31,7 +31,10 @@
     <Logger name="akka.stream.impl" level="${env:AKKA_STREAM_LOG_LEVEL:-INFO}">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="ch.chuv.lren.woken" level="${env:WOKEN_LOG_LEVEL:-INFO}">
+     <Logger name="ch.chuv.lren.woken" level="${env:WOKEN_LOG_LEVEL:-INFO}">
+      <AppenderRef ref="Console"/>
+    </Logger>
+    <Logger name="woken" level="${env:WOKEN_LOG_LEVEL:-INFO}">
       <AppenderRef ref="Console"/>
     </Logger>
     <Logger name="com.gettyimages.spray.swagger" level="INFO">
