@@ -47,24 +47,24 @@ object Main extends IOApp {
     // Report automatically all errors to Bugsnag
     errors.reportErrorsToBugsnag()
 
-    val config = mainConfig.unsafeRunSync()
+    mainConfig.flatMap { config =>
+      MainServer.resource[IO](config).use { _ =>
+        val io = for {
+          _ <- IO(logger.info("[OK] Woken startup complete.")) // scalastyle:off
+          _ <- IO(Console.println("Type 'exit' then <Enter> to exit.")) // scalastyle:off
+          _ <- IO {
+            do {
+              Thread.sleep(1000)
+            } while (!Option(StdIn.readLine()).exists(_.toLowerCase == "exit"))
+            logger.info("Stopping Woken...")
+          }
+        } yield ExitCode.Success
 
-    MainServer.resource[IO](config).use { _ =>
-      val io = for {
-        _ <- IO(logger.info("[OK] Woken startup complete."))          // scalastyle:off
-        _ <- IO(Console.println("Type 'exit' then <Enter> to exit.")) // scalastyle:off
-        _ <- IO {
-          do {
-            Thread.sleep(1000)
-          } while (!Option(StdIn.readLine()).exists(_.toLowerCase == "exit"))
-          logger.info("Stopping Woken...")
-        }
-      } yield ExitCode.Success
-
-      io.handleErrorWith { err =>
-        IO.delay {
-          logger.error("Unexpected error", err)
-          ExitCode.Error
+        io.handleErrorWith { err =>
+          IO.delay {
+            logger.error("Unexpected error", err)
+            ExitCode.Error
+          }
         }
       }
     }
