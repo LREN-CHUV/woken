@@ -96,7 +96,8 @@ class QueryToJobServiceImpl[F[_]: Monad](
     variablesMetaService: VariablesMetaRepository[F],
     jobsConfiguration: JobsConfiguration,
     algorithmLookup: String => Validation[AlgorithmDefinition]
-) extends QueryToJobService[F] with LazyLogging {
+) extends QueryToJobService[F]
+    with LazyLogging {
 
   import QueryToJobService._
 
@@ -283,7 +284,7 @@ class QueryToJobServiceImpl[F[_]: Monad](
           // Check the target variable
           ensureVariablesExists("Variable", query.variables)
             .andThen { _ =>
-            logger.debug("Check covariable")
+              logger.debug("Check covariable")
               // Check covariables
               if (query.covariablesMustExist)
                 ensureVariablesExists("Covariable", query.covariables)

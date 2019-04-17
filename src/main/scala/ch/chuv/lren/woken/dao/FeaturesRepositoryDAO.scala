@@ -23,15 +23,15 @@ import cats.MonadError
 import doobie._
 import doobie.implicits._
 import spray.json._
-import cats.data.{NonEmptyList, Validated}
+import cats.data.{ NonEmptyList, Validated }
 import cats.effect.Resource
 import cats.implicits._
 import ch.chuv.lren.woken.config.DatabaseConfiguration
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.logging
-import ch.chuv.lren.woken.core.model.database.{FeaturesTableDescription, TableColumn}
+import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn }
 import ch.chuv.lren.woken.core.model.database.sqlUtils._
-import ch.chuv.lren.woken.messages.datasets.{DatasetId, TableId}
+import ch.chuv.lren.woken.messages.datasets.{ DatasetId, TableId }
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
 import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
 import ch.chuv.lren.woken.messages.query.filters.FilterRule

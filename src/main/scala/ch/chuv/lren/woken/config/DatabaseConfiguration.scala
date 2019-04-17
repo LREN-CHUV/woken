@@ -30,6 +30,7 @@ import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
 import ch.chuv.lren.woken.messages.datasets.TableId
 import ch.chuv.lren.woken.messages.query.UserId
 import ch.chuv.lren.woken.messages.variables.SqlType
+import doobie.util.transactor.Transactor
 
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
@@ -50,19 +51,21 @@ final case class DatabaseId(code: String)
   * @param user Database user
   * @param password Database password
   */
-final case class DatabaseConfiguration(id: DatabaseId,
-                                       dbiDriver: String,
-                                       dbApiDriver: String,
-                                       jdbcDriver: String,
-                                       jdbcUrl: String,
-                                       host: String,
-                                       port: Int,
-                                       database: String,
-                                       schema: String,
-                                       user: String,
-                                       password: String,
-                                       poolSize: Int,
-                                       tables: Map[TableId, FeaturesTableDescription])
+final case class DatabaseConfiguration(
+    id: DatabaseId,
+    dbiDriver: String,
+    dbApiDriver: String,
+    jdbcDriver: String,
+    jdbcUrl: String,
+    host: String,
+    port: Int,
+    database: String,
+    schema: String,
+    user: String,
+    password: String,
+    poolSize: Int,
+    tables: Map[TableId, FeaturesTableDescription]
+)
 
 object DatabaseConfiguration {
 
@@ -108,25 +111,29 @@ object DatabaseConfiguration {
         }
       }
 
-      (dbId,
-       dbiDriver,
-       dbApiDriver,
-       jdbcDriver,
-       jdbcUrl,
-       host,
-       port,
-       database,
-       schema,
-       user,
-       password,
-       poolSize,
-       tables) mapN DatabaseConfiguration.apply
+      (
+        dbId,
+        dbiDriver,
+        dbApiDriver,
+        jdbcDriver,
+        jdbcUrl,
+        host,
+        port,
+        database,
+        schema,
+        user,
+        password,
+        poolSize,
+        tables
+      ) mapN DatabaseConfiguration.apply
     }
   }
 
-  private def readTable(config: Config,
-                        path: List[String],
-                        databaseName: String): Validation[FeaturesTableDescription] = {
+  private def readTable(
+      config: Config,
+      path: List[String],
+      databaseName: String
+  ): Validation[FeaturesTableDescription] = {
 
     val database: Validation[String] = databaseName.validNel
     val tableConfig                  = config.validateConfig(path.mkString("."))
@@ -174,6 +181,16 @@ object DatabaseConfiguration {
   def factory(config: Config): DatabaseId => Validation[DatabaseConfiguration] =
     dbAlias => read(config, NonEmptyList("db", List(dbAlias.code)))
 
+  def simpleDbTransactor[F[_]: Async: ContextShift](
+      dbConfig: DatabaseConfiguration
+  ): Transactor[F] =
+    Transactor.fromDriverManager[F](
+      driver = dbConfig.jdbcDriver,
+      url = dbConfig.jdbcUrl,
+      user = dbConfig.user,
+      pass = dbConfig.password
+    )
+
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
   def dbTransactor[F[_]: Async: ContextShift](
       dbConfig: DatabaseConfiguration,
@@ -204,13 +221,13 @@ object DatabaseConfiguration {
     } yield xa
 
   def validate[F[_]: Monad](
-      xa: HikariTransactor[F],
+      xa: Transactor[F],
       dbConfig: DatabaseConfiguration
-  ): F[Validation[HikariTransactor[F]]] =
+  ): F[Validation[Transactor[F]]] =
     for {
       test <- sql"select 1".query[Int].unique.transact(xa)
     } yield {
-      if (test != 1) s"Cannot connect to $dbConfig.jdbcUrl".invalidNel[HikariTransactor[F]]
+      if (test != 1) s"Cannot connect to $dbConfig.jdbcUrl".invalidNel[Transactor[F]]
       else xa.validNel[String]
     }
 }

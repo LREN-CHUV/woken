@@ -27,7 +27,7 @@ import ch.chuv.lren.woken.core.threads
 import ch.chuv.lren.woken.dao._
 import ch.chuv.lren.woken.messages.datasets.Dataset
 import com.typesafe.scalalogging.Logger
-import doobie.hikari.HikariTransactor
+import doobie.util.transactor.Transactor
 import org.slf4j.LoggerFactory
 import sup.data.Tagged
 import sup.{ HealthCheck, HealthReporter, mods }
@@ -169,9 +169,9 @@ object DatabaseServices {
   private val logger: Logger = Logger(LoggerFactory.getLogger("woken.DatabaseServices"))
 
   case class Transactors[F[_]](
-      featuresTransactor: HikariTransactor[F],
-      wokenTransactor: HikariTransactor[F],
-      metaTransactor: HikariTransactor[F]
+      featuresTransactor: Transactor[F],
+      wokenTransactor: Transactor[F],
+      metaTransactor: Transactor[F]
   )
 
   @SuppressWarnings(Array("org.wartremover.warts.Any"))
@@ -181,7 +181,7 @@ object DatabaseServices {
 
     logger.info("Connect to databases...")
 
-    val transactors: Resource[F, Transactors[F]] = for {
+    /*val transactors: Resource[F, Transactors[F]] = for {
       // our connect EC
       connectEC <- threads.fixedThreadPool[F](size = 7)
       // our transaction EC
@@ -193,6 +193,17 @@ object DatabaseServices {
       metaTransactor <- DatabaseConfiguration
         .dbTransactor[F](config.metaDb, connectEC, transactionEC)
     } yield Transactors[F](featuresTransactor, wokenTransactor, metaTransactor)
+     */
+
+    val transactors: Resource[F, Transactors[F]] = Resource.pure {
+      val featuresTransactor = DatabaseConfiguration
+        .simpleDbTransactor[F](config.featuresDb)
+      val wokenTransactor = DatabaseConfiguration
+        .simpleDbTransactor[F](config.wokenDb)
+      val metaTransactor = DatabaseConfiguration
+        .simpleDbTransactor[F](config.metaDb)
+      Transactors[F](featuresTransactor, wokenTransactor, metaTransactor)
+    }
 
     transactors.flatMap { t =>
       val wokenIO: F[WokenRepository[F]] = mkService(t.wokenTransactor, config.wokenDb) { xa =>
@@ -240,10 +251,10 @@ object DatabaseServices {
   }
 
   private[this] def mkService[F[_]: Sync, M](
-      transactor: HikariTransactor[F],
+      transactor: Transactor[F],
       dbConfig: DatabaseConfiguration
   )(
-      serviceGen: HikariTransactor[F] => F[M]
+      serviceGen: Transactor[F] => F[M]
   ): F[M] =
     for {
       validatedXa <- DatabaseConfiguration
