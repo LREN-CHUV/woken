@@ -1,5 +1,5 @@
 # Verified with http://hadolint.lukasmartinelli.ch/
-FROM hbpmip/scala-base-build:1.2.6-8 as scala-build-env
+FROM hbpmip/scala-base-build:1.2.8-0 as scala-build-env
 
 # First caching layer: build.sbt and sbt configuration
 COPY build.sbt /build/
