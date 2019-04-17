@@ -10,49 +10,49 @@
     <Root level="${env:LOG_LEVEL:-WARN}">
       <AppenderRef ref="Console"/>
     </Root>
-    <Logger name="akka.actor.LocalActorRefProvider(akka://woken)" level="INFO">
+    <Logger name="akka.actor.LocalActorRefProvider(akka://woken)" level="INFO" additivity="false">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="akka.cluster" level="${env:AKKA_CLUSTER_LOG_LEVEL:-INFO}">
+    <Logger name="akka.cluster" level="${env:AKKA_CLUSTER_LOG_LEVEL:-INFO}" additivity="false">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="akka.io" level="${env:AKKA_IO_LOG_LEVEL:-INFO}">
+    <Logger name="akka.io" level="${env:AKKA_IO_LOG_LEVEL:-INFO}" additivity="false">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="akka.http.impl" level="${env:AKKA_HTTP_LOG_LEVEL:-INFO}">
+    <Logger name="akka.http.impl" level="${env:AKKA_HTTP_LOG_LEVEL:-INFO}" additivity="false">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="akka.remote.artery.compress" level="${env:AKKA_REMOTE_LOG_LEVEL:-INFO}">
+    <Logger name="akka.remote.artery.compress" level="${env:AKKA_REMOTE_LOG_LEVEL:-INFO}" additivity="false">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="akka.remote.artery.tcp" level="${env:AKKA_REMOTE_LOG_LEVEL:-INFO}">
+    <Logger name="akka.remote.artery.tcp" level="${env:AKKA_REMOTE_LOG_LEVEL:-INFO}" additivity="false">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="akka.stream.impl" level="${env:AKKA_STREAM_LOG_LEVEL:-INFO}">
+    <Logger name="akka.stream.impl" level="${env:AKKA_STREAM_LOG_LEVEL:-INFO}" additivity="false">
       <AppenderRef ref="Console"/>
     </Logger>
-     <Logger name="ch.chuv.lren.woken" level="${env:WOKEN_LOG_LEVEL:-INFO}">
+    <Logger name="ch.chuv.lren.woken" level="${env:WOKEN_LOG_LEVEL:-INFO}" additivity="false">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="woken" level="${env:WOKEN_LOG_LEVEL:-INFO}">
+    <Logger name="woken" level="${env:WOKEN_LOG_LEVEL:-INFO}" additivity="false">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="com.gettyimages.spray.swagger" level="INFO">
+    <Logger name="com.gettyimages.spray.swagger" level="INFO" additivity="false">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="com.wordnik.swagger" level="INFO">
+    <Logger name="com.wordnik.swagger" level="INFO" additivity="false">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="com.zaxxer.hikari" level="${env:DB_LOG_LEVEL:-WARN}">
+    <Logger name="com.zaxxer.hikari" level="${env:DB_LOG_LEVEL:-WARN}" additivity="false">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="doobie" level="${env:DB_LOG_LEVEL:-WARN}">
+    <Logger name="doobie" level="${env:DB_LOG_LEVEL:-WARN}" additivity="false">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="io.netty" level="${env:NETTY_LOG_LEVEL:-ERROR}">
+    <Logger name="io.netty" level="${env:NETTY_LOG_LEVEL:-ERROR}" additivity="false">
       <AppenderRef ref="Console"/>
     </Logger>
-    <Logger name="org.asynchttpclient" level="ERROR">
+    <Logger name="org.asynchttpclient" level="ERROR" additivity="false">
       <AppenderRef ref="Console"/>
     </Logger>
 
