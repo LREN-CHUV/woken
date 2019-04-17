@@ -22,7 +22,7 @@ import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{ Actor, ActorRef, OneForOneStrategy, Props }
 import akka.routing.{ OptimalSizeExploringResizer, RoundRobinPool }
 import akka.stream.scaladsl.{ Flow, Sink, Source }
-import cats.effect.Effect
+import cats.effect.{ Effect, Sync }
 import cats.implicits._
 import ch.chuv.lren.woken.core.fp._
 import ch.chuv.lren.woken.core.streams.debugElements
@@ -37,8 +37,8 @@ import ch.chuv.lren.woken.mining.LocalExperimentService
 import ch.chuv.lren.woken.service.{ BackendServices, DatabaseServices }
 import ch.chuv.lren.woken.validation.flows.RemoteValidationFlow
 import com.typesafe.scalalogging.LazyLogging
-
 import spray.json._
+
 import scala.collection.immutable.TreeSet
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -114,16 +114,18 @@ class ExperimentQueriesActor[F[_]: Effect](
       val jobValidatedF = queryToJobService.experimentQuery2Job(query)
       val doIt: F[QueryResult] = jobValidatedF.flatMap { jv =>
         jv.fold(
-          errList => {
-            val errors = errList.mkString_("", ", ", "")
-            val msg    = s"Experiment for $query failed with error: $errors"
-            errorMsgResult(query, msg, Set(), List()).pure[F]
+          errList =>
+            Sync[F].delay {
+              val errors = errList.mkString_("", ", ", "")
+              val msg    = s"Experiment for $query failed with error: $errors"
+              logger.error(msg)
+              errorMsgResult(query, msg, Set(), List())
           },
           j => processJob(query, j)
         )
       }
 
-      runNow(doIt) {
+      runNowAndHandle(doIt) {
         case Left(e) =>
           val msg = s"Experiment for $query failed with error: ${e.toString}"
           logger.error(SKIP_REPORTING_MARKER, msg, e)

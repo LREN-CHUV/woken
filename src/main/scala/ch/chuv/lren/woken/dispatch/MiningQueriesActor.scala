@@ -24,7 +24,7 @@ import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{ Actor, ActorRef, OneForOneStrategy, Props }
 import akka.routing.{ OptimalSizeExploringResizer, RoundRobinPool }
 import akka.stream.scaladsl.{ Flow, Sink, Source }
-import cats.effect.Effect
+import cats.effect.{ Effect, Sync }
 import cats.implicits._
 import ch.chuv.lren.woken.core.fp._
 import ch.chuv.lren.woken.core.streams.debugElements
@@ -117,16 +117,18 @@ class MiningQueriesActor[F[_]: Effect](
       val jobValidatedF = queryToJobService.miningQuery2Job(query)
       val doIt: F[QueryResult] = jobValidatedF.flatMap { jv =>
         jv.fold(
-          errList => {
-            val errors = errList.mkString_(", ")
-            val msg    = errorMsg(query, errors)
-            errorMsgResult(query, msg, Set(), List()).pure[F]
+          errList =>
+            Sync[F].delay {
+              val errors = errList.mkString_(", ")
+              val msg    = errorMsg(query, errors)
+              logger.error(msg)
+              errorMsgResult(query, msg, Set(), List())
           },
           j => processJob(query, j)
         )
       }
 
-      runNow(doIt) {
+      runNowAndHandle(doIt) {
         case Left(e) =>
           val msg = errorMsg(query, e.toString)
           logger.error(SKIP_REPORTING_MARKER, msg, e)

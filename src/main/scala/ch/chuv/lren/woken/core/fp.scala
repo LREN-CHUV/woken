@@ -31,6 +31,13 @@ object fp {
 
   def runNow[F[_]: Effect, M](m: F[M]): M = Effect[F].toIO(m).unsafeRunSync()
 
+  def runNowAndHandle[F[_]: Effect, M](
+      valueF: F[M]
+  )(processCb: Either[Throwable, M] => Unit): Unit =
+    Effect[F]
+      .runAsync(valueF)(cb => IO(processCb(cb)))
+      .unsafeRunSync()
+
   def runLater[F[_]: Effect, M](m: F[M]): Future[M] = {
     val errorRecovery: Throwable => F[M] = {
       case NonFatal(t) =>
@@ -50,8 +57,10 @@ object fp {
     IO.fromFuture(IO(f))
   )
 
-  def fromFutureWithGuarantee[F[_]: Effect, R](f: => Future[R],
-                                               finalizer: ExitCase[Throwable] => IO[Unit]): F[R] =
+  def fromFutureWithGuarantee[F[_]: Effect, R](
+      f: => Future[R],
+      finalizer: ExitCase[Throwable] => IO[Unit]
+  ): F[R] =
     implicitly[LiftIO[F]].liftIO(
       IO.fromFuture(IO(f).guaranteeCase(finalizer))
     )

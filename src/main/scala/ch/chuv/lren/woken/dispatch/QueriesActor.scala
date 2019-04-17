@@ -23,7 +23,6 @@ import akka.actor.{ Actor, ActorRef }
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
-import cats.effect.{ Effect, IO }
 import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.core.model.jobs.{ ErrorJobResult, ExperimentJobResult, JobResult }
 import ch.chuv.lren.woken.messages.query._
@@ -52,13 +51,6 @@ trait QueriesActor[Q <: Query, F[_]] extends Actor with LazyLogging {
 
   protected def queryToJobService: QueryToJobService[F] = databaseServices.queryToJobService
   protected def dispatcherService: DispatcherService    = backendServices.dispatcherService
-
-  protected def runNow[A](
-      valueF: F[A]
-  )(processCb: Either[Throwable, A] => Unit)(implicit eff: Effect[F]): Unit =
-    Effect[F]
-      .runAsync(valueF)(cb => IO(processCb(cb)))
-      .unsafeRunSync()
 
   private[dispatch] def gatherAndReduce(
       initialQuery: Q,
