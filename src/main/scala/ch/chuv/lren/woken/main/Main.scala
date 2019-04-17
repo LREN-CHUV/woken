@@ -47,6 +47,16 @@ object Main extends IOApp {
     // Report automatically all errors to Bugsnag
     errors.reportErrorsToBugsnag()
 
+    println(
+      """
+        |  _      __     __              __  _____
+        | | | /| / /__  / /_____ ___    /  |/  / /
+        | | |/ |/ / _ \/  '_/ -_) _ \  / /|_/ / /__
+        | |__/|__/\___/_/\_\\__/_//_/ /_/  /_/____/
+        |
+      """.stripMargin)
+    logger.info(s"Running on ${Runtime.getRuntime.availableProcessors} processors")
+
     mainConfig.flatMap { config =>
       MainServer.resource[IO](config).use { _ =>
         val io = for {
