@@ -21,7 +21,6 @@ import java.util.UUID
 
 import cats.data._
 import cats.Monad
-import cats.effect.{ Async, Effect }
 import cats.implicits._
 import ch.chuv.lren.woken.config.JobsConfiguration
 import ch.chuv.lren.woken.core.features.Queries._
@@ -97,13 +96,14 @@ class QueryToJobServiceImpl[F[_]: Monad](
     variablesMetaService: VariablesMetaRepository[F],
     jobsConfiguration: JobsConfiguration,
     algorithmLookup: String => Validation[AlgorithmDefinition]
-) extends QueryToJobService[F] {
+) extends QueryToJobService[F] with LazyLogging {
 
   import QueryToJobService._
 
   override def miningQuery2Job(
       query: MiningQuery
-  ): F[Validation[MiningJobInProgress]] =
+  ): F[Validation[MiningJobInProgress]] = {
+    logger.debug("Mining query to job")
     for {
       preparedQuery <- prepareQuery(variablesMetaService, jobsConfiguration, query)
       validatedQuery <- preparedQuery.fold(
@@ -121,11 +121,14 @@ class QueryToJobServiceImpl[F[_]: Monad](
           fa => fa.map(_.validNel[String])
         )
     } yield annotatedJob
+  }
 
   private[this] def createValidationOrMiningJob(
       preparedQuery: PreparedQuery[MiningQuery],
       algorithmLookup: String => Validation[AlgorithmDefinition]
   ): Validation[JobStarting[MiningQuery, Job[MiningQuery], F]] = {
+    logger.debug("Create validation or mining job")
+
     val jobId :: featuresTable :: metadata :: query :: feedback :: HNil =
       preparedQuery
 
@@ -141,6 +144,8 @@ class QueryToJobServiceImpl[F[_]: Monad](
     }
 
     featuresService.featuresTable(featuresTable).andThen { fts =>
+      logger.debug("Create job")
+
       val featuresTableDescription = fts.table
 
       val job: Validation[Job[MiningQuery]] = query.algorithm.code match {
@@ -216,6 +221,7 @@ class QueryToJobServiceImpl[F[_]: Monad](
       jobsConfiguration: JobsConfiguration,
       query: Q
   ): F[Validation[PreparedQuery[Q]]] = {
+    logger.debug("Prepare query")
 
     val jobId         = UUID.randomUUID().toString
     val featuresTable = query.targetTable.getOrElse(jobsConfiguration.defaultFeaturesTable)
@@ -241,6 +247,11 @@ class QueryToJobServiceImpl[F[_]: Monad](
 
     // Fetch the metadata for variables
     variablesMetaService.get(featuresTable).map { variablesMetaO =>
+      if (variablesMetaO.isDefined)
+        logger.debug(s"Found variables meta for table $featuresTable")
+      else
+        logger.warn(s"Could not find variables meta for table $featuresTable")
+
       val variablesMeta: Validation[VariablesMeta] = Validated.fromOption(
         variablesMetaO,
         NonEmptyList(s"Cannot find metadata for table ${featuresTable.toString}", Nil)
@@ -267,10 +278,13 @@ class QueryToJobServiceImpl[F[_]: Monad](
                 missingVariablesMessage(variableType, missing.toList).invalidNel[FeatureIdentifiers]
             )
 
+          logger.debug("Check target variable")
+
           // Check the target variable
           ensureVariablesExists("Variable", query.variables)
             .andThen { _ =>
-              // Check corariables
+            logger.debug("Check covariable")
+              // Check covariables
               if (query.covariablesMustExist)
                 ensureVariablesExists("Covariable", query.covariables)
                   .map(covars => (covars, List.empty[UserFeedback]))
@@ -287,6 +301,7 @@ class QueryToJobServiceImpl[F[_]: Monad](
             .andThen {
               // Check groupings
               case (existingCovariables, covariablesFeedback) =>
+                logger.debug("Check groupings")
                 val existingGroupings = filterExisting(query.grouping)
                 val groupingsFeedback =
                   prepareFeedback("Grouping", query.grouping, existingGroupings)
@@ -299,6 +314,7 @@ class QueryToJobServiceImpl[F[_]: Monad](
             .andThen {
               // Update query
               case (existingCovariables, existingGroupings, existanceFeedback) =>
+                logger.debug("Update query")
                 // TODO: looks like a good use case for lenses
                 val updatedQuery: Q = query match {
                   case q: MiningQuery =>
@@ -321,10 +337,12 @@ class QueryToJobServiceImpl[F[_]: Monad](
             variablesMeta
               .andThen { meta =>
                 // Get the metadata associated with the variables
+                logger.debug("Get metadata associated with the variables")
                 meta.selectVariables(q.allVars)
               }
               .map { m =>
                 // Build the PreparedQuery
+                logger.debug("Build prepared query")
                 jobId :: featuresTable :: m :: q :: feedback :: HNil
               }
         }
@@ -335,19 +353,33 @@ class QueryToJobServiceImpl[F[_]: Monad](
       preparedQuery: PreparedQuery[Q],
       featuresService: FeaturesService[F]
   ): F[Validation[PreparedQuery[Q]]] = {
+    logger.debug("Validate query")
 
     val _ :: featuresTable :: _ :: query :: _ :: HNil = preparedQuery
 
     val table = query.targetTable.getOrElse(featuresTable)
+    logger.debug(s"Validate query on table $table")
+
     val validTableService: Validation[FeaturesTableService[F]] =
       featuresService.featuresTable(table)
 
+    logger.debug(s"Table service found? ${validTableService.isValid}")
+    if (validTableService.isInvalid) {
+      logger.warn(s"Invalid table $table requested by query $query: $validTableService")
+    }
+
     validTableService
       .map { tableService =>
+        logger.debug(s"Count number of rows for filter ${query.filters}")
         for {
           numRows <- tableService.count(query.filters)
-          hasData = if (numRows > 0) preparedQuery.validNel[String]
-          else s"No data in table $table matching filters".invalidNel[PreparedQuery[Q]]
+          hasData = if (numRows > 0) {
+            logger.debug(s"Found $numRows")
+            preparedQuery.validNel[String]
+          } else {
+            logger.warn(s"Found no data in table $table matching filters ${query.filters}")
+            s"No data in table $table matching filters".invalidNel[PreparedQuery[Q]]
+          }
         } yield hasData
 
       }

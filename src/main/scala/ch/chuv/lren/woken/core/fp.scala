@@ -29,7 +29,19 @@ object fp {
 
   private val coreLogger: Logger = Logger("woken.core")
 
-  def runNow[F[_]: Effect, M](m: F[M]): M = Effect[F].toIO(m).unsafeRunSync()
+  private def defaultErrorRecovery[F[_], M](implicit eff: Effect[F]): Throwable => F[M] = {
+    case NonFatal(t) =>
+      Effect[F]
+        .delay(coreLogger.error("Error in async code", t))
+        .flatMap(_ => Effect[F].raiseError(t))
+
+    case fatal => throw fatal
+  }
+
+  def runNow[F[_]: Effect, M](m: F[M], errorRecovery: Throwable => F[M]): M =
+    Effect[F].toIO(m).handleErrorWith(t => Effect[F].toIO(errorRecovery(t))).unsafeRunSync()
+
+  def runNow[F[_]: Effect, M](m: F[M]): M = runNow(m, defaultErrorRecovery[F, M])
 
   def runNowAndHandle[F[_]: Effect, M](
       valueF: F[M]
@@ -38,17 +50,7 @@ object fp {
       .runAsync(valueF)(cb => IO(processCb(cb)))
       .unsafeRunSync()
 
-  def runLater[F[_]: Effect, M](m: F[M]): Future[M] = {
-    val errorRecovery: Throwable => F[M] = {
-      case NonFatal(t) =>
-        Effect[F]
-          .delay(coreLogger.error("Error in async code", t))
-          .flatMap(_ => Effect[F].raiseError(t))
-
-      case fatal => throw fatal
-    }
-    runLater(m, errorRecovery)
-  }
+  def runLater[F[_]: Effect, M](m: F[M]): Future[M] = runLater(m, defaultErrorRecovery[F, M])
 
   def runLater[F[_]: Effect, M](m: F[M], errorRecovery: Throwable => F[M]): Future[M] =
     Effect[F].toIO(m).handleErrorWith(t => Effect[F].toIO(errorRecovery(t))).unsafeToFuture()

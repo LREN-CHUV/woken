@@ -23,20 +23,21 @@ import cats.MonadError
 import doobie._
 import doobie.implicits._
 import spray.json._
-import cats.data.{ NonEmptyList, Validated }
-import cats.effect.{ Effect, Resource }
+import cats.data.{NonEmptyList, Validated}
+import cats.effect.Resource
 import cats.implicits._
 import ch.chuv.lren.woken.config.DatabaseConfiguration
 import ch.chuv.lren.woken.core.features.FeaturesQuery
 import ch.chuv.lren.woken.core.logging
-import ch.chuv.lren.woken.core.model.database.{ FeaturesTableDescription, TableColumn }
+import ch.chuv.lren.woken.core.model.database.{FeaturesTableDescription, TableColumn}
 import ch.chuv.lren.woken.core.model.database.sqlUtils._
-import ch.chuv.lren.woken.messages.datasets.{ DatasetId, TableId }
+import ch.chuv.lren.woken.messages.datasets.{DatasetId, TableId}
 import ch.chuv.lren.woken.cromwell.core.ConfigUtil._
 import ch.chuv.lren.woken.dao.FeaturesTableRepository.Headers
 import ch.chuv.lren.woken.messages.query.filters.FilterRule
 import ch.chuv.lren.woken.messages.variables.SqlType
 import ch.chuv.lren.woken.messages.variables.SqlType.SqlType
+import com.typesafe.scalalogging.LazyLogging
 import doobie.enum.JdbcType
 import doobie.util.analysis.ColumnMeta
 import doobie.util.transactor.Strategy
@@ -53,11 +54,7 @@ class FeaturesRepositoryDAO[F[_]] private (
   override def featuresTable(table: TableId): F[Option[FeaturesTableRepository[F]]] =
     database.tables
       .get(table)
-      .map(
-        t =>
-          FeaturesTableRepositoryDAO[F](xa, t)
-            .map(r => r: FeaturesTableRepository[F])
-      )
+      .map(t => FeaturesTableRepositoryDAO[F](xa, t).widen[FeaturesTableRepository[F]])
       .sequence
 
   override def healthCheck: HealthCheck[F, Id] = validate(xa)
@@ -183,8 +180,10 @@ abstract class BaseFeaturesTableRepositoryDAO[F[_]: Monad] extends FeaturesTable
     *
     * @return a map containing the number of rows for each value of the group by column
     */
-  override def countGroupBy(groupByColumn: TableColumn,
-                            filters: Option[FilterRule]): F[Map[String, Int]] = {
+  override def countGroupBy(
+      groupByColumn: TableColumn,
+      filters: Option[FilterRule]
+  ): F[Map[String, Int]] = {
     val q: Fragment = fr"SELECT" ++ frName(groupByColumn) ++ fr", count(*) FROM" ++
       frName(table) ++ frWhereFilter(filters) ++ fr"GROUP BY" ++ frName(groupByColumn)
     q.query[(String, Int)]
@@ -260,27 +259,30 @@ class FeaturesTableRepositoryDAO[F[_]] private[dao] (
       prefills: List[PrefillExtendedFeaturesTable],
       extendedTableNumber: Int
   ): Validation[Resource[F, FeaturesTableRepository[F]]] =
-    ExtendedFeaturesTableRepositoryDAO(this,
-                                       filters,
-                                       newFeatures,
-                                       otherColumns,
-                                       prefills,
-                                       extendedTableNumber)
-      .map(_.widen[FeaturesTableRepository[F]])
+    ExtendedFeaturesTableRepositoryDAO(
+      this,
+      filters,
+      newFeatures,
+      otherColumns,
+      prefills,
+      extendedTableNumber
+    ).map(_.widen[FeaturesTableRepository[F]])
 
   override def healthCheck: HealthCheck[F, Id] = validate(xa)
 }
 
-object FeaturesTableRepositoryDAO {
+object FeaturesTableRepositoryDAO extends LazyLogging {
 
   def apply[F[_]](xa: Transactor[F], table: FeaturesTableDescription)(
       implicit F: MonadError[F, Throwable]
   ): F[FeaturesTableRepositoryDAO[F]] = {
     implicit val han: LogHandler = logging.doobieLogHandler
 
+    logger.debug(s"Inspect columns of table ${table.quotedName}")
     HC.prepareStatement(s"SELECT * FROM ${table.quotedName} LIMIT 1")(prepareHeaders)
       .transact(xa)
       .map { headers =>
+        logger.debug("Got headers. Create table repository")
         new FeaturesTableRepositoryDAO(xa, table, headers)
       }
   }
@@ -396,28 +398,34 @@ object ExtendedFeaturesTableRepositoryDAO {
     val validatedDao: Validated[NonEmptyList[String], F[ExtendedFeaturesTableRepositoryDAO[F]]] =
       extractPk.map { pk =>
         val daoC = for {
-          extTable <- createExtendedTable(sourceTable.table,
-                                          pk,
-                                          filters,
-                                          rndColumn,
-                                          newColumns,
-                                          extendedTableNumber)
+          extTable <- createExtendedTable(
+            sourceTable.table,
+            pk,
+            filters,
+            rndColumn,
+            newColumns,
+            extendedTableNumber
+          )
           _ <- prefills
             .traverse(_.prefillExtendedTableSql(sourceTable.table, extTable, rndColumn).run)
-          extViewCols <- createExtendedView(sourceTable.table,
-                                            pk,
-                                            sourceTable.columns,
-                                            filters,
-                                            extTable,
-                                            rndColumn,
-                                            newColumns)
+          extViewCols <- createExtendedView(
+            sourceTable.table,
+            pk,
+            sourceTable.columns,
+            filters,
+            extTable,
+            rndColumn,
+            newColumns
+          )
         } yield
-          new ExtendedFeaturesTableRepositoryDAO(sourceTable,
-                                                 extViewCols._1,
-                                                 extViewCols._2,
-                                                 extTable,
-                                                 newColumns,
-                                                 rndColumn)
+          new ExtendedFeaturesTableRepositoryDAO(
+            sourceTable,
+            extViewCols._1,
+            extViewCols._2,
+            extTable,
+            newColumns,
+            rndColumn
+          )
         daoC.transact(seededXa)
       }
 
@@ -435,8 +443,10 @@ object ExtendedFeaturesTableRepositoryDAO {
       tableNum: Int
   ): ConnectionIO[FeaturesTableDescription] = {
 
-    def createAdditionalFeaturesTable(extTable: FeaturesTableDescription,
-                                      pk: TableColumn): ConnectionIO[Int] = {
+    def createAdditionalFeaturesTable(
+        extTable: FeaturesTableDescription,
+        pk: TableColumn
+    ): ConnectionIO[Int] = {
       val stmt = fr"CREATE TABLE" ++ frName(extTable) ++ fr"(" ++ frName(pk) ++ frType(pk) ++ fr"PRIMARY KEY," ++
         frNameType(newFeatures :+ rndColumn) ++ fr"""
        )
@@ -447,8 +457,10 @@ object ExtendedFeaturesTableRepositoryDAO {
       stmt.update.run
     }
 
-    def fillAdditionalFeaturesTable(extTable: FeaturesTableDescription,
-                                    pk: TableColumn): ConnectionIO[Int] = {
+    def fillAdditionalFeaturesTable(
+        extTable: FeaturesTableDescription,
+        pk: TableColumn
+    ): ConnectionIO[Int] = {
 
       // Sample SQL statements used to build this:
       // create table cde_features_a_1 (subjectcode text primary key, rnd serial, win_1 int);
@@ -464,8 +476,10 @@ object ExtendedFeaturesTableRepositoryDAO {
       insertRndStmt.update.run
     }
 
-    val extTable = table.copy(table = table.table.copy(name = s"${table.table.name}__$tableNum"),
-                              validateSchema = false)
+    val extTable = table.copy(
+      table = table.table.copy(name = s"${table.table.name}__$tableNum"),
+      validateSchema = false
+    )
     for {
       _ <- createAdditionalFeaturesTable(extTable, pk)
       _ <- fillAdditionalFeaturesTable(extTable, pk)
@@ -483,13 +497,15 @@ object ExtendedFeaturesTableRepositoryDAO {
       newFeatures: List[TableColumn]
   ): ConnectionIO[(FeaturesTableDescription, Headers)] = {
 
-    def createFeaturesView(table: FeaturesTableDescription,
-                           pk: TableColumn,
-                           tableColumns: Headers,
-                           extTable: FeaturesTableDescription,
-                           extTableColumns: Headers,
-                           extView: FeaturesTableDescription,
-                           extViewColumns: Headers): ConnectionIO[Int] = {
+    def createFeaturesView(
+        table: FeaturesTableDescription,
+        pk: TableColumn,
+        tableColumns: Headers,
+        extTable: FeaturesTableDescription,
+        extTableColumns: Headers,
+        extView: FeaturesTableDescription,
+        extViewColumns: Headers
+    ): ConnectionIO[Int] = {
 
       val stmt = fr"CREATE OR REPLACE VIEW" ++ frName(extView) ++
         fr"(" ++ frNames(extViewColumns) ++ fr") AS SELECT" ++
@@ -507,13 +523,15 @@ object ExtendedFeaturesTableRepositoryDAO {
     val extViewColumns = tableColumns ++ extTableColumns.filter(_ != pk)
 
     for {
-      _ <- createFeaturesView(table,
-                              pk,
-                              tableColumns,
-                              extTable,
-                              extTableColumns,
-                              extViewDescription,
-                              extViewColumns)
+      _ <- createFeaturesView(
+        table,
+        pk,
+        tableColumns,
+        extTable,
+        extTableColumns,
+        extViewDescription,
+        extViewColumns
+      )
     } yield (extViewDescription, extViewColumns)
 
   }
