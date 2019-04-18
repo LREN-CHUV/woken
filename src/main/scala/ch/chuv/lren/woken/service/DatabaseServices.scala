@@ -52,8 +52,9 @@ case class DatabaseServices[F[_]](
   @SuppressWarnings(Array("org.wartremover.warts.Throw"))
   def validate(): F[Unit] = {
 
-    logger.info("Check configuration of datasets...")
-    logger.info(datasetService.datasets().values.filter(_.location.isEmpty).toString())
+    val datasetCodes =
+      datasetService.datasets().values.filter(_.location.isEmpty).map(_.id.code).mkString(" ")
+    logger.info(s"Checking configuration of datasets $datasetCodes...")
 
     implicit val FPlus: Monoid[F[Unit]] = new Monoid[F[Unit]] {
       def empty: F[Unit]                           = F.unit
@@ -208,29 +209,24 @@ object DatabaseServices {
     } yield Transactors[F](featuresTransactor, wokenTransactor, metaTransactor)
 
     transactors.flatMap { t =>
-      val wokenIO: F[WokenRepository[F]] = mkService(t.wokenTransactor, config.wokenDb) { xa =>
-        Sync[F].delay(WokenRepositoryDAO(xa))
-      }
-
-      val fsIO: F[FeaturesService[F]] = wokenIO.flatMap { wokenRepository =>
-        mkService(t.featuresTransactor, config.featuresDb) { xa =>
-          FeaturesRepositoryDAO(xa, config.featuresDb, wokenRepository).map {
-            _.map { FeaturesService.apply[F] }
-          }
-        }.map(_.valueOr(configurationFailed))
-      }
-
-      val vmsIO: F[VariablesMetaRepository[F]] = mkService(t.metaTransactor, config.metaDb) { xa =>
-        Sync[F].delay(MetadataRepositoryDAO(xa).variablesMeta)
-      }
-
       val datasetService          = ConfBasedDatasetService(config.config, config.jobs)
       val algorithmLibraryService = AlgorithmLibraryService()
 
       val servicesIO = for {
-        featuresService      <- fsIO
-        wokenService         <- wokenIO
-        variablesMetaService <- vmsIO
+        wokenService <- mkService(t.wokenTransactor, config.wokenDb) { xa =>
+          Sync[F].delay(WokenRepositoryDAO(xa))
+        }
+
+        featuresService <- mkService(t.featuresTransactor, config.featuresDb) { xa =>
+          FeaturesRepositoryDAO(xa, config.featuresDb, wokenService).map {
+            _.map { FeaturesService.apply[F] }
+          }
+        }.map(_.valueOr(configurationFailed))
+
+        variablesMetaService <- mkService(t.metaTransactor, config.metaDb) { xa =>
+          Sync[F].delay(MetadataRepositoryDAO(xa).variablesMeta)
+        }
+
         queryToJobService = QueryToJobService(
           featuresService,
           variablesMetaService,
