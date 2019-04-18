@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory
 import sup.data.Tagged
 import sup.{ HealthCheck, HealthReporter, mods }
 
+import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
 case class DatabaseServices[F[_]](
@@ -181,29 +182,30 @@ object DatabaseServices {
 
     logger.info("Connect to databases...")
 
-    /*val transactors: Resource[F, Transactors[F]] = for {
+    def transactorFor(
+        dbConfig: DatabaseConfiguration,
+        connectEC: ExecutionContext,
+        transactionEC: ExecutionContext
+    ): Resource[F, Transactor[F]] =
+      if (dbConfig.poolSize > 0)
+        DatabaseConfiguration
+          .dbTransactor[F](dbConfig, connectEC, transactionEC)
+          .widen[Transactor[F]]
+      else
+        Resource.pure(
+          DatabaseConfiguration
+            .simpleDbTransactor[F](dbConfig)
+        )
+
+    val transactors: Resource[F, Transactors[F]] = for {
       // our connect EC
       connectEC <- threads.fixedThreadPool[F](size = 7)
       // our transaction EC
-      transactionEC <- threads.cachedThreadPool[F]
-      featuresTransactor <- DatabaseConfiguration
-        .dbTransactor[F](config.featuresDb, connectEC, transactionEC)
-      wokenTransactor <- DatabaseConfiguration
-        .dbTransactor[F](config.wokenDb, connectEC, transactionEC)
-      metaTransactor <- DatabaseConfiguration
-        .dbTransactor[F](config.metaDb, connectEC, transactionEC)
+      transactionEC      <- threads.cachedThreadPool[F]
+      featuresTransactor <- transactorFor(config.featuresDb, connectEC, transactionEC)
+      wokenTransactor    <- transactorFor(config.wokenDb, connectEC, transactionEC)
+      metaTransactor     <- transactorFor(config.metaDb, connectEC, transactionEC)
     } yield Transactors[F](featuresTransactor, wokenTransactor, metaTransactor)
-     */
-
-    val transactors: Resource[F, Transactors[F]] = Resource.pure {
-      val featuresTransactor = DatabaseConfiguration
-        .simpleDbTransactor[F](config.featuresDb)
-      val wokenTransactor = DatabaseConfiguration
-        .simpleDbTransactor[F](config.wokenDb)
-      val metaTransactor = DatabaseConfiguration
-        .simpleDbTransactor[F](config.metaDb)
-      Transactors[F](featuresTransactor, wokenTransactor, metaTransactor)
-    }
 
     transactors.flatMap { t =>
       val wokenIO: F[WokenRepository[F]] = mkService(t.wokenTransactor, config.wokenDb) { xa =>
