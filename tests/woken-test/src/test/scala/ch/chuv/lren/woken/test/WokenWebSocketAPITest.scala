@@ -41,6 +41,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.collection.immutable.Seq
 import JsonHelpers._
+import ch.chuv.lren.woken.utils.ConfigurationLoader
 
 class WokenWebSocketAPITest
     extends WordSpec
@@ -50,16 +51,17 @@ class WokenWebSocketAPITest
     with BeforeAndAfterAll
     with LazyLogging {
 
-  val config: Config =
-    ConfigFactory
+  lazy val config: Config = {
+    val appConfig = ConfigFactory
       .parseString("""
-          |akka {
-          |  actor.provider = local
-          |}
-        """.stripMargin)
-      .withFallback(ConfigFactory.load())
+                     |akka {
+                     |  actor.provider = local
+                     |}
+                   """.stripMargin)
+      .withFallback(ConfigFactory.parseResourcesAnySyntax("application.conf"))
       .withFallback(ConfigFactory.parseResourcesAnySyntax("kamon.conf"))
-      .resolve()
+    ConfigurationLoader.appendClusterConfiguration(appConfig).resolve()
+  }
 
   implicit val system: ActorSystem = ActorSystem("WebSocketAPITest", config)
   implicit val materializer: ActorMaterializer = ActorMaterializer()

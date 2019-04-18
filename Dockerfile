@@ -63,7 +63,8 @@ ENTRYPOINT ["/run.sh"]
 
 # 8087: Web service API, health checks on http://host:8087/health
 # 8088: Akka cluster
-EXPOSE 8087 8088
+# 9095: Prometheus reporter
+EXPOSE 8087 8088 9095
 
 HEALTHCHECK --start-period=60s CMD curl -v --silent http://localhost:8087/health 2>&1 | grep UP
 

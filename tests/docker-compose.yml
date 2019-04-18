@@ -225,6 +225,7 @@ services:
       - "8087:8087"
       # Akka cluster
       - "8088:8088"
+      # Prometheus
       - "9095:9095"
       # Remote Java debugging with JDWP
       - "8000:8000"
