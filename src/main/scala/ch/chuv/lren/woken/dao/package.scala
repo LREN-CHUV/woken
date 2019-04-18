@@ -19,11 +19,10 @@ package ch.chuv.lren.woken
 
 import cats.Id
 import cats.MonadError
-import cats.effect.Effect
 import doobie.util.transactor.Transactor
 import sup.modules.doobie._
 import eu.timepit.refined.auto._
-import sup.{ Health, HealthCheck, mods }
+import sup.{ HealthCheck, mods }
 
 import scala.language.higherKinds
 
@@ -34,8 +33,6 @@ package object dao {
   def validate[F[_]](
       transactor: Transactor[F]
   )(implicit F: MonadError[F, Throwable]): HealthCheck[F, Id] =
-    HealthCheck.const(Health.healthy)
-  // TODO: this check block the connection pool for some reason
-  // connectionCheck(transactor)(timeoutSeconds = Some(5)).through(mods.recoverToSick)
+    connectionCheck(transactor)(timeoutSeconds = Some(5)).through(mods.recoverToSick)
 
 }
