@@ -323,7 +323,7 @@ services:
       - chronos
 
   wokenvalidationnode1:
-    image: hbpmip/woken-validation:2.7.3
+    image: hbpmip/woken-validation:2.8.0
     ports:
       - "18081:8081"
       - "18082:8082"
@@ -399,7 +399,7 @@ services:
       - chronos
 
   wokenvalidationnode2:
-    image: hbpmip/woken-validation:2.7.3
+    image: hbpmip/woken-validation:2.8.0
     ports:
       - "28081:8081"
       - "28082:8082"
@@ -491,7 +491,7 @@ services:
       - wokencentral
 
   portalbackend:
-    image: hbpmip/portal-backend:2.9.3
+    image: hbpmip/portal-backend:3.0.0
     restart: "no"
     ports:
       - "65440:8080"
@@ -542,7 +542,7 @@ services:
       - portalbackend
 
   frontend:
-    image: hbpmip/portal-frontend:2.15.1
+    image: hbpmip/portal-frontend:2.16.5
     depends_on:
       - portalbackend
     ports:
@@ -555,7 +555,7 @@ services:
       PORTAL_BACKEND_CONTEXT: services
       MODE: federation
       INSTANCE_NAME: "DEV"
-      VERSION: "2.9.0-dev (Woken dev, Validation 2.7.1, Backend 2.9.3, Frontend 2.15.1)"
+      VERSION: "3.0.0-dev (Woken dev, Validation 2.8.0, Backend 3.0.0, Frontend 2.16.5)"
 
 networks:
   default:
