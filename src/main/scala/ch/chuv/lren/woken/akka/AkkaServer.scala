@@ -21,6 +21,7 @@ import akka.actor.{ ActorRef, ActorSystem }
 import akka.cluster.Cluster
 import akka.cluster.client.ClusterClientReceptionist
 import akka.cluster.pubsub.{ DistributedPubSub, DistributedPubSubMediator }
+import cats.effect.ExitCase.{ Completed, Error }
 import cats.effect._
 import ch.chuv.lren.woken.backends.faas.chronos.ChronosExecutor
 import ch.chuv.lren.woken.backends.woken.WokenClientService
@@ -65,12 +66,14 @@ class AkkaServer[F[_]: ConcurrentEffect: ContextShift: Timer](
     val dispatcherService: DispatcherService =
       DispatcherService(databaseServices.datasetService, wokenService)
     val wokenWorker = WokenWorker[F](pubSub, cluster)
-    val algorithmExecutor = ChronosExecutor(system,
-                                            chronosHttp,
-                                            config.app.dockerBridgeNetwork,
-                                            databaseServices.jobResultService,
-                                            config.jobs,
-                                            config.databaseConfig)
+    val algorithmExecutor = ChronosExecutor(
+      system,
+      chronosHttp,
+      config.app.dockerBridgeNetwork,
+      databaseServices.jobResultService,
+      config.jobs,
+      config.databaseConfig
+    )
     val errorReporter = BugsnagErrorReporter(config.config)
 
     BackendServices(dispatcherService, algorithmExecutor, wokenWorker, errorReporter)
@@ -132,7 +135,7 @@ object AkkaServer {
       databaseServices: DatabaseServices[F],
       config: WokenConfiguration
   ): Resource[F, AkkaServer[F]] =
-    Resource.make(Sync[F].defer[AkkaServer[F]] {
+    Resource.makeCase(Sync[F].defer[AkkaServer[F]] {
 
       logger.debug(s"Akka configuration : ${config.config.getConfig("akka")}")
 
@@ -155,5 +158,11 @@ object AkkaServer {
       else
         Sync[F].raiseError(new Exception("Akka server failed to start: self-checks did not pass"))
 
-    })(_.unbind())
+    }) { (ws, exit) =>
+      exit match {
+        case Completed => ws.unbind()
+        case Error(e) =>
+          Sync[F].delay(logger.error(s"Akka server exited with error ${e.getMessage}", e))
+      }
+    }
 }

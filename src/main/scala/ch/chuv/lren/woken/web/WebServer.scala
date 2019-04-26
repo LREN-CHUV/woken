@@ -19,6 +19,7 @@ package ch.chuv.lren.woken.web
 
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Directives._
+import cats.effect.ExitCase.{ Completed, Error }
 import cats.effect._
 import cats.implicits._
 import ch.chuv.lren.woken.akka.{ AkkaServer, CoreSystem }
@@ -116,7 +117,7 @@ object WebServer {
       config: WokenConfiguration
   ): Resource[F, WebServer[F]] =
     // start a new HTTP server with our service actor as the handler
-    Resource.make(Sync[F].defer[WebServer[F]] {
+    Resource.makeCase(Sync[F].defer[WebServer[F]] {
       logger.info(s"Start web server on port ${config.app.webServicesPort}")
       val server =
         new WebServer(akkaServer, config, akkaServer.databaseServices, akkaServer.backendServices)
@@ -125,6 +126,12 @@ object WebServer {
         Sync[F].delay(server)
       else
         Sync[F].raiseError(new Exception("Web server failed to start: self-checks did not pass"))
-    })(_.unbind())
+    }) { (ws, exit) =>
+      exit match {
+        case Completed => ws.unbind()
+        case Error(e) =>
+          Sync[F].delay(logger.error(s"Web server exited with error ${e.getMessage}", e))
+      }
+    }
 
 }
