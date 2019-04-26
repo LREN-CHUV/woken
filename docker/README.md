@@ -31,8 +31,16 @@ where the environment variables are:
 * WEB_SERVICES_SECURE: If yes, HTTPS with a custom certificate will be used. Default to no.
 * WEB_SERVICES_USER: Name used to protected the web servers protected with HTTP basic authentication. Default to 'admin'
 * WEB_SERVICES_PASSWORD: Password used to protected the web servers protected with HTTP basic authentication.
-* LOG_LEVEL: Level for logs on standard output, default to WARNING
+* LOG_LEVEL: Level for generic logs on standard output, default to WARN
 * LOG_CONFIG: on/off - log configuration on start, default to off
+* AKKA_CLUSTER_LOG_LEVEL: Level for Akka Cluster logs, default to INFO
+* AKKA_REMOTE_LOG_LEVEL: Level for Akka Remote logs, default to INFO
+* AKKA_HTTP_LOG_LEVEL: Level for Akka HTTP logs, default to INFO
+* AKKA_IO_LOG_LEVEL: Level for Akka IO logs, default to INFO
+* AKKA_STREAM_LOG_LEVEL: Level for Akka Stream logs, default to INFO
+* WOKEN_LOG_LEVEL: Level for Woken logs, default to INFO
+* DB_LOG_LEVEL: Level for database logs, default to WARN
+* NETTY_LOG_LEVEL: Level for Netty logs, default to ERROR
 * VALIDATION_MIN_SERVERS: minimum number of servers with the 'validation' functionality in the cluster, default to 0
 * SCORING_MIN_SERVERS: minimum number of servers with the 'scoring' functionality in the cluster, default to 0
 * KAMON_ENABLED: enable monitoring with Kamon, default to no
