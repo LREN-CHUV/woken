@@ -19,7 +19,7 @@ package ch.chuv.lren.woken.web
 
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Directives._
-import cats.effect.ExitCase.{ Completed, Error }
+import cats.effect.ExitCase.{ Canceled, Completed, Error }
 import cats.effect._
 import cats.implicits._
 import ch.chuv.lren.woken.akka.{ AkkaServer, CoreSystem }
@@ -129,6 +129,8 @@ object WebServer {
     }) { (ws, exit) =>
       exit match {
         case Completed => ws.unbind()
+        case Canceled =>
+          Sync[F].delay(logger.info("Web server execution cancelled")).flatMap(_ => ws.unbind())
         case Error(e) =>
           Sync[F].delay(logger.error(s"Web server exited with error ${e.getMessage}", e))
       }

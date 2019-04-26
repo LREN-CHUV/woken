@@ -21,8 +21,9 @@ import akka.actor.{ ActorRef, ActorSystem }
 import akka.cluster.Cluster
 import akka.cluster.client.ClusterClientReceptionist
 import akka.cluster.pubsub.{ DistributedPubSub, DistributedPubSubMediator }
-import cats.effect.ExitCase.{ Completed, Error }
+import cats.effect.ExitCase.{ Canceled, Completed, Error }
 import cats.effect._
+import cats.implicits._
 import ch.chuv.lren.woken.backends.faas.chronos.ChronosExecutor
 import ch.chuv.lren.woken.backends.woken.WokenClientService
 import ch.chuv.lren.woken.backends.worker.WokenWorker
@@ -158,9 +159,13 @@ object AkkaServer {
       else
         Sync[F].raiseError(new Exception("Akka server failed to start: self-checks did not pass"))
 
-    }) { (ws, exit) =>
+    }) { (akkaServer, exit) =>
       exit match {
-        case Completed => ws.unbind()
+        case Completed => akkaServer.unbind()
+        case Canceled =>
+          Sync[F]
+            .delay(logger.info("Akka server execution cancelled"))
+            .flatMap(_ => akkaServer.unbind())
         case Error(e) =>
           Sync[F].delay(logger.error(s"Akka server exited with error ${e.getMessage}", e))
       }

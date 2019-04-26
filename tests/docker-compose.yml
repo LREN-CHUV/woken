@@ -314,6 +314,7 @@ services:
     environment:
       CLUSTER_PORT: 8197
       CLUSTER_IP: wokentest
+      CLUSTER_NAME: woken
       WOKEN_PORT_8088_TCP_ADDR: woken
       LOG_LEVEL: DEBUG
       KAMON_ENABLED: "yes"
