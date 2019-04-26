@@ -25,7 +25,6 @@ import doobie.implicits._
 import cats.Id
 import cats.MonadError
 import cats.data.Validated._
-import cats.effect.Effect
 import cats.implicits._
 import com.typesafe.scalalogging.LazyLogging
 import ch.chuv.lren.woken.messages.query.{

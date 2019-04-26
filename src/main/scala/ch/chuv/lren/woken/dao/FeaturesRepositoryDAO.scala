@@ -17,6 +17,8 @@
 
 package ch.chuv.lren.woken.dao
 
+import java.util.concurrent.{ ConcurrentHashMap, ConcurrentMap }
+
 import cats.Id
 import cats.Monad
 import cats.MonadError
@@ -24,7 +26,7 @@ import doobie._
 import doobie.implicits._
 import spray.json._
 import cats.data.{ NonEmptyList, Validated }
-import cats.effect.Resource
+import cats.effect.{ Async, Resource }
 import cats.implicits._
 import ch.chuv.lren.woken.config.DatabaseConfiguration
 import ch.chuv.lren.woken.core.features.FeaturesQuery
@@ -45,13 +47,26 @@ import sup.HealthCheck
 
 import scala.language.higherKinds
 
-class FeaturesRepositoryDAO[F[_]] private (
+class FeaturesRepositoryDAO[F[_]: Async] private (
     val xa: Transactor[F],
     override val database: DatabaseConfiguration
 )(implicit F: MonadError[F, Throwable])
     extends FeaturesRepository[F] {
 
+  // Simple memoization
+  val tableCaches: ConcurrentMap[TableId, F[Option[FeaturesTableRepository[F]]]] =
+    new ConcurrentHashMap()
+
   override def featuresTable(table: TableId): F[Option[FeaturesTableRepository[F]]] =
+    tableCaches.computeIfAbsent(
+      table,
+      new java.util.function.Function[TableId, F[Option[FeaturesTableRepository[F]]]] {
+        def apply(table: TableId): F[Option[FeaturesTableRepository[F]]] =
+          newFeatureTable(table)
+      }
+    )
+
+  private def newFeatureTable(table: TableId): F[Option[FeaturesTableRepository[F]]] =
     database.tables
       .get(table)
       .map(t => FeaturesTableRepositoryDAO[F](xa, t).widen[FeaturesTableRepository[F]])
@@ -65,7 +80,7 @@ object FeaturesRepositoryDAO {
 
   implicit val han: LogHandler = logging.doobieLogHandler
 
-  def apply[F[_]](
+  def apply[F[_]: Async](
       xa: Transactor[F],
       database: DatabaseConfiguration,
       wokenRepository: WokenRepository[F]
