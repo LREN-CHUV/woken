@@ -83,7 +83,7 @@ $DOCKER_COMPOSE up -d mesos_master
 $DOCKER_COMPOSE run wait_mesos_master
 $DOCKER_COMPOSE up -d mesos_slave
 if [ $tests == 1 ]; then
-    $DOCKER_COMPOSE build wokencentraltest
+    $DOCKER_COMPOSE build wokentest
 fi
 $DOCKER_COMPOSE run wait_dbs
 
@@ -121,6 +121,8 @@ $DOCKER_COMPOSE run wait_wokenvalidationnode2
 
 $DOCKER_COMPOSE up -d wokencentral
 $DOCKER_COMPOSE run wait_wokencentral
+$DOCKER_COMPOSE up -d wokenvalidationcentral
+$DOCKER_COMPOSE run wait_wokenvalidationcentral
 
 for i in 1 2 3 4 5 ; do
   $DOCKER_COMPOSE logs chronos | grep java.util.concurrent.TimeoutException || break
@@ -143,8 +145,7 @@ if [[ $tests == 1 ]]; then
 
   mkdir -p woken-test/target/responses
   chmod a+rw woken-test/target/responses/
-
-  $DOCKER_COMPOSE up wokentest ${test_args} | tee test.log
+  $DOCKER_COMPOSE up wokentest | tee test.log
 
 fi
 

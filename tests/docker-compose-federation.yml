@@ -443,10 +443,11 @@ services:
     environment:
       CLUSTER_PORT: 8088
       CLUSTER_IP: wokencentral
-      CLUSTER_NAME: woken-central
+      CLUSTER_NAME: woken
       WOKEN_PORT_8088_TCP_ADDR: wokencentral
       DOCKER_BRIDGE_NETWORK: "tests_default"
       LOG_LEVEL: DEBUG
+      WOKEN_LOG_LEVEL: DEBUG
       KAMON_ENABLED: "yes"
       KAMON_SERVICE_NAME: "woken-central"
       ZIPKIN_ENABLED: "yes"
@@ -473,7 +474,41 @@ services:
       - wokencentral
       - chronos
 
-  wokencentraltest:
+  wokenvalidationcentral:
+    image: hbpmip/woken-validation:2.8.0
+    ports:
+      - "8081:8081"
+      - "8082:8082"
+    environment:
+      CLUSTER_PORT: 8082
+      CLUSTER_IP: wokenvalidationcentral
+      CLUSTER_NAME: woken
+      WOKEN_PORT_8088_TCP_ADDR: wokencentral
+      LOG_LEVEL: DEBUG
+      KAMON_ENABLED: "yes"
+      KAMON_SERVICE_NAME: "woken-validation-central"
+      ZIPKIN_ENABLED: "yes"
+      PROMETHEUS_ENABLED: "yes"
+      SIGAR_SYSTEM_METRICS: "no"
+      JVM_SYSTEM_METRICS: "no"
+      RELEASE_STAGE: "dev"
+      DATACENTER_LOCATION: "$HOST"
+      CONTAINER_ORCHESTRATION: "docker-compose"
+    links:
+      - zipkin
+    depends_on:
+      - wokennode2
+
+  wait_wokenvalidationcentral:
+    image: "waisbrot/wait"
+    restart: "no"
+    environment:
+      TARGETS: "wokenvalidationcentral:8081"
+      TIMEOUT: 60
+    depends_on:
+      - wokenvalidationcentral
+
+  wokentest:
     build:
       context: ./woken-test
       dockerfile: Dockerfile
@@ -483,7 +518,7 @@ services:
     environment:
       CLUSTER_PORT: 8097
       CLUSTER_IP: wokentest
-      CLUSTER_NAME: woken-central
+      CLUSTER_NAME: woken
       WOKEN_PORT_8088_TCP_ADDR: wokencentral
       LOG_LEVEL: DEBUG
       DISTRIBUTED: "true"

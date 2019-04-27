@@ -23,8 +23,10 @@ import akka.actor.{ Actor, ActorRef }
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
+import cats.effect.Effect
 import ch.chuv.lren.woken.config.WokenConfiguration
 import ch.chuv.lren.woken.core.model.jobs.{ ErrorJobResult, ExperimentJobResult, JobResult }
+import ch.chuv.lren.woken.core.fp.runNow
 import ch.chuv.lren.woken.messages.query._
 import ch.chuv.lren.woken.service.{
   BackendServices,
@@ -56,7 +58,7 @@ trait QueriesActor[Q <: Query, F[_]] extends Actor with LazyLogging {
       initialQuery: Q,
       mapQueryResults: List[QueryResult],
       reduceQuery: Option[Q]
-  ): Future[QueryResult] = {
+  )(implicit effect: Effect[F]): Future[QueryResult] = {
 
     import spray.json._
     import queryProtocol._
@@ -93,11 +95,11 @@ trait QueriesActor[Q <: Query, F[_]] extends Actor with LazyLogging {
         JobResult.fromQueryResult(queryResult) match {
           case experiment: ExperimentJobResult =>
             experiment.results.valuesIterator.map { jobResult =>
-              databaseServices.jobResultService.put(jobResult)
+              runNow(databaseServices.jobResultService.put(jobResult))
               jobResult.jobIdM.getOrElse("")
             }.toList
           case jobResult =>
-            databaseServices.jobResultService.put(jobResult)
+            runNow(databaseServices.jobResultService.put(jobResult))
             List(jobResult.jobIdM.getOrElse(""))
         }
       }
