@@ -6,7 +6,7 @@ import sbtassembly.MergeStrategy
 
 autoCompilerPlugins := true
 
-addCompilerPlugin("com.lihaoyi" %% "acyclic" % "0.1.8")
+addCompilerPlugin("com.lihaoyi" %% "acyclic" % "0.1.9")
 
 // *****************************************************************************
 // Projects
