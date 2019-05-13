@@ -34,7 +34,7 @@ trait StaticResources {
         getFromResourceDirectory("swagger-ui")
       } ~
       pathPrefix("webjars" / "swagger-ui") {
-        getFromResourceDirectory("META-INF/resources/webjars/swagger-ui/3.22.0")
+        getFromResourceDirectory("META-INF/resources/webjars/swagger-ui/3.22.1")
       } ~
       path("favicon.ico") {
         complete(StatusCodes.NotFound)
