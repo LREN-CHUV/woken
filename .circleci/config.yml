@@ -3,11 +3,14 @@
 # Sample advanced CircleCI configuration: https://github.com/transcom/mymove/blob/master/.circleci/config.yml
 
 version: 2.1
+orbs:
+  anchore: anchore/anchore-engine@1.3.0
+
 jobs:
   build:
     working_directory: ~/src
     docker:
-      - image: hbpmip/docker-compose-for-ci:18.09-2
+      - image: hbpmip/docker-compose-for-ci:18.09-5
     environment:
        - CIRCLECI: true
     steps:
@@ -56,3 +59,27 @@ jobs:
       - store_artifacts:
           path: logs/
           destination: logs
+  security_checks:
+    executor: anchore/anchore_engine
+    steps:
+      - setup_remote_docker
+      - checkout
+      - run:
+          name: "Build the project"
+          command: ./build.sh
+      - anchore/analyze_local_image:
+        image_name: hbpmip/woken:latest
+        timeout: '500'
+        policy_failure: True
+        policy_bundle_file_path: .circleci/.anchore/policy_bundle.json
+        dockerfile_path: ./Dockerfile
+      - anchore/parse_reports
+      - store_artifacts:
+        path: anchore-reports
+
+workflows:
+  version: 2
+  all:
+    jobs:
+      - build
+      - security_checks

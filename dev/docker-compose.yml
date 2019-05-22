@@ -110,7 +110,7 @@ services:
 
   # Expose the database to the host
   db:
-    image: postgres:9.6.5-alpine
+    image: postgres:11.3-alpine
     ports:
       - "5432:5432"
     hostname: db
@@ -127,7 +127,7 @@ services:
       - db
 
   create_dbs:
-    image: "hbpmip/create-databases:1.0.0"
+    image: "hbpmip/create-databases:1.1.0"
     restart: "no"
     environment:
       DB_HOST: db
