@@ -6,7 +6,7 @@ import sbtassembly.MergeStrategy
 
 autoCompilerPlugins := true
 
-addCompilerPlugin("com.lihaoyi" %% "acyclic" % "0.1.8")
+addCompilerPlugin("com.lihaoyi" %% "acyclic" % "0.1.9")
 
 // *****************************************************************************
 // Projects
@@ -105,7 +105,7 @@ lazy val library =
       val akkaManagement  = "1.0.0"
       val akkaHttpSwagger = "2.0.2"
       val swaggerScala    = "2.0.3"
-      val swaggerUI       = "3.22.0"
+      val swaggerUI       = "3.22.1"
       val javaxWsRs       = "2.1.1"
       val kamon           = "1.1.6"
       val kamonAkka       = "1.1.3"
@@ -136,7 +136,7 @@ lazy val library =
       val acyclic         = "0.1.8"
       val wokenMessages   = "3.0.14"
       val sup             = "0.4.0"
-      val sttpBackend     = "1.5.15"
+      val sttpBackend     = "1.5.16"
     }
     object ExclusionRules {
       val excludeLogback = ExclusionRule(organization = "ch.qos.logback", name = "logback-classic")
