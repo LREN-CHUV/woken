@@ -50,8 +50,8 @@ jobs:
             docker cp ${id}:/build/target/test-reports/ .
             cp ./test-reports/TEST-*.xml ./test-results/unit-tests/
             docker rm -vf $id
-            source .dockerimage
-            export IMAGE=$IMAGE
+            source ./.dockerimage
+            echo "export IMAGE=$IMAGE" >> $BASH_ENV
       - store_test_results:
           path: test-results/
       - store_artifacts:
