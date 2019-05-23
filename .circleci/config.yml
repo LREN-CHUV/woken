@@ -14,13 +14,14 @@ executors:
     environment:
       - CIRCLECI: true
       - ANCHORE_VERSION: v0.3.3
+      - DOCKER_VERSION: 18.06.0-ce
 
 jobs:
   build:
     executor: docker_executor
     steps:
       - setup_remote_docker:
-          version: 18.06.0-ce
+          version: "$DOCKER_VERSION"
       - checkout
       - restore_cache:
           keys:
@@ -70,12 +71,13 @@ jobs:
       - anchore/parse_reports
       - store_artifacts:
           path: anchore-reports
+          destination: test-results/anchore-reports
 
   integration_tests:
     executor: docker_executor
     steps:
       - setup_remote_docker:
-          version: 18.06.0-ce
+          version: "$DOCKER_VERSION"
       - attach_workspace:
           at: ~/src
       - run:
