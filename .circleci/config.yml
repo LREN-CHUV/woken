@@ -55,7 +55,7 @@ jobs:
           path: test-results/
           destination: test-results
       - persist_to_workspace:
-          root: /root/src
+          root: ~/src
           paths: tests/
 
   integration_tests:
@@ -64,10 +64,10 @@ jobs:
       - setup_remote_docker:
           version: 18.06.0-ce
       - attach_workspace:
-          at: /root/src
+          at: ~/src
       - run:
           name: "Run integration tests"
-          command: /root/src/tests/ci.sh --all
+          command: ~/src/tests/ci.sh --all
       - store_test_results:
           path: test-results/
       - store_artifacts:
