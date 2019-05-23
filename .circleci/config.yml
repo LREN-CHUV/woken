@@ -14,14 +14,13 @@ executors:
     environment:
       - CIRCLECI: true
       - ANCHORE_VERSION: v0.3.3
-      - DOCKER_VERSION: 18.06.0-ce
 
 jobs:
   build:
     executor: docker_executor
     steps:
       - setup_remote_docker:
-          version: "$DOCKER_VERSION"
+          version: 18.06.0-ce
       - checkout
       - restore_cache:
           keys:
@@ -77,7 +76,7 @@ jobs:
     executor: docker_executor
     steps:
       - setup_remote_docker:
-          version: "$DOCKER_VERSION"
+          version: 18.06.0-ce
       - attach_workspace:
           at: ~/src
       - run:
