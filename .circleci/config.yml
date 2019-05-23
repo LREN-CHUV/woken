@@ -76,7 +76,7 @@ jobs:
           dockerfile_path: ./Dockerfile
       - anchore/parse_reports
       - store_artifacts:
-        path: anchore-reports
+          path: anchore-reports
 
 workflows:
   version: 2
