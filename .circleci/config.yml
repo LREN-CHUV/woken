@@ -49,6 +49,7 @@ jobs:
             docker cp ${id}:/build/target/test-reports/ .
             cp ./test-reports/TEST-*.xml ./test-results/unit-tests/
             docker rm -vf $id
+            source .dockerimage
       - store_test_results:
           path: test-results/
       - store_artifacts:
@@ -59,6 +60,13 @@ jobs:
           paths:
             - tests/
             - Dockerfile
+      - anchore/analyze_local_image:
+          image_name: ${DOCKER_IMAGE}:latest
+          timeout: '500'
+          analysis_fail: True
+      - anchore/parse_reports
+      - store_artifacts:
+          path: anchore-reports
 
   integration_tests:
     executor: docker_executor
@@ -82,32 +90,11 @@ jobs:
           path: logs/
           destination: logs
 
-  # TODO: not really using the latest image built
-  security_checks:
-    executor: anchore/anchore_engine
-    working_directory: ~/src
-    steps:
-      - setup_remote_docker
-      - attach_workspace:
-          at: ~/src
-      - anchore/analyze_local_image:
-          image_name: hbpmip/woken:latest
-          timeout: '500'
-          policy_failure: True
-          # policy_bundle_file_path: .circleci/.anchore/policy_bundle.json
-          dockerfile_path: ~/src/Dockerfile
-      - anchore/parse_reports
-      - store_artifacts:
-          path: anchore-reports
-
 workflows:
   version: 2
   all:
     jobs:
       - build
       - integration_tests:
-          requires:
-            - build
-      - security_checks:
           requires:
             - build
