@@ -2,7 +2,7 @@
 FROM hbpmip/scala-base-build:1.2.8-0 as scala-build-env
 
 # First caching layer: build.sbt and sbt configuration
-COPY build.sbt /build/
+COPY build.sbt .dockerimage /build/
 RUN  mkdir -p /build/project/
 COPY project/build.properties project/plugins.sbt project/.gitignore /build/project/
 
