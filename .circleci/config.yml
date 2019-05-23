@@ -56,7 +56,9 @@ jobs:
           destination: test-results
       - persist_to_workspace:
           root: ~/src
-          paths: tests/
+          paths:
+            - tests/
+            - Dockerfile
 
   integration_tests:
     executor: docker_executor
@@ -85,11 +87,13 @@ jobs:
     executor: anchore/anchore_engine
     steps:
       - setup_remote_docker
+      - attach_workspace:
+          at: ~/src
       - anchore/analyze_local_image:
           image_name: hbpmip/woken:latest
           timeout: '500'
           policy_failure: True
-          policy_bundle_file_path: .circleci/.anchore/policy_bundle.json
+          # policy_bundle_file_path: .circleci/.anchore/policy_bundle.json
           dockerfile_path: ./Dockerfile
       - anchore/parse_reports
       - store_artifacts:
