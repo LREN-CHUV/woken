@@ -59,6 +59,7 @@ jobs:
       - store_artifacts:
           path: logs/
           destination: logs
+
   security_checks:
     executor: anchore/anchore_engine
     steps:
