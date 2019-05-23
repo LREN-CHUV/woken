@@ -6,7 +6,7 @@ repos:
     - id: end-of-file-fixer
       exclude: .bumpversion.cfg
     - id: check-merge-conflict
-    #- id: check-added-large-files - temp disabled, doesnt seem to work anymore
+    - id: check-added-large-files
     - id: check-yaml
     - id: check-json
     - id: pretty-format-json

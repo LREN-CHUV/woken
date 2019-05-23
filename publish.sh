@@ -117,7 +117,7 @@ echo "[ok] Done"
 # Push on Docker Hub
 echo
 echo "Publishing..."
-IMAGE=hbpmip/woken
+source ./.dockerimage
 $DOCKER push "$IMAGE:latest"
 $DOCKER push "$IMAGE:$updated_version"
 
