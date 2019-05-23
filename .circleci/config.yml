@@ -85,6 +85,7 @@ jobs:
   # TODO: not really using the latest image built
   security_checks:
     executor: anchore/anchore_engine
+    working_directory: ~/src
     steps:
       - setup_remote_docker
       - attach_workspace:
@@ -94,7 +95,7 @@ jobs:
           timeout: '500'
           policy_failure: True
           # policy_bundle_file_path: .circleci/.anchore/policy_bundle.json
-          dockerfile_path: ./Dockerfile
+          dockerfile_path: ~/src/Dockerfile
       - anchore/parse_reports
       - store_artifacts:
           path: anchore-reports
