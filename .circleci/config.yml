@@ -45,6 +45,24 @@ jobs:
             docker cp ${id}:/build/target/test-reports/ .
             cp ./test-reports/TEST-*.xml ./test-results/unit-tests/
             docker rm -vf $id
+      - store_test_results:
+          path: test-results/
+      - store_artifacts:
+          path: test-results/
+          destination: test-results
+
+  integration_tests:
+    docker:
+      - image: hbpmip/docker-compose-for-ci:18.09-5
+    environment:
+       - CIRCLECI: true
+    steps:
+      - setup_remote_docker:
+          version: 18.06.0-ce
+      - checkout
+      - restore_cache:
+          keys:
+            - pre-commit-dot-cache-$CACHE_VERSION-{{ checksum ".pre-commit-config.yaml" }}
       - run:
           name: "Run integration tests"
           command: ./tests/ci.sh --all
@@ -83,4 +101,9 @@ workflows:
   all:
     jobs:
       - build
-      - security_checks
+      - integration_tests:
+          requires:
+            - build
+      - security_checks:
+          requires:
+            - build
