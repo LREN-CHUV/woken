@@ -61,9 +61,10 @@ jobs:
             - tests/
             - Dockerfile
       - anchore/analyze_local_image:
-          image_name: ${DOCKER_IMAGE}:latest
+          image_name: ${IMAGE}:latest
+          dockerfile_path: ./Dockerfile
           timeout: '500'
-          policy_failure: true
+          policy_failure: false
       - anchore/parse_reports
       - store_artifacts:
           path: anchore-reports
