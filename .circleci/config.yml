@@ -51,6 +51,7 @@ jobs:
             cp ./test-reports/TEST-*.xml ./test-results/unit-tests/
             docker rm -vf $id
             source .dockerimage
+            export IMAGE=$IMAGE
       - store_test_results:
           path: test-results/
       - store_artifacts:
@@ -62,7 +63,7 @@ jobs:
             - tests/
             - Dockerfile
       - anchore/analyze_local_image:
-          image_name: ${IMAGE}:latest
+          image_name: "${IMAGE}:latest"
           dockerfile_path: ./Dockerfile
           timeout: '500'
           policy_failure: false
