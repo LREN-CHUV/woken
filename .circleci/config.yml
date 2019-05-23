@@ -6,13 +6,17 @@ version: 2.1
 orbs:
   anchore: anchore/anchore-engine@1.3.0
 
-jobs:
-  build:
-    working_directory: ~/src
+executors:
+  docker_executor:
     docker:
       - image: hbpmip/docker-compose-for-ci:18.09-5
+    working_directory: ~/src
     environment:
-       - CIRCLECI: true
+      - CIRCLECI: true
+
+jobs:
+  build:
+    executor: docker_executor
     steps:
       - setup_remote_docker:
           version: 18.06.0-ce
@@ -50,22 +54,20 @@ jobs:
       - store_artifacts:
           path: test-results/
           destination: test-results
+      - persist_to_workspace:
+          root: /root/src
+          paths: tests/
 
   integration_tests:
-    docker:
-      - image: hbpmip/docker-compose-for-ci:18.09-5
-    environment:
-       - CIRCLECI: true
+    executor: docker_executor
     steps:
       - setup_remote_docker:
           version: 18.06.0-ce
-      - checkout
-      - restore_cache:
-          keys:
-            - pre-commit-dot-cache-$CACHE_VERSION-{{ checksum ".pre-commit-config.yaml" }}
+      - attach_workspace:
+          at: /root/src
       - run:
           name: "Run integration tests"
-          command: ./tests/ci.sh --all
+          command: /root/src/tests/ci.sh --all
       - store_test_results:
           path: test-results/
       - store_artifacts:
@@ -78,14 +80,11 @@ jobs:
           path: logs/
           destination: logs
 
+  # TODO: not really using the latest image built
   security_checks:
     executor: anchore/anchore_engine
     steps:
       - setup_remote_docker
-      - checkout
-      - run:
-          name: "Build the project"
-          command: ./build.sh
       - anchore/analyze_local_image:
           image_name: hbpmip/woken:latest
           timeout: '500'
