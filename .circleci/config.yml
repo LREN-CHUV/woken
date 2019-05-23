@@ -13,6 +13,7 @@ executors:
     working_directory: ~/src
     environment:
       - CIRCLECI: true
+      - ANCHORE_VERSION: v0.3.3
 
 jobs:
   build:
