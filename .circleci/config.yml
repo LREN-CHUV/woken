@@ -63,7 +63,7 @@ jobs:
       - anchore/analyze_local_image:
           image_name: ${DOCKER_IMAGE}:latest
           timeout: '500'
-          analysis_fail: True
+          policy_failure: true
       - anchore/parse_reports
       - store_artifacts:
           path: anchore-reports
