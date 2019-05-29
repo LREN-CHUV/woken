@@ -60,7 +60,7 @@ lazy val library =
       val kamonSystemMetrics = "1.0.1"
       val kamonSigar      = "1.6.6-rev002"
       val sprayJson       = "1.3.5"
-      val config          = "1.3.3"
+      val config          = "1.3.4"
       val wokenMessages   = "3.0.14"
     }
     object ExclusionRules {
