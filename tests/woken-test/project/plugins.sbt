@@ -21,7 +21,7 @@ addSbtPlugin("org.scalastyle" %% "scalastyle-sbt-plugin" % "1.0.0") // scalastyl
 addSbtPlugin("org.wartremover"   % "sbt-wartremover" % "2.4.1") // Wartremover
 
 // Code formatter
-addSbtPlugin("com.lucidchart"    % "sbt-scalafmt"    % "1.15")
+addSbtPlugin("com.lucidchart"    % "sbt-scalafmt"    % "1.16")
 
 // Copyright headers
 addSbtPlugin("de.heikoseeberger" % "sbt-header"      % "5.2.0")
