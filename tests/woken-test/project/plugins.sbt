@@ -8,7 +8,7 @@ resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releas
 resolvers += Resolver.bintrayRepo("kamon-io", "sbt-plugins")
 
 // App Packaging
-addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.9")
+addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.10")
 
 // Dependency Resolution
 addSbtPlugin("io.get-coursier" % "sbt-coursier" % "1.0.0")
