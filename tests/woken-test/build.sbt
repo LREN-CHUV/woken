@@ -49,7 +49,7 @@ lazy val library =
     object Version {
       val scalaCheck      = "1.14.0"
       val scalaTest       = "3.0.7"
-      val akka            = "2.5.22"
+      val akka            = "2.5.26"
       val akkaHttp        = "10.1.8"
       val kamon           = "1.1.6"
       val kamonAkka       = "1.1.3"
