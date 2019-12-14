@@ -96,7 +96,7 @@ lazy val `woken` =
 lazy val library =
   new {
     object Version {
-      val scalaCheck      = "1.14.0"
+      val scalaCheck      = "1.14.3"
       val scalaTest       = "3.0.7"
       val scalaMock       = "4.2.0"
       val akka            = "2.5.22"
