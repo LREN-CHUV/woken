@@ -24,7 +24,7 @@ addSbtPlugin("org.wartremover"   % "sbt-wartremover" % "2.4.1") // Wartremover
 addSbtPlugin("com.lucidchart"    % "sbt-scalafmt"    % "1.15")
 
 // Copyright headers
-addSbtPlugin("de.heikoseeberger" % "sbt-header"      % "5.2.0")
+addSbtPlugin("de.heikoseeberger" % "sbt-header"      % "5.6.0")
 
 // Monitoring
 addSbtPlugin("io.kamon" % "sbt-aspectj-runner" % "1.1.2")
