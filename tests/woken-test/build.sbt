@@ -59,7 +59,7 @@ lazy val library =
       val kamonReporter   = "1.0.0"
       val kamonSystemMetrics = "1.0.1"
       val kamonSigar      = "1.6.6-rev002"
-      val sprayJson       = "1.3.5"
+      val sprayJson       = "1.3.6"
       val config          = "1.3.3"
       val wokenMessages   = "3.0.14"
     }
