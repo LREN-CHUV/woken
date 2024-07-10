@@ -21,7 +21,7 @@ lazy val `woken` =
     .settings(Defaults.itSettings)
     .settings(
       Seq(
-        mainClass in Runtime := Some("ch.chuv.lren.woken.main.Main"),
+        (Runtime / mainClass) := Some("ch.chuv.lren.woken.main.Main"),
         libraryDependencies ++= Seq(
           library.akkaActor,
           //library.akkaActorTyped,
@@ -81,11 +81,11 @@ lazy val `woken` =
           library.dockerTestKitSpotify   % IntegrationTest,
           library.diff                   % Test
         ),
-        includeFilter in (Compile, unmanagedResources) := "*.json" || "*.conf" || "*.xml" || "*.html",
-        includeFilter in (Test, unmanagedResources) := "*.json" || "*.conf",
+        (Compile / unmanagedResources / includeFilter) := "*.json" || "*.conf" || "*.xml" || "*.html",
+        (Test / unmanagedResources / includeFilter) := "*.json" || "*.conf",
         // Use the customMergeStrategy in your settings
-        assemblyMergeStrategy in assembly := customMergeStrategy,
-        assemblyJarName in assembly := "woken-all.jar"
+        (assembly / assemblyMergeStrategy) := customMergeStrategy,
+        (assembly / assemblyJarName) := "woken-all.jar"
       )
     )
 
@@ -223,17 +223,17 @@ lazy val settings = commonSettings ++ gitSettings ++ scalafmtSettings
 lazy val commonSettings =
   Seq(
     scalaVersion := "2.11.12",
-    organization in ThisBuild := "ch.chuv.lren.woken",
-    organizationName in ThisBuild := "LREN CHUV for Human Brain Project",
-    homepage in ThisBuild := Some(url(s"https://github.com/HBPMedical/${name.value}/#readme")),
-    licenses in ThisBuild := Seq("AGPL-3.0" ->
+    (ThisBuild / organization) := "ch.chuv.lren.woken",
+    (ThisBuild / organizationName) := "LREN CHUV for Human Brain Project",
+    (ThisBuild / homepage) := Some(url(s"https://github.com/HBPMedical/${name.value}/#readme")),
+    (ThisBuild / licenses) := Seq("AGPL-3.0" ->
       url(s"https://github.com/LREN-CHUV/${name.value}/blob/${version.value}/LICENSE")),
-    startYear in ThisBuild := Some(2017),
-    description in ThisBuild := "Woken - a FaaS for machine learning",
-    developers in ThisBuild := List(
+    (ThisBuild / startYear) := Some(2017),
+    (ThisBuild / description) := "Woken - a FaaS for machine learning",
+    (ThisBuild / developers) := List(
       Developer("ludovicc", "Ludovic Claude", "@ludovicc", url("https://github.com/ludovicc"))
     ),
-    scmInfo in ThisBuild := Some(ScmInfo(url(s"https://github.com/HBPMedical/${name.value}"), s"git@github.com:HBPMedical/${name.value}.git")),
+    (ThisBuild / scmInfo) := Some(ScmInfo(url(s"https://github.com/HBPMedical/${name.value}"), s"git@github.com:HBPMedical/${name.value}.git")),
     scalacOptions ++= Seq(
       "-unchecked",
       "-deprecation",
@@ -248,13 +248,13 @@ lazy val commonSettings =
       "UTF-8"
     ),
     javacOptions ++= Seq("-source", "1.8", "-target", "1.8", "-Xlint"),
-    unmanagedSourceDirectories.in(Compile) := Seq(scalaSource.in(Compile).value),
-    unmanagedSourceDirectories.in(Test) := Seq(scalaSource.in(Test).value),
-    wartremoverWarnings in (Compile, compile) ++= Warts.unsafe,
-    fork in run := true,
-    test in assembly := {},
-    fork in Test := false,
-    parallelExecution in Test := false
+    (Compile / unmanagedSourceDirectories) := Seq((Compile / scalaSource).value),
+    (Test / unmanagedSourceDirectories) := Seq((Test / scalaSource).value),
+    (Compile / compile / wartremoverWarnings) ++= Warts.unsafe,
+    (run / fork) := true,
+    (assembly / test) := {},
+    (Test / fork) := false,
+    (Test / parallelExecution) := false
   )
 
 lazy val gitSettings =
@@ -269,7 +269,7 @@ lazy val gitSettings =
 lazy val scalafmtSettings =
   Seq(
     scalafmtOnCompile := true,
-    scalafmtOnCompile.in(Sbt) := false,
+    (Sbt / scalafmtOnCompile) := false,
     scalafmtVersion := "1.5.1"
   )
 
